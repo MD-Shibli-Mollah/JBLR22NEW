@@ -1,7 +1,11 @@
 git init
 git remote -v
 git remote add main https://github.com/MD-Shibli-Mollah/JBLR22
+git remote add main https://github.com/MD-Shibli-Mollah/JBLR22NEW
+
+git remote add main https://github.com/MD-Shibli-Mollah/JBLR22NEW.git
 git branch
+git branch main
 git checkout main
 git add .
 ls
