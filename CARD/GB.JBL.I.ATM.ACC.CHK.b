@@ -63,7 +63,7 @@ SUBROUTINE GB.JBL.I.ATM.ACC.CHK
     Y.CARD.REC.STATUS = EB.SystemTables.getRNew(EB.ATM19.RECORD.STATUS)
     
 ****--------------------------TRACER------------------------------------------------------------------------------
-    WriteData = "GB.JBL.I.ATM.ACC.CHK = " Y.VFUNCTION: ":Y.VFUNCTION:" Y.FUNC: ":Y.FUNC:" Y.GET.OFS.MESSAGE: ":Y.GET.OFS.MESSAGE:" Y.OFS.OPERATION: ":Y.OFS.OPERATION:" Y.COMP.OFSOPS: ":Y.COMP.OFSOPS:" Y.CARD.REC.STATUS: ":Y.CARD.REC.STATUS
+    WriteData = "GB.JBL.I.ATM.ACC.CHK = Y.VFUNCTION: ":Y.VFUNCTION:" Y.FUNC: ":Y.FUNC:" Y.GET.OFS.MESSAGE: ":Y.GET.OFS.MESSAGE:" Y.OFS.OPERATION: ":Y.OFS.OPERATION:" Y.COMP.OFSOPS: ":Y.COMP.OFSOPS:" Y.CARD.REC.STATUS: ":Y.CARD.REC.STATUS
     FileName = 'SHIBLI_ATM.txt'
     FilePath = 'D:/Temenos/t24home/default/DL.BP'
     OPENSEQ FilePath,FileName TO FileOutput THEN NULL
