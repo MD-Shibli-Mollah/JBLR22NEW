@@ -1,0 +1,266 @@
+*-----------------------------------------------------------------------------
+* <Rating>382</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PACS.AC.DATA.EXTRACT.VALIDATE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.DATES
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT ITD.BP I_F.PACS.AC.DATA.EXTRACT
+
+    SAV.ETEXT = ETEXT
+    ETEXT = ''
+    GOSUB OPEN.FILES
+    GOSUB VALIDATE.MESSAGE
+    ETEXT = SAV.ETEXT
+
+    RETURN
+
+*********
+VALIDATE:
+*********
+
+    PATH.CORRECT = 0
+    ACTUAL.OS = ''
+    CALL EB.GET.OS(ACTUAL.OS) ;* Get the running Operating system (O/S)
+
+    IF ACTUAL.OS = 'UNIX' THEN
+        PATHDELIM = "/"       ;* Unix
+    END ELSE
+        PATHDELIM = "\"       ;* Windows
+    END
+
+    IF NOT(R.NEW(AC.TOOL.LIST.FILE.PATH)) AND NOT(R.NEW(AC.TOOL.ACCOUNT.NUMBER)) THEN
+        AF = AC.TOOL.ACCOUNT.NUMBER
+        AF = AC.TOOL.LIST.FILE.PATH
+        AV = 1
+        AV = 1
+        ETEXT = "ENTER.EITHER.PATH.OR.ACCOUNT"
+        CALL STORE.END.ERROR
+    END
+
+    IF R.NEW(AC.TOOL.LIST.FILE.PATH) AND R.NEW(AC.TOOL.ACCOUNT.NUMBER) THEN
+        AF = AC.TOOL.ACCOUNT.NUMBER
+        AV = 1
+        ETEXT = "ENTER.EITHER.PATH.OR.ACCOUNT"
+        CALL STORE.END.ERROR
+    END
+
+
+    IF R.NEW(AC.TOOL.LIST.FILE.PATH) AND NOT(R.NEW(AC.TOOL.FILE.NAME)) THEN
+        AF = AC.TOOL.LIST.FILE.PATH
+        ETEXT = "FILE.NAME.MANDATORY"
+        CALL STORE.END.ERROR
+    END
+
+    IF R.NEW(AC.TOOL.LIST.FILE.PATH) THEN
+        TPATH = R.NEW(AC.TOOL.LIST.FILE.PATH)
+
+*RESTRICT.FILES = '&COMO&':@FM:'&PH&':@FM:'&ED&':@FM:'&TEMP&':@FM:'&SAVEDLISTS&':@FM:'&UFD&':@FM:'&HOLD&'
+*DCNT = DCOUNT(TPATH, PATHDELIM)
+*IF INDEX(PATHDELIM, TPATH, 1) THEN
+*    CHK.FILE = TPATH
+*END ELSE
+*    CHK.FILE = FIELD(TPATH, PATHDELIM, DCNT)
+*END
+*LOCATE CHK.FILE IN RESTRICT.FILES<1> SETTING EPOS THEN
+*    AF = AC.TOOL.LIST.FILE.PATH
+*    ETEXT = "SENSITIVE.FILE.NOT.ALLOWED"
+*    CALL STORE.END.ERROR
+*END
+
+        OPEN TPATH TO FPATH THEN
+            PATH.CORRECT = 1
+        END
+        ELSE
+            AF = AC.TOOL.LIST.FILE.PATH
+            ETEXT = "INPUT.VALID.PATH"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    IF  PATH.CORRECT = 1 AND R.NEW(AC.TOOL.FILE.NAME) THEN
+        AF = AC.TOOL.FILE.NAME
+        OPENSEQ R.NEW(AC.TOOL.LIST.FILE.PATH):PATHDELIM:R.NEW(AC.TOOL.FILE.NAME) TO pathtext ELSE
+            ETEXT = "INPUT.CORRECT.FILE.NAME"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    IF R.NEW(AC.TOOL.FILE.NAME) AND NOT(R.NEW(AC.TOOL.LIST.FILE.PATH)) THEN
+        AF = AC.TOOL.FILE.NAME
+        ETEXT = "VAILD.ONLY.IF.PATH.SPECIFIED"
+        CALL STORE.END.ERROR
+    END
+
+    IF R.NEW(AC.TOOL.ENTRY.START.DATE) THEN
+        ENTRY.DATE = R.NEW(AC.TOOL.ENTRY.START.DATE)
+        IF ENTRY.DATE GT TODAY THEN
+            AF = AC.TOOL.ENTRY.START.DATE
+            ETEXT = "SPECIFY.DATE.LESS.THAN.TODAY"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    IF R.NEW(AC.TOOL.GL.EXTRACT.REQ) NE 'YES' THEN
+        IF R.NEW(AC.TOOL.GL.START.DATE) THEN
+            AF = AC.TOOL.GL.START.DATE
+            ETEXT = "NOT.ALLOWED.WHEN.GL.NOT.REQ"
+            CALL STORE.END.ERROR
+        END
+        IF R.NEW(AC.TOOL.GL.BRANCH.REQ) THEN
+            AF = AC.TOOL.GL.BRANCH.REQ
+            ETEXT = "NOT.ALLOWED.WHEN.GL.NOT.REQ"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    IF R.NEW(AC.TOOL.GL.START.DATE) THEN
+        GSDATE = R.NEW(AC.TOOL.GL.START.DATE)
+        IF GSDATE GE TODAY THEN
+            AF = AC.TOOL.GL.START.DATE
+            ETEXT = "DATE.SHOULD.BE.LESS.THAN.TODAY"
+            CALL STORE.END.ERROR
+        END ELSE
+            GL.DATE.SPECIFIED =1
+        END
+    END
+
+    IF R.NEW(AC.TOOL.GL.BRANCH.REQ) THEN
+        GL.BRANCH.REQ = R.NEW(AC.TOOL.GL.BRANCH.REQ)
+        COM.COUNT = DCOUNT(GL.BRANCH.REQ,@VM)
+        FOR COM.POS=1 TO COM.COUNT
+            COMI = GL.BRANCH.REQ<1,COM.POS>
+            SAVE.ETEXT = ETEXT
+            ETEXT = ''
+            CALL IN2COM('','')
+            IF ETEXT THEN
+                AF = AC.TOOL.GL.BRANCH.REQ
+                AV = COM.POS
+                CALL STORE.END.ERROR
+            END ELSE
+                R.NEW(AC.TOOL.GL.BRANCH.REQ)<1,COM.POS> = COMI
+                CALL CACHE.READ("F.COMPANY",COMI,R.COMP,ER)
+                IF ER OR R.COMP<EB.COM.FINANCIAL.COM> NE R.COMPANY(EB.COM.FINANCIAL.COM) THEN
+                    AF = AC.TOOL.GL.BRANCH.REQ
+                    AV = COM.POS
+                    ETEXT = "INVALID.BRANCH.ENTERED.":COMI
+                    CALL STORE.END.ERROR
+                END
+                ETEXT = SAVE.ETEXT
+            END
+        NEXT COM.POS
+    END
+
+    IF R.NEW(AC.TOOL.LOG.FILE.PATH) THEN
+        LPATH = R.NEW(AC.TOOL.LOG.FILE.PATH)
+
+        RESTRICT.FILES = '&COMO&':@FM:'&PH&':@FM:'&ED&':@FM:'&TEMP&':@FM:'&SAVEDLISTS&':@FM:'&UFD&':@FM:'&HOLD&'
+        DCNT = DCOUNT(LPATH, PATHDELIM)
+        IF INDEX(PATHDELIM, LPATH, 1) THEN
+            CHK.FILE = LPATH
+        END ELSE
+            CHK.FILE = FIELD(LPATH, PATHDELIM, DCNT)
+        END
+        LOCATE CHK.FILE IN RESTRICT.FILES<1> SETTING EPOS THEN
+            AF = AC.TOOL.LIST.FILE.PATH
+            ETEXT = "SENSITIVE.FILE.NOT.ALLOWED"
+            CALL STORE.END.ERROR
+        END
+
+        OPEN LPATH TO LOGPATH  ELSE
+            AF = AC.TOOL.LOG.FILE.PATH
+            ETEXT = "INPUT.VALID.PATH"
+            CALL STORE.END.ERROR
+        END
+
+        IF PATH.CORRECT AND LPATH EQ TPATH THEN
+            AF = AC.TOOL.LOG.FILE.PATH
+            ETEXT = "LOG.FILE.PATH.SAME.AS.LIST.FILE"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    IF R.NEW(AC.TOOL.ACCOUNT.NUMBER) THEN
+        DUP.AC = R.NEW(AC.TOOL.ACCOUNT.NUMBER)
+        AC.CNT = DCOUNT(R.NEW(AC.TOOL.ACCOUNT.NUMBER), @VM)
+        FOR AC.POS = 1 TO AC.CNT
+            AC.DUP.CHK = DUP.AC<1,AC.POS>
+            FOR DUP.CHK.POS = AC.POS+1 TO AC.CNT
+                IF AC.DUP.CHK = DUP.AC<1,DUP.CHK.POS> THEN
+                    ETEXT = "ACCOUNT.NUMBER.DUPLICATED.":AC.DUP.CHK
+                    AF = AC.TOOL.ACCOUNT.NUMBER
+                    AV = DUP.CHK.POS
+                    CALL STORE.END.ERROR
+                END
+            NEXT AC.POS
+        NEXT DUP.CHK.POS
+    END
+
+    IF R.NEW(AC.TOOL.GL.BRANCH.REQ) NE '' THEN
+        DUP.COM = R.NEW(AC.TOOL.GL.BRANCH.REQ)
+        COM.CNT = DCOUNT(R.NEW(AC.TOOL.GL.BRANCH.REQ), @VM)
+        FOR COM.POS = 1 TO COM.CNT
+            COM.DUP.CHK = DUP.COM<1,COM.POS>
+            FOR DUP.COM.POS = COM.POS+1 TO COM.CNT
+                IF COM.DUP.CHK = DUP.COM<1,DUP.COM.POS> THEN
+                    ETEXT = "COMPANY.DUPLICATED"
+                    AF = AC.TOOL.GL.BRANCH.REQ
+                    AV = DUP.COM.POS
+                    CALL STORE.END.ERROR
+                END
+            NEXT DUP.COM.POS
+        NEXT COM.DUP.CHK
+    END
+
+    RETURN
+
+*****************
+VALIDATE.MESSAGE:
+*****************
+
+    BEGIN CASE
+    CASE MESSAGE EQ ''        ;* Only during commit
+        BEGIN CASE
+        CASE V$FUNCTION EQ 'D'
+            GOSUB VALIDATE.DELETE
+        CASE V$FUNCTION EQ 'R'
+            GOSUB VALIDATE.REVERSE
+        CASE OTHERWISE        ;* The real VALIDATE
+            GOSUB VALIDATE
+        END CASE
+    CASE MESSAGE EQ 'AUT' OR MESSAGE EQ 'VER'     ;* During authorisation and verification
+        GOSUB VALIDATE.AUTHORISATION
+    END CASE
+
+    RETURN
+
+***********
+OPEN.FILES:
+***********
+
+    FN.COMPANY = "F.COMPANY"
+    F.COMPANY = ""
+    CALL OPF(FN.COMPANY,F.COMPANY)
+
+
+    RETURN
+
+****************
+VALIDATE.DELETE:
+****************
+
+    RETURN
+
+*****************
+VALIDATE.REVERSE:
+*****************
+
+    RETURN
+
+***********************
+VALIDATE.AUTHORISATION:
+***********************
+
+    RETURN
+END

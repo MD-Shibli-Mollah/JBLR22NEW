@@ -1,0 +1,63 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.I.IMP.BLACK.LISTED
+*-------------------------------------------------------------------------------
+* This Input routine is to check and throws the error when Blacklisted id is provided
+* in the field LC.EXPIRY.PLACE or ORIGIN.COUNTRY
+*-------------------------------------------------------------------------------
+* Modification History :
+* --------------------
+* 20181018 - New - Abu Huraira
+*-------------------------------------------------------------------------------
+* Common Variables :
+* ----------------
+* R.NEW - Holds the current record values
+* ETEXT - Error Varable in the cross validations
+* AF    - Current Field number at the field validation
+* AV    - Current Value number at the field validation
+* AS    - Current SUB value number at the field validation
+*-------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INCLUDE GLOBUS.BP I_F.COUNTRY
+*-------------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+    RETURN
+*--------------------------------------------------------------------------------
+INIT:
+*--------------------------------------------------------------------------------
+    FN.BD.BLACKLIST.COUNTRY  = "F.BD.BLACKLIST.COUNTRY"
+    F.BD.BLACKLIST.COUNTRY   = ""
+    R.BD.BLACKLIST.COUNTRY   = ""
+    E.BD.BLACKLIST.COUNTRY   = ""
+    CALL OPF(FN.BD.BLACKLIST.COUNTRY,F.BD.BLACKLIST.COUNTRY)
+
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","ORIGIN.COUNTRY",Y.ORIG.CTRY.POS)
+    RETURN
+*--------------------------------------------------------------------------------
+PROCESS:
+*--------------------------------------------------------------------------------
+    CALL CACHE.READ(FN.BD.BLACKLIST.COUNTRY,"SYSTEM",R.BD.BLACKLIST.COUNTRY,E.BD.BLACKLIST.COUNTRY)
+
+    Y.EXPIRY.PLACE = R.NEW(TF.LC.EXPIRY.PLACE)
+    LOCATE Y.EXPIRY.PLACE IN R.BD.BLACKLIST.COUNTRY<1,1> SETTING COUNTRY.POS THEN
+        AF          = TF.LC.EXPIRY.PLACE
+        ETEXT       = "EB-BLACKLISTED.COUNTRY"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    Y.ORIG.CTRY =  R.NEW(TF.LC.LOCAL.REF)<1,Y.ORIG.CTRY.POS>
+    LOCATE Y.ORIG.CTRY IN R.BD.BLACKLIST.COUNTRY<1,1> SETTING COUNTRY.POS1 THEN
+        AF          = TF.LC.LOCAL.REF
+        AV          = Y.ORIG.CTRY.POS
+        ETEXT       = "EB-BLACKLISTED.COUNTRY"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    RETURN
+END

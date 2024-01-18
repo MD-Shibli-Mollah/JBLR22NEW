@@ -1,0 +1,18 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE WAVE.COMMISION
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.FUNDS.TRANSFER
+
+    IF COMI EQ 'WAIVE' THEN
+        R.NEW(FT.COMMISSION.TYPE) = ''
+        R.NEW(FT.COMMISSION.AMT) = ''
+    END
+    IF R.NEW(FT.ORDERING.BANK) EQ '' THEN
+        R.NEW(FT.ORDERING.BANK) = 'JBL'
+    END
+
+    RETURN
+END

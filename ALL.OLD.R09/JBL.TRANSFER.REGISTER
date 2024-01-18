@@ -1,0 +1,644 @@
+**************************************************************************
+*-------------For Daily Transfer Register--------------------
+*Company Name   : Datasoft Systems Bangladesh Limited
+*Developed By   : Mehedi
+*
+*----------------------------------------------------------------------
+*Subroutine Type:
+*
+*Attached To    : The STANDARD.SELECTION as routine 'NOFILE.TRANSFER.REGISTER'
+*
+*Attached As    : Sub Routine which return output for the enquiry 'E.TRANSFER.REGISTER'
+*
+*In Parameter   : N/A
+*
+*Out Parameter  : N/A
+*--------------------------------------------------------------------------------------
+*Description    : This Routine return output data for the enquiry 'E.TRANSFER.REGISTER'
+*
+*--------------------------------------------------------------------------------------
+*Modification Details:
+*New:
+*
+*-------------------------------------------------------------------------
+*Modification History :
+*
+*-------------------------------------------------------------------------
+*Info :
+* OBO = One By One
+**************************************************************************
+    SUBROUTINE JBL.TRANSFER.REGISTER(Y.RETURN)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.FT.COMMISSION.TYPE
+    $INSERT GLOBUS.BP I_F.TAX
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT JBL.BP I_F.ABL.H.MUL.CR
+    $INSERT JBL.BP I_F.ABL.H.MUL.DR
+    $INSERT JBL.BP I_F.ABL.H.MUL.MCD
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+
+*--------
+INIT:
+*--------
+    FN.FT = 'FBNK.FUNDS.TRANSFER'
+    F.FT =''
+
+    FN.FT.COMM = 'FBNK.FT.COMMISSION.TYPE'
+    F.FT.COMM = ''
+
+    FN.TAX = 'FBNK.TAX'
+    F.TAX = ''
+
+    FN.ACCT = 'FBNK.ACCOUNT'
+    F.ACCT = ''
+
+    FN.SDMC = 'F.ABL.H.MUL.CR'
+    F.SDMC = ''
+
+    FN.SCMD = 'F.ABL.H.MUL.DR'
+    F.SCMD = ''
+
+    FN.MDMC = 'F.ABL.H.MUL.MCD'
+    F.MDMC = ''
+
+    Y.COMPANY = ID.COMPANY
+    RETURN
+
+*----------
+OPENFILE:
+*----------
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.COMM,F.FT.COMM)
+    CALL OPF(FN.TAX,F.TAX)
+    CALL OPF(FN.ACCT,F.ACCT)
+    CALL OPF(FN.SDMC,F.SDMC)
+    CALL OPF(FN.SCMD,F.SCMD)
+    CALL OPF(FN.MDMC,F.MDMC)
+    RETURN
+
+*--------
+PROCESS:
+*--------
+    SEL.CMD ='SELECT ':FN.FT :' WITH CO.CODE EQ ':ID.COMPANY
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+    LOOP
+        REMOVE Y.FT.ID FROM SEL.LIST SETTING POS
+    WHILE Y.FT.ID : POS
+
+        CALL F.READ(FN.FT,Y.FT.ID,R.FT.REC,F.FT,Y.FT.ERR)
+        Y.SWIFT.MSG = R.FT.REC<FT.IN.SWIFT.MSG>
+        Y.BFR.SORT.DATA<-1> = Y.SWIFT.MSG:"*":Y.FT.ID
+
+    REPEAT
+
+    Y.AFTR.SORT.DATA = SORT(Y.BFR.SORT.DATA)
+    Y.AFTR.SORT.DATA.CNT = DCOUNT(Y.AFTR.SORT.DATA,@FM)
+
+    FOR I=1 TO Y.AFTR.SORT.DATA.CNT
+        Y.AFTR.SORT.FLD.DATA = Y.AFTR.SORT.DATA<I>
+        Y.AFTR.SRT.FT.ID = FIELD(Y.AFTR.SORT.FLD.DATA,'*',2,1)
+        Y.AFTR.SORT.SWIFT.MSG = FIELD(Y.AFTR.SORT.FLD.DATA,'*',1,1)
+
+        IF Y.AFTR.SORT.SWIFT.MSG EQ '' THEN
+            GOSUB GET.SINGLE.FT
+        END
+
+        IF Y.AFTR.SORT.SWIFT.MSG NE '' THEN
+            Y.AFTR.SORT.SWIFT.MSG.CHK = Y.AFTR.SORT.SWIFT.MSG[1,5]
+
+            IF Y.AFTR.SORT.SWIFT.MSG.CHK EQ 'BKACC' THEN
+                Y.AFTR.SORT.SWIFT.MSG.NEW.SDMC = Y.AFTR.SORT.SWIFT.MSG
+                GOSUB GET.SINGLE.DR.MULTIPLE.CR
+            END
+            IF Y.AFTR.SORT.SWIFT.MSG.CHK EQ 'BKACD' THEN
+                Y.AFTR.SORT.SWIFT.MSG.NEW.SCMD = Y.AFTR.SORT.SWIFT.MSG
+                GOSUB GET.SINGLE.CR.MULTIPLE.DR
+            END
+            IF Y.AFTR.SORT.SWIFT.MSG.CHK EQ 'BKACM' THEN
+                Y.AFTR.SORT.SWIFT.MSG.NEW = Y.AFTR.SORT.SWIFT.MSG
+                GOSUB GET.MULTIPLE.DR.MULTIPLE.CR
+            END
+        END
+    NEXT I
+    RETURN
+*------------------------------------------For Single FT(Start)-------------------------------------------------
+*--------------
+GET.SINGLE.FT:
+*--------------
+    CALL F.READ(FN.FT,Y.AFTR.SRT.FT.ID,R.FT.REC,F.FT,Y.FT.ERR)
+
+    Y.DR.ACCT = R.FT.REC<FT.DEBIT.ACCT.NO>
+    Y.CR.ACCT = R.FT.REC<FT.CREDIT.ACCT.NO>
+    Y.DR.AMT = R.FT.REC<FT.AMOUNT.DEBITED>
+    Y.CR.AMT =  R.FT.REC<FT.AMOUNT.CREDITED>
+    Y.DR.THR.REF = R.FT.REC<FT.DEBIT.THEIR.REF>
+    Y.CR.THR.REF = R.FT.REC<FT.CREDIT.THEIR.REF>
+    Y.CHQ.NO = R.FT.REC<FT.CHEQUE.NUMBER>
+    Y.COMM.TYPE = R.FT.REC<FT.COMMISSION.TYPE>
+    Y.CHRG.AMT = R.FT.REC<FT.COMMISSION.AMT>
+    Y.SGL.CR.FT.ID = ''
+
+    CALL F.READ(FN.ACCT,Y.DR.ACCT,R.ACCT.REC,F.ACCT,Y.ACCT.ERR)
+    Y.DR.ACCT.NM = R.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+    CALL F.READ(FN.ACCT,Y.CR.ACCT,R.CR.ACCT.REC,F.ACCT,Y.ACCT.ERR)
+    Y.CR.ACCT.NM = R.CR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+    Y.RETURN<-1> =Y.AFTR.SRT.FT.ID:"*":Y.DR.ACCT:"*":Y.DR.ACCT.NM:"*":Y.CHQ.NO:"*":Y.DR.AMT[4,19]:"*":Y.DR.THR.REF:"*":Y.SGL.CR.FT.ID:"*":Y.CR.ACCT:"*":Y.CR.ACCT.NM:"*":Y.CR.AMT[4,19]:"*":Y.CR.THR.REF
+
+    IF Y.COMM.TYPE NE '' THEN
+        GOSUB GET.CHARGE.INFO
+    END
+    RETURN
+*----------------
+GET.CHARGE.INFO:
+*----------------
+    Y.COMM.TYPE.CNT = DCOUNT(R.FT.REC<FT.COMMISSION.TYPE>,@VM)
+    FOR J=1 TO Y.COMM.TYPE.CNT
+        Y.COMM.TYPE.OBO = R.FT.REC<FT.COMMISSION.TYPE,J>
+        Y.CHRG.AMT.OBO = R.FT.REC<FT.COMMISSION.AMT,J>[4,19]
+        Y.TAX.AMT = R.FT.REC<FT.TAX.AMT,J>[4,19]
+
+        CALL F.READ(FN.FT.COMM,Y.COMM.TYPE.OBO,R.FT.COMM,F.FT.COMM,E.FT.COMM.ERR)
+        Y.CAT.ACCT = R.FT.COMM<FT4.CATEGORY.ACCOUNT>
+        Y.CAT.ACCT.DESC = R.FT.COMM<FT4.DESCRIPTION>
+        Y.TAX.CODE = R.FT.COMM<FT4.TAX.CODE>
+        Y.CAT.ACCT.BDT = Y.CAT.ACCT[1,3]
+
+        IF Y.CAT.ACCT GE 50000 AND Y.CAT.ACCT LE 69999 AND Y.CAT.ACCT.BDT NE 'BDT' THEN
+            Y.CR.CHRG.ACCT = 'PL':Y.CAT.ACCT
+            Y.AFTR.SRT.FT.ID = ''
+            Y.DR.ACCT = ''
+            Y.DR.ACCT.NM = ''
+            Y.CHQ.NO = ''
+            Y.DR.AMT = ''
+            Y.DR.THR.REF = ''
+            Y.SGL.CR.FT.ID = ''
+            Y.RETURN<-1> =Y.AFTR.SRT.FT.ID:"*":Y.DR.ACCT:Y.DR.ACCT.NM:"*":Y.CHQ.NO:"*":"*":Y.DR.AMT[4,19]:"*":Y.DR.THR.REF:"*":Y.SGL.CR.FT.ID:"*":Y.CR.CHRG.ACCT:"*":Y.CAT.ACCT.DESC:"*":Y.CHRG.AMT.OBO
+            IF Y.TAX.CODE NE '' THEN
+                GOSUB GET.TAX.INFO
+            END
+        END ELSE
+            IF Y.CAT.ACCT.BDT EQ 'BDT' THEN
+                Y.CAT.ACCT.CODE = Y.CAT.ACCT[4,5]
+                Y.CR.CHRG.ACCT = 'BDT':Y.CAT.ACCT.CODE:'0':ID.COMPANY[3,9]
+                Y.AFTR.SRT.FT.ID = ''
+                Y.DR.ACCT = ''
+                Y.DR.ACCT.NM = ''
+                Y.CHQ.NO = ''
+                Y.DR.AMT = ''
+                Y.DR.THR.REF = ''
+                Y.SGL.CR.FT.ID = ''
+                Y.RETURN<-1> =Y.AFTR.SRT.FT.ID:"*":Y.DR.ACCT:Y.DR.ACCT.NM:"*":Y.CHQ.NO:"*":"*":Y.DR.AMT[4,19]:"*":Y.DR.THR.REF:"*":Y.SGL.CR.FT.ID:"*":Y.CR.CHRG.ACCT:"*":Y.CAT.ACCT.DESC:"*":Y.CHRG.AMT.OBO
+                IF Y.TAX.CODE NE '' THEN
+                    GOSUB GET.TAX.INFO
+                END
+            END
+        END
+    NEXT J
+    RETURN
+*-------------
+GET.TAX.INFO:
+*-------------
+    SEL.CMD.TAX = 'SELECT ':FN.TAX :' WITH @ID LIKE ':Y.TAX.CODE:'...'
+
+    CALL EB.READLIST(SEL.CMD.TAX,SEL.TAX.LIST,'',NO.OF.TAX.REC,RET.CODE)
+    Y.TAX.ID = SEL.TAX.LIST<NO.OF.TAX.REC>
+
+    CALL F.READ(FN.TAX,Y.TAX.ID,R.TAX.REC,F.TAX,Y.TAX.ERR)
+    Y.TAX.CAT = R.TAX.REC<EB.TAX.CATEGORY>
+
+    Y.CR.TAX.ACCT = 'BDT':Y.TAX.CAT:'0':ID.COMPANY[3,9]
+    CALL F.READ(FN.ACCT,Y.CR.TAX.ACCT,R.TAX.ACCT.REC,F.ACCT,Y.TAX.ACCT.ERR)
+    Y.CR.TAX.ACCT.NM = R.TAX.ACCT.REC<AC.ACCOUNT.TITLE.1>
+    Y.AFTR.SRT.FT.ID = ''
+    Y.DR.ACCT = ''
+    Y.DR.ACCT.NM = ''
+    Y.CHQ.NO = ''
+    Y.DR.AMT = ''
+    Y.DR.THR.REF = ''
+    Y.SGL.CR.FT.ID = ''
+    Y.RETURN<-1> =Y.AFTR.SRT.FT.ID:"*":Y.DR.ACCT:"*":Y.DR.ACCT.NM:"*":Y.CHQ.NO:"*":Y.DR.AMT[4,19]:"*":Y.DR.THR.REF:"*":Y.SGL.CR.FT.ID:"*":Y.CR.TAX.ACCT:"*":Y.CR.TAX.ACCT.NM:"*":Y.TAX.AMT
+    RETURN
+*----------------------------------For Single FT(End)----------------------------------------------
+
+*----------------------------------For Multiple FT(Start)------------------------------------------
+*-------------------------
+GET.SINGLE.DR.MULTIPLE.CR:
+*-------------------------
+    IF Y.AFTR.SORT.SWIFT.MSG.OLD.SDMC EQ '' THEN
+        Y.AFTR.SORT.SWIFT.MSG.OLD.SDMC = Y.AFTR.SORT.SWIFT.MSG.NEW.SDMC
+        CALL F.READ(FN.SDMC,Y.AFTR.SORT.SWIFT.MSG.NEW.SDMC,R.SDMC.REC,F.SDMC,Y.SDMC.ERR)
+        Y.SDMC.DR.ACCT = R.SDMC.REC<MULCR.DEBIT.ACCT.NO>
+        Y.SDMC.DR.AMT = R.SDMC.REC<MULCR.DEBIT.AMOUNT>
+        Y.SDMC.DR.FT = R.SDMC.REC<MULCR.DR.FT.REF>
+        Y.SDMC.CR.ACCT.CNT = DCOUNT(R.SDMC.REC<MULCR.CREDIT.ACCT.NO>,@VM)
+
+        FOR L = 1 TO Y.SDMC.CR.ACCT.CNT
+            Y.SDMC.CR.FT = R.SDMC.REC<MULCR.CR.FT.REF,L>
+
+            IF Y.SDMC.CR.FT NE '' THEN
+                Y.SDMC.CR.ACCT = R.SDMC.REC<MULCR.CREDIT.ACCT.NO,L>
+                Y.SDMC.CR.AMT = R.SDMC.REC<MULCR.CREDIT.AMOUNT,L>
+                Y.SDMC.DR.CHQ.NO = R.SDMC.REC<MULCR.CHEQUE.NUMBER>
+                Y.PARKING.ACCT = 'BDT140320':ID.COMPANY[3,7]
+
+                IF Y.PARKING.ACCT EQ Y.SDMC.DR.ACCT THEN
+                    Y.SDMC.DR.ACCT = ''
+                END
+
+                IF Y.PARKING.ACCT EQ Y.SDMC.CR.ACCT THEN
+                    Y.SDMC.CR.ACCT = ''
+                END
+                CALL F.READ(FN.ACCT,Y.SDMC.DR.ACCT,R.SDMC.DR.ACCT.REC,F.ACCT,Y.SDMC.DR.ACCT.ERR)
+                Y.SDMC.DR.ACCT.NM = R.SDMC.DR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                CALL F.READ(FN.ACCT,Y.SDMC.CR.ACCT,R.SDMC.CR.ACCT.REC,F.ACCT,Y.SDMC.CR.ACCT.ERR)
+                Y.SDMC.CR.ACCT.NM = R.SDMC.CR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                Y.RETURN<-1> = Y.AFTR.SORT.SWIFT.MSG.NEW.SDMC:"*":Y.SDMC.DR.ACCT:"*":Y.SDMC.DR.ACCT.NM:"*":Y.SDMC.DR.CHQ.NO:"*":Y.SDMC.DR.AMT:"*":Y.SDMC.DR.FT:"*":Y.SDMC.CR.FT:"*":Y.SDMC.CR.ACCT:"*":Y.SDMC.CR.ACCT.NM:"*":Y.SDMC.CR.AMT
+
+                Y.AFTR.SORT.SWIFT.MSG.NEW.SDMC = ''
+                Y.SDMC.DR.ACCT = ''
+                Y.SCMD.DR.AMT = ''
+                Y.SCMD.DR.FT = ''
+            END
+        NEXT L
+    END ELSE
+        IF Y.AFTR.SORT.SWIFT.MSG.OLD.SDMC NE Y.AFTR.SORT.SWIFT.MSG.NEW.SDMC THEN
+            Y.AFTR.SORT.SWIFT.MSG.OLD = Y.AFTR.SORT.SWIFT.MSG.NEW
+            CALL F.READ(FN.SDMC,Y.AFTR.SORT.SWIFT.MSG.NEW.SDMC,R.SDMC.REC,F.SDMC,Y.SDMC.ERR)
+            Y.SDMC.DR.ACCT = R.SDMC.REC<MULCR.DEBIT.ACCT.NO>
+            Y.SDMC.DR.AMT = R.SDMC.REC<MULCR.DEBIT.AMOUNT>
+            Y.SDMC.DR.FT = R.SDMC.REC<MULCR.DR.FT.REF>
+            Y.SDMC.CR.ACCT.CNT = DCOUNT(R.SDMC.REC<MULCR.CREDIT.ACCT.NO>,@VM)
+
+            FOR L = 1 TO Y.SDMC.CR.ACCT.CNT
+                Y.SDMC.CR.FT = R.SDMC.REC<MULCR.CR.FT.REF,L>
+
+                IF Y.SDMC.CR.FT NE '' THEN
+                    Y.SDMC.CR.ACCT = R.SDMC.REC<MULCR.CREDIT.ACCT.NO,L>
+                    Y.SDMC.CR.AMT = R.SDMC.REC<MULCR.CREDIT.AMOUNT,L>
+                    Y.SDMC.DR.CHQ.NO = R.SDMC.REC<MULCR.CHEQUE.NUMBER>
+                    Y.PARKING.ACCT = 'BDT140320':ID.COMPANY[3,7]
+
+                    IF Y.PARKING.ACCT EQ Y.SDMC.DR.ACCT THEN
+                        Y.SDMC.DR.ACCT = ''
+                    END
+
+                    IF Y.PARKING.ACCT EQ Y.SDMC.CR.ACCT THEN
+                        Y.SDMC.CR.ACCT = ''
+                    END
+                    CALL F.READ(FN.ACCT,Y.SDMC.DR.ACCT,R.SDMC.DR.ACCT.REC,F.ACCT,Y.SDMC.DR.ACCT.ERR)
+                    Y.SDMC.DR.ACCT.NM = R.SDMC.DR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                    CALL F.READ(FN.ACCT,Y.SDMC.CR.ACCT,R.SDMC.CR.ACCT.REC,F.ACCT,Y.SDMC.CR.ACCT.ERR)
+                    Y.SDMC.CR.ACCT.NM = R.SDMC.CR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                    Y.RETURN<-1> = Y.AFTR.SORT.SWIFT.MSG.NEW.SDMC:"*":Y.SDMC.DR.ACCT:"*":Y.SDMC.DR.ACCT.NM:"*":Y.SDMC.DR.CHQ.NO:"*":Y.SDMC.DR.AMT:"*":Y.SDMC.DR.FT:"*":Y.SDMC.CR.FT:"*":Y.SDMC.CR.ACCT:"*":Y.SDMC.CR.ACCT.NM:"*":Y.SDMC.CR.AMT
+
+                    Y.AFTR.SORT.SWIFT.MSG.NEW.SDMC = ''
+                    Y.SDMC.DR.ACCT = ''
+                    Y.SCMD.DR.AMT = ''
+                    Y.SCMD.DR.FT = ''
+                END
+            NEXT L
+        END
+    END
+    RETURN
+*-------------------------
+GET.SINGLE.CR.MULTIPLE.DR:
+*-------------------------
+    IF Y.AFTR.SORT.SWIFT.MSG.OLD.SCMD EQ '' THEN
+        Y.AFTR.SORT.SWIFT.MSG.OLD.SCMD = Y.AFTR.SORT.SWIFT.MSG.NEW.SCMD
+        CALL F.READ(FN.SCMD,Y.AFTR.SORT.SWIFT.MSG.NEW.SCMD,R.SCMD.REC,F.SCMD,Y.SCMD.ERR)
+        Y.SCMD.CR.ACCT = R.SCMD.REC<MULDR.CREDIT.ACCT.NO>
+        Y.SCMD.CR.AMT = R.SCMD.REC<MULDR.CREDIT.AMOUNT>
+        Y.SCMD.CR.FT = R.SCMD.REC<MULDR.CR.FT.REF>
+        Y.SCMD.DR.ACCT.CNT = DCOUNT(R.SCMD.REC<MULDR.DEBIT.ACCT.NO>,@VM)
+
+        FOR Z = 1 TO Y.SCMD.DR.ACCT.CNT
+            Y.SCMD.DR.FT = R.SCMD.REC<MULDR.DR.FT.REF,Z>
+
+            IF Y.SCMD.DR.FT NE '' THEN
+                Y.SCMD.DR.ACCT = R.SCMD.REC<MULDR.DEBIT.ACCT.NO,Z>
+                Y.SCMD.DR.AMT = R.SCMD.REC<MULDR.DEBIT.AMOUNT,Z>
+                Y.SCMD.DR.CHQ.NO = R.SCMD.REC<MULDR.CHEQUE.NUMBER,Z>
+                Y.PARKING.ACCT = 'BDT140320':ID.COMPANY[3,7]
+
+                IF Y.PARKING.ACCT EQ Y.SCMD.DR.ACCT THEN
+                    Y.SCMD.DR.ACCT = ''
+                END
+
+                IF Y.PARKING.ACCT EQ Y.SCMD.CR.ACCT THEN
+                    Y.SCMD.CR.ACCT = ''
+                END
+                CALL F.READ(FN.ACCT,Y.SCMD.DR.ACCT,R.SCMD.DR.ACCT.REC,F.ACCT,Y.SCMD.DR.ACCT.ERR)
+                Y.SCMD.DR.ACCT.NM = R.SCMD.DR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                CALL F.READ(FN.ACCT,Y.SCMD.CR.ACCT,R.SCMD.CR.ACCT.REC,F.ACCT,Y.SCMD.CR.ACCT.ERR)
+                Y.SCMD.CR.ACCT.NM = R.SCMD.CR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                Y.RETURN<-1> = Y.AFTR.SORT.SWIFT.MSG.NEW.SCMD:"*":Y.SCMD.DR.ACCT:"*":Y.SCMD.DR.ACCT.NM:"*":Y.SCMD.DR.CHQ.NO:"*":Y.SCMD.DR.AMT:"*":Y.SCMD.DR.FT:"*":Y.SCMD.CR.FT:"*":Y.SCMD.CR.ACCT:"*":Y.SCMD.CR.ACCT.NM:"*":Y.SCMD.CR.AMT
+
+                Y.AFTR.SORT.SWIFT.MSG.NEW.SCMD = ''
+                Y.SCMD.CR.ACCT = ''
+                Y.SCMD.CR.AMT = ''
+                Y.SCMD.CR.FT = ''
+            END
+        NEXT Z
+    END ELSE
+        IF Y.AFTR.SORT.SWIFT.MSG.OLD.SCMD NE Y.AFTR.SORT.SWIFT.MSG.NEW.SCMD THEN
+            Y.AFTR.SORT.SWIFT.MSG.OLD.SCMD = Y.AFTR.SORT.SWIFT.MSG.NEW.SCMD
+            CALL F.READ(FN.SCMD,Y.AFTR.SORT.SWIFT.MSG.NEW.SCMD,R.SCMD.REC,F.SCMD,Y.SCMD.ERR)
+            Y.SCMD.CR.ACCT = R.SCMD.REC<MULDR.CREDIT.ACCT.NO>
+            Y.SCMD.CR.AMT = R.SCMD.REC<MULDR.CREDIT.AMOUNT>
+            Y.SCMD.CR.FT = R.SCMD.REC<MULDR.CR.FT.REF>
+            Y.SCMD.DR.ACCT.CNT = DCOUNT(R.SCMD.REC<MULDR.DEBIT.ACCT.NO>,@VM)
+
+            FOR Z = 1 TO Y.SCMD.DR.ACCT.CNT
+                Y.SCMD.DR.FT = R.SCMD.REC<MULDR.DR.FT.REF,Z>
+
+                IF Y.SCMD.DR.FT NE '' THEN
+                    Y.SCMD.DR.ACCT = R.SCMD.REC<MULDR.DEBIT.ACCT.NO,Z>
+                    Y.SCMD.DR.AMT = R.SCMD.REC<MULDR.DEBIT.AMOUNT,Z>
+
+                    Y.SCMD.DR.CHQ.NO = R.SCMD.REC<MULDR.CHEQUE.NUMBER,Z>
+                    Y.PARKING.ACCT = 'BDT140320':ID.COMPANY[3,7]
+
+                    IF Y.PARKING.ACCT EQ Y.SCMD.DR.ACCT THEN
+                        Y.SCMD.DR.ACCT = ''
+                    END
+
+                    IF Y.PARKING.ACCT EQ Y.SCMD.CR.ACCT THEN
+                        Y.SCMD.CR.ACCT = ''
+                    END
+                    CALL F.READ(FN.ACCT,Y.SCMD.DR.ACCT,R.SCMD.DR.ACCT.REC,F.ACCT,Y.SCMD.DR.ACCT.ERR)
+                    Y.SCMD.DR.ACCT.NM = R.SCMD.DR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                    CALL F.READ(FN.ACCT,Y.MUL.CR.ACCT,R.MUL.CR.ACCT.REC,F.ACCT,Y.MUL.CR.ACCT.ERR)
+                    Y.SCMD.CR.ACCT.NM = R.SCMD.CR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                    Y.RETURN<-1> = Y.AFTR.SORT.SWIFT.MSG.NEW.SCMD:"*":Y.SCMD.DR.ACCT:"*":Y.SCMD.DR.ACCT.NM:"*":Y.SCMD.DR.CHQ.NO:"*":Y.SCMD.DR.AMT:"*":Y.SCMD.DR.FT:"*":Y.SCMD.CR.FT:"*":Y.SCMD.CR.ACCT:"*":Y.SCMD.CR.ACCT.NM:"*":Y.SCMD.CR.AMT
+
+                    Y.AFTR.SORT.SWIFT.MSG.NEW.SCMD = ''
+                    Y.SCMD.CR.ACCT = ''
+                    Y.SCMD.CR.AMT = ''
+                    Y.SCMD.CR.FT = ''
+                END
+            NEXT Z
+        END
+    END
+    RETURN
+*----------------------------
+GET.MULTIPLE.DR.MULTIPLE.CR:
+*----------------------------
+    IF Y.AFTR.SORT.SWIFT.MSG.OLD EQ '' THEN
+
+        Y.AFTR.SORT.SWIFT.MSG.OLD = Y.AFTR.SORT.SWIFT.MSG.NEW
+        CALL F.READ(FN.MDMC,Y.AFTR.SORT.SWIFT.MSG.NEW,R.MDMC.REC,F.MDMC,Y.MDMC.ERR)
+        Y.MUL.DR.ACCT.CNT = DCOUNT(R.MDMC.REC<MCD.DEBIT.ACCT.NO>,@VM)
+        Y.MUL.CR.ACCT.CNT = DCOUNT(R.MDMC.REC<MCD.CREDIT.ACCT.NO>,@VM)
+
+        IF Y.MUL.DR.ACCT.CNT GT Y.MUL.CR.ACCT.CNT THEN
+            FOR K = 1 TO Y.MUL.DR.ACCT.CNT
+                Y.MUL.DR.ACCT = R.MDMC.REC<MCD.DEBIT.ACCT.NO,K>
+                Y.MUL.CR.ACCT = R.MDMC.REC<MCD.CREDIT.ACCT.NO,K>
+                Y.MUL.DR.AMT = R.MDMC.REC<MCD.DEBIT.AMOUNT,K>
+                Y.MUL.CR.AMT = R.MDMC.REC<MCD.CREDIT.AMOUNT,K>
+                Y.MUL.DR.FT = R.MDMC.REC<MCD.DR.FT.REF,K>
+                Y.MUL.CR.FT = R.MDMC.REC<MCD.CR.FT.REF,K>
+                Y.MUL.DR.CHQ.NO = R.MDMC.REC<MCD.CHEQUE.NUMBER,K>
+                Y.PARKING.ACCT = 'BDT140320':ID.COMPANY[3,7]
+
+                IF K LE Y.MUL.DR.ACCT.CNT AND Y.MUL.DR.FT EQ '' AND Y.MUL.DR.ACCT NE '' THEN
+                    Y.MUL.DR.AMT = ''
+                END
+                IF K LE Y.MUL.CR.ACCT.CNT AND Y.MUL.CR.FT EQ '' AND Y.MUL.CR.ACCT NE '' THEN
+                    Y.MUL.CR.AMT = ''
+                END
+
+                IF Y.PARKING.ACCT EQ Y.MUL.DR.ACCT THEN
+                    Y.MUL.DR.ACCT = ''
+                END
+
+                IF Y.PARKING.ACCT EQ Y.MUL.CR.ACCT THEN
+                    Y.MUL.CR.ACCT = ''
+                END
+                CALL F.READ(FN.ACCT,Y.MUL.DR.ACCT,R.MUL.DR.ACCT.REC,F.ACCT,Y.MUL.DR.ACCT.ERR)
+                Y.MUL.DR.ACCT.NM = R.MUL.DR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                CALL F.READ(FN.ACCT,Y.MUL.CR.ACCT,R.MUL.CR.ACCT.REC,F.ACCT,Y.MUL.CR.ACCT.ERR)
+                Y.MUL.CR.ACCT.NM = R.MUL.CR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+
+                Y.RETURN<-1> = Y.AFTR.SORT.SWIFT.MSG.NEW:"*":Y.MUL.DR.ACCT:"*":Y.MUL.DR.ACCT.NM:"*":Y.MUL.DR.CHQ.NO:"*":Y.MUL.DR.AMT:"*":Y.MUL.DR.FT:"*":Y.MUL.CR.FT:"*":Y.MUL.CR.ACCT:"*":Y.MUL.CR.ACCT.NM:"*":Y.MUL.CR.AMT
+
+                Y.AFTR.SORT.SWIFT.MSG.NEW = ''
+
+            NEXT K
+        END ELSE
+            IF Y.MUL.DR.ACCT.CNT LT Y.MUL.CR.ACCT.CNT THEN
+                FOR K = 1 TO Y.MUL.CR.ACCT.CNT
+                    Y.MUL.DR.ACCT = R.MDMC.REC<MCD.DEBIT.ACCT.NO,K>
+                    Y.MUL.CR.ACCT = R.MDMC.REC<MCD.CREDIT.ACCT.NO,K>
+                    Y.MUL.DR.AMT = R.MDMC.REC<MCD.DEBIT.AMOUNT,K>
+                    Y.MUL.CR.AMT = R.MDMC.REC<MCD.CREDIT.AMOUNT,K>
+                    Y.MUL.DR.FT = R.MDMC.REC<MCD.DR.FT.REF,K>
+                    Y.MUL.CR.FT = R.MDMC.REC<MCD.CR.FT.REF,K>
+                    Y.MUL.DR.CHQ.NO = R.MDMC.REC<MCD.CHEQUE.NUMBER,K>
+                    Y.PARKING.ACCT = 'BDT140320':ID.COMPANY[3,7]
+
+                    IF K LE Y.MUL.DR.ACCT.CNT AND Y.MUL.DR.FT EQ '' AND Y.MUL.DR.ACCT NE '' THEN
+                        Y.MUL.DR.AMT = ''
+                    END
+                    IF K LE Y.MUL.CR.ACCT.CNT AND Y.MUL.CR.FT EQ '' AND Y.MUL.CR.ACCT NE '' THEN
+                        Y.MUL.CR.AMT = ''
+                    END
+
+                    IF Y.PARKING.ACCT EQ Y.MUL.DR.ACCT THEN
+                        Y.MUL.DR.ACCT = ''
+                    END
+
+                    IF Y.PARKING.ACCT EQ Y.MUL.CR.ACCT THEN
+                        Y.MUL.CR.ACCT = ''
+                    END
+                    CALL F.READ(FN.ACCT,Y.MUL.DR.ACCT,R.MUL.DR.ACCT.REC,F.ACCT,Y.MUL.DR.ACCT.ERR)
+                    Y.MUL.DR.ACCT.NM = R.MUL.DR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                    CALL F.READ(FN.ACCT,Y.MUL.CR.ACCT,R.MUL.CR.ACCT.REC,F.ACCT,Y.MUL.CR.ACCT.ERR)
+                    Y.MUL.CR.ACCT.NM = R.MUL.CR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                    Y.RETURN<-1> = Y.AFTR.SORT.SWIFT.MSG.NEW:"*":Y.MUL.DR.ACCT:"*":Y.MUL.DR.ACCT.NM:"*":Y.MUL.DR.CHQ.NO:"*":Y.MUL.DR.AMT:"*":Y.MUL.DR.FT:"*":Y.MUL.CR.FT:"*":Y.MUL.CR.ACCT:"*":Y.MUL.CR.ACCT.NM:"*":Y.MUL.CR.AMT
+
+                    Y.AFTR.SORT.SWIFT.MSG.NEW = ''
+                NEXT K
+            END ELSE
+                IF Y.MUL.DR.ACCT.CNT EQ Y.MUL.CR.ACCT.CNT THEN
+                    FOR K = 1 TO Y.MUL.CR.ACCT.CNT
+                        Y.MUL.DR.ACCT = R.MDMC.REC<MCD.DEBIT.ACCT.NO,K>
+                        Y.MUL.CR.ACCT = R.MDMC.REC<MCD.CREDIT.ACCT.NO,K>
+                        Y.MUL.DR.AMT = R.MDMC.REC<MCD.DEBIT.AMOUNT,K>
+                        Y.MUL.CR.AMT = R.MDMC.REC<MCD.CREDIT.AMOUNT,K>
+                        Y.MUL.DR.FT = R.MDMC.REC<MCD.DR.FT.REF,K>
+                        Y.MUL.CR.FT = R.MDMC.REC<MCD.CR.FT.REF,K>
+                        Y.MUL.DR.CHQ.NO = R.MDMC.REC<MCD.CHEQUE.NUMBER,K>
+                        Y.PARKING.ACCT = 'BDT140320':ID.COMPANY[3,7]
+
+                        IF K LE Y.MUL.DR.ACCT.CNT AND Y.MUL.DR.FT EQ '' AND Y.MUL.DR.ACCT NE '' THEN
+                            Y.MUL.DR.AMT = ''
+                        END
+                        IF K LE Y.MUL.CR.ACCT.CNT AND Y.MUL.CR.FT EQ '' AND Y.MUL.CR.ACCT NE '' THEN
+                            Y.MUL.CR.AMT = ''
+                        END
+
+                        IF Y.PARKING.ACCT EQ Y.MUL.DR.ACCT THEN
+                            Y.MUL.DR.ACCT = ''
+                        END
+
+                        IF Y.PARKING.ACCT EQ Y.MUL.CR.ACCT THEN
+                            Y.MUL.CR.ACCT = ''
+                        END
+                        CALL F.READ(FN.ACCT,Y.MUL.DR.ACCT,R.MUL.DR.ACCT.REC,F.ACCT,Y.MUL.DR.ACCT.ERR)
+                        Y.MUL.DR.ACCT.NM = R.MUL.DR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                        CALL F.READ(FN.ACCT,Y.MUL.CR.ACCT,R.MUL.CR.ACCT.REC,F.ACCT,Y.MUL.CR.ACCT.ERR)
+                        Y.MUL.CR.ACCT.NM = R.MUL.CR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                        Y.RETURN<-1> = Y.AFTR.SORT.SWIFT.MSG.NEW:"*":Y.MUL.DR.ACCT:"*":Y.MUL.DR.ACCT.NM:"*":Y.MUL.DR.CHQ.NO:"*":Y.MUL.DR.AMT:"*":Y.MUL.DR.FT:"*":Y.MUL.CR.FT:"*":Y.MUL.CR.ACCT:"*":Y.MUL.CR.ACCT.NM:"*":Y.MUL.CR.AMT
+
+                        Y.AFTR.SORT.SWIFT.MSG.NEW = ''
+                    NEXT K
+                END
+            END
+        END
+    END ELSE
+        IF Y.AFTR.SORT.SWIFT.MSG.OLD NE Y.AFTR.SORT.SWIFT.MSG.NEW THEN
+            Y.AFTR.SORT.SWIFT.MSG.OLD = Y.AFTR.SORT.SWIFT.MSG.NEW
+            CALL F.READ(FN.MDMC,Y.AFTR.SORT.SWIFT.MSG.NEW,R.MDMC.REC,F.MDMC,Y.MDMC.ERR)
+            Y.MUL.DR.ACCT.CNT = DCOUNT(R.MDMC.REC<MCD.DEBIT.ACCT.NO>,@VM)
+            Y.MUL.CR.ACCT.CNT = DCOUNT(R.MDMC.REC<MCD.CREDIT.ACCT.NO>,@VM)
+
+            IF Y.MUL.DR.ACCT.CNT GT Y.MUL.CR.ACCT.CNT THEN
+                FOR K = 1 TO Y.MUL.DR.ACCT.CNT
+                    Y.MUL.DR.ACCT = R.MDMC.REC<MCD.DEBIT.ACCT.NO,K>
+                    Y.MUL.CR.ACCT = R.MDMC.REC<MCD.CREDIT.ACCT.NO,K>
+                    Y.MUL.DR.AMT = R.MDMC.REC<MCD.DEBIT.AMOUNT,K>
+                    Y.MUL.CR.AMT = R.MDMC.REC<MCD.CREDIT.AMOUNT,K>
+                    Y.MUL.DR.FT = R.MDMC.REC<MCD.DR.FT.REF,K>
+                    Y.MUL.CR.FT = R.MDMC.REC<MCD.CR.FT.REF,K>
+                    Y.MUL.DR.CHQ.NO = R.MDMC.REC<MCD.CHEQUE.NUMBER,K>
+                    Y.PARKING.ACCT = 'BDT140320':ID.COMPANY[3,7]
+
+                    IF K LE Y.MUL.DR.ACCT.CNT AND Y.MUL.DR.FT EQ '' AND Y.MUL.DR.ACCT NE '' THEN
+                        Y.MUL.DR.AMT = ''
+                    END
+                    IF K LE Y.MUL.CR.ACCT.CNT AND Y.MUL.CR.FT EQ '' AND Y.MUL.CR.ACCT NE '' THEN
+                        Y.MUL.CR.AMT = ''
+                    END
+
+                    IF Y.PARKING.ACCT EQ Y.MUL.DR.ACCT THEN
+                        Y.MUL.DR.ACCT = ''
+                    END
+
+                    IF Y.PARKING.ACCT EQ Y.MUL.CR.ACCT THEN
+                        Y.MUL.CR.ACCT = ''
+                    END
+                    CALL F.READ(FN.ACCT,Y.MUL.DR.ACCT,R.MUL.DR.ACCT.REC,F.ACCT,Y.MUL.DR.ACCT.ERR)
+                    Y.MUL.DR.ACCT.NM = R.MUL.DR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                    CALL F.READ(FN.ACCT,Y.MUL.CR.ACCT,R.MUL.CR.ACCT.REC,F.ACCT,Y.MUL.CR.ACCT.ERR)
+                    Y.MUL.CR.ACCT.NM = R.MUL.CR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                    Y.RETURN<-1> = Y.AFTR.SORT.SWIFT.MSG.NEW:"*":Y.MUL.DR.ACCT:"*":Y.MUL.DR.ACCT.NM:"*":Y.MUL.DR.CHQ.NO:"*":Y.MUL.DR.AMT:"*":Y.MUL.DR.FT:"*":Y.MUL.CR.FT:"*":Y.MUL.CR.ACCT:"*":Y.MUL.CR.ACCT.NM:"*":Y.MUL.CR.AMT
+
+                    Y.AFTR.SORT.SWIFT.MSG.NEW = ''
+                NEXT K
+            END ELSE
+                IF Y.MUL.DR.ACCT.CNT LT Y.MUL.CR.ACCT.CNT THEN
+                    FOR K = 1 TO Y.MUL.CR.ACCT.CNT
+                        Y.MUL.DR.ACCT = R.MDMC.REC<MCD.DEBIT.ACCT.NO,K>
+                        Y.MUL.CR.ACCT = R.MDMC.REC<MCD.CREDIT.ACCT.NO,K>
+                        Y.MUL.DR.AMT = R.MDMC.REC<MCD.DEBIT.AMOUNT,K>
+                        Y.MUL.CR.AMT = R.MDMC.REC<MCD.CREDIT.AMOUNT,K>
+                        Y.MUL.DR.FT = R.MDMC.REC<MCD.DR.FT.REF,K>
+                        Y.MUL.CR.FT = R.MDMC.REC<MCD.CR.FT.REF,K>
+                        Y.MUL.DR.CHQ.NO = R.MDMC.REC<MCD.CHEQUE.NUMBER,K>
+                        Y.PARKING.ACCT = 'BDT140320':ID.COMPANY[3,7]
+
+                        IF K LE Y.MUL.DR.ACCT.CNT AND Y.MUL.DR.FT EQ '' AND Y.MUL.DR.ACCT NE '' THEN
+                            Y.MUL.DR.AMT = ''
+                        END
+                        IF K LE Y.MUL.CR.ACCT.CNT AND Y.MUL.CR.FT EQ '' AND Y.MUL.CR.ACCT NE '' THEN
+                            Y.MUL.CR.AMT = ''
+                        END
+
+                        IF Y.PARKING.ACCT EQ Y.MUL.DR.ACCT THEN
+                            Y.MUL.DR.ACCT = ''
+                        END
+
+                        IF Y.PARKING.ACCT EQ Y.MUL.CR.ACCT THEN
+                            Y.MUL.CR.ACCT = ''
+                        END
+                        CALL F.READ(FN.ACCT,Y.MUL.DR.ACCT,R.MUL.DR.ACCT.REC,F.ACCT,Y.MUL.DR.ACCT.ERR)
+                        Y.MUL.DR.ACCT.NM = R.MUL.DR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                        CALL F.READ(FN.ACCT,Y.MUL.CR.ACCT,R.MUL.CR.ACCT.REC,F.ACCT,Y.MUL.CR.ACCT.ERR)
+                        Y.MUL.CR.ACCT.NM = R.MUL.CR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                        Y.RETURN<-1> = Y.AFTR.SORT.SWIFT.MSG.NEW:"*":Y.MUL.DR.ACCT:"*":Y.MUL.DR.ACCT.NM:"*":Y.MUL.DR.CHQ.NO:"*":Y.MUL.DR.AMT:"*":Y.MUL.DR.FT:"*":Y.MUL.CR.FT:"*":Y.MUL.CR.ACCT:"*":Y.MUL.CR.ACCT.NM:"*":Y.MUL.CR.AMT
+
+                        Y.AFTR.SORT.SWIFT.MSG.NEW = ''
+                    NEXT K
+                END ELSE
+                    IF Y.MUL.DR.ACCT.CNT EQ Y.MUL.CR.ACCT.CNT THEN
+                        FOR K = 1 TO Y.MUL.CR.ACCT.CNT
+                            Y.MUL.DR.ACCT = R.MDMC.REC<MCD.DEBIT.ACCT.NO,K>
+                            Y.MUL.CR.ACCT = R.MDMC.REC<MCD.CREDIT.ACCT.NO,K>
+                            Y.MUL.DR.AMT = R.MDMC.REC<MCD.DEBIT.AMOUNT,K>
+                            Y.MUL.CR.AMT = R.MDMC.REC<MCD.CREDIT.AMOUNT,K>
+                            Y.MUL.DR.FT = R.MDMC.REC<MCD.DR.FT.REF,K>
+                            Y.MUL.CR.FT = R.MDMC.REC<MCD.CR.FT.REF,K>
+                            Y.MUL.DR.CHQ.NO = R.MDMC.REC<MCD.CHEQUE.NUMBER,K>
+                            Y.PARKING.ACCT = 'BDT140320':ID.COMPANY[3,7]
+
+                            IF K LE Y.MUL.DR.ACCT.CNT AND Y.MUL.DR.FT EQ '' AND Y.MUL.DR.ACCT NE '' THEN
+                                Y.MUL.DR.AMT = ''
+                            END
+                            IF K LE Y.MUL.CR.ACCT.CNT AND Y.MUL.CR.FT EQ '' AND Y.MUL.CR.ACCT NE '' THEN
+                                Y.MUL.CR.AMT = ''
+                            END
+
+                            IF Y.PARKING.ACCT EQ Y.MUL.DR.ACCT THEN
+                                Y.MUL.DR.ACCT = ''
+                            END
+
+                            IF Y.PARKING.ACCT EQ Y.MUL.CR.ACCT THEN
+                                Y.MUL.CR.ACCT = ''
+                            END
+                            CALL F.READ(FN.ACCT,Y.MUL.DR.ACCT,R.MUL.DR.ACCT.REC,F.ACCT,Y.MUL.DR.ACCT.ERR)
+                            Y.MUL.DR.ACCT.NM = R.MUL.DR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                            CALL F.READ(FN.ACCT,Y.MUL.CR.ACCT,R.MUL.CR.ACCT.REC,F.ACCT,Y.MUL.CR.ACCT.ERR)
+                            Y.MUL.CR.ACCT.NM = R.MUL.CR.ACCT.REC<AC.ACCOUNT.TITLE.1>
+
+                            Y.RETURN<-1> = Y.AFTR.SORT.SWIFT.MSG.NEW:"*":Y.MUL.DR.ACCT:"*":Y.MUL.DR.ACCT.NM:"*":Y.MUL.DR.CHQ.NO:"*":Y.MUL.DR.AMT:"*":Y.MUL.DR.FT:"*":Y.MUL.CR.FT:"*":Y.MUL.CR.ACCT:"*":Y.MUL.CR.ACCT.NM:"*":Y.MUL.CR.AMT
+
+                            Y.AFTR.SORT.SWIFT.MSG.NEW = ''
+                        NEXT K
+                    END
+                END
+            END
+        END
+    END
+    RETURN
+*-----------------------------------------For Multiple FT(End)-----------------------------------------------------------

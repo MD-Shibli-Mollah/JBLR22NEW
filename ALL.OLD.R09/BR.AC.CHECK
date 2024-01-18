@@ -1,0 +1,68 @@
+*-----------------------------------------------------------------------------
+* <Rating>-3</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BR.AC.CHECK
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.CATEGORY
+
+    FN.AC = 'FBNK.ACCOUNT'
+    F.AC = ''
+    FN.CAT = 'F.CATEGORY'
+    F.CAT = ''
+    FN.FT = 'FBNK.FUNDS.TRANSFER'
+    F.FT =''
+    FN.COM='F.COMPANY'
+    F.COM=''
+    Y.ERR = ''
+
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.CAT,F.CAT)
+    CALL OPF(FN.COM,F.COM)
+
+    CALL GET.LOC.REF('FUNDS.TRANSFER','DR.BR.CODE',Y.DR.BR.CODE.POS)
+    CALL GET.LOC.REF('FUNDS.TRANSFER','CR.BR.CODE',Y.CR.BR.CODE.POS)
+!CALL GET.LOC.REF('FUNDS.TRANSFER','CR.PL.ACCOUNT',Y.CR.PL.ACCOUNT.POS)
+!DEBUG
+    Y.DR.CO.CODE = R.NEW(FT.LOCAL.REF)<1,Y.DR.BR.CODE.POS>
+    Y.CR.CO.CODE = R.NEW(FT.LOCAL.REF)<1,Y.CR.BR.CODE.POS>
+!Y.ACC.NO = R.NEW(FT.LOCAL.REF)<1,Y.CR.PL.ACCOUNT.POS>
+
+    Y.ACC.NO = COMI
+
+    IF Y.ACC.NO[1,2] EQ 'PL' THEN
+        CALL F.READ(FN.CAT,Y.ACC.NO[3,5],R.CAT,F.CAT,Y.ERR)
+        IF R.CAT<EB.CAT.SYSTEM.IND> EQ 'PL' THEN
+            IF Y.DR.CO.CODE NE '' THEN
+                Y.CO.CODE = 'BD001':Y.DR.CO.CODE
+            END
+            ELSE
+                Y.CO.CODE = 'BD001':Y.CR.CO.CODE
+            END
+            CALL F.READ(FN.COM,Y.CO.CODE,R.BR,F.COM,E.RR)
+            Y.BR.MNEMONIC = R.BR<EB.COM.MNEMONIC>
+            Y.ACC.NO = Y.ACC.NO[1,7]:'\':Y.BR.MNEMONIC
+        END
+        ELSE
+            ETEXT = "MISSING PL CATEGORY - RECORD"
+            CALL STORE.END.ERROR
+        END
+    END
+    ELSE
+        IF Y.DR.CO.CODE NE '' THEN
+            Y.ACC.NO = Y.ACC.NO[1,8]:'0001':Y.DR.CO.CODE
+        END
+        ELSE
+            Y.ACC.NO = Y.ACC.NO[1,8]:'0001':Y.CR.CO.CODE
+        END
+        CALL F.READ(FN.AC,Y.ACC.NO,R.AC,F.AC,Y.ERR)
+        IF R.AC EQ '' THEN
+            ETEXT = "MISSING ACCOUNT NUMBER - RECORD"
+            CALL STORE.END.ERROR
+        END
+    END
+END

@@ -1,0 +1,120 @@
+*-----------------------------------------------------------------------------
+* <Rating>-44</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE EXCISE.DUTY.MAIN.PROCESS(R.EB.BD.EXCISE.DUTY.PARAM,Y.CATEGORY,Y.APPLY.CHARGE)
+*********************************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine is used to detect whether excise duty is applicable on each
+* ID(Category) passed from the calling routines NBL.B.EXCISE.DUTY.MAT.CONTRACTS,
+* NBL.B.EXCISE.DUTY.LIVE.CONTRACTS, NBL.B.EXCISE.DUTY.MM.TAKINGS and
+* NBL.B.EXCISE.DUTY.MM.PLACEMENTS.
+*-------------------------------------------------------------------------------------------
+* Project Name : National Bank Limited(Bangladesh)
+*-------------------------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+* R.EB.BD.EXCISE.DUTY.PARAM  -        Holds the EB.BD.EXCISE.DUTY.PARAM record
+* Y.CATEGORY                 -        Holds the category of the contract
+* Y.APPLY.CHARGE             -        Will hold the flag 'Y' or 'N'
+*                                     indicating excise duty needs to be
+*                                     applied or not
+*-------------------------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*  NA
+*-------------------------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+* NA
+*-------------------------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 03/02/2011 -                            New   - Rashmitha M
+*                                                 Thesys Technologies
+*********************************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE JBL.BP I_F.EB.BD.EXCISE.DUTY.PARAM
+
+    GOSUB INIT
+    GOSUB MAIN.PROCESS
+
+    RETURN
+********************************************************************************************
+INIT:
+*****
+! Initialise variables
+    Y.APPLY.CHARGE='Y'
+    Y.INC.FLAG='N'
+    INC.FRM.POS='1'
+    EXC.FRM.POS='1'
+
+    RETURN
+*********************************************************************************************
+MAIN.PROCESS:
+*************
+! Main Process of the routine: Process based on the probabilities of entries in BD.EXCISE.DUTY.PARAM
+    Y.INC=R.EB.BD.EXCISE.DUTY.PARAM<EB.BD.30.INCLUDE.CAT.FRM>
+    Y.EXC=R.EB.BD.EXCISE.DUTY.PARAM<EB.BD.30.EXCLUDE.CAT.FRM>
+    BEGIN CASE
+    CASE Y.INC EQ '' AND Y.EXC NE ''
+        GOSUB EXCLUDE.CAT.CHECK
+    CASE Y.INC NE '' AND Y.EXC EQ ''
+        GOSUB INCLUDE.CAT.CHECK
+    CASE Y.INC NE '' AND Y.EXC NE ''
+        GOSUB INCLUDE.CAT.CHECK
+        GOSUB EXCLUDE.CAT.CHECK
+    END CASE
+
+    RETURN
+**********************************************************************************************
+INCLUDE.CAT.CHECK:
+******************
+! Check whether passed category matches with the include categories given in BD.EXCISE.DUTY.PARAM
+    CONVERT VM TO FM IN Y.INC
+    Y.INC.COUNT=DCOUNT(Y.INC,FM)
+    LOOP
+    WHILE INC.FRM.POS LE Y.INC.COUNT
+        Y.INCL.FRM=R.EB.BD.EXCISE.DUTY.PARAM<EB.BD.30.INCLUDE.CAT.FRM,INC.FRM.POS>
+        Y.INCL.TO=R.EB.BD.EXCISE.DUTY.PARAM<EB.BD.30.INCLUDE.CAT.TO,INC.FRM.POS>
+        IF Y.INCL.TO EQ '' AND  Y.CATEGORY EQ Y.INCL.FRM THEN
+            Y.INC.FLAG='Y'
+            EXIT
+        END ELSE
+            IF Y.CATEGORY GE Y.INCL.FRM AND Y.CATEGORY LE Y.INCL.TO THEN
+                Y.INC.FLAG='Y'
+                EXIT
+            END
+        END
+        INC.FRM.POS++
+    REPEAT
+    Y.APPLY.CHARGE=Y.INC.FLAG
+
+    RETURN
+************************************************************************************************
+EXCLUDE.CAT.CHECK:
+*****************
+! Check whether passed category matches with the exclude categories given in BD.EXCISE.DUTY.PARAM
+    CONVERT VM TO FM IN Y.EXC
+    Y.EXC.COUNT=DCOUNT(Y.EXC,FM)
+    LOOP
+    WHILE EXC.FRM.POS LE Y.EXC.COUNT
+        Y.EXCL.FRM=R.EB.BD.EXCISE.DUTY.PARAM<EB.BD.30.EXCLUDE.CAT.FRM,EXC.FRM.POS>
+        Y.EXCL.TO=R.EB.BD.EXCISE.DUTY.PARAM<EB.BD.30.EXCLUDE.CAT.TO,EXC.FRM.POS>
+        IF Y.EXCL.TO EQ '' AND  Y.CATEGORY EQ Y.EXCL.FRM THEN
+            Y.APPLY.CHARGE='N'
+            EXIT
+        END ELSE
+            IF Y.CATEGORY GE Y.EXCL.FRM AND Y.CATEGORY LE Y.EXCL.TO THEN
+                Y.APPLY.CHARGE='N'
+                EXIT
+            END
+        END
+        EXC.FRM.POS++
+    REPEAT
+
+    RETURN
+*************************************************************************************************
+END

@@ -1,0 +1,59 @@
+*-----------------------------------------------------------------------------
+* <Rating>-11</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.H.GEN.PARAMETER.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+*This is the parameter table and it is like a pre-requisite or the development.
+*
+* @author gshivashankar@thesys.co.in
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* Modification History :
+*
+* 01/02/11 - Shiva Shankar G
+*            New Template changes
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    ID.F = "PARAM.ID" ; ID.N = "6" ; ID.T = "A" ; ID.T = '':FM:'SYSTEM'
+*-----------------------------------------------------------------------------
+
+    CALL Table.addField('NOSTRO.ACCOUNT',T24_Account,"","")
+
+    CALL Table.addField('ACC.CLS.TXN',T24_Numeric,"","")
+    CALL Field.setCheckFile('TRANSACTION')
+
+    CALL Table.addField('AC.CLS.VERS',T24_String,"","")
+    CALL Field.setCheckFile('VERSION')
+
+    CALL Table.addField('JBL.ACCT.CLS.OFS',T24_String,"","")
+    CALL Field.setCheckFile('OFS.SOURCE')
+
+    CALL Table.addReservedField('XX.RESERVED.11')
+    CALL Table.addReservedField('XX.RESERVED.10')
+    CALL Table.addReservedField('XX.RESERVED.09')
+    CALL Table.addReservedField('XX.RESERVED.08')
+    CALL Table.addReservedField('XX.RESERVED.07')
+    CALL Table.addReservedField('XX.RESERVED.06')
+    CALL Table.addReservedField('XX.RESERVED.05')
+    CALL Table.addReservedField('XX.RESERVED.04')
+    CALL Table.addReservedField('XX.RESERVED.03')
+    CALL Table.addReservedField('XX.RESERVED.02')
+    CALL Table.addReservedField('XX.RESERVED.01')
+
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

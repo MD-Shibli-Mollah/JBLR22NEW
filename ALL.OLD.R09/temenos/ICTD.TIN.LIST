@@ -1,0 +1,133 @@
+****************************************************
+*-----------------------------------------------------------------------------
+* <Rating>483</Rating>
+*-----------------------------------------------------------------------------
+* PROGRAM : PROGRAM TO VIEW CUSTOMER LIST WITH TIN STATUS IN ENQ
+* DEV BY      : MD. IMRAN HASAN
+* DEV DATE    : 2016-06-15
+* UPDATE DATE : 2016-06-15
+* REQ         : ICTD
+****************************************************
+    SUBROUTINE ICTD.TIN.LIST(Y.RETURN)
+!    PROGRAM ICTD.TIN.LIST
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_F.CATEGORY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    LOCATE "CUS.ID" IN ENQ.SELECTION<2,1> SETTING CUS.ID.POS THEN
+        Y.CUS.ID = ENQ.SELECTION<4,CUS.ID.POS>
+    END
+    LOCATE "ACCT.NO" IN ENQ.SELECTION<2,1> SETTING ACCT.NO.POS THEN
+        Y.ACCT.NO = ENQ.SELECTION<4,ACCT.NO.POS>
+    END
+    LOCATE "TIN.YN" IN ENQ.SELECTION<2,1> SETTING TIN.YN.POS THEN
+        Y.TIN.YN = ENQ.SELECTION<4,TIN.YN.POS>
+    END
+    LOCATE "CAT.CODE" IN ENQ.SELECTION<2,1> SETTING CAT.CODE.POS THEN
+        Y.CAT.CODE = ENQ.SELECTION<4,CAT.CODE.POS>
+    END
+
+!   Y.ACCT.NO = '0100017717566'
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+
+    FN.CUS = 'F.CUSTOMER'
+    F.CUS = ''
+
+    FN.CAT = 'F.CATEGORY'
+    F.CAT = ''
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.CUS,F.CUS)
+    CALL OPF(FN.CAT,F.CAT)
+
+    CALL GET.LOC.REF("CUSTOMER","TIN.GIVEN",Y.TIN.GIVEN.POS)
+
+    RETURN
+
+PROCESS:
+!  DEBUG
+
+    IF Y.ACCT.NO NE '' OR Y.CAT.CODE NE '' THEN
+        IF Y.ACCT.NO NE '' AND Y.CAT.CODE NE '' THEN
+            SEL.CMD.AC = "SELECT ":FN.AC:" WITH  @ID EQ ":Y.ACCT.NO:" AND CATEGORY EQ ":Y.CAT.CODE
+        END
+        ELSE
+            IF Y.ACCT.NO NE '' THEN
+                SEL.CMD.AC = "SELECT ":FN.AC:" WITH CO.CODE EQ ":ID.COMPANY:" AND @ID EQ ": Y.ACCT.NO
+            END
+            IF Y.CAT.CODE NE '' THEN
+                SEL.CMD.AC = "SELECT ":FN.AC:" WITH CO.CODE EQ ":ID.COMPANY:" AND CATEGORY EQ ":Y.CAT.CODE
+            END
+        END
+    END
+    ELSE
+        SEL.CMD.AC = "SELECT ":FN.AC:" WITH CO.CODE EQ ":ID.COMPANY
+    END
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.AC,'',AC.REC.NO,AC.RET.CODE)
+
+    LOOP
+        REMOVE Y.ACCT.ID FROM SEL.LIST.AC SETTING POS
+    WHILE Y.ACCT.ID:POS
+
+        CALL F.READ(FN.AC,Y.ACCT.ID,R.AC,F.AC,ERR.AC)
+        Y.AC.TITLE = R.AC<AC.ACCOUNT.TITLE.1>
+        Y.AC.CAT = R.AC<AC.CATEGORY>
+        Y.AC.LEG.ID = R.AC<AC.ALT.ACCT.ID>
+        Y.CUSID = R.AC<AC.CUSTOMER>
+        IF Y.CUSID NE '' THEN
+            CALL F.READ(FN.CUS,Y.CUSID,R.CUS,F.CUS,ERR.CUS)
+            Y.CUS.TITLE = R.CUS<EB.CUS.NAME.1>
+            Y.TINYN = R.CUS<EB.CUS.LOCAL.REF,Y.TIN.GIVEN.POS>
+            IF Y.TINYN EQ 'Y' THEN
+                Y.LEGAL.DOC.NAME.ARR = R.CUS<EB.CUS.LEGAL.DOC.NAME>
+                Y.LEGAL.ID.ARR = R.CUS<EB.CUS.LEGAL.ID>
+                FOR I=1 TO DCOUNT(Y.LEGAL.DOC.NAME.ARR,@VM)
+                    Y.LEGAL.DOC.NAME = FIELD(Y.LEGAL.DOC.NAME.ARR,@VM,I)
+                    IF Y.LEGAL.DOC.NAME EQ 'TIN' THEN
+                        Y.TIN.NUMBER = FIELD(Y.LEGAL.ID.ARR,@VM,I)
+                    END
+                NEXT
+            END
+            ELSE
+                Y.TINYN = 'N'
+                Y.TIN.NUMBER = ''
+            END
+            CALL F.READ(FN.CAT,Y.AC.CAT,R.CAT,F.CAT,ERR.CAT)
+            Y.CAT.TITLE = R.CAT<EB.CAT.SHORT.NAME>
+
+            IF Y.CUS.ID NE '' THEN
+                IF Y.CUS.ID EQ Y.CUSID THEN
+                    Y.RESULT<-1> =Y.ACCT.ID:"*":Y.AC.TITLE:"*":Y.CUSID:"*":Y.CUS.TITLE:"*":Y.AC.LEG.ID:"*":Y.AC.CAT:"*":Y.CAT.TITLE:"*":Y.TINYN:"*":Y.TIN.NUMBER
+                END
+            END
+            ELSE
+                IF Y.TIN.YN NE '' THEN
+                    IF Y.TIN.YN EQ Y.TINYN THEN
+                        Y.RESULT<-1> =Y.ACCT.ID:"*":Y.AC.TITLE:"*":Y.CUSID:"*":Y.CUS.TITLE:"*":Y.AC.LEG.ID:"*":Y.AC.CAT:"*":Y.CAT.TITLE:"*":Y.TINYN:"*":Y.TIN.NUMBER
+                    END
+                END
+                ELSE
+                    Y.RESULT<-1> =Y.ACCT.ID:"*":Y.AC.TITLE:"*":Y.CUSID:"*":Y.CUS.TITLE:"*":Y.AC.LEG.ID:"*":Y.AC.CAT:"*":Y.CAT.TITLE:"*":Y.TINYN:"*":Y.TIN.NUMBER
+                END
+            END
+        END
+    REPEAT
+
+    Y.RETURN<-1>=Y.RESULT
+    RETURN
+END

@@ -1,0 +1,85 @@
+*-----------------------------------------------------------------------------
+* <Rating>-34</Rating>
+*-----------------------------------------------------------------------------
+*Developed By :Fairooz Chowdhury
+*This Routine created Like FT update Routine
+*-----------------------------------------------------------------------------
+    SUBROUTINE TE.AUT.EXTRACT.UPDATE
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT JBL.BP I_F.ABL.H.NM.ER
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+
+INIT:
+*****
+    FN.TE = 'FBNK.TELLER'
+    F.TE = ''
+    FN.TE.HIS = 'FBNK.TELLER$HIS'
+    F.TE.HIS = ''
+
+
+    Y.APPLICATION = 'TELLER'
+    Y.FIELDS = 'OE.RE':VM:'EXTRACT.TR.CODE':VM:'DATE.OF.OE':VM:'ADVISE.REF.NO':VM:'EXTRACT.DR.CR'
+    Y.FIELDS.POS = ''
+    CALL MULTI.GET.LOC.REF(Y.APPLICATION,Y.FIELDS,Y.FIELDS.POS)
+    Y.OE.RE.POS  = Y.FIELDS.POS<1,1>
+    Y.EXTRACT.TR.CODE.POS  = Y.FIELDS.POS<1,2>
+    Y.DATE.OF.OE.POS = Y.FIELDS.POS<1,3>
+    Y.ADVISE.REF.NO.POS =Y.FIELDS.POS<1,4>
+    Y.EXTRACT.DR.CR.POS = Y.FIELDS.POS<1,5>
+!------Added By Fairooz------------------
+    FLAG=0;
+ !   NM.OE.RE=''; NM.TRANS.CODE=''; NM.DATE.OF.OE=''; NM.ADVICE.NO=''; NM.DR.CR.MARKER=''
+!-----------------------------------------
+    RETURN
+
+**********
+OPENFILES:
+**********
+    CALL OPF(FN.TE,F.TE)
+    CALL OPF(FN.TE.HIS,F.TE.HIS)
+!    CALL OPF(FN.ABL,F.ABL)
+    RETURN
+
+********
+PROCESS:
+********
+
+    Y.TE.ID = ID.NEW
+!   Y.TE.ID = 'TT17072S3XGB;1' ;   Y.OE.RE = 'OE'
+!Y.VALUE.DATE = R.NEW(NM.VALUE.DATE)
+
+    Y.OE.RE = R.NEW(NM.OE.RE)
+    Y.TRANS.CODE = R.NEW(NM.TRANS.CODE)
+    Y.DATE.OF.OE = R.NEW(NM.DATE.OF.OE)
+    Y.ADVICE.NO = R.NEW(NM.ADVICE.NO)
+    Y.DR.CR.MARKER = R.NEW(NM.DR.CR.MARKER)
+    CALL F.READ(FN.TE,Y.TE.ID,R.TE,F.TE,TE.ERR)
+    IF R.TE EQ '' THEN
+        CALL EB.READ.HISTORY.REC(F.TE.HIS,Y.TE.ID,R.TE,TE.HIS.ERR)
+        FLAG=1
+    END
+    IF R.TE NE '' THEN
+        R.TE<TT.TE.LOCAL.REF,Y.OE.RE.POS> = Y.OE.RE
+        R.TE<TT.TE.LOCAL.REF,Y.EXTRACT.TR.CODE.POS> = Y.TRANS.CODE
+        R.TE<TT.TE.LOCAL.REF,Y.DATE.OF.OE.POS> = Y.DATE.OF.OE
+        R.TE<TT.TE.LOCAL.REF,Y.ADVISE.REF.NO.POS> = Y.ADVICE.NO
+        R.TE<TT.TE.LOCAL.REF,Y.EXTRACT.DR.CR.POS> = Y.DR.CR.MARKER
+
+    END
+!--------MODIFIED BY FAIROOZ FOR UPDATING EITHER LIVE OR HIS-----------
+    IF FLAG EQ 1 THEN
+        WRITE R.TE TO F.TE.HIS,Y.TE.ID
+    END ELSE
+        WRITE R.TE TO F.TE,Y.TE.ID
+    END
+!----------------------------------------------------------------------
+    RETURN
+END

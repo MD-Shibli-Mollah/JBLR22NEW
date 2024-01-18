@@ -1,0 +1,71 @@
+*-------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>80</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.AUT.LD.RTN
+*-------------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This auth routine will fetch the least scheduled date & populate in the
+* local ref field FIRST.REP.DATE of LD
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20110216 - New - Sabari.G
+*                  Thesys Technologies
+*-------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE GLOBUS.BP I_F.LD.SCHEDULE.DEFINE
+*-------------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-------------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.LD.SCHEDULE.DEFINE.NAU = 'F.LD.SCHEDULE.DEFINE$NAU'
+    F.LD.SCHEDULE.DEFINE.NAU = ''
+    CALL OPF(FN.LD.SCHEDULE.DEFINE.NAU,F.LD.SCHEDULE.DEFINE.NAU)
+    R.LD.SCHEDULE.DEFINE = ''
+
+    APPL.ARR = "LD.LOANS.AND.DEPOSITS"
+    Y.FLD = "FIRST.REP.DATE"
+    Y.FLD.POS = ''
+
+    CALL GET.LOC.REF(APPL.ARR,Y.FLD,Y.FLD.POS)
+    LOC.FIRST.REP.DATE.POS = Y.FLD.POS<1,1>
+
+    RETURN
+*------------------------------------------------------------------------------
+PROCESS:
+********
+
+    R.LD.SCHEDULE.DEFINE.NAU = '' ;  ERR.LD.SCH.NAU = ''
+    CALL F.READ(FN.LD.SCHEDULE.DEFINE.NAU, ID.NEW, R.LD.SCHEDULE.DEFINE.NAU, F.LD.SCHEDULE.DEFINE.NAU, ERR.LD.SCH.NAU)
+
+    IF NOT(R.LD.SCHEDULE.DEFINE.NAU) THEN RETURN
+
+    Y.SCH.TYPE.CNT = DCOUNT(R.LD.SCHEDULE.DEFINE.NAU<LD.SD.SCH.TYPE>,VM)
+
+    Y.CNT = 1
+    LOOP
+    WHILE Y.CNT LE Y.SCH.TYPE.CNT
+        Y.SCH.TYPE  = R.LD.SCHEDULE.DEFINE.NAU<LD.SD.SCH.TYPE,Y.CNT>
+        IF Y.SCH.TYPE EQ 'P' OR Y.SCH.TYPE EQ 'I' OR Y.SCH.TYPE EQ 'PI' THEN
+            IF Y.DATE THEN
+                Y.DATE := VM:R.LD.SCHEDULE.DEFINE.NAU<5,Y.CNT>
+            END ELSE
+                Y.DATE = R.LD.SCHEDULE.DEFINE.NAU<5,Y.CNT>
+            END
+        END
+        Y.CNT += 1
+    REPEAT
+    Y.DATE = SORT(Y.DATE)
+    R.NEW(LD.LOCAL.REF)<1,LOC.FIRST.REP.DATE.POS> = Y.DATE<1>
+
+    RETURN
+END

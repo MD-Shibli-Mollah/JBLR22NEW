@@ -1,0 +1,319 @@
+*-----------------------------------------------------------------------------
+* <Rating>584</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE convertSEAT(FILE,ID,outFileID,SPECIFIC.FILE,SPECIFIC.IO,DISPLAY.TYPE,LISTID,R.SEAT.REC)
+*----------------------------.---------------------------------------------
+*** <region name= Information>
+*** <desc> </desc>
+* Utility to extract and print the I/O in a particular SEAT.RESULTS record.
+* This will print out the I/O by subroutine with the details
+* separated by hashes and puts it in Savedlists as one single file but with 4 separate sections
+*
+* Section 1 - Contains info on I/O
+* Section 2 - Contains info on Subroutine Time Consumption
+* Section 3 - Contains info on any Execute Statements done for the transaction.
+* Section 4 - Contains warning related information.
+* These 4 sections can be captured into a spreadsheet for Data Analysis.
+*
+*Following Combinations Are Allowed.
+*A. Traverse Info From Memory Variable
+*B. Traverse Info From File,ID
+*C. Traverse Info From a SavedList
+*D. Traverse Info From all Records for a Particular File
+*
+* By Default All 4 Sections of SEAT are Stored in the output hsv file.
+*
+*** </region>
+
+*-------------------------------------------------------------------------
+
+*** <region name= MainSection>
+*** <desc> </desc>
+$INSERT I_F.SEAT.RESULTS
+
+    GOSUB Initialise          ;*Initialises the Variables
+    IF NOT(errMsg) THEN
+        GOSUB ProcessList     ;*Processes the SEAT Records based on information provided
+    END ELSE
+        CRT errMsg
+    END
+
+*** </region>
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+
+*** <region name= ProcessList>
+ProcessList:
+*** <desc>Processes the SEAT Records based on information provided </desc>
+
+      BEGIN CASE
+        CASE LISTID = ''
+                ID.LIST = ID
+        CASE LISTID NE "#"
+                READLIST ID.LIST FROM LISTID ELSE ID.LIST = ''
+        CASE LISTID = '#' AND FILE NE ""
+             EXE.CMD = "SELECT ":FILE
+             EXECUTE EXE.CMD CAPTURING TOTAL.OUTPUT
+             READLIST ID.LIST ELSE ID.LIST = ''
+        CASE 1
+                 errMsg = "No Filename specified"
+                 CRT errMsg
+                 RETURN
+      END CASE
+
+
+    R.SEAT.RESULTS = R.SEAT.REC
+
+    IF R.SEAT.RESULTS THEN
+        GOSUB ProcessSEAT
+        GOSUB ProcessSeatTimes          ;* Time related info in SEAT
+    END ELSE
+        LOOP REMOVE ID FROM ID.LIST SETTING D WHILE ID:D
+            outFileID = '' ; DISPLAY.TYPE= ''
+            READ R.SEAT.RESULTS FROM F.SEAT.RESULTS, ID ELSE
+                R.SEAT.RESULTS = ""
+            END
+            GOSUB ProcessSEAT ;* All I/O Captures
+            GOSUB ProcessSeatTimes      ;* Time related info in SEAT
+        REPEAT
+    END
+
+
+    RETURN
+*** </region>
+
+*----------------------------------------------------------------------
+
+*** <region name= ProcessSEAT>
+ProcessSEAT:
+*** <desc>Processing of SEAT I/O and Summary DataSet </desc>
+
+    BEGIN CASE
+        CASE DISPLAY.TYPE = "SUMMARY"
+            headContent = 'Routine#PathLength#Total.IO#Iterations#Elapsed':line.sep
+            TotalFileOutput = 2
+        CASE DISPLAY.TYPE = "EXECUTE"
+            headContent = 'Routine#Execute#File#Criteria':line.sep
+            TotalFileOutput = 3
+        CASE DISPLAY.TYPE = "WARNING"
+            headContent = 'Routine#File#ID#Warning':line.sep
+            TotalFileOutput = 4
+
+        CASE 1
+            TotalFileOutput = 1
+            headContent = 'Routine#I/O#File#ID#Lock#IOCount#SeatID':line.sep
+    END CASE
+
+    BEGIN CASE
+        CASE DISPLAY.TYPE = "EXECUTE"
+            GOSUB GetExecutes
+        CASE DISPLAY.TYPE = "WARNING"
+            GOSUB GetWarnings
+        CASE 1
+            SIDX = 0
+            LOOP SIDX +=1 UNTIL R.SEAT.RESULTS<5,SIDX> = ""
+                IDX = 0
+                RTN = R.SEAT.RESULTS<5,SIDX>
+                BEGIN CASE
+                    CASE DISPLAY.TYPE = 'SUMMARY'
+                        TOTAL.IO = SUM(R.SEAT.RESULTS<10,SIDX>)         ;* Add up the IO counts
+                        totalElapsed = R.SEAT.RESULTS<EB.SR.ELAPSED,SIDX>
+                        Iterations = R.SEAT.RESULTS<7,SIDX>
+
+                        dataLine = RTN:DELIM:R.SEAT.RESULTS<6,SIDX>:DELIM:TOTAL.IO:DELIM::Iterations:DELIM:totalElapsed
+                        *CRT dataLine
+                        fileContent := dataLine:line.sep
+                    CASE 1
+                        LOOP IDX+=1 UNTIL R.SEAT.RESULTS<9,SIDX,IDX> = ""
+                            IO = R.SEAT.RESULTS<9,SIDX,IDX>   ;* IO details
+                            IO.CNT = COUNT(IO," ")
+                            IF IO.CNT > 3 THEN
+                                IO.TYPE = IO[" ",1,1]         ;* read write etc
+                                IO.FILE = IO[" ",2,1]         ;* Name of file
+                                IO.ID = IO[" ",3,IO.CNT-2]
+                                IO.IO = IO[" ",IO.CNT+1,1] ;
+                                IO.LINE = IO.TYPE:DELIM:IO.FILE:DELIM:IO.ID:DELIM:IO.IO
+                            END ELSE
+                                CONVERT " " TO DELIM IN IO    ;* So it's easier to separate in excel
+                                IO.TYPE = IO[DELIM,1,1]       ;* read write etc
+                                IO.FILE = IO[DELIM,2,1]       ;* Name of file
+                                IO.LINE = IO
+                            END
+
+                            OUTPUT.LINE = 1         ;* Default - output line
+                            BEGIN CASE
+                                CASE SPECIFIC.IO # "" AND IO.TYPE # SPECIFIC.IO
+                                    OUTPUT.LINE = 0
+                                CASE SPECIFIC.FILE # "" AND IO.FILE # SPECIFIC.FILE
+                                    OUTPUT.LINE = 0
+                            END CASE
+                            IF OUTPUT.LINE THEN
+                                dataLine = RTN:DELIM:IO.LINE:DELIM:R.SEAT.RESULTS<10,SIDX,IDX>:DELIM:ID         ;* Output routine, IO and count
+                                *CRT IDX:"=":dataLine
+                                fileContent := dataLine:line.sep
+                            END
+                        REPEAT
+                END CASE
+            REPEAT
+    END CASE
+
+
+
+
+    GOSUB flushData
+
+
+
+    RETURN
+*** </region>
+
+*----------------------------------------------------------------------
+
+*** <region name= flushData>
+flushData:
+*** <desc>Writes the output to Savedlists. Need to call this twice to generate 2 reports </desc>
+
+    BEGIN CASE
+        CASE TotalFileOutput = 1
+
+            AllFileContent = headContent:fileContent
+            fileContent = '' ;
+            WriteFile = 0
+
+        CASE TotalFileOutput = 2
+            AllFileContent := line.sep :FileDelimiter : line.sep
+            IF fileContent THEN
+                 AllFileContent :=  headContent:fileContent
+            END
+            fileContent = '' ;
+
+        CASE TotalFileOutput = 3
+            AllFileContent := line.sep :FileDelimiter : line.sep
+            IF fileContent THEN
+                AllFileContent := headContent:fileContent
+            END
+            fileContent = '' ;
+
+
+        CASE TotalFileOutput = 4
+            IF NOT(outFileID)  THEN
+                outFileID = ID:".HSV"
+            END
+            AllFileContent := line.sep :FileDelimiter : line.sep
+            IF fileContent THEN
+                AllFileContent := headContent:fileContent
+            END
+            fileContent = '' ;
+            WriteFile = 1
+        CASE 1
+            CRT "InValid Setting"
+    END CASE
+
+    IF WriteFile = 1 THEN
+        CONVERT "/\*?^%&" TO "......." IN outFileID
+        WRITELIST AllFileContent TO outFileID
+        CRT CHAR(10):"Data Written to: ":outFileID
+         WriteFile = 0
+    END
+
+*outFileID = ID :"-Timings.hsv"
+
+    RETURN
+*** </region>
+
+*-----------------------------------------------------------------------------
+
+*** <region name= ProcessSeatTimes>
+ProcessSeatTimes:
+*** <desc>Time Related info in SEAT </desc>
+    DSTYPE = 'SUMMARY' : @FM : 'EXECUTE' : @FM : 'WARNING'
+
+    FOR ICNT = 2 TO 4
+        DISPLAY.TYPE = DSTYPE<ICNT-1>
+        TotalFileOutput = ICNT
+        GOSUB ProcessSEAT
+    NEXT ICNT
+
+    RETURN
+*** </region>
+
+*-----------------------------------------------------------------------------
+
+*** <region name= Initialise>
+Initialise:
+*** <desc>Initialises the Variables </desc>
+    errMsg = ''
+    line.sep = CHAR(13)
+    IF FILE = "" THEN
+        OPEN 'F.SEAT.RESULTS' TO F.SEAT.RESULTS ELSE
+            errMsg = 'Unable to Open SEAT Results file'
+        END
+    END ELSE
+        OPEN '', FILE TO F.SEAT.RESULTS ELSE
+            errMsg =  'Unable to open ':FILE
+        END
+    END
+    DELIM = '#'
+    fileContent = ''
+    TotalFileOutput = 0
+    FileDelimiter = "<filedelimiter>"
+
+    RETURN
+
+*** </region>
+
+*----------------------------------------------------------------------
+
+*** <region name= GetExecutes>
+GetExecutes:
+*** <desc>Get the execution information from SEAT </desc>
+
+    ALL.SELECTS = R.SEAT.RESULTS<EB.SR.EXECUTES>
+
+    LOOP
+        REMOVE IND.SELECT FROM ALL.SELECTS SETTING SPOS
+    WHILE IND.SELECT:SPOS
+
+        CURR.RTN = FIELD(IND.SELECT," ", 1)
+        CURR.EXECUTE = FIELD(IND.SELECT," ", 2)
+        CURR.FILE = FIELD(IND.SELECT," ", 3,1)
+        CURR.SORT = FIELD(IND.SELECT," ", 4,2)
+        dataLine = CURR.RTN:DELIM:CURR.EXECUTE:DELIM:CURR.FILE:DELIM:CURR.SORT
+        fileContent := dataLine:line.sep
+
+    REPEAT
+
+    RETURN
+
+*** </region>
+
+*----------------------------------------------------------------------
+
+*** <region name= GetWarnings>
+GetWarnings:
+*** <desc>Get the Warning information from SEAT </desc>
+
+    ALL.WARNINGS = R.SEAT.RESULTS<EB.SR.WARNINGS>
+
+    LOOP
+        REMOVE IND.WARNING FROM ALL.WARNINGS SETTING SPOS
+    WHILE IND.WARNING:SPOS
+
+        CURR.RTN = FIELD(IND.WARNING," ", 1)
+        CURR.FILE = FIELD(IND.WARNING," ", 2)
+        CURR.FILEID = FIELD(IND.WARNING," ", 3)
+        CURR.MESSAGE = FIELD(IND.WARNING," ", 4,99)
+        dataLine = CURR.RTN:DELIM:CURR.FILE:DELIM:CURR.FILEID:DELIM:CURR.MESSAGE
+        fileContent := dataLine:line.sep
+
+    REPEAT
+
+    RETURN
+
+*** </region>
+
+*----------------------------------------------------------------------
+
+    END

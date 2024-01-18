@@ -1,0 +1,38 @@
+*-----------------------------------------------------------------------------
+* <Rating>50</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VAN.TELLER.ID
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.TELLER
+    $INSERT I_F.TELLER.ID
+
+    FN.TELLER.ID = 'F.TELLER.ID'
+    F.TELLER.ID = ''
+    CALL OPF(FN.TELLER.ID,F.TELLER.ID)
+
+    FN.TELLER.USER = 'F.TELLER.USER'
+    F.TELLER.USER = ''
+    CALL OPF(FN.TELLER.USER,F.TELLER.USER)
+
+    Y.USER.ID = OPERATOR
+    CALL F.READ(FN.TELLER.USER,Y.USER.ID,R.TELLER.USER,F.TELLER.USER,TT.READ.ERR)
+    Y.TELLER.ID.CNT = DCOUNT(R.TELLER.USER,@FM)
+    IF Y.TELLER.ID.CNT GT 1 THEN
+        FOR I = 1 TO Y.TELLER.ID.CNT
+            Y.TELLER.ID = R.TELLER.USER<I>
+            CALL F.READ(FN.TELLER.ID,Y.TELLER.ID,R.TELLER.ID,F.TELLER.ID,TT.READ.ID.ERR)
+            IF NOT(TT.READ.ID.ERR) THEN
+                IF R.TELLER.ID<TT.TID.STATUS> EQ 'OPEN' THEN
+                    EXIT
+                END
+            END
+        NEXT I
+    END ELSE
+        Y.TELLER.ID = R.TELLER.USER<1>
+    END
+    R.NEW(TT.TE.TELLER.ID.1) = Y.TELLER.ID
+    R.NEW(TT.TE.TELLER.ID.2) = Y.TELLER.ID
+
+    RETURN
+END

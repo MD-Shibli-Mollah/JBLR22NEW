@@ -1,0 +1,54 @@
+    SUBROUTINE BD.SP.ACK.BATCH
+
+************************************
+* DEV: ALIN
+* Routine to generate batch value during agent acknowledgement
+************************************
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT SP.BP I_F.BD.H.SP.STOCK.ISSUE
+    $INSERT SP.BP I_F.BD.H.SP.STOCK.BATCH
+
+    FN.SP.NAU="F.BD.H.SP.STOCK.ISSUE$NAU"
+    F.SP.NAU=""
+    FN.SP.BAT="F.BD.H.SP.STOCK.BATCH"
+    F.SP.BAT=""
+    FN.SP.BATN="F.BD.H.SP.STOCK.BATCH$NAU"
+    F.SP.BATN=""
+
+    CALL OPF(FN.SP.NAU,F.SP.NAU)
+    CALL OPF(FN.SP.BAT,F.SP.BAT)
+    CALL OPF(FN.SP.BATN,F.SP.BATN)
+
+
+
+    Y.AG.CODE = ID.COMPANY
+    Y.CATEG = RIGHT(FIELD(ID,'.',1),2)
+    Y.YEAR=RIGHT(OCONV( DATE(), 'D' ),2)
+    Y.VAR1 = Y.AG.CODE:'.':Y.CATEG:'.':Y.YEAR
+    SEL.CMD = "SELECT ":FN.SP.BATN: " WITH @ID LIKE ":Y.VAR1:"... BY-DSND @ID"
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+    IF NO.OF.REC EQ 0 THEN
+        SEL.CMD1 = "SELECT ":FN.SP.BAT: " WITH @ID LIKE ":Y.VAR1:"... BY-DSND @ID"
+        CALL EB.READLIST(SEL.CMD1,SEL.LIST1,'',NO.OF.REC1,RET.CODE1)
+        IF NO.OF.REC1 EQ 0 THEN
+            O.DATA = Y.VAR1:'.':'0001'
+        END
+        ELSE
+            REMOVE Y.SP.BCH.ID1 FROM SEL.LIST1 SETTING Y.POS.ID1
+            Y.BCH.SERIAL1 = FIELD(Y.SP.BCH.ID1,'.',4)+1
+            Y.BCH.LEN = 4 - LEN(Y.BCH.SERIAL1)
+            FOR I = 1 TO Y.BCH.LEN
+                Y.BCH.SERIAL1='0':Y.BCH.SERIAL1
+            NEXT
+            O.DATA = Y.VAR1:'.':Y.BCH.SERIAL1
+        END
+    END
+    ELSE
+        REMOVE Y.SP.BCH.ID FROM SEL.LIST SETTING Y.POS.ID
+        Y.BCH.SERIAL = FIELD(Y.SP.BCH.ID,'.',4)
+        O.DATA = Y.VAR1:'.':Y.BCH.SERIAL
+    END
+    RETURN
+END

@@ -1,0 +1,15 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM TESTSP
+$INSERT I_EQUATE
+$INSERT I_COMMON
+
+FILE.NAME="TEST_ACCOUNT_CLONE1"
+DEBUG
+    OPEN FILE.NAME TO F.FILE ELSE
+        CRT "CANNOT OPEN ":FILE.NAME
+    END
+    PRINT F.FILE
+    RETURN
+END

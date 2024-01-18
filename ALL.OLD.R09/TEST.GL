@@ -1,0 +1,89 @@
+*-----------------------------------------------------------------------------
+* <Rating>789</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM TEST.GL
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.COMPANY
+    $INSERT I_RE.COMMON
+    $INSERT I_F.RE.STAT.LINE.CONT
+    $INSERT I_F.CONSOLIDATE.ASST.LIAB
+    $INSERT I_F.CONSOLIDATE.PRFT.LOSS
+    $INSERT I_DAS.COMMON
+    $INSERT I_DAS.RE.STAT.LINE.PL.WORK
+    $INSERT I_DAS.RE.STAT.LINE.AL.WORK
+    COMMON/RECALC/RECALC$LCY.OPTION
+ DEBUG
+    YKEY.CON='AC.1.TR.BDT.1002..2001.BD.BD........BD0010888'
+    YIKEY.CHK = YKEY.CON
+    YTYPE='CREDIT'
+    Y.REQD.RPTS='JBGL'
+    YCOUNT.CMP = COUNT(YKEY.CON,".")
+    YIKEY.CHK := STR(".",15 -YCOUNT.CMP)
+    YCURRENCY = FIELD(YIKEY.CHK,".",4)
+    CO.CODE = FIELD(YIKEY.CHK,".",17)
+    IF CO.CODE = "" THEN CO.CODE = ID.COMPANY
+    YT.COUNT = COUNT(YTYPE,VM)+1
+    FOR YI = 1 TO YT.COUNT
+        YITYPE = YTYPE<1,YI>
+        YIKEY = YIKEY.CHK:".":YITYPE
+        APPL = YIKEY['.',1,1]
+        IF APPL NE 'RE' THEN
+            Y.RPRTS = "" ; Y.LINES = "" ; Y.MAT.DATE.RAN = ""
+            CALL RE.CALCUL.REP.AL.LINE(YIKEY,Y.RPRTS,Y.LINES,Y.MAT.DATE.RAN)
+            IF R.INTERCO.PARAMETER OR RECALC$LCY.OPTION = "LCY.PRESENT" THEN
+                IF YCURRENCY = LCCY THEN
+                    YL.RPRTS = "" ; YL.LINES = "" ; YL.MAT.DATE.RAN = ""
+                    YIKEY['.',4,1] = 'LCY'
+                    !CALL RE.CALCUL.REP.AL.LINE(YIKEY,YL.RPRTS,YL.LINES,YL.MAT.DATE.RAN)
+                    LOOP
+                        YL.REPORT.NAME = YL.RPRTS<1,1>
+                    UNTIL YL.REPORT.NAME = "" DO
+                        LOCATE YL.REPORT.NAME IN Y.RPRTS<1,1> BY "AL" SETTING YLOC ELSE
+                            IF YL.LINES<1,1> NE "NOPRINT" THEN
+                                INS YL.REPORT.NAME BEFORE Y.RPRTS<1,YLOC>
+                                INS YL.LINES<1,1> BEFORE Y.LINES<1,YLOC>
+                                INS YL.MAT.DATE.RAN<1,1> BEFORE Y.MAT.DATE.RAN<1,YLOC>
+                            END
+                            YLOC = ""
+                        END
+                        IF YLOC <> "" THEN
+                            Y.LINES<1,YLOC> = YL.LINES<1,1>
+                            Y.MAT.DATE.RAN<1,YLOC> = YL.MAT.DATE.RAN<1,1>
+                        END
+                        DEL YL.RPRTS<1,1>
+                        DEL YL.LINES<1,1>
+                        DEL YL.MAT.DATE.RAN<1,1>
+                    REPEAT
+                END
+*
+            END
+*
+        END ELSE
+*** Take the reports from the key** for RE** CI_10009578 starts
+            Y.RPRTS = ''
+            IF YIKEY['.',5,1] = Y.REQD.RPTS THEN
+                Y.RPRTS = YIKEY['.',5,1]
+                Y.LINES = YIKEY['.',6,1]
+                Y.MAT.DATE.RAN = ""
+            END
+        END
+*
+        IF Y.RPRTS <> "" THEN
+            Y.NO.OF.RPRTS = COUNT(Y.RPRTS,VM)+1
+            FOR YJ = 1 TO Y.NO.OF.RPRTS
+                Y.NO.OF.LINES = COUNT(Y.LINES<1,YJ>,SM)+1
+                FOR YK = 1 TO Y.NO.OF.LINES
+                    IF Y.LINES<1,YJ,YK> NE 'NOPRINT' THEN
+                        Y.REC.ID = Y.RPRTS<1,YJ>:".":Y.LINES<1,YJ,YK>
+                        IF C$MULTI.BOOK THEN
+                            Y.REC.ID := ".":CO.CODE
+                        END
+!GOSUB UPDATE.REP.LINE.CONT
+                    END
+                NEXT
+            NEXT
+        END
+    NEXT
+*
+    RETURN

@@ -1,0 +1,78 @@
+*-----------------------------------------------------------------------------
+* <Rating>-34</Rating>
+*-----------------------------------------------------------------------------
+!  PROGRAM BD.SP.TYPE.CLOSE
+    SUBROUTINE BD.SP.TYPE.CLOSE(Y.RETURN)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT I_F.BD.H.SP.STOCK.ISSUE
+    $INSERT I_F.BD.H.SP.CATEGORY
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.SP.ISSUE='F.BD.H.SP.STOCK.ISSUE'
+    F.SP.ISSUE=''
+    FN.SPCATG='F.BD.H.SP.CATEGORY'
+    F.SPCATG=''
+
+    RETURN
+***---------------------------------------------------------------
+***---------------------------------------------------------------
+OPENFILE:
+
+    CALL OPF(FN.SP.ISSUE,F.SP.ISSUE)
+    CALL OPF(FN.SPCATG,F.SPCATG)
+    RETURN
+PROCESS:
+    LOCATE "SCRIPT.NO" IN ENQ.SELECTION<2,1> SETTING SCRIPT.POS THEN
+        Y.SCRIPT.NO = ENQ.SELECTION<4,SCRIPT.POS>
+    END
+
+    Y.SP.ID=Y.SCRIPT.NO
+! Y.SP.ID="SP-0002.UMA.610"
+
+    CALL F.READ(FN.SP.ISSUE,Y.SP.ID,R.SP.ISSUE,F.SP.ISSUE,Y.SP.ER)
+    IF R.SP.ISSUE THEN
+        Y.CO.CODE=R.SP.ISSUE<SP.STK.DIS.BR.CODE>
+        Y.TYPE=R.SP.ISSUE<SP.STK.TYPE.OF.SP>
+        CALL F.READ(FN.SPCATG,Y.TYPE,R.SPCATG,F.SPCATG,Y.ERR)
+        Y.NUM.COUP=R.SPCATG<SP.CATG.NO.OF.COUPON>
+        IF Y.NUM.COUP EQ '' AND Y.CO.CODE EQ ID.COMPANY THEN
+            Y.MAT.DATE=R.SP.ISSUE<SP.STK.MATURITY.DATE>
+            Y.MAT.STATUS=R.SP.ISSUE<SP.STK.MATURITY.STATUS>
+            Y.STATUS=R.SP.ISSUE<SP.STK.STATUS>
+!          IF Y.STATUS EQ 'SALES ACK' OR Y.STATUS EQ 'SALES COMPLETE'  THEN
+            IF Y.MAT.DATE LE TODAY AND Y.MAT.STATUS EQ '' AND Y.STATUS EQ 'SALES ACK' THEN
+!              IF Y.MAT.DATE LE TODAY AND Y.MAT.STATUS EQ '' THEN
+                Y.FACE.VALUE=R.SP.ISSUE<SP.STK.FACE.VALUE>
+                Y.INT.RATE=R.SP.ISSUE<SP.STK.FLAT.INTT.RATE>
+                Y.YEAR=5
+                Y.FACE.INT=(Y.FACE.VALUE*Y.INT.RATE*Y.YEAR)/100
+                Y.SOURCE.TAX=Y.FACE.INT*0.05
+                Y.FACE.AMT=Y.FACE.INT-Y.SOURCE.TAX
+                Y.SETL.AMOUNT=Y.FACE.VALUE+Y.FACE.AMT
+                O.DATA=Y.SETL.AMOUNT
+                Y.RETURN<-1> = Y.SP.ID:"*":Y.FACE.VALUE:"*":Y.INT.RATE:"*":Y.FACE.INT:"*":Y.SOURCE.TAX:"*":Y.SETL.AMOUNT
+
+            END
+        END
+!     END
+! ELSE
+!    Y.TXT="THIS SANCHAPATRA IS NOT MATURED"
+!   Y.RETURN<-1>= Y.TXT:"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+
+! END
+!END
+!ELSE
+!   Y.TXT="PLESE PROVIDE APPROPRIATE TYPE"
+!  Y.RETURN<-1>= Y.TXT:"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+
+!END
+        RETURN
+    END

@@ -1,0 +1,136 @@
+*-----------------------------------------------------------------------------
+* <Rating>1217</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ACCT.BAL.FROM.ACTIVITY
+
+* This routine will rebuild account balance fields 23 - 27
+* Relies on last ACCT.ACTIVITY & DATES.EXPOSURE
+* Make sure there are no Unauthorised transactions for account before rebuild
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.DATES
+
+    RTN.TIME=TODAY:'_':OCONV(TIME(),"MTS")
+    EXECUTE "COMO ON ACCT.BAL.FROM.ACTIVITY_":RTN.TIME
+
+    SEL.LIST = '' ; NO.OF.REC = '' ; ERR = ''; CMD=''
+
+    SEL.LIST<-1> = "0100120682380"
+
+    IF SEL.LIST THEN
+        LOOP
+            REMOVE ACC.ID FROM SEL.LIST SETTING POS
+        WHILE ACC.ID:POS
+            ACC.ID = TRIM(ACC.ID)
+            GOSUB INITIALISE
+            GOSUB PROCESS
+        REPEAT
+    END
+PROGRAM.END:
+
+    EXECUTE "COMO OFF ACCT.BAL.FROM.ACTIVITY_":RTN.TIME
+    PRINT "COMO saved as *** ACCT.BAL.FROM.ACTIVITY_":RTN.TIME:" ***"
+    SLEEP 2
+    RETURN
+
+************
+INITIALISE:
+************
+
+    FN.ACCOUNT="F.ACCOUNT"
+    FV.ACCOUNT=""
+    CALL OPF(FN.ACCOUNT,FV.ACCOUNT)
+
+    FN.STMT.ENTRY="F.STMT.ENTRY"
+    FV.STMT.ENTRY=""
+    CALL OPF(FN.STMT.ENTRY,FV.STMT.ENTRY)
+
+    FN.DATE.EXPOSURE="F.DATE.EXPOSURE"
+    FV.DATE.EXPOSURE=""
+    CALL OPF(FN.DATE.EXPOSURE,FV.DATE.EXPOSURE)
+
+    R.ACCT=''
+    READ R.ACCT FROM FV.ACCOUNT, ACC.ID ELSE
+        PRINT "Account ":ACC.ID:" does not exist, cannot rebuild balance"
+        GOTO PROGRAM.END
+    END
+
+    BALANCE.DATE1=""; BALANCE.DATE2=""; YBALANCE1=""; YBALANCE2=""
+    CR.MVMT1=""; CR.MVMT2=""; DR.MVMT1=""; DR.MVMT2=""; ERR1=""; ERR2=""
+    OPN.ACT.BAL=""; OPN.CLR.BAL=""; ONL.ACT.BAL=""; ONL.CLR.BAL=""; WORK.BAL=""
+    EXP.CNT=""; J=""; R.ACCT=""; WB.DIFF=0
+
+    RETURN
+
+*********
+PROCESS:
+*********
+
+    READU R.ACCT FROM FV.ACCOUNT, ACC.ID THEN
+
+***** Obtain open and online balance from ACCT.ACTIVITY using core routine *****
+
+        BALANCE.DATE1 = R.DATES(EB.DAT.TODAY)
+        BALANCE.DATE2 = R.DATES(EB.DAT.LAST.WORKING.DAY)
+
+        CALL EB.GET.ACCT.BALANCE(ACC.ID, R.ACCT, "BOOKING", BALANCE.DATE1, "", YBALANCE1, CR.MVMT1, DR.MVMT1, ERR1)     ;* Get online actual balance
+        CALL EB.GET.ACCT.BALANCE(ACC.ID, R.ACCT, "BOOKING", BALANCE.DATE2, "", YBALANCE2, CR.MVMT2, DR.MVMT2, ERR2)     ;* Get open actual balance
+
+        OPN.ACT.BAL = YBALANCE2
+        OPN.CLR.BAL = YBALANCE2
+        ONL.ACT.BAL = YBALANCE1
+        ONL.CLR.BAL = YBALANCE1
+        WORK.BAL = YBALANCE1
+
+***** Build cleared balance based on DATES.EXPOSURE *****
+
+        IF R.ACCT<AC.NEXT.EXP.DATE> NE "" THEN
+            EXP.CNT = DCOUNT(R.ACCT<AC.EXPOSURE.DATES>,@VM)
+            FOR J = 1 TO EXP.CNT
+                I=""; CNT=""; EXP.DATE=""; EXP.ID=""; R.EXPOSURE=""
+                EXP.DATE = R.ACCT<AC.EXPOSURE.DATES,J>
+                EXP.ID = ACC.ID:"-":EXP.DATE
+                READ R.EXPOSURE FROM FV.DATE.EXPOSURE, EXP.ID ELSE R.EXPOSURE=""
+                CNT = DCOUNT(R.EXPOSURE,@FM)
+                FOR I = 1 TO CNT
+                    R.ENTRY=""
+                    READ R.ENTRY FROM FV.STMT.ENTRY, R.EXPOSURE<I> ELSE R.ENTRY=""
+                    IF R.ENTRY<AC.STE.AMOUNT.FCY> THEN
+                        IF R.ENTRY<AC.STE.BOOKING.DATE> NE TODAY THEN OPN.CLR.BAL -= R.ENTRY<AC.STE.AMOUNT.FCY>
+                        ONL.CLR.BAL -= R.ENTRY<AC.STE.AMOUNT.FCY>
+                        WORK.BAL -= R.ENTRY<AC.STE.AMOUNT.FCY>
+                    END ELSE
+                        IF R.ENTRY<AC.STE.BOOKING.DATE> NE TODAY THEN OPN.CLR.BAL -= R.ENTRY<AC.STE.AMOUNT.LCY>
+                        ONL.CLR.BAL -= R.ENTRY<AC.STE.AMOUNT.LCY>
+                        WORK.BAL -= R.ENTRY<AC.STE.AMOUNT.LCY>
+                    END
+                NEXT I
+            NEXT J
+        END
+
+***** Maintain the difference in Working balance, due to ENTRY.HOLD *****
+
+        WB.DIFF = R.ACCT<AC.ONLINE.CLEARED.BAL> - R.ACCT<AC.WORKING.BALANCE>
+        IF WB.DIFF GT 0 THEN   ;* INAU debit (not CREDIT) is valid to update WORK.BAL
+            WORK.BAL -= WB.DIFF
+        END
+
+        PRINT "Account##":ACC.ID:"##Before rebuild##":R.ACCT<AC.OPEN.ACTUAL.BAL>:"##":R.ACCT<AC.OPEN.CLEARED.BAL>:"##":R.ACCT<AC.ONLINE.ACTUAL.BAL>:"##":R.ACCT<AC.ONLINE.CLEARED.BAL>:"##":R.ACCT<AC.WORKING.BALANCE>
+
+        R.ACCT<AC.OPEN.ACTUAL.BAL> = OPN.ACT.BAL
+        R.ACCT<AC.OPEN.CLEARED.BAL> = OPN.CLR.BAL
+        R.ACCT<AC.ONLINE.ACTUAL.BAL> = ONL.ACT.BAL
+        R.ACCT<AC.ONLINE.CLEARED.BAL> = ONL.CLR.BAL
+        R.ACCT<AC.WORKING.BALANCE> = WORK.BAL
+        PRINT "##After rebuild##":OPN.ACT.BAL:"##":OPN.CLR.BAL:"##":ONL.ACT.BAL:"##":ONL.CLR.BAL:"##":WORK.BAL
+        WRITE R.ACCT TO FV.ACCOUNT, ACC.ID
+    END
+    RELEASE FV.ACCOUNT, ACC.ID
+
+*   CALL ACCT.STMT.REBUILD(ACC.ID)
+
+    RETURN
+END 

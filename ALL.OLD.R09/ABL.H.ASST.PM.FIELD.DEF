@@ -1,0 +1,93 @@
+*-----------------------------------------------------------------------------
+* <Rating>-121</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.H.ASST.PM.FIELD.DEF
+
+*-----------------------------------------------------------------------------
+*
+*-----------------------------------------------------------------------------
+* Modification History :
+* Field added TENOR - 14/2/2007
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT       ;* Other Inserts required for Checkfiles, etc.
+    $INSERT I_F.CUSTOMER
+    $INSERT I_F.COMPANY
+    $INSERT I_F.EB.PRODUCT
+    $INSERT I_F.SEC.ACC.MASTER
+    $INSERT I_F.LN.ASSET.CLASS
+    $INSERT I_F.PD.AMOUNT.TYPE
+    $INSERT I_F.CATEGORY
+    $INSERT I_F.LIMIT.REFERENCE
+    $INSERT I_F.TRANSACTION
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB DEFINE.FIELDS
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+DEFINE.FIELDS:
+    ID.F = "ID" ; ID.N = "35.1" ; ID.T = ""
+*
+    Z=0
+*
+    Z+=1 ; F(Z) = "XX.LL.DESCRIPTION"     ; N(Z) = "35.1"    ; T(Z) = "A"
+    Z+=1 ; F(Z) = "DR.CR.TXN.CODE"        ; N(Z) = "4.1"    ; T(Z) = ""
+    CHECKFILE(Z) = "TRANSACTION":FM:AC.TRA.NARRATIVE:FM:"L"
+    Z+=1 ; F(Z) = "XX<TENOR"       ; N(Z) = "35"  ; T(Z)<2> = "<= 5 YEARS_> 5 YEARS"
+    Z+=1 ; F(Z) = "XX-ASSET.CLASS"       ; N(Z) = "3.1.C"  ; T(Z) = "A"
+    CHECKFILE(Z) = "LN.ASSET.CLASS":FM:LN.ASSCLS.SHORT.DESC:FM:"L"
+*    Z+=1 ; F(Z) = "XX-XX<BRACKETS.OP"     ; N(Z) = "6"       ; T(Z)<2>="1 (_2 ((_3 (((_4 (((("
+    Z+=1 ; F(Z) = "XX-XX<AMT.TYPE"        ; N(Z) = "12..C"   ; T(Z) = "A"
+    CHECKFILE(Z) = "PD.AMOUNT.TYPE":FM:PD.AMT.TYP.DESCRIPTION:FM:"....NOERROR"
+    Z+=1 ; F(Z) = "XX-XX-DECISION"        ; N(Z) = "2"       ; T(Z)<2> = "EQ_GE_GT_LE_LT_NE_NR_RG"
+    Z+=1 ; F(Z) = "XX-XX-OVERDUE.FR"      ; N(Z) = "5..C"    ; T(Z) = "A"
+    Z+=1 ; F(Z) = "XX-XX-OVERDUE.TO"      ; N(Z) = "5..C"    ; T(Z) = "A"
+*    Z+=1 ; F(Z) = "XX-XX-BRACKETS.CL"     ; N(Z) = "6"       ; T(Z)<2> = "1 )_2 ))_3 )))_4 ))))"
+    Z+=1 ; F(Z) = "XX-XX>OPERAND"         ; N(Z) = "3..C"    ; T(Z)<2> = "AND_OR"
+    Z+=1 ; F(Z) = "XX-PROV.PERC"          ; N(Z) = "11..C"   ; T(Z) = "R"
+    Z+=1 ; F(Z) = "XX-PROV.RESV.CATEG"    ; N(Z) = "5..C"    ; T(Z) = "A"
+    CHECKFILE(Z) = "CATEGORY":FM:EB.CAT.SHORT.NAME:FM:"L"
+    Z+=1 ; F(Z) = "XX-PROV.EXP.CATEG"     ; N(Z) = "5..C"    ; T(Z) = "A"
+    CHECKFILE(Z) = "CATEGORY":FM:EB.CAT.SHORT.NAME:FM:"L"
+    Z+=1 ; F(Z) = "XX-WRITE.OFF"          ; N(Z) = "3..C"   ; T(Z)<2> = "YES"
+    Z+=1 ; F(Z) = "XX>INCOME.RECOG"       ; N(Z) = "3..C"   ; T(Z)<2> = "YES_NO"
+    Z+=1 ; F(Z) = "PROV.REVIEW.FREQ"      ; N(Z) = "19.1"   ; T(Z) = "FQU"
+    Z+=1 ; F(Z) = "XX.LOCAL.REF"          ; N(Z) = "35"     ; T(Z) = "A"
+    Z+=1 ; F(Z) = "RESERVED.10"           ; N(Z) = "35"     ; T(Z) = "A"   ; T(Z)<3> = "NOINPUT"
+    Z+=1 ; F(Z) = "RESERVED.9"            ; N(Z) = "35"     ; T(Z) = "A"   ; T(Z)<3> = "NOINPUT"
+    Z+=1 ; F(Z) = "RESERVED.8"            ; N(Z) = "35"     ; T(Z) = "A"   ; T(Z)<3> = "NOINPUT"
+    Z+=1 ; F(Z) = "RESERVED.7"            ; N(Z) = "35"     ; T(Z) = "A"   ; T(Z)<3> = "NOINPUT"
+    Z+=1 ; F(Z) = "RESERVED.6"            ; N(Z) = "35"     ; T(Z) = "A"   ; T(Z)<3> = "NOINPUT"
+    Z+=1 ; F(Z) = "RESERVED.5"            ; N(Z) = "35"     ; T(Z) = "A"   ; T(Z)<3> = "NOINPUT"
+    Z+=1 ; F(Z) = "RESERVED.4"            ; N(Z) = "35"     ; T(Z) = "A"   ; T(Z)<3> = "NOINPUT"
+    Z+=1 ; F(Z) = "RESERVED.3"            ; N(Z) = "35"     ; T(Z) = "A"   ; T(Z)<3> = "NOINPUT"
+    Z+=1 ; F(Z) = "RESERVED.2"            ; N(Z) = "35"     ; T(Z) = "A"   ; T(Z)<3> = "NOINPUT"
+    Z+=1 ; F(Z) = "RESERVED.1"            ; N(Z) = "35"     ; T(Z) = "A"   ; T(Z)<3> = "NOINPUT"
+
+*
+    V = Z + 9
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+INITIALISE:
+    MAT F = "" ; MAT N = "" ; MAT T = ""
+    MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+    ID.CHECKFILE = "LIMIT.REFERENCE":FM:LI.REF.DESCRIPTION:"L"; ID.CONCATFILE = ""
+
+
+*
+* Define often used checkfile variables
+*
+    CHK.ACCOUNT = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+    CHK.CUSTOMER = "CUSTOMER":FM:EB.CUS.SHORT.NAME:FM:'.A'
+    CHK.CUSTOMER.SECURITY = "CUSTOMER.SECURITY":FM:0:FM:'':FM:"CUSTOMER":FM:EB.CUS.SHORT.NAME:FM:'..S'
+    CHK.SAM = "SEC.ACC.MASTER":FM:SC.SAM.ACCOUNT.NAME:FM:'..S'
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+END

@@ -1,0 +1,18 @@
+*-----------------------------------------------------------------------------
+* <Rating>-3</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM TEST.STMT.PRINTED
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    REC.ID = 'BDT1403200010102-20130806'
+    FN.STMT.PRINTED = 'FBNK.STMT.PRINTED'
+    F.STMT.PRINTED = ''
+*DEBUG
+  *  CALL LOAD.COMPANY('BD0010102')
+    CALL OPF(FN.STMT.PRINTED,F.STMT.PRINTED)
+    CRT "TIME BEFORE READU ":OCONV(TIME(), "MTS")
+* READU STMT.REC FROM F.STMT.PRINTED,REC.ID ELSE LOCKING.REC = ''   ;* do a readu on the locking record to avoid WRITE_ERROR crash
+    CALL F.READU(FN.STMT.PRINTED,REC.ID,STMT.REC,F.STMT.PRINTED,STMT.ERR,'')
+    CRT "TIME AFTER READU :":OCONV(TIME(), "MTS")
+
+END

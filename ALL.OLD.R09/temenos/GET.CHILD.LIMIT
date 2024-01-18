@@ -1,0 +1,42 @@
+******************************************************************************************
+*Purpose: This routine is attachted as validation routine in LIMIT,SECURED version and   *
+*is used to get the first two digit of child limit                                       *
+*enhancement & no of renewal                                                             *
+*Developed By: Md. Shafiul Azam(Datasoft Systems Bangladesh Ltd.)                        *
+*Supervised by : Md. Aminul Islam(Datasoft Systems Bangladesh Ltd.)                      *
+******************************************************************************************
+    SUBROUTINE GET.CHILD.LIMIT
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.LIMIT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+***********
+INIT:
+***********
+    FN.LIMIT = 'FBNK.LIMIT$NAU'
+    F.LIMIT = ''
+    CALL GET.LOC.REF("LIMIT","SUB.PARENT",Y.SUB.PARENT.POS)
+    CALL GET.LOC.REF("LIMIT","CHILD.LIMIT",Y.CHILD.LIMIT.POS)
+    RETURN
+
+
+***********
+OPENFILES:
+***********
+    CALL OPF(FN.LIMIT,F.LIMIT)
+    RETURN
+
+***********
+PROCESS:
+***********
+    Y.COMI = COMI
+    R.NEW(LI.LOCAL.REF)<1,Y.CHILD.LIMIT.POS> = Y.COMI[1,3]
+    RETURN
+
+END

@@ -1,0 +1,62 @@
+*-----------------------------------------------------------------------------
+* <Rating>-2</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.H.SP.CATEGORY.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine BD.H.SP.CATEGORY.FIELDS
+*
+* @author alin@janatabank-bd.com
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* Modification History :
+*
+* 19/10/07 - EN_10003543
+*            New Template changes
+*
+* 14/11/07 - BG_100015736
+*            Exclude routines that are not released
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("SP.CATEGORY.ID", T24_String)       ;* Define Table id
+*-----------------------------------------------------------------------------
+    CALL Table.addField("SP.TYPE.NAME", T24_String, "", "")
+    CALL Table.addFieldDefinition("FREQUENCY","3","":FM:"01_03_12_36_60","")
+    CALL Table.addFieldDefinition("MAT.DURATION","3","","")
+    CALL Table.addFieldDefinition("NO.OF.COUPON","3","","")
+    CALL Table.addFieldDefinition("FLAT.INTT.RATE","5","AMT","")
+    CALL Table.addFieldDefinition("XX<NO.OF.MONTH","3","","")
+    CALL Table.addFieldDefinition("XX>FREQ.INTT.RATE","5","AMT","")
+    CALL Table.addField("REF.NO", T24_String, "", "")
+    CALL Table.addFieldDefinition("REF.DATE","8","D","")
+    CALL Table.addFieldDefinition("SOURCE.TAX","5","AMT","")
+    CALL Table.addFieldDefinition("IND.MAX.INT.LIMIT","12","AMT","")
+    CALL Table.addFieldDefinition("JNT.MAX.INT.LIMIT","12","AMT","")
+    CALL Table.addField("REMARKS", T24_String, "", "")
+    CALL Table.addFieldDefinition("XX<FACE.VALUE","7","AMT","")
+    CALL Table.addField("XX>PREFIX", T24_String, "", "")
+
+    CALL Table.addReservedField('RESERVED.05')
+    CALL Table.addReservedField('RESERVED.04')
+    CALL Table.addReservedField('RESERVED.03')
+    CALL Table.addReservedField('RESERVED.02')
+    CALL Table.addReservedField('RESERVED.01')
+    CALL Table.addLocalReferenceField('XX.LOCAL.REF')
+    CALL Table.addOverrideField
+
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

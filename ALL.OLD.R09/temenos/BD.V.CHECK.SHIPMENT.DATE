@@ -1,0 +1,38 @@
+*-----------------------------------------------------------------------------
+* <Rating>70</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.CHECK.SHIPMENT.DATE
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CUSTOMER
+    $INSERT I_F.LETTER.OF.CREDIT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    Y.SHIPMENT.DATE = COMI
+    FN.LC = 'F.LETTER.OF.CREDIT'
+    F.LC = ''
+    CALL OPF(FN.LC,F.LC)
+    R.LC.REC = ''
+    Y.LC.ERR = ''
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.LC,F.LC)
+    RETURN
+
+PROCESS:
+    IF Y.SHIPMENT.DATE EQ '' THEN RETURN
+    IF R.NEW(TF.LC.ADVICE.EXPIRY.DATE) NE '' THEN
+        IF Y.SHIPMENT.DATE GT R.NEW(TF.LC.ADVICE.EXPIRY.DATE) THEN
+            ETEXT ="Shipment Date GT LC Expiry Date Not Allow"
+            CALL STORE.END.ERROR
+        END
+    END
+    RETURN
+END

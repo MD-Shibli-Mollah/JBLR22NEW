@@ -1,0 +1,288 @@
+*-----------------------------------------------------------------------------
+* <Rating>3991</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE CLEAR.LIMIT.REF.IN.COLR.CUST
+*-----------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.LIMIT
+    $INSERT GLOBUS.BP I_F.LIMIT.COL.ALLOC.WORK
+    $INSERT GLOBUS.BP I_F.COLLATERAL.RIGHT
+*-----------------------------------------------------------------------------
+  *  EXECUTE "COMO ON CLEAR.LIMIT.REF.IN.COLR.CUST"
+    PRINT "********************** CLEAR.LIMIT.REF.IN.COLR.CUST***************************"
+    PRINT "Running in company ":ID.COMPANY
+    PRINT "Date and Time is ":TIMEDATE()
+
+    FN.COLR =''
+    F.COLR=''
+    FN.COLR="F.COLLATERAL.RIGHT"
+    CALL OPF(FN.COLR,F.COLR)
+
+    FN.LIMIT=''
+    F.LIMIT=''
+    FN.LIMIT='F.LIMIT'
+    CALL OPF(FN.LIMIT,F.LIMIT)
+
+    R.COLR.REC=''
+    R.LIMIT.REC=''
+    CNT=0
+    ID.CUST=''
+    R.CUST.ARRAY=''
+    READLIST R.CUST.ARRAY FROM 'LI.COLL.CORRECT' ELSE
+        PRINT 'SAVEDLISTS LI.COLL.CORRECT MISSING'
+        STOP
+    END
+
+    LOOP
+        REMOVE ID.CUST1 FROM R.CUST.ARRAY SETTING POS
+    WHILE ID.CUST1:POS
+        SEL.CMD='SSELECT ': FN.COLR:' WITH STATUS NE LIQ AND @ID LIKE ':ID.CUST1:'...'
+        PRINT "SEL.CMD : " : SEL.CMD
+
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,COLR.ERR)
+
+        PRINT "NO.OF.REC : " : NO.OF.REC
+
+        LOOP
+            REMOVE COLR.ID FROM SEL.LIST SETTING COLR.POS
+        WHILE COLR.ID:COLR.POS
+            CNT+=1
+            PRINT""
+            PRINT "":CNT:"TH ID PROCESSING OUT OF :":NO.OF.REC :": IDS"
+            PRINT "COLR.ID : " :COLR.ID
+            PRINT"**********************"
+            PRINT""
+            COLR.CUST.ID = COLR.ID['.',1,1]
+            IF COLR.CUST.ID NE ID.CUST1 THEN
+                PRINT "Skipping ":COLR.ID
+                CONTINUE      ;*Skip
+            END
+            CALL F.READ(FN.COLR, COLR.ID, R.COLR.REC,F.COLR,R.COLR.ERR)
+
+            IF R.COLR.REC<COLL.RIGHT.LIMIT.REFERENCE> OR R.COLR.REC<COLL.RIGHT.LIMIT.REF.CUST> THEN
+                PRINT "R.COLR.REC<COLL.RIGHT.LIMIT.REFERENCE> : " :R.COLR.REC<COLL.RIGHT.LIMIT.REFERENCE>
+                COLR.IDS=COLR.ID
+                COLR.LIM.REFS=R.COLR.REC<COLL.RIGHT.LIMIT.REFERENCE>
+                COLR.COMPS=R.COLR.REC<COLL.RIGHT.COMPANY>
+                COLR.LIM.CUST.REFS=R.COLR.REC<COLL.RIGHT.LIMIT.REF.CUST>
+                COLR.LIM.PRCNT.ALLCS=R.COLR.REC<COLL.RIGHT.PERCENT.ALLOC>
+                PRINT "COLR.LIM.REFS : " : COLR.LIM.REFS
+                PRINT "COLR.COMPS : " : COLR.COMPS
+                PRINT "COLR.LIM.CUST.REFS : " : COLR.LIM.CUST.REFS
+                PRINT "COLR.LIM.PRCNT.ALLCS : " : COLR.LIM.PRCNT.ALLCS
+
+                R.COLR.REC<COLL.RIGHT.LIMIT.REFERENCE> = ''
+                R.COLR.REC<COLL.RIGHT.COMPANY> = ''
+                R.COLR.REC<COLL.RIGHT.LIMIT.REF.CUST>=''
+                R.COLR.REC<COLL.RIGHT.PERCENT.ALLOC>=''
+                R.COLR.REC<COLL.RIGHT.LIMIT.ID>=''
+                LIM.REF=1
+            END  ELSE
+                LIM.REF=0
+                R.COLR.REC<COLL.RIGHT.LIMIT.ID> = ''
+            END
+
+            CALL F.WRITE(FN.COLR,COLR.ID,R.COLR.REC)
+            CALL JOURNAL.UPDATE(COLR.ID)
+
+            PRINT "LIM.REF : " : LIM.REF
+            IF LIM.REF=0 THEN
+                OFS.STRING="COLLATERAL.RIGHT,OFS/I/PROCESS,," : COLR.ID : ",NOTES:1:1=CORRECTED ON ":TIMEDATE()
+            END ELSE
+                OFS.STRING="COLLATERAL.RIGHT,OFS/I/PROCESS,," : COLR.ID : ",NOTES:1:1=REBUILD ON ":TIMEDATE()
+                CNT.LIM.REFS=DCOUNT(COLR.LIM.REFS<1>,VM)
+                CNT.LIM.REF.CUST=DCOUNT(COLR.LIM.CUST.REFS<1>,VM)
+                IF CNT.LIM.REF.CUST > CNT.LIM.REFS THEN CNT.LIM.REFS=CNT.LIM.REF.CUST
+                TEMP.STRING=''
+                TEMP.COUNT=0
+                FOR I=1 TO CNT.LIM.REFS
+                    IF COLR.LIM.REFS<1,I> NE '' THEN
+*Limit check and process
+                        APP.ID = COLR.LIM.REFS<1,I>[1,2]
+                        AC.CHK = 'Y'
+                        PRINT""
+                        PRINT"COLR.LIM.REFS = ":COLR.LIM.REFS<1,I>
+                        PRINT"APP.ID = ":APP.ID
+                        IF COLR.LIM.REFS<1,I> MATCHES '1N0N.0X' THEN
+                            R.LIM.ERR = ''
+                            AC.CHK = ''
+                            CALL F.READ(FN.LIMIT, COLR.LIM.REFS<1,I>, R.LIMIT.REC, F.LIMIT, R.LIM.ERR)
+                            PRINT"READ THE LIMIT RECORD from ":COLR.COMPS<1,I>:" : ":R.LIM.ERR
+                            IF R.LIM.ERR EQ '' AND R.LIMIT.REC<LI.FIXED.VARIABLE> THEN
+                                TEMP.COUNT+=1
+                                TEMP.STRING:=",COMPANY:" :TEMP.COUNT: ":=" : COLR.COMPS<1,I>
+                                TEMP.STRING:=",LIMIT.REFERENCE:":TEMP.COUNT: ":=" : COLR.LIM.REFS<1,I>
+                                TEMP.STRING:=",LIMIT.REF.CUST:":TEMP.COUNT: ":=" : COLR.LIM.CUST.REFS<1,I>
+                                IF COLR.LIM.PRCNT.ALLCS<1,I> NE '' THEN TEMP.STRING:=",PERCENT.ALLOC:" :TEMP.COUNT: ":=" : COLR.LIM.PRCNT.ALLCS<1,I>
+                            END ELSE
+                                IF R.LIM.ERR THEN PRINT "LIMIT RECORD " : COLR.LIM.REFS<1,I> : " NOT PRESENT IN LIVE FILE"
+                                IF R.LIM.ERR EQ '' AND R.LIMIT.REC<LI.FIXED.VARIABLE> EQ '' THEN PRINT "LIMIT " : COLR.LIM.REFS<1,I> : " IS UNSECURED"
+
+                            END
+                        END
+* LD Contract validation
+                        IF APP.ID EQ "LD" THEN
+                            TEMP.ID.COMP = ID.COMPANY
+                            CALL LOAD.COMPANY(COLR.COMPS<1,I>)
+                            FN.LD.LOANS.AND.DEPOSITS=''
+                            F.LD.LOANS.AND.DEPOSITS=''
+                            FN.LD.LOANS.AND.DEPOSITS='F.LD.LOANS.AND.DEPOSITS'
+                            CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+                            R.LD.ERR = ''
+                            AC.CHK = ''
+                            CALL F.READ(FN.LD.LOANS.AND.DEPOSITS, COLR.LIM.REFS<1,I>, R.LD.REC, F.LD.LOANS.AND.DEPOSITS, R.LD.ERR)
+                            PRINT"READ THE LD RECORD from ":COLR.COMPS<1,I>:" : ":R.LD.ERR
+                            IF R.LD.ERR EQ '' THEN
+                                TEMP.COUNT+=1
+                                TEMP.STRING:=",COMPANY:" :TEMP.COUNT: ":=" : COLR.COMPS<1,I>
+                                TEMP.STRING:=",LIMIT.REFERENCE:":TEMP.COUNT: ":=" : COLR.LIM.REFS<1,I>
+                                TEMP.STRING:=",LIMIT.REF.CUST:":TEMP.COUNT: ":=" : COLR.LIM.CUST.REFS<1,I>
+                                IF COLR.LIM.PRCNT.ALLCS<1,I> NE '' THEN TEMP.STRING:=",PERCENT.ALLOC:" :TEMP.COUNT: ":=" : COLR.LIM.PRCNT.ALLCS<1,I>
+                            END ELSE
+                                PRINT "LD RECORD " : COLR.LIM.REFS<1,I> : " NOT PRESENT IN LIVE FILE"
+
+                            END
+                            ID.COMPANY = TEMP.ID.COMP
+                        END
+* MG Contract validation
+                        IF APP.ID EQ "MG" THEN
+                            TEMP.ID.COMP = ID.COMPANY
+                            CALL LOAD.COMPANY(COLR.COMPS<1,I>)
+                            FN.MG.MORTGAGE=''
+                            F.MG.MORTGAGE=''
+                            FN.MG.MORTGAGE='F.MG.MORTGAGE'
+                            CALL OPF(FN.MG.MORTGAGE,F.MG.MORTGAGE)
+                            R.MG.ERR = ''
+                            AC.CHK = ''
+                            CALL F.READ(FN.MG.MORTGAGE, COLR.LIM.REFS<1,I>, R.MG.REC, F.MG.MORTGAGE, R.MG.ERR)
+                            PRINT"READ THE MG RECORD from ":COLR.COMPS<1,I>:" : ":R.MG.ERR
+                            IF R.MG.ERR EQ '' THEN
+                                TEMP.COUNT+=1
+                                TEMP.STRING:=",COMPANY:" :TEMP.COUNT: ":=" : COLR.COMPS<1,I>
+                                TEMP.STRING:=",LIMIT.REFERENCE:":TEMP.COUNT: ":=" : COLR.LIM.REFS<1,I>
+                                TEMP.STRING:=",LIMIT.REF.CUST:":TEMP.COUNT: ":=" : COLR.LIM.CUST.REFS<1,I>
+                                IF COLR.LIM.PRCNT.ALLCS<1,I> NE '' THEN TEMP.STRING:=",PERCENT.ALLOC:" :TEMP.COUNT: ":=" : COLR.LIM.PRCNT.ALLCS<1,I>
+                            END ELSE
+                                PRINT "MG RECORD " : COLR.LIM.REFS<1,I> : " NOT PRESENT IN LIVE FILE"
+                            END
+                            ID.COMPANY = TEMP.ID.COMP
+                        END
+* MD Contract validation
+                        IF APP.ID EQ "MD" THEN
+                            TEMP.ID.COMP = ID.COMPANY
+                            CALL LOAD.COMPANY(COLR.COMPS<1,I>)
+                            FN.MD.DEAL=''
+                            F.MD.DEAL=''
+                            FN.MD.DEAL='F.MD.DEAL'
+                            CALL OPF(FN.MD.DEAL,F.MD.DEAL)
+                            R.MD.ERR = ''
+                            AC.CHK = ''
+                            CALL F.READ(FN.MD.DEAL,COLR.LIM.REFS<1,I>, R.MD.REC, F.MD.DEAL, R.MD.ERR)
+                            PRINT"READ THE MD RECORD from ":COLR.COMPS<1,I>:" : ":R.MD.ERR
+                            IF R.MD.ERR EQ '' THEN
+                                TEMP.COUNT+=1
+                                TEMP.STRING:=",COMPANY:" :TEMP.COUNT: ":=" : COLR.COMPS<1,I>
+                                TEMP.STRING:=",LIMIT.REFERENCE:":TEMP.COUNT: ":=" : COLR.LIM.REFS<1,I>
+                                TEMP.STRING:=",LIMIT.REF.CUST:":TEMP.COUNT: ":=" : COLR.LIM.CUST.REFS<1,I>
+                                IF COLR.LIM.PRCNT.ALLCS<1,I> NE '' THEN TEMP.STRING:=",PERCENT.ALLOC:" :TEMP.COUNT: ":=" : COLR.LIM.PRCNT.ALLCS<1,I>
+                            END ELSE
+                                PRINT "MD RECORD " : COLR.LIM.REFS<1,I> : " NOT PRESENT IN LIVE FILE"
+                            END
+                            ID.COMPANY = TEMP.ID.COMP
+                        END
+* MM Contract validation
+                        IF APP.ID EQ "MM" THEN
+                            TEMP.ID.COMP = ID.COMPANY
+                            CALL LOAD.COMPANY(COLR.COMPS<1,I>)
+                            FN.MM.MONEY.MARKET=''
+                            F.MM.MONEY.MARKET=''
+                            FN.MM.MONEY.MARKET='F.MM.MONEY.MARKET'
+                            CALL OPF(FN.MM.MONEY.MARKET,F.MM.MONEY.MARKET)
+                            R.MM.ERR = ''
+                            AC.CHK = ''
+                            CALL F.READ(FN.MM.MONEY.MARKET, COLR.LIM.REFS<1,I>, R.MM.REC, F.MM.MONEY.MARKET, R.MM.ERR)
+                            PRINT"READ THE MM RECORD from ":COLR.COMPS<1,I>:" : ":R.MM.ERR
+                            IF R.MM.ERR EQ '' THEN
+                                TEMP.COUNT+=1
+                                TEMP.STRING:=",COMPANY:" :TEMP.COUNT: ":=" : COLR.COMPS<1,I>
+                                TEMP.STRING:=",LIMIT.REFERENCE:":TEMP.COUNT: ":=" : COLR.LIM.REFS<1,I>
+                                TEMP.STRING:=",LIMIT.REF.CUST:":TEMP.COUNT: ":=" : COLR.LIM.CUST.REFS<1,I>
+                                IF COLR.LIM.PRCNT.ALLCS<1,I> NE '' THEN TEMP.STRING:=",PERCENT.ALLOC:" :TEMP.COUNT: ":=" : COLR.LIM.PRCNT.ALLCS<1,I>
+                            END ELSE
+                                PRINT "MM RECORD " : COLR.LIM.REFS<1,I> : " NOT PRESENT IN LIVE FILE"
+                            END
+                            ID.COMPANY = TEMP.ID.COMP
+                        END
+* FX Contract validation
+                        IF APP.ID EQ "FX" THEN
+                            TEMP.ID.COMP = ID.COMPANY
+                            CALL LOAD.COMPANY(COLR.COMPS<1,I>)
+                            FN.FOREX=''
+                            F.FOREX=''
+                            FN.FOREX='F.FOREX'
+                            CALL OPF(FN.FOREX,F.FOREX)
+                            R.FX.ERR = ''
+                            AC.CHK = ''
+                            CALL F.READ(FN.FOREX, COLR.LIM.REFS<1,I>, R.FX.REC, F.FOREX, R.FX.ERR)
+                            PRINT"READ THE FX RECORD from ":COLR.COMPS<1,I>:" : ":R.FX.ERR
+                            IF R.FX.ERR EQ '' THEN
+                                TEMP.COUNT+=1
+                                TEMP.STRING:=",COMPANY:" :TEMP.COUNT: ":=" : COLR.COMPS<1,I>
+                                TEMP.STRING:=",LIMIT.REFERENCE:":TEMP.COUNT: ":=" : COLR.LIM.REFS<1,I>
+                                TEMP.STRING:=",LIMIT.REF.CUST:":TEMP.COUNT: ":=" : COLR.LIM.CUST.REFS<1,I>
+                                IF COLR.LIM.PRCNT.ALLCS<1,I> NE '' THEN TEMP.STRING:=",PERCENT.ALLOC:" :TEMP.COUNT: ":=" : COLR.LIM.PRCNT.ALLCS<1,I>
+                            END ELSE
+                                PRINT "FX RECORD " : COLR.LIM.REFS<1,I> : " NOT PRESENT IN LIVE FILE"
+                            END
+                            ID.COMPANY = TEMP.ID.COMP
+                        END ELSE
+****ACCOUNT ID validation****
+                            IF AC.CHK THEN
+                                TEMP.ID.COMP = ID.COMPANY
+                                CALL LOAD.COMPANY(COLR.COMPS<1,I>)
+                                FN.ACCOUNT=''
+                                F.ACCOUNT=''
+                                FN.ACCOUNT='F.ACCOUNT'
+                                CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+                                R.AC.ERR = ''
+                                CALL F.READ(FN.ACCOUNT, COLR.LIM.REFS<1,I>, R.AC.REC, F.ACCOUNT, R.AC.ERR)
+                                PRINT"READ THE ACCOUNT RECORD from ":COLR.COMPS<1,I>:" : ":R.AC.ERR
+                                IF R.AC.ERR EQ '' THEN
+                                    TEMP.COUNT+=1
+                                    TEMP.STRING:=",COMPANY:" :TEMP.COUNT: ":=" : COLR.COMPS<1,I>
+                                    TEMP.STRING:=",LIMIT.REFERENCE:":TEMP.COUNT: ":=" : COLR.LIM.REFS<1,I>
+                                    TEMP.STRING:=",LIMIT.REF.CUST:":TEMP.COUNT: ":=" : COLR.LIM.CUST.REFS<1,I>
+                                    IF COLR.LIM.PRCNT.ALLCS<1,I> NE '' THEN TEMP.STRING:=",PERCENT.ALLOC:" :TEMP.COUNT: ":=" : COLR.LIM.PRCNT.ALLCS<1,I>
+                                END
+                                ID.COMPANY = TEMP.ID.COMP
+                            END
+                        END
+                    END ELSE
+                        IF COLR.LIM.CUST.REFS<1,I> THEN
+
+                            TEMP.COUNT+=1
+                            TEMP.STRING:=",COMPANY:" :TEMP.COUNT: ":=" : COLR.COMPS<1,I>
+                            TEMP.STRING:=",LIMIT.REFERENCE:":TEMP.COUNT: ":=" : COLR.LIM.REFS<1,I>
+                            TEMP.STRING:=",LIMIT.REF.CUST:":TEMP.COUNT: ":=" : COLR.LIM.CUST.REFS<1,I>
+                            IF COLR.LIM.PRCNT.ALLCS<1,I> NE '' THEN TEMP.STRING:=",PERCENT.ALLOC:" :TEMP.COUNT: ":=" : COLR.LIM.PRCNT.ALLCS<1,I>
+                        END
+                    END
+                NEXT
+                OFS.STRING=OFS.STRING:TEMP.STRING
+            END
+
+            CALL OFS.GLOBUS.MANAGER("OS.OFS",OFS.STRING)
+
+        REPEAT
+    REPEAT
+
+    PRINT "Finished CLEAR.LIMIT.REF.IN.COLR.CUST"
+    PRINT "Date and Time is ":TIMEDATE()
+    PRINT " ******************************END OF CLEAR.LIMIT.REF.IN.COLR************************"
+    *EXECUTE "COMO OFF CLEAR.LIMIT.REF.IN.COLR.CUST"
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+*----------------------------------------------------------------------------- 

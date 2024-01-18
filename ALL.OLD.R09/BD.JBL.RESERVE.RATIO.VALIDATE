@@ -1,0 +1,60 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.JBL.RESERVE.RATIO.VALIDATE
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*-----------------------
+* This routine is to validate the entered Amount and calculate total
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 28/08/2013 New   - Manjunath Suvarna
+*                    Sepit SoftTech Pvt. Ltd.
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE JBL.BP I_F.BD.JBL.RESERVE.RATIO
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.RESERVE.RATIO = 'F.BD.JBL.RESERVE.RATIO'
+    F.RESERVE.RATIO = ''
+
+    CALL OPF(FN.RESERVE.RATIO,F.RESERVE.RATIO)
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+*
+    Y.AVG = R.NEW(RE.RATIO.AVG.DEPOSIT)
+    Y.CRR = R.NEW(RE.RATIO.CRR.PERCENT)
+    IF Y.AVG NE '' AND Y.CRR NE '' THEN
+        Y.CRR.TOT = (Y.AVG * Y.CRR) / 100
+        R.NEW(RE.RATIO.CRR.AMOUNT) = Y.CRR.TOT
+    END
+*
+    Y.CRR.T = R.NEW(RE.RATIO.CRR.AMOUNT)
+    Y.LIEN = R.NEW(RE.RATIO.LIEN.AMOUNT)
+    IF Y.CRR.T NE '' AND Y.LIEN NE '' THEN
+        Y.LIEN.CRR = Y.CRR.T + Y.LIEN
+        R.NEW(RE.RATIO.TOTAL.CRR.LIEN) = Y.LIEN.CRR
+    END
+*
+    Y.SLR = R.NEW(RE.RATIO.SLR.PERCENT)
+    IF Y.AVG NE '' AND Y.SLR NE '' THEN
+        Y.SLR.TOT = (Y.AVG * Y.SLR)
+        R.NEW(RE.RATIO.SLR.AMOUNT) = Y.SLR.TOT
+    END
+*
+    RETURN
+END

@@ -1,0 +1,192 @@
+*-----------------------------------------------------------------------------
+* <Rating>454</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PACS.RAISE.CORRECTION.ENTRY
+
+* Save the below string in &SAVEDLISTS& ==> STMT.ENTRY.CREATE
+* ACC.ID^DIFF.AMT^YENT.ID^TXN.REF^PROB.DAT
+* Check line no 98 once
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.EB.CONTRACT.BALANCES
+    $INSERT GLOBUS.BP I_F.CURRENCY
+    $INSERT GLOBUS.BP I_F.DATES
+    $INSERT GLOBUS.BP I_ACCT.COMMON
+
+**************************************************************************************************
+
+    EXECUTE "COMO ON PACS.RAISE.CORRECTION.ENTRY_":TODAY:'_':TIME()
+
+    YR.MULTI.STMT=""
+
+    R.ACCOUNT=""
+
+    GOSUB OPENFILES
+    LOOP
+    REMOVE PROB.ID FROM PROB.IDS SETTING POS2
+    WHILE PROB.ID:POS2
+       GOSUB MAIN.PROCESS
+    REPEAT
+    EXECUTE "COMO OFF PACS.RAISE.CORRECTION.ENTRY_":TODAY:'_':TIME()
+PGM.EXIT:
+    PRINT "COMO saved as *** PACS.RAISE.CORRECTION.ENTRY_":TODAY:'_':TIME():" ***"
+    SLEEP 2
+    RETURN
+
+**********
+OPENFILES:
+**********
+    FN.STMT="F.STMT.ENTRY"
+    FV.STMT=""
+    CALL OPF(FN.STMT,FV.STMT)
+
+    FN.ACCOUNT="F.ACCOUNT"
+    FV.ACCOUNT=""
+    CALL OPF(FN.ACCOUNT,FV.ACCOUNT)
+
+
+    FN.ECB="F.EB.CONTRACT.BALANCES"
+    FV.ECB=""
+    CALL OPF(FN.ECB,FV.ECB)
+
+
+    FN.ASM="F.ACCT.STMT.PRINT"
+    FV.ASM=""
+    CALL OPF(FN.ASM,FV.ASM)
+
+
+    FN.SP="F.STMT.PRINTED"
+    FV.SP=""
+    CALL OPF(FN.SP,FV.SP)
+
+    FN.DATE.EXPOSURE ="F.DATE.EXPOSURE"
+    FV.DATE.EXPOSURE = ""
+    CALL OPF(FN.DATE.EXPOSURE,FV.DATE.EXPOSURE)
+
+
+    YR.MULTI.STMT=""
+    ACC.ID=""
+    F.SL=''
+    OPEN '&SAVEDLISTS&' TO F.SL ELSE PRINT 'Cannot open &SAVEDLISTS&'
+    READ PROB.IDS FROM F.SL,'STMT.ENTRY.CREATE' ELSE
+       PRINT 'No records in STMT.ENTRY.CREATE of &SAVEDLISTS&'
+       GOTO PGM.EXIT
+    END
+    RETURN
+
+************MAIN PROCESS*******************************************************************************
+MAIN.PROCESS:
+*************
+    ACC.ID = '' ; DIFF.AMT = '' ;
+    CO.CODE = '' ; PROD.ID = '' ; ACCT.OFF = '' ; CUST.NO = '' ; CCY.MKT = '' ; POS.TYPE = '' ; CON.KEY = ''
+    ASST.TYPE = '' ; CURREN = '' ; R.ECB = '';PROB.DAT = ''
+
+    ACC.ID = TRIM(FIELD(PROB.ID,'^',1))
+    DIFF.AMT = TRIM(FIELD(PROB.ID,'^',2))
+    YENT.ID = TRIM(FIELD(PROB.ID,'^',3)) ;* Entry ID in case of correct ID but wrong/overwritten data
+    TXN.REF = TRIM(FIELD(PROB.ID,'^',4)) ;* If transaction identified
+    PROB.DAT = TRIM(FIELD(PROB.ID,'^',5))
+    IF TXN.REF ELSE
+       TXN.REF = "AC Correction"
+    END
+
+    READ R.ACCOUNT FROM FV.ACCOUNT, ACC.ID ELSE R.ACCOUNT=""
+
+    READ R.ECB FROM FV.ECB, ACC.ID ELSE R.ECB=""
+
+***********Extract  Basic details of entries from ECB to form base array*************************************
+    CO.CODE=R.ACCOUNT<AC.CO.CODE>
+    PROD.ID=R.ACCOUNT<AC.CATEGORY>
+    ACCT.OFF=R.ACCOUNT<AC.ACCOUNT.OFFICER>
+    CUST.NO=R.ACCOUNT<AC.CUSTOMER>
+    CCY.MKT=R.ACCOUNT<AC.CURRENCY.MARKET>
+    POS.TYPE=R.ACCOUNT<AC.POSITION.TYPE>
+    CON.KEY=R.ECB<ECB.CONSOL.KEY>
+    ASST.TYPE=R.ECB<ECB.OPEN.ASSET.TYPE>
+    CURREN=R.ACCOUNT<AC.CURRENCY>
+
+    GOSUB BUILD.BASE.ENTRY    ;* Formation of base array
+    YR.MULTI.STMT=""
+    YR.MULTI.STMT<-1> = LOWER(ENTRY)
+    ENTRY.INDEX = ""
+    ENTRYID.LIST = ""
+    ENTRY.TEXT = ""
+    ENTRY.TEXT.SHORT = ""
+
+    IF YENT.ID EQ '' THEN
+        CALL ALLOCATE.ENTRIES(YR.MULTI.STMT, ENTRYID.LIST, ENTRY.INDEX, ENTRY.TEXT, ENTRY.TEXT.SHORT)
+    END ELSE
+        ENTRYID.LIST<-1> = YENT.ID
+        ENTRY.INDEX = 1
+    END
+
+
+
+
+    LOOP E.IDX = REMOVE(ENTRY.INDEX,D) UNTIL NOT(E.IDX:D)
+        YR.ENTRY = YR.MULTI.STMT<1>
+        YENT.ID = REMOVE(ENTRYID.LIST,D)
+        PRINT " ENTRYID.LIST #":ENTRYID.LIST
+        YR.ENTRY = RAISE(YR.ENTRY)
+        IF YR.ENTRY EQ '' THEN CONTINUE
+        IF YENT.ID THEN
+           READ ENT.REC FROM FV.STMT,YENT.ID ELSE
+             WRITE YR.ENTRY TO FV.STMT, YENT.ID
+             PRINT "STMT.ENTRY created #":YENT.ID:"# YR.ENTRY #":YR.ENTRY
+           END
+****************************************************************
+        END
+    REPEAT
+    RETURN
+
+
+*****************
+BUILD.BASE.ENTRY:
+*****************
+*
+***********************************************************
+*  Build base STMT.ENTRY entry fields.                    *
+***********************************************************
+*
+    ENTRY = ""
+*
+    ENTRY<AC.STE.ACCOUNT.NUMBER> = ACC.ID
+    ENTRY<AC.STE.COMPANY.CODE> = CO.CODE
+    ENTRY<AC.STE.TRANSACTION.CODE> = '258'
+    ENTRY<AC.STE.THEIR.REFERENCE> = TXN.REF
+    ENTRY<AC.STE.NARRATIVE> = TXN.REF
+    ENTRY<AC.STE.PL.CATEGORY> = ""
+    ENTRY<AC.STE.CUSTOMER.ID> = CUST.NO
+    ENTRY<AC.STE.ACCOUNT.OFFICER> = ACCT.OFF
+    ENTRY<AC.STE.PRODUCT.CATEGORY> = PROD.ID
+    ENTRY<AC.STE.CURRENCY> = CURREN
+    ENTRY<AC.STE.EXCHANGE.RATE> = ""
+    ENTRY<AC.STE.POSITION.TYPE> = POS.TYPE
+    ENTRY<AC.STE.OUR.REFERENCE> = TXN.REF
+    ENTRY<AC.STE.CURRENCY.MARKET> = CCY.MKT
+    ENTRY<AC.STE.DEPARTMENT.CODE> = ''
+    ENTRY<AC.STE.SYSTEM.ID> = "AC"
+    ENTRY<AC.STE.CRF.TYPE> = ASST.TYPE
+    ENTRY<AC.STE.CRF.TXN.CODE> = ""
+    ENTRY<AC.STE.CRF.MAT.DATE> = ""
+    ENTRY<AC.STE.REVERSAL.MARKER> = ""
+    ENTRY<AC.STE.TRANS.REFERENCE> = TXN.REF
+    ENTRY<AC.STE.CONSOL.KEY>= CON.KEY
+    IF CURREN EQ LCCY THEN
+        ENTRY<AC.STE.AMOUNT.LCY> = DIFF.AMT
+    END ELSE
+        ENTRY<AC.STE.AMOUNT.FCY> = DIFF.AMT
+    END
+    IF PROB.DAT THEN
+        ENTRY<AC.STE.VALUE.DATE> = PROB.DAT
+        ENTRY<AC.STE.BOOKING.DATE> = PROB.DAT
+    END ELSE
+        ENTRY<AC.STE.VALUE.DATE> = TODAY
+        ENTRY<AC.STE.BOOKING.DATE> = TODAY
+    END
+
+    RETURN
+END

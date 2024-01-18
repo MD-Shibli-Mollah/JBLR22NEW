@@ -1,0 +1,48 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.FDR.LIKE.DETAILS
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.AZ.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+
+*-------
+INIT:
+*-------
+    FN.AZ.ACCT = 'FBNK.AZ.ACCOUNT'
+    F.AZ.ACCT = ''
+    RETURN
+
+*----------
+OPENFILE:
+*----------
+    CALL OPF(FN.AZ.ACCT,F.AZ.ACCT)
+    RETURN
+
+*----------
+PROCESS:
+*----------
+    Y.VALUE.DATE = R.NEW(AZ.VALUE.DATE)
+    IF R.NEW(AZ.CATEGORY) EQ '6623' OR R.NEW(AZ.CATEGORY) EQ '6625' OR R.NEW(AZ.CATEGORY) EQ '6626' THEN
+        R.NEW(AZ.SCHEDULES) = 'Y'
+        R.NEW(AZ.TYPE.OF.SCHDLE) = 'I'
+
+        IF Y.VALUE.DATE[5,2] LT '12' THEN
+            IF Y.VALUE.DATE[5,2] LT 10 THEN
+                R.NEW(AZ.FREQUENCY) = Y.VALUE.DATE[1,4]:'0':Y.VALUE.DATE[5,2]+1:Y.VALUE.DATE[7,2]:'M01':Y.VALUE.DATE[7,2]
+            END ELSE
+                R.NEW(AZ.FREQUENCY) = Y.VALUE.DATE[1,4]:Y.VALUE.DATE[5,2]+1:Y.VALUE.DATE[7,2]:'M01':Y.VALUE.DATE[7,2]
+            END
+        END ELSE
+            R.NEW(AZ.FREQUENCY) = Y.VALUE.DATE[1,4]+1:'01':Y.VALUE.DATE[7,2]:'M01':Y.VALUE.DATE[7,2]
+        END
+    END ELSE
+        R.NEW(AZ.FREQUENCY) = Y.VALUE.DATE[1,4]:'1231':'M1231'
+    END
+    RETURN

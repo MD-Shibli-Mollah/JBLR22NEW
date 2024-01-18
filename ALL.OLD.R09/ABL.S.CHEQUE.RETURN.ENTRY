@@ -1,0 +1,150 @@
+*-----------------------------------------------------------------------------
+* <Rating>-55</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.CHEQUE.RETURN.ENTRY
+! PROGRAM ABL.S.CHEQUE.RETURN.ENTRY
+
+!-------------------------------------------------
+!This subroutine is used to make a contra entry when
+!a cheque is return
+!developed by -Manik-20100925
+
+!Changes done by Manikandan V - 20140127 to avoid the GL
+
+!--------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.CHEQUE.COLLECTION
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.DATES
+
+    Y.CHQ.STATUS='CHQ.COLL.STATUS'
+    Y.CHQ.STATUS.POS = ''
+    CALL GET.LOC.REF("CHEQUE.COLLECTION",Y.CHQ.STATUS,Y.CHQ.STATUS.POS)
+
+    Y.CHQ.NO ='PR.CHEQUE.NO'
+    Y.CHQ.NO.POS = ''
+    CALL GET.LOC.REF("TELLER",Y.CHQ.NO,Y.CHQ.NO.POS)
+
+    Y.CHQ.CURR.STATUS = ''
+    Y.CHQ.CURR.STATUS = R.NEW(CHQ.COL.LOCAL.REF)<1,Y.CHQ.STATUS.POS>
+
+    IF Y.CHQ.CURR.STATUS EQ 'RETURNED' THEN
+        GOSUB INITIALIZE
+        GOSUB RESOLVE.COMMON.LEG.ACCOUNTING
+        GOSUB RESOLVE.DEBIT.LEG.ACCOUNTING
+        GOSUB RESOLVE.CREDIT.LEG.ACCOUNTING
+        GOSUB PERFORM.ACCOUNTING
+    END
+
+INITIALIZE:
+!*********!
+! Initialize Accounting Arrays...
+    Y.TT.ID = ''
+    REC.TT = ''
+
+    Y.JUL.DATE = ''
+    Y.JUL.DATE = RIGHT(R.DATES(EB.DAT.JULIAN.DATE),5)
+
+    Y.EB.ACC.COMM.ARR = ''
+    Y.EB.CR.ARR = ''
+    Y.EB.DR.ARR = ''
+    Y.EB.ACC.ARR = ''
+    Y.CHQ.COLL.AMT = ''
+    Y.TR.REF = ''
+    Y.TT.ID = R.NEW(CHQ.COL.TXN.ID)
+
+*IF Y.TT.ID[3,5] EQ Y.JUL.DATE THEN
+*    FN.TT = 'F.TELLER'
+* END
+
+*ELSE
+*    FN.TT = 'F.TELLER$HIS'
+*    Y.TT.ID = Y.TT.ID:";1"
+* END
+
+    FV.TT = ''
+    FV.TT.HIS = ''
+    FN.TT = 'F.TELLER'
+    FN.TT.HIS = 'F.TELLER$HIS'
+
+
+    CALL OPF(FN.TT,FV.TT)
+    CALL F.READ(FN.TT,Y.TT.ID,REC.TT,FV.TT,ERR.TT)
+
+    IF ERR.TT THEN
+        REC.TT = ''
+* Y.TT.ID = Y.TT.ID:";1"
+        CALL OPF(FN.TT.HIS,FV.TT.HIS)
+        CALL F.READ(FN.TT.HIS,Y.TT.ID,REC.TT,FV.TT.HIS,ERR1.TT)
+    END
+
+    Y.CHQ.COLL.AMT = R.NEW(CHQ.COL.AMOUNT)
+    Y.DR.ACCOUNT = R.NEW(CHQ.COL.CREDIT.ACC.NO)
+    Y.CR.ACCOUNT =REC.TT<TT.TE.ACCOUNT.1>
+    Y.TR.REF = REC.TT<TT.TE.LOCAL.REF,Y.CHQ.NO.POS>
+    BEGIN CASE
+    CASE R.NEW(CHQ.COL.TXN.CODE) EQ '93'
+        Y.PAID.DR.CODE = '134'
+        Y.PAID.CR.CODE = '134'
+    CASE R.NEW(CHQ.COL.TXN.CODE) EQ '95'
+        Y.PAID.DR.CODE = '135'
+        Y.PAID.CR.CODE = '135'
+
+    CASE R.NEW(CHQ.COL.TXN.CODE) EQ '92'
+        Y.PAID.DR.CODE = '136'
+        Y.PAID.CR.CODE = '136'
+    END CASE
+    RETURN
+
+RESOLVE.COMMON.LEG.ACCOUNTING:
+!****************************!
+
+    Y.EB.ACC.COMM.ARR<AC.STE.COMPANY.CODE> = ID.COMPANY
+    Y.EB.ACC.COMM.ARR<AC.STE.TRANS.REFERENCE> = Y.TR.REF
+    Y.EB.ACC.COMM.ARR<AC.STE.VALUE.DATE> = TODAY
+    Y.EB.ACC.COMM.ARR<AC.STE.BOOKING.DATE> = TODAY
+    Y.EB.ACC.COMM.ARR<AC.STE.SYSTEM.ID> = 'AC'
+    Y.EB.ACC.COMM.ARR<AC.STE.CURRENCY.MARKET> = '1'
+    Y.EB.ACC.COMM.ARR<AC.STE.CURRENCY> = 'BDT'
+    Y.EB.ACC.COMM.ARR<AC.STE.OUR.REFERENCE> = 'AC-CHEQUE RETURN'
+    Y.EB.ACC.COMM.ARR<AC.STE.ACCOUNT.OFFICER> = 1
+    RETURN
+
+!***************************!
+RESOLVE.DEBIT.LEG.ACCOUNTING:
+!***************************!
+    Y.EB.DR.ARR = Y.EB.ACC.COMM.ARR
+    Y.EB.DR.ARR<AC.STE.AMOUNT.LCY> = (Y.CHQ.COLL.AMT * -1)
+    Y.EB.DR.ARR<AC.STE.TRANSACTION.CODE> = Y.PAID.DR.CODE
+    Y.EB.DR.ARR<AC.STE.ACCOUNT.NUMBER> = Y.DR.ACCOUNT
+    RETURN
+
+
+!****************************!
+RESOLVE.CREDIT.LEG.ACCOUNTING:
+!****************************!
+    Y.EB.CR.ARR = Y.EB.ACC.COMM.ARR
+    Y.EB.CR.ARR<AC.STE.AMOUNT.LCY> = Y.CHQ.COLL.AMT
+    Y.EB.CR.ARR<AC.STE.ACCOUNT.NUMBER> = Y.CR.ACCOUNT
+    Y.EB.CR.ARR<AC.STE.TRANSACTION.CODE> = Y.PAID.CR.CODE
+    RETURN
+
+!*****************!
+PERFORM.ACCOUNTING:
+!*****************!
+
+    Y.EB.ACC.ARR = ''
+    Y.EB.ACC.ARR<-1> = LOWER(Y.EB.CR.ARR)
+    Y.EB.ACC.ARR<-1> = LOWER(Y.EB.DR.ARR)
+    Y.EB.CR.ARR = ''
+    Y.EB.DR.ARR = ''
+    EB.ERR = ''
+    ACC.TYPE = "SAO":FM:FM:"UPDATE.ACTIVITY"
+    CALL EB.ACCOUNTING("ACC",ACC.TYPE,Y.EB.ACC.ARR,EB.ERR)
+    CALL JOURNAL.UPDATE('')
+    SENSITIVITY=''
+    RETURN
+
+END

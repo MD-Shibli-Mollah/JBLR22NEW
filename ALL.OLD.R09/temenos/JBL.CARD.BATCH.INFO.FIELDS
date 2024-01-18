@@ -1,0 +1,52 @@
+    SUBROUTINE JBL.CARD.BATCH.INFO.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine
+*
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* Modification History :
+* Description : Field Definition for Card Information file Upload
+* Author      : AVIJIT SAHA
+* 21/11/21 - New Template changes
+*
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("CARD.AC.ID", T24_String) ;* Define Table id
+*-----------------------------------------------------------------------------
+!CALL Field.setCheckFile('ACCOUNT')
+    CALL Table.addFieldDefinition("BIN","6","","")
+    CALL Table.addFieldDefinition("CARD.NO","20","","")
+    CALL Table.addFieldDefinition("ISSUE.DATE","8","D","")
+    CALL Table.addFieldDefinition("EXPIRE.DATE","8","D","")
+    CALL Table.addFieldDefinition("REF.NO", "20", "", "")
+    CALL Table.addFieldDefinition("BRANCH.CODE", "10", "", "")
+    CALL Table.addFieldDefinition("ENTRY.DATE","8","D","")
+    CALL Table.addField("STATUS", T24_String,"","")
+    CALL Table.addOptionsField("CARD.TYPE","DEBIT_VISA_","","")
+    CALL Table.addField("REQ.REF.NO", T24_String, "", "")
+    CALL Table.addField("ATTRIBUTE1", T24_String, "", "")
+    CALL Table.addField("ATTRIBUTE2", T24_String, "", "")
+    CALL Table.addField("ATTRIBUTE3", T24_String, "", "")
+    CALL Table.addField("ATTRIBUTE4", T24_String, "", "")
+    CALL Table.addField("ATTRIBUTE5", T24_String, "", "")
+    CALL Table.addOverrideField
+
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    C$NS.OPERATION = 'ALL'
+
+    RETURN
+END
+

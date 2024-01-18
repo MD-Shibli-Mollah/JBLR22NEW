@@ -1,0 +1,30 @@
+*-----------------------------------------------------------------------------
+* <Rating>-4</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM JBL.VVR.AZ.MAT.DATE
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.AZ.PRODUCT.PARAMETER
+    $INSERT I_F.AZ.ACCOUNT
+    FN.APP = 'F.AZ.PRODUCT.PARAMETER'
+    F.APP = ''
+    DEBUG
+* Y.APP.REC.ID = O.DATA
+    Y.APP.REC.ID = "FIXEDDEP3-6M"
+    CALL OPF(FN.APP,F.APP)
+    CALL F.READ(FN.APP,Y.APP.REC.ID,Y.APP.REC,F.APP,Y.ERR)
+    Y.APP.MAT.DATE = Y.APP.REC<AZ.APP.MAXIMUM.TERM>
+    Y.MAT.TERM.MONTH = FIELD(Y.APP.MAT.DATE,'M',1)
+*Y.MAT.TERM.MONTH = CHAR(Y.APP.MAT.DATE,1,2)
+    Y.MAT.NO = Y.MAT.TERM.MONTH * 1
+    *IF Y.MAT.TERM.MONTH = NUMERIC  THEN
+     IF Y.MAT.NO EQ NUMERIC THEN
+* R.NEW(AZ.MATURITY.DATE) = Y.MAT.TERM.MONTH
+        Y.MAT.TERM.YEAR = FIELD(Y.APP.MAT.DATE,'Y',1)
+        Y.MAT.TERM.MONTH = Y.MAT.TERM.YEAR * 12
+        CRT Y.MAT.TERM.MONTH
+    END ELSE
+        CRT Y.MAT.TERM.MONTH
+    END
+
+END

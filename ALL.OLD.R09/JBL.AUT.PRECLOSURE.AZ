@@ -1,0 +1,385 @@
+*-----------------------------------------------------------------------------
+* <Rating>-161</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.AUT.PRECLOSURE.AZ
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine is an authorisation routine to calculate excise duty online
+* on all preclosed deposits
+*-------------------------------------------------------------------------
+* Project Name : National Bank Limited(Bangladesh)
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+* NA
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*  TODAY                         -          Holds today's date
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+*
+* EXCISE.DUTY.MAIN.PROCESS     LOCAL        Detects whether the excise
+*                                           duty needs to be applied.
+* EB.ACCOUNTING                 CORE        Used to generate accounting
+*                                           entries
+* EB.CURR.CONV                  CORE        Used to convert a currency amt
+*                                           to another currency amount
+* MIDDLE.RATE.CONV.CHECK        CORE        This routine is used to convert
+*                                           the given foreign currency amount
+*                                           in to local currency amount(USD) and
+*                                           gives the exchange rate and equivalent local amount
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 28/02/2011 -                            New   - Rashmitha M
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE JBL.BP I_F.EB.BD.EXCISE.DUTY
+    $INCLUDE GLOBUS.BP I_F.AZ.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.TELLER
+    $INCLUDE JBL.BP I_F.BD.EXCISE.DUTY.SLAB
+    $INCLUDE JBL.BP I_F.EB.BD.EXCISE.DUTY.PARAM
+    $INCLUDE JBL.BP I_F.EB.JBL.AZ.MAT.LIST
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT.CLASS
+    $INCLUDE GLOBUS.BP I_F.FT.COMMISSION.TYPE
+    $INCLUDE GLOBUS.BP I_F.STMT.ENTRY
+    $INCLUDE GLOBUS.BP I_F.COMPANY
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT.CLOSURE
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+*-------------------------------------------------------------------------
+OPENFILES:
+***********
+! Open files
+    CALL OPF(FN.EB.BD.EXCISE.DUTY,F.EB.BD.EXCISE.DUTY)
+    CALL OPF(FN.EB.BD.EXCISE.DUTY.PARAM,F.EB.BD.EXCISE.DUTY.PARAM)
+    CALL OPF(FN.EB.BD.EXCISE.DUTY.SLAB,F.EB.BD.EXCISE.DUTY.SLAB)
+    CALL OPF(FN.ACCOUNT.CLASS,F.ACCOUNT.CLASS)
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    CALL OPF(FN.AZ.ACCOUNT,F.AZ.ACCOUNT)
+    CALL OPF(FN.FT.COMMISSION.TYPE,F.FT.COMMISSION.TYPE)
+    CALL OPF(FN.EB.JBL.AZ.MAT.LIST,F.EB.JBL.AZ.MAT.LIST)
+
+    RETURN
+*-------------------------------------------------------------------------
+PROCESS:
+********
+! Process
+    BEGIN CASE
+*
+    CASE APPLICATION EQ 'AZ.ACCOUNT'
+!-- For preclosure of AZ.ACCOUNT
+        Y.AC.ID = ID.NEW
+        Y.PARAM.ID='AZ'
+        GOSUB READ.AZ
+
+*
+    CASE APPLICATION EQ 'TELLER'
+!-- For preclosure of AZ.ACCOUNT using TELLER
+        Y.AC.ID=R.NEW(TT.TE.ACCOUNT.2)
+        Y.PARAM.ID='AZ'
+        GOSUB READ.AZ
+        BEGIN CASE
+        CASE Y.CURRENCY EQ LCCY
+            IF R.AZ.ACCOUNT<AZ.PRINCIPAL> NE R.NEW(TT.TE.AMOUNT.LOCAL.1) THEN
+                RETURN
+            END
+        CASE Y.CURRENCY NE LCCY
+            IF R.AZ.ACCOUNT<AZ.PRINCIPAL> NE R.NEW(TT.TE.AMOUNT.FCY.1) THEN
+                RETURN
+            END
+        END CASE
+*
+    END CASE
+*
+! Check existence of record in EB.BD.EXCISE.DUTY and calculate excise duty.
+    GOSUB READ.BD.EXCISE.DUTY.PREV.YR   ;*If deposit is closed online on JAN 1st of this year
+    GOSUB READ.BD.EXCISE.DUTY
+    IF R.EB.BD.EXCISE.DUTY OR R.EB.BD.EXCISE.DUTY.PREV.YR THEN
+        GOSUB MAIN.PROCESS
+    END
+
+    RETURN
+*-------------------------------------------------------------------------
+READ.AZ:
+********
+! Read AZ
+    READ R.AZ.ACCOUNT FROM F.AZ.ACCOUNT,Y.AC.ID ELSE
+        RETURN
+    END
+    Y.CATEGORY=R.AZ.ACCOUNT<AZ.CATEGORY>
+    Y.CURRENCY=R.AZ.ACCOUNT<AZ.CURRENCY>
+    Y.CUSTOMER=R.AZ.ACCOUNT<AZ.CUSTOMER>
+    Y.NOM.ID=R.AZ.ACCOUNT<AZ.NOMINATED.ACCOUNT>
+    GOSUB READ.ACCOUNT
+    Y.ACCT.OFFICER=R.ACCOUNT<AC.ACCOUNT.OFFICER>
+    Y.CURRENCY.MARKET=R.ACCOUNT<AC.CURRENCY.MARKET>
+    Y.LIMIT.REF=R.ACCOUNT<AC.LIMIT.REF>
+
+    RETURN
+*-------------------------------------------------------------------------
+READ.ACCOUNT:
+*************
+! Read ACCOUNT
+    CALL F.READ(FN.ACCOUNT,Y.AC.ID,R.ACCOUNT,F.ACCOUNT,ACCOUNT.ERR)
+
+    RETURN
+*-------------------------------------------------------------------------
+MAIN.PROCESS:
+**************
+! Main Process
+
+    Y.SLAB.ID='SYSTEM'
+    CALL F.READ(FN.EB.BD.EXCISE.DUTY.SLAB,Y.SLAB.ID,R.EB.BD.EXCISE.DUTY.SLAB,F.EB.BD.EXCISE.DUTY.SLAB,EB.BD.EXCISE.DUTY.SLAB.ERR)
+    IF NOT(R.EB.BD.EXCISE.DUTY.SLAB) AND EB.BD.EXCISE.DUTY.SLAB.ERR THEN
+        RETURN
+    END
+    CALL F.READ(FN.EB.BD.EXCISE.DUTY.PARAM,Y.PARAM.ID,R.EB.BD.EXCISE.DUTY.PARAM,F.EB.BD.EXCISE.DUTY.PARAM,EB.BD.EXCISE.DUTY.PARAM.ERR)
+    IF NOT(R.EB.BD.EXCISE.DUTY.PARAM) AND EB.BD.EXCISE.DUTY.SLAB.ERR THEN
+        RETURN
+    END
+    CALL EXCISE.DUTY.MAIN.PROCESS(R.EB.BD.EXCISE.DUTY.PARAM,Y.CATEGORY,Y.APPLY.CHARGE)
+    GOSUB APPLY.EXCISE.DUTY
+
+    RETURN
+*-------------------------------------------------------------------------
+APPLY.EXCISE.DUTY:
+******************
+    IF Y.APPLY.CHARGE EQ 'Y' THEN
+        GOSUB GET.DUTY.AMT
+        GOSUB GEN.ENTRIES
+    END
+
+    RETURN
+*-------------------------------------------------------------------------
+GET.DUTY.AMT:
+**************
+! Get Excise duty amount
+    BEGIN CASE
+    CASE R.EB.BD.EXCISE.DUTY EQ ""
+! If account is closed online on JAN 1st
+        Y.BAL.AMT=R.ACCOUNT<AC.OPEN.ACTUAL.BAL>
+        IF NOT(Y.BAL.AMT) THEN
+            RETURN
+        END
+        IF Y.CURRENCY EQ LCCY THEN
+            Y.BAL=ABS(Y.BAL.AMT)
+        END ELSE
+            CALL EB.CURR.CONV(Y.CURRENCY,Y.BAL.AMT,LCCY,Y.BAL)
+        END
+*
+    CASE R.EB.BD.EXCISE.DUTY NE ""
+        Y.CR.BAL=R.EB.BD.EXCISE.DUTY<EB.BD.46.HIGHEST.CR.BAL.LCY>
+        Y.DR.BAL=R.EB.BD.EXCISE.DUTY<EB.BD.46.HIGHEST.DT.BAL.LCY>
+        IF Y.CR.BAL GT ABS(Y.DR.BAL) THEN
+            Y.BAL=Y.CR.BAL
+        END ELSE
+            Y.BAL=ABS(Y.DR.BAL)
+        END
+    END CASE
+*
+! Get slab amount for Y.BAL
+    Y.AMT=R.EB.BD.EXCISE.DUTY.SLAB<EB.BD.2.AMT.FROM>
+    CONVERT VM TO FM IN Y.AMT
+    Y.COUNT.AMT=DCOUNT(Y.AMT,FM)
+    LOOP
+    WHILE AMT.FROM.POS LE Y.COUNT.AMT
+        Y.AMT.FRM=R.EB.BD.EXCISE.DUTY.SLAB<EB.BD.2.AMT.FROM,AMT.FROM.POS>
+        Y.AMT.TO=R.EB.BD.EXCISE.DUTY.SLAB<EB.BD.2.AMT.TO,AMT.FROM.POS>
+        IF Y.AMT.TO EQ '' AND Y.BAL GE Y.AMT.FRM THEN
+            Y.SLAB.AMT =R.EB.BD.EXCISE.DUTY.SLAB<EB.BD.2.EXCISE.DUTY.AMT,AMT.FROM.POS>
+            EXIT
+        END ELSE
+            IF Y.BAL GE Y.AMT.FRM AND Y.BAL LE Y.AMT.TO THEN
+                Y.SLAB.AMT =R.EB.BD.EXCISE.DUTY.SLAB<EB.BD.2.EXCISE.DUTY.AMT,AMT.FROM.POS>
+                EXIT
+            END
+        END
+        AMT.FROM.POS++
+    REPEAT
+! Calculate FCY amount for slab amount
+    Y.SLAB.AMT.LCY=Y.SLAB.AMT
+    IF Y.CURRENCY NE LCCY THEN
+        Y.SLAB.AMT.FCY=''
+        Y.RATE=''
+        CALL MIDDLE.RATE.CONV.CHECK(Y.SLAB.AMT.FCY,Y.CURRENCY,Y.RATE,Y.CURRENCY.MARKET,Y.SLAB.AMT.LCY,'','')
+    END ELSE
+        Y.SLAB.AMT.FCY=''
+    END
+
+    RETURN
+*---------------------------------------------------------------------------
+READ.BD.EXCISE.DUTY.PREV.YR:
+****************************
+! Read previous year record (in case account is preclosed online on JAN 1 this year)
+    Y.EB.BD.EXCISE.DUTY.ID=Y.AC.ID:'-':(TODAY[1,4]-1)
+    CALL F.READ(FN.EB.BD.EXCISE.DUTY,Y.EB.BD.EXCISE.DUTY.ID,R.EB.BD.EXCISE.DUTY.PREV.YR,F.EB.BD.EXCISE.DUTY,EB.BD.EXCISE.DUTY.ERR)
+
+    RETURN
+*-------------------------------------------------------------------------
+READ.BD.EXCISE.DUTY:
+********************
+! Read READ.BD.EXCISE.DUTY
+    Y.EB.BD.EXCISE.DUTY.ID=Y.AC.ID:'-':(TODAY[1,4])
+    CALL F.READ(FN.EB.BD.EXCISE.DUTY,Y.EB.BD.EXCISE.DUTY.ID,R.EB.BD.EXCISE.DUTY,F.EB.BD.EXCISE.DUTY,EB.BD.EXCISE.DUTY.ERR)
+
+    RETURN
+*-------------------------------------------------------------------------
+GEN.ENTRIES:
+*************
+! Get internal account category for the company
+    LOCATE ID.COMPANY IN R.EB.BD.EXCISE.DUTY.PARAM<EB.BD.30.COMPANY> SETTING COM.POS THEN
+        Y.INTERNAL.ACCT.CAT=R.EB.BD.EXCISE.DUTY.PARAM<EB.BD.30.INT.AC.CATEGORY>
+    END ELSE
+        Y.FIN.COMP=R.COMPANY(EB.COM.FINANCIAL.COM)
+        LOCATE Y.FIN.COMP IN R.EB.BD.EXCISE.DUTY.PARAM<EB.BD.30.COMPANY> SETTING COM.POS THEN
+            Y.INTERNAL.ACCT.CAT=R.EB.BD.EXCISE.DUTY.PARAM<EB.BD.30.INT.AC.CATEGORY>
+        END ELSE
+            RETURN
+        END
+    END
+! Form the internal account
+    Y.INTERNAL.ACCT=LCCY:Y.INTERNAL.ACCT.CAT:'0001'
+    IF C$MULTI.BOOK THEN
+        Y.INTERNAL.ACCT:= R.COMPANY(EB.COM.SUB.DIVISION.CODE)
+    END
+    GOSUB READ.FT.COMMISSION.TYPE
+    IF (Y.SLAB.AMT EQ 0) OR NOT(R.FT.COMMISSION.TYPE) THEN
+        RETURN
+    END
+
+! Statement entry debiting excise duty from the AZ/balance account:
+    ENTRY.REC=""
+    ENTRY.REC<AC.STE.ACCOUNT.NUMBER>   = Y.AC.ID
+    ENTRY.REC<AC.STE.COMPANY.CODE>     = ID.COMPANY
+    ENTRY.REC<AC.STE.AMOUNT.LCY>       = -1 * Y.SLAB.AMT.LCY
+    ENTRY.REC<AC.STE.AMOUNT.FCY>       = -1 * Y.SLAB.AMT.FCY
+    ENTRY.REC<AC.STE.TRANSACTION.CODE>=R.FT.COMMISSION.TYPE<FT4.TXN.CODE.DR>
+    ENTRY.REC<AC.STE.THEIR.REFERENCE>  = Y.AC.ID
+    ENTRY.REC<AC.STE.EXCHANGE.RATE>    = Y.RATE
+    ENTRY.REC<AC.STE.NARRATIVE,1> ='Excise Duty'
+    ENTRY.REC<AC.STE.CUSTOMER.ID>      = Y.CUSTOMER
+    ENTRY.REC<AC.STE.ACCOUNT.OFFICER>  = Y.ACCT.OFFICER
+    ENTRY.REC<AC.STE.PRODUCT.CATEGORY> = Y.CATEGORY
+    ENTRY.REC<AC.STE.VALUE.DATE>       = TODAY
+    ENTRY.REC<AC.STE.CURRENCY>         = Y.CURRENCY
+    ENTRY.REC<AC.STE.OUR.REFERENCE>    = Y.AC.ID
+    ENTRY.REC<AC.STE.CURRENCY.MARKET>  = Y.CURRENCY.MARKET
+    ENTRY.REC<AC.STE.DEPARTMENT.CODE>  = '1'
+    ENTRY.REC<AC.STE.EXPOSURE.DATE>    = TODAY
+    ENTRY.REC<AC.STE.TRANS.REFERENCE>  = Y.AC.ID
+    ENTRY.REC<AC.STE.SYSTEM.ID>        = Y.PARAM.ID
+    ENTRY.REC<AC.STE.BOOKING.DATE>     = TODAY
+    ENTRY.REC<AC.STE.COMPANY.CODE>     = ID.COMPANY
+    YENTRY.REC<-1> = LOWER(ENTRY.REC)
+
+! Statement entry crediting excise duty to the internal account
+    ENTRY.REC=""
+    ENTRY.REC<AC.STE.ACCOUNT.NUMBER>   = Y.INTERNAL.ACCT
+    ENTRY.REC<AC.STE.COMPANY.CODE>     = ID.COMPANY
+    ENTRY.REC<AC.STE.AMOUNT.LCY>       = Y.SLAB.AMT.LCY
+    ENTRY.REC<AC.STE.AMOUNT.FCY> = ''
+    ENTRY.REC<AC.STE.TRANSACTION.CODE> = R.FT.COMMISSION.TYPE<FT4.TXN.CODE.CR>
+    ENTRY.REC<AC.STE.THEIR.REFERENCE>  = Y.AC.ID
+    ENTRY.REC<AC.STE.EXCHANGE.RATE>    = ''
+    ENTRY.REC<AC.STE.NARRATIVE,1>      = 'Excise Duty'
+    ENTRY.REC<AC.STE.CUSTOMER.ID>      = Y.CUSTOMER
+    ENTRY.REC<AC.STE.ACCOUNT.OFFICER>  = Y.ACCT.OFFICER
+    ENTRY.REC<AC.STE.PRODUCT.CATEGORY> = Y.CATEGORY
+    ENTRY.REC<AC.STE.VALUE.DATE>       = TODAY
+    ENTRY.REC<AC.STE.CURRENCY>         = Y.CURRENCY
+    ENTRY.REC<AC.STE.OUR.REFERENCE>    = Y.AC.ID
+    ENTRY.REC<AC.STE.CURRENCY.MARKET>  = Y.CURRENCY.MARKET
+    ENTRY.REC<AC.STE.DEPARTMENT.CODE>  = "1"
+    ENTRY.REC<AC.STE.EXPOSURE.DATE>    = TODAY
+    ENTRY.REC<AC.STE.TRANS.REFERENCE>  = Y.AC.ID
+    ENTRY.REC<AC.STE.SYSTEM.ID>        = Y.PARAM.ID
+    ENTRY.REC<AC.STE.BOOKING.DATE>     = TODAY
+    ENTRY.REC<AC.STE.COMPANY.CODE>     = ID.COMPANY
+    YENTRY.REC<-1> = LOWER(ENTRY.REC)
+
+    CALL EB.ACCOUNTING(Y.PARAM.ID,'SAO',YENTRY.REC,'')
+    GOSUB UPD.EB.BD.EXCISE.DUTY
+
+    RETURN
+*-------------------------------------------------------------------------
+UPD.EB.BD.EXCISE.DUTY:
+***********************
+! Update EB.BD.EXCISE.DUTY for AZ and its nominated account
+    R.EB.BD.EXCISE.DUTY<EB.BD.46.EX.DUTY.AMT.FCY>=Y.SLAB.AMT.FCY
+    R.EB.BD.EXCISE.DUTY<EB.BD.46.EX.DUTY.AMT.LCY>=Y.SLAB.AMT.LCY
+    R.EB.BD.EXCISE.DUTY<EB.BD.46.POSTING.DATE>=TODAY
+    CALL F.WRITE(FN.EB.BD.EXCISE.DUTY,Y.EB.BD.EXCISE.DUTY.ID,R.EB.BD.EXCISE.DUTY)
+    IF R.AZ.ACCOUNT AND (Y.SLAB.AMT NE '0') AND Y.NOM.ID NE ""  THEN
+        Y.EB.BD.EXCISE.DUTY.ID=Y.NOM.ID:'-':(TODAY[1,4])
+        CALL F.READ(FN.EB.BD.EXCISE.DUTY,Y.EB.BD.EXCISE.DUTY.ID,R.EB.BD.EXCISE.DUTY,F.EB.BD.EXCISE.DUTY,EB.BD.EXCISE.DUTY.ERR)
+        R.EB.BD.EXCISE.DUTY<EB.BD.46.AZ.MAT.AMT,(DCOUNT(R.EB.BD.EXCISE.DUTY<EB.BD.46.AZ.MAT.AMT>,VM)+1)>=ABS(R.ACCOUNT<AC.WORKING.BALANCE>)
+        R.EB.BD.EXCISE.DUTY<EB.BD.46.AZ.MAT.DATE,(DCOUNT(R.EB.BD.EXCISE.DUTY<EB.BD.46.AZ.MAT.DATE>,VM)+1)>=TODAY
+        CALL F.WRITE(FN.EB.BD.EXCISE.DUTY,Y.EB.BD.EXCISE.DUTY.ID,R.EB.BD.EXCISE.DUTY)
+    END
+
+    RETURN
+*-------------------------------------------------------------------------
+READ.FT.COMMISSION.TYPE:
+************************
+! Read FT.COMMISSION.TYPE
+    Y.COMM.TYPE=R.EB.BD.EXCISE.DUTY.PARAM<EB.BD.30.COM.TYPE.EXCISE>
+    CALL F.READ(FN.FT.COMMISSION.TYPE,Y.COMM.TYPE,R.FT.COMMISSION.TYPE,F.FT.COMMISSION.TYPE,FT.COMMISSION.TYPE.ERR)
+
+    RETURN
+*-------------------------------------------------------------------------
+INIT:
+*****
+! Initialise variables
+    FN.EB.BD.EXCISE.DUTY='F.EB.BD.EXCISE.DUTY'
+    F.EB.BD.EXCISE.DUTY=''
+    R.EB.BD.EXCISE.DUTY=''
+    R.EB.BD.EXCISE.DUTY.PREV.YR=''
+    EB.BD.EXCISE.DUTY.ERR=''
+    FN.EB.BD.EXCISE.DUTY.SLAB='F.EB.BD.EXCISE.DUTY.SLAB'
+    F.FN.EB.BD.EXCISE.DUTY.SLAB=''
+    R.EB.BD.EXCISE.DUTY.SLAB=''
+    EB.BD.EXCISE.DUTY.SLAB.ERR=''
+    FN.EB.BD.EXCISE.DUTY.PARAM='F.EB.BD.EXCISE.DUTY.PARAM'
+    F.EB.BD.EXCISE.DUTY.PARAM=''
+    R.EB.BD.EXCISE.DUTY.PARAM=''
+    EB.BD.EXCISE.DUTY.PARAM.ERR=''
+    FN.EB.JBL.AZ.MAT.LIST='F.EB.JBL.AZ.MAT.LIST'
+    F.EB.JBL.AZ.MAT.LIST=''
+    R.EB.JBL.AZ.MAT.LIST=''
+    FN.AZ.ACCOUNT='F.AZ.ACCOUNT'
+    F.AZ.ACCOUNT=''
+    R.AZ.ACCOUNT=''
+    AZ.ACCOUNT.ERR=''
+    FN.ACCOUNT='F.ACCOUNT'
+    F.ACOUNT=''
+    R.ACCOUNT=''
+    ACCOUNT.ERR=''
+    FN.ACCOUNT.CLASS='F.ACCOUNT.CLASS'
+    F.ACCOUNT.CLASS=''
+    R.ACCOUNT.CLASS.SAVINGS=''
+    ACCOUNT.CLASS.ERR=''
+    FN.FT.COMMISSION.TYPE='F.FT.COMMISSION.TYPE'
+    F.FT.COMMISSION.TYPE=''
+    R.FT.COMMISSION.TYPE=''
+    FT.COMMISSION.TYPE.ERR=''
+    COM.POS=''
+    AMT.FROM.POS='1'
+    SAV.CAT.POS=''
+    Y.NOM.ID=''
+    Y.RATE=''
+
+    RETURN
+*-------------------------------------------------------------------------
+END

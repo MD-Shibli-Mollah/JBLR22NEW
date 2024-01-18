@@ -1,0 +1,258 @@
+*----------------------------------------------------------------------
+*Attached To    : The Enquiry E.PAD.REGISTER.CLS
+*
+*Attached As    : Routine for PAD Register to show Closed Account Information
+*------------------------------------------------------------------------------
+*Description    : This Routine return PAD Account Information where account taken
+*               : from Closed Account for category '1970' '1971' '1972'
+**************************************************************************
+
+    SUBROUTINE PAD.REG.CLS(Y.RETURN)
+!PROGRAM PAD.REG.CLS
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INSERT GLOBUS.BP I_F.DRAWINGS
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.STMT.ACCT.DR
+    $INSERT GLOBUS.BP I_F.GROUP.DEBIT.INT
+    $INSERT GLOBUS.BP I_F.GROUP.DATE
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+INIT:
+    FN.AC.CL = "F.ACCOUNT.CLOSED"; F.AC.CL = ""
+    FN.AC = "F.ACCOUNT"; F.AC = ""
+    FN.AC.HIS = "F.ACCOUNT$HIS"; F.AC.HIS = ""
+    FN.DR = "F.DRAWINGS"; F.DR = ""
+    FN.LC = "F.LETTER.OF.CREDIT"; F.LC = ""
+    FN.STMT.DR = "F.STMT.ACCT.DR" ; F.STMT.DR = ""
+    FN.GDI = "F.GROUP.DEBIT.INT"; F.GDI = ""
+    FN.GDT = "F.GROUP.DATE"; F.GDT = ""
+    RETURN
+OPENFILES:
+    CALL OPF(FN.AC.CL,F.AC.CL)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.DR,F.DR)
+    CALL OPF(FN.LC,F.LC)
+    CALL OPF(FN.STMT.DR,F.STMT.DR)
+    CALL OPF(FN.GDI,F.GDI)
+    CALL OPF(FN.GDT,F.GDT)
+
+
+
+    Y.AC.LOCAL.FIELDS = 'LOAN.START.DATE':@VM:'LINKED.TF.NO':@VM:'LC.NO':@VM:'CB.ECO.PURPOSE':@VM:'LINKED.TFDR.REF':@VM:'IMP.NUMBER'
+    Y.AC.LOCAL.FIELD.POS = ''
+    Y.AC.APP = 'ACCOUNT'
+    CALL MULTI.GET.LOC.REF(Y.AC.APP,Y.AC.LOCAL.FIELDS,Y.AC.LOCAL.FIELD.POS)
+
+    Y.DR.LOCAL.FIELDS = 'NOSTRO.BANK':@VM:'COMMODTY.CODE':@VM:'COMMDTY.UNIT':@VM:'COMMDTY.VOLUME':@VM:'CARRYING.VESSEL':@VM:'BIL.LANDAWD.DT':@VM:'DATE.OF.PAYMENT'
+    Y.DR.LOCAL.FIELD.POS = ''
+    Y.DR.APP = 'DRAWINGS'
+    CALL MULTI.GET.LOC.REF(Y.DR.APP,Y.DR.LOCAL.FIELDS,Y.DR.LOCAL.FIELD.POS)
+
+    RETURN
+
+PROCESS:
+    SEL.CMD = "SELECT ":FN.AC.CL
+    Y.ENQ.SELECTION = ENQ.SELECTION<2>
+
+    LOCATE 'ACCT.CLOSE.DATE' IN Y.ENQ.SELECTION<1,1> SETTING POS THEN
+        Y.FROM.DATE = ENQ.SELECTION<4,POS,1>
+        Y.TO.DATE = ENQ.SELECTION<4,POS,2>
+        IF Y.TO.DATE NE "" AND Y.TO.DATE NE "" THEN
+            SEL.CMD :=" AND WITH ACCT.CLOSE.DATE GE ":Y.FROM.DATE:" AND WITH ACCT.CLOSE.DATE LE ":Y.TO.DATE
+        END
+        IF Y.TO.DATE EQ "" THEN
+            Y.TO.DATE=Y.FROM.DATE
+            SEL.CMD :=" AND WITH ACCT.CLOSE.DATE GE ":Y.FROM.DATE:" AND WITH ACCT.CLOSE.DATE LE ":Y.TO.DATE
+        END
+    END
+
+    LOCATE 'ACCOUNT.NO' IN Y.ENQ.SELECTION<1,1> SETTING POS THEN
+        IF ENQ.SELECTION<4,POS> THEN
+            SEL.CMD :=" AND WITH ACCOUNT.NO EQ ":ENQ.SELECTION<4,POS>
+        END
+    END
+
+    LOCATE 'TF.NO' IN Y.ENQ.SELECTION<1,1> SETTING POS THEN
+        IF ENQ.SELECTION<4,POS> THEN
+            Y.TF.NO = ENQ.SELECTION<4,POS>
+        END
+    END
+
+
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,ERR.CODE)
+
+    LOOP
+        REMOVE Y.ACCT.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ACCT.ID:POS
+
+        CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.ACCT.ID,R.ACCT.REC,Y.ERR)
+        Y.CATEG.ID = R.ACCT.REC<AC.CATEGORY>
+        IF Y.CATEG.ID EQ '1970' OR Y.CATEG.ID EQ '1971' OR Y.CATEG.ID EQ '1972' THEN
+            Y.INTT = 0; Y.INTT.STMT.TOTAL=0
+            Y.DR.ID.POS = Y.AC.LOCAL.FIELD.POS<1,5>
+            Y.DR.ID = R.ACCT.REC<AC.LOCAL.REF,Y.DR.ID.POS>
+
+
+            Y.IMPLC.ID.POS = Y.AC.LOCAL.FIELD.POS<1,2>
+            Y.IMPLC.ID = R.ACCT.REC<AC.LOCAL.REF,Y.IMPLC.ID.POS>
+
+            IF Y.IMPLC.ID EQ Y.TF.NO AND  Y.DR.ID NE "" AND Y.IMPLC.ID NE ""  THEN
+                CALL F.READ(FN.DR,Y.DR.ID,R.DR.REC,F.DR,Y.ERR)
+
+                Y.ACC.ID = FIELD(Y.ACCT.ID,';',1,1)
+                CALL F.READ(FN.AC.CL,Y.ACC.ID,R.ACCT.CLOSED,F.AC.CL,Y.ERR)
+                Y.ACC.CLOSE.DATE = R.ACCT.CLOSED
+                Y.PAY.DATE.POS = Y.DR.LOCAL.FIELD.POS<1,7>
+                Y.PAY.DATE = R.DR.REC<TF.DR.LOCAL.REF,Y.PAY.DATE.POS>
+
+                Y.AC.ID = FIELD(Y.ACCT.ID,';',1,1)
+
+                Y.IMPLC.ID.POS = Y.AC.LOCAL.FIELD.POS<1,2>
+                Y.IMPLC.ID = R.ACCT.REC<AC.LOCAL.REF,Y.IMPLC.ID.POS>
+
+                Y.COND.GRP = R.ACCT.REC<AC.CONDITION.GROUP>
+                Y.AC.CURR = R.ACCT.REC<AC.CURRENCY>
+                Y.GRP.DATE.ID = Y.COND.GRP:Y.AC.CURR
+
+
+                GOSUB STMT.INTT
+
+                CALL F.READ(FN.LC,Y.IMPLC.ID,R.LC.REC,F.LC,Y.ERR)
+                Y.BTBLC.ID.POS = Y.AC.LOCAL.FIELD.POS<1,3>
+                Y.BTBLC.ID = R.ACCT.REC<AC.LOCAL.REF,Y.BTBLC.ID.POS>
+                Y.DRAWEE = R.LC.REC<TF.LC.APPLICANT>
+                Y.DRAWER = R.LC.REC<TF.LC.BENEFICIARY>
+                Y.FC.CURR = R.DR.REC<TF.DR.DRAW.CURRENCY>
+                Y.EXC.RATE = R.DR.REC<TF.DR.DEBIT.CUST.RATE>
+                Y.DOC.VAL = R.DR.REC<TF.DR.DOCUMENT.AMOUNT>
+                Y.LOCAL.AMT = R.DR.REC<TF.DR.DOC.AMT.LOCAL>
+                Y.PAD.AMT = Y.LOCAL.AMT
+                Y.INTT.RATE = Y.DR.INT.RATE
+
+                Y.ACTUAL.BAL = ABS(R.ACCT.REC<AC.OPEN.ACTUAL.BAL>)
+                Y.INTT = Y.INTT.STMT.TOTAL
+                Y.TOTAL.BAL = (Y.ACTUAL.BAL + Y.INTT)
+
+                Y.RETURN<-1> =  Y.ACC.CLOSE.DATE:"*":Y.PAY.DATE:"*":Y.AC.ID:"*":Y.IMPLC.ID:"*":Y.BTBLC.ID:"*":Y.DRAWEE:"*":Y.DRAWER:"*":Y.FC.CURR:"*":Y.EXC.RATE:"*":Y.DOC.VAL:"*":Y.LOCAL.AMT:"*":Y.PAD.AMT:"*":Y.INTT.RATE:"*":Y.INTT:"*":Y.TOTAL.BAL
+            END
+            ELSE IF Y.DR.ID NE "" AND Y.TF.NO EQ "" THEN
+                CALL F.READ(FN.DR,Y.DR.ID,R.DR.REC,F.DR,Y.ERR)
+                Y.ACC.ID = FIELD(Y.ACCT.ID,';',1,1)
+                CALL F.READ(FN.AC.CL,Y.ACC.ID,R.ACCT.CLOSED,F.AC.CL,Y.ERR)
+                Y.ACC.CLOSE.DATE = R.ACCT.CLOSED
+                Y.PAY.DATE.POS = Y.DR.LOCAL.FIELD.POS<1,7>
+                Y.PAY.DATE = R.DR.REC<TF.DR.LOCAL.REF,Y.PAY.DATE.POS>
+
+                Y.AC.ID = FIELD(Y.ACCT.ID,';',1,1)
+
+                Y.IMPLC.ID.POS = Y.AC.LOCAL.FIELD.POS<1,2>
+                Y.IMPLC.ID = R.ACCT.REC<AC.LOCAL.REF,Y.IMPLC.ID.POS>
+
+                Y.COND.GRP = R.ACCT.REC<AC.CONDITION.GROUP>
+                Y.AC.CURR = R.ACCT.REC<AC.CURRENCY>
+                Y.GRP.DATE.ID = Y.COND.GRP:Y.AC.CURR
+
+                GOSUB STMT.INTT
+
+                CALL F.READ(FN.LC,Y.IMPLC.ID,R.LC.REC,F.LC,Y.ERR)
+                Y.BTBLC.ID.POS = Y.AC.LOCAL.FIELD.POS<1,3>
+                Y.BTBLC.ID = R.ACCT.REC<AC.LOCAL.REF,Y.BTBLC.ID.POS>
+                Y.DRAWEE = R.LC.REC<TF.LC.APPLICANT>
+                Y.DRAWER = R.LC.REC<TF.LC.BENEFICIARY>
+                Y.FC.CURR = R.DR.REC<TF.DR.DRAW.CURRENCY>
+                Y.EXC.RATE = R.DR.REC<TF.DR.DEBIT.CUST.RATE>
+                Y.DOC.VAL = R.DR.REC<TF.DR.DOCUMENT.AMOUNT>
+                Y.LOCAL.AMT = R.DR.REC<TF.DR.DOC.AMT.LOCAL>
+                Y.PAD.AMT = Y.LOCAL.AMT
+                Y.INTT.RATE = Y.DR.INT.RATE
+
+                Y.ACTUAL.BAL = ABS(R.ACCT.REC<AC.OPEN.ACTUAL.BAL>)
+                Y.INTT = Y.INTT.STMT.TOTAL
+                Y.TOTAL.BAL = (Y.ACTUAL.BAL + Y.INTT)
+
+                Y.RETURN<-1> =  Y.ACC.CLOSE.DATE:"*":Y.PAY.DATE:"*":Y.AC.ID:"*":Y.IMPLC.ID:"*":Y.BTBLC.ID:"*":Y.DRAWEE:"*":Y.DRAWER:"*":Y.FC.CURR:"*":Y.EXC.RATE:"*":Y.DOC.VAL:"*":Y.LOCAL.AMT:"*":Y.PAD.AMT:"*":Y.INTT.RATE:"*":Y.INTT:"*":Y.TOTAL.BAL
+            END
+            ELSE IF Y.DR.ID EQ "" AND Y.TF.NO EQ ""  THEN
+
+
+                Y.AC.HIS.ID = FIELD(Y.ACCT.ID,';',1,1)
+                CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.AC.HIS.ID,R.ACCT.REC,Y.ERR)
+                Y.AC.ID = FIELD(Y.ACCT.ID,';',1,1)
+
+                CALL F.READ(FN.AC.CL,Y.AC.ID,R.ACCT.CLOSED,F.AC.CL,Y.ERR)
+                Y.ACC.CLOSE.DATE = R.ACCT.CLOSED
+
+                Y.PAY.DATE.POS = Y.AC.LOCAL.FIELD.POS<1,1>
+                Y.PAY.DATE = R.ACCT.REC<AC.LOCAL.REF,Y.PAY.DATE.POS>
+                Y.IMPLC.ID = ''
+                Y.BTBLC.ID = ''
+                Y.DRAWEE = R.ACCT.REC<AC.ACCOUNT.TITLE.1>
+                Y.DRAWER = ''
+                Y.FC.CURR = ''
+                Y.EXC.RATE = ''
+                Y.DOC.VAL = ''
+                Y.LOCAL.AMT = ABS(R.ACCT.REC<AC.AMNT.LAST.DR.CUST>)
+                Y.PAD.AMT = Y.LOCAL.AMT
+
+                Y.COND.GRP = R.ACCT.REC<AC.CONDITION.GROUP>
+                Y.AC.CURR = R.ACCT.REC<AC.CURRENCY>
+                Y.GRP.DATE.ID = Y.COND.GRP:Y.AC.CURR
+
+                GOSUB STMT.INTT
+
+                Y.INTT.RATE = Y.DR.INT.RATE
+                Y.ACTUAL.BAL = ABS(R.ACCT.REC<AC.OPEN.ACTUAL.BAL>)
+                Y.INTT = Y.INTT.STMT.TOTAL
+                Y.TOTAL.BAL = (Y.ACTUAL.BAL + Y.INTT)
+
+                Y.RETURN<-1> =  Y.ACC.CLOSE.DATE:"*":Y.PAY.DATE:"*":Y.AC.ID:"*":Y.IMPLC.ID:"*":Y.BTBLC.ID:"*":Y.DRAWEE:"*":Y.DRAWER:"*":Y.FC.CURR:"*":Y.EXC.RATE:"*":Y.DOC.VAL:"*":Y.LOCAL.AMT:"*":Y.PAD.AMT:"*":Y.INTT.RATE:"*":Y.INTT:"*":Y.TOTAL.BAL
+            END
+        END
+    REPEAT
+    RETURN
+************
+STMT.INTT:
+************
+
+    SEL.CMD.INTT = "SELECT ":FN.STMT.DR
+    SEL.CMD.INTT :=" AND WITH @ID LIKE ":Y.AC.ID:"..."
+    CALL EB.READLIST(SEL.CMD.INTT,SEL.LIST.INTT,'',NO.OF.REC.INTT,ERR.CODE)
+    IF NO.OF.REC.INTT GT 0 THEN
+        LOOP
+            REMOVE Y.STMT.ID FROM SEL.LIST.INTT SETTING POS.INTT
+        WHILE Y.STMT.ID: POS.INTT
+            CALL F.READ(FN.STMT.DR,Y.STMT.ID,R.STMT.REC,F.STMT.DR,Y.ERR)
+            Y.INTT.STMT = R.STMT.REC<IC.STMDR.TOTAL.INTEREST>
+            Y.INTT.STMT.TOTAL +=Y.INTT.STMT
+        REPEAT
+    END
+
+
+    CALL F.READ(FN.GDT,Y.GRP.DATE.ID,R.GDT.REC,F.GDT,Y.ERR)
+    Y.GD.DATE =  DCOUNT(R.GDT.REC<AC.GRD.DEBIT.DATES>,@VM)
+
+    FOR I = 1 TO Y.GD.DATE
+        Y.DR.DATE = R.GDT.REC<AC.GRD.DEBIT.DATES,I>
+        IF Y.DR.DATE LE TODAY THEN
+            Y.LAST.GDT = Y.DR.DATE
+        END
+    NEXT
+
+    Y.GDI.ID = Y.GRP.DATE.ID:Y.LAST.GDT
+
+    CALL F.READ(FN.GDI,Y.GDI.ID,R.GDI.REC,F.GDI,Y.ERR)
+    Y.DR.INT.RATE = R.GDI.REC<IC.GDI.DR.INT.RATE>
+    RETURN
+
+END

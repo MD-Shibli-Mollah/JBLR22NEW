@@ -1,0 +1,50 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*--------DEVELOPED ZAKIR (jbl)---------------------------------------------
+    SUBROUTINE BUILD.RTN1(ENQ)
+
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    Y.START.DATE=''
+    Y.END.DATE=''
+    Y.DATE.OPT=''
+
+    LOCATE "DATE.TIME" IN ENQ SETTING CLS.ENQ.POS THEN
+        Y.DATE.OPT=ENQ<3,1>
+        BEGIN CASE
+        CASE Y.DATE.OPT='EQ'
+            ENQ<4,1>=RIGHT(LEFT(ENQ<4,1>,8),6)
+            ENQ<3,1>='BW'
+        CASE Y.DATE.OPT='LK'
+            ENQ<4,1> =RIGHT(LEFT(ENQ<4,1>,8),6)
+        CASE Y.DATE.OPT='NE'
+        CASE Y.DATE.OPT='GT'
+            ENQ<4,1> =RIGHT(LEFT(ENQ<4,1>,8),6):'0001'
+        CASE Y.DATE.OPT='GE'
+            ENQ<4,1> =RIGHT(LEFT(ENQ<4,1>,8),6):'0001'
+        CASE Y.DATE.OPT='LT'
+            ENQ<4,1> =RIGHT(LEFT(ENQ<4,1>,8),6):'0001'
+        CASE Y.DATE.OPT='LE'
+            ENQ<4,1> =RIGHT(LEFT(ENQ<4,1>,8),6):'0001'
+        CASE Y.DATE.OPT='RG'
+            Y.START.DATE =RIGHT(LEFT(ENQ<4,1>,8),6):'0001'
+            Y.END.DATE =RIGHT(RIGHT(ENQ<4,1>,8),6):'2359'
+            ENQ<4,1>=Y.START.DATE:" ":Y.END.DATE
+        CASE Y.DATE.OPT='NR'
+        CASE Y.DATE.OPT='CT'
+            ENQ<4,1> =RIGHT(LEFT(ENQ<4,1>,8),6)
+        CASE Y.DATE.OPT='NC'
+        CASE Y.DATE.OPT='BW'
+            ENQ<4,1> =RIGHT(LEFT(ENQ<4,1>,8),6)
+        CASE Y.DATE.OPT='EW'
+        CASE Y.DATE.OPT='DNBW'
+        CASE Y.DATE.OPT='DNEW'
+        END CASE
+
+    END
+!  ENQ<4,1>=Y.START.DATE:' ':Y.END.DATE
+    ENQ<16> = "YES"
+    RETURN
+END

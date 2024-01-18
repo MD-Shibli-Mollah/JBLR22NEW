@@ -1,0 +1,142 @@
+*-----------------------------------------------------------------------------
+* <Rating>148</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM PACS.JL.BULKING.AUTO
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_BATCH.FILES
+    $INSERT I_F.PGM.FILE
+*-----------------------------------------------------------------
+* 05 MAY 2016   C.Muruganand    Modified the routine PACS.JL.BULKING by adding
+*                               Automated JOB.LIST backup and job.list validations steps
+*-----------------------------------------------------------------
+*-----------------------------
+    HUSH ON
+    CALL T24.INITIALISE
+    HUSH OFF
+*-----------------------------
+    CRT "********************************************************************************************************"
+    CRT " This routine is used to split / bulk a JOB.LIST file. To split a JOB.LIST, Input the Bulking No. as 1 "
+    CRT "********************************************************************************************************"
+    CRT "Input the JOB.LIST to bulk, example F.JOB.LIST.6"
+    INPUT LIST.NAME
+    CRT "Input the Bulking No, say 50"
+    INPUT Y.BULK.NO
+    FN.LIST=LIST.NAME
+    FV.LIST=''
+    CALL OPF(FN.LIST,FV.LIST)
+* 05 MAY 2016 START
+    FN.LIST.BK=LIST.NAME:".BAK"
+    FV.LIST.BK=""
+    EXECUTE "CREATE.FILE DATA ":FN.LIST.BK:" TYPE=UD"
+    EXECUTE "CLEAR.FILE ":FN.LIST.BK
+    OPEN FN.LIST.BK TO FV.LIST.BK ELSE NULL
+
+    FN.TESTFILE="TEST.FILE"
+    FV.TESTFILE=""
+    EXECUTE "CREATE.FILE DATA TEST.FILE TYPE=UD"
+    EXECUTE "CLEAR.FILE TEST.FILE"
+    OPEN FN.TESTFILE TO FV.TESTFILE ELSE NULL
+
+    EXECUTE "COPY FROM ":FN.LIST:" TO ":FN.LIST.BK:" ALL"
+
+    GOSUB BACKUP.CHECK;
+* 05 MAY 2016 END
+    IF PROCEED.FURTHER THEN
+        RUNNING.UNDER.BATCH=1
+
+        BATCH.LIST.FILE ='TEST.FILE'
+        SEL.CMD='SELECT ' : FN.LIST
+        ID.LIST=''
+        CALL EB.READLIST(SEL.CMD, FULL.LIST, '', NUMBER.OF.KEYS, '')
+
+        LOOP
+            REMOVE KEY1 FROM FULL.LIST SETTING YDELIM WHILE KEY1:YDELIM
+            READ LIST.RECORD FROM FV.LIST, KEY1 THEN
+
+                NO.OF.LIST.KEYS = DCOUNT(LIST.RECORD,FM)
+                FOR LIDX = 1 TO NO.OF.LIST.KEYS   ;*Loop through one by one
+                    Y.TEMP.LIST = ''
+                    Y.TEMP.LIST = LIST.RECORD<LIDX>
+
+                    NO.OF.TEM.KEYS = DCOUNT(Y.TEMP.LIST,VM)
+
+                    FOR J = 1 TO NO.OF.TEM.KEYS
+
+                        IF ID.LIST THEN
+                            ID.LIST<-1>= Y.TEMP.LIST<1,J>
+
+                        END ELSE
+                            ID.LIST= Y.TEMP.LIST<1,J>
+                        END
+                    NEXT J
+
+                NEXT LIDX
+            END ELSE
+                NULL
+            END
+        REPEAT
+        LIST.PARAMETER=''
+        IF Y.BULK.NO THEN
+            LIST.PARAMETER<6>=Y.BULK.NO
+        END ELSE
+            LIST.PARAMETER<6>=''
+        END
+
+        CALL BATCH.BUILD.LIST(LIST.PARAMETER,ID.LIST)
+        RMSG = ''
+        IF SYSTEM(47) THEN
+            CALL EB.TRANS('END',RMSG)
+        END
+* 05 MAY 2016 START
+        GOSUB FINAL.BACKUP;
+        STOP
+    END ELSE
+        CRT "*******JOBLIST BACKUP NOT SUCCESSFUL, PLEASE RE-RUN THE ROUTINE*******"
+    END
+* 05 MAY 2016 END
+
+    RETURN
+* 05 MAY 2016 START
+BACKUP.CHECK:
+*============*
+
+    SEL.CMD.ORIG='QSELECT ':FN.LIST:' *'
+    ID.LIST.ORIG=''
+    CALL EB.READLIST(SEL.CMD.ORIG, FULL.LIST.ORIG, '', NUMBER.OF.KEYS.ORIG, '')
+
+    SEL.CMD.BK='QSELECT ':FN.LIST.BK:' *'
+    ID.LIST.BK=''
+    CALL EB.READLIST(SEL.CMD.BK, FULL.LIST.BK, '', NUMBER.OF.KEYS.BK, '')
+
+    IF NUMBER.OF.KEYS.ORIG EQ NUMBER.OF.KEYS.BK THEN
+        PROCEED.FURTHER=1;
+    END ELSE
+        PROCEED.FURTHER=0;
+    END
+    RETURN
+
+FINAL.BACKUP:
+*===========*
+
+    SEL.CMD.TEST.FILE='QSELECT ':FN.TESTFILE:' *'
+    ID.LIST.TEST.FILE=''
+    CALL EB.READLIST(SEL.CMD.TEST.FILE, FULL.LIST.TEST.FILE, '', NUMBER.OF.KEYS.TEST.FILE, '')
+
+    IF NUMBER.OF.KEYS.ORIG EQ NUMBER.OF.KEYS.TEST.FILE THEN
+        EXECUTE "CLEAR.FILE ":FN.LIST
+        EXECUTE "COPY FROM ":FN.TESTFILE:" TO ":FN.LIST:" ALL"
+        GOSUB BACKUP.CHECK;
+        IF PROCEED.FURTHER THEN
+            CRT "BULKING COMPLETED"
+        END ELSE
+            CRT "***BULKING NOT SUCCESSFULL, PLEASE RE-RUN THE ROUTINE***"
+            EXECUTE "CLEAR.FILE ":FN.LIST
+            EXECUTE "COPY FROM ":FN.LIST.BK:" TO ":FN.LIST:" ALL"
+        END
+    END ELSE
+        CRT "***BULKING NOT SUCCESSFULL, PLEASE RE-RUN THE ROUTINE***"
+    END
+    RETURN
+* 05 MAY 2016 END
+END

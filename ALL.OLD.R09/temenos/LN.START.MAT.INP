@@ -1,0 +1,55 @@
+***************************************************************************************************
+*Purpose: This routine is attachted to ACCOUNT,CREATE.TERM.LOAN,ACCOUNT,                          *
+*ACCOUNT,BD.LIM.LTR.OPEN,ACCOUNT,BD.EDF.CACS,ACCOUNT,BD.PC.OPEN,BD.CONT.LOAN,ACCOUNT,BD.AGRI.LOAN *
+* ACCOUNT,BD.PUR.EXP.BILLS,ACCOUNT,CREATE.HOUSE.BLD.LN,ACCOUNT,BD.CREATE.LOAN.STAFF               *
+*ACCOUNT,BD.CREATE.LOAN.INT.LIQ.STAFF version as a validation routine                             *
+*against LIMIT.REF field  and                                                                     *
+*is used to validate Loan limit amount,start Date and maturity date                               *
+*Developed By: Md. Shafiul Azam(Datasoft Systems Bangladesh Ltd.)                                 *
+***************************************************************************************************
+    SUBROUTINE LN.START.MAT.INP
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.LIMIT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+**********
+INIT:
+**********
+    FN.ACC = 'F.ACCOUNT'
+    F.ACC = ''
+    FN.LIMIT = 'F.LIMIT'
+    F.LIMIT = ''
+!CALL GET.LOC.REF('ACCOUNT','LIMIT.REF',Y.LIMIT.REF.POS)
+    CALL GET.LOC.REF('ACCOUNT','LOAN.AMOUNT',Y.LOAN.AMOUNT.POS)
+    CALL GET.LOC.REF('ACCOUNT','LOAN.START.DATE',Y.LOAN.START.DATE.POS)
+    CALL GET.LOC.REF('ACCOUNT','LOAN.MAT.DATE',Y.LOAN.MAT.DATE.POS)
+    RETURN
+
+***********
+OPENFILES:
+***********
+    CALL OPF(FN.ACC,F.ACC)
+    CALL OPF(FN.LIMIT,F.LIMIT)
+    RETURN
+
+***********
+PROCESS:
+***********
+
+    Y.CUS.ID = R.NEW(AC.CUSTOMER)
+    Y.LIMIT.REF = COMI
+    Y.LIMIT.CHILD.ID = Y.CUS.ID : '.' :'000':Y.LIMIT.REF
+    CALL F.READ(FN.LIMIT,Y.LIMIT.CHILD.ID,R.LIMIT,F.LIMIT,F.ERR)
+    IF R.LIMIT THEN
+        R.NEW(AC.LOCAL.REF)<1,Y.LOAN.START.DATE.POS> = R.LIMIT<LI.APPROVAL.DATE>
+        R.NEW(AC.LOCAL.REF)<1,Y.LOAN.MAT.DATE.POS> = R.LIMIT<LI.EXPIRY.DATE>
+        R.NEW(AC.LOCAL.REF)<1,Y.LOAN.AMOUNT.POS> = R.LIMIT<LI.INTERNAL.AMOUNT>
+    END
+    RETURN
+END

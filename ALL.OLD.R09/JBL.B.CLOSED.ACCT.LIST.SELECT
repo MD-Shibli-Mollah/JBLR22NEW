@@ -1,0 +1,64 @@
+*-----------------------------------------------------------------------------
+* <Rating>-31</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.CLOSED.ACCT.LIST.SELECT
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine will form the list of ID's and will passes them to the Record rouitne
+*-------------------------------------------------------------------------
+*Parameter Description: Not Applicable
+*--------- -----------
+*
+*-------------------------------------------------------------------------
+*Common Variable Description:- Not Applicable
+*------  ------- -----------
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:            Description:
+*BATCH.BUILD.LIST           Core             It's a core Globus subroutine that actually
+*                                              writes the list of ids on to the LIST file.
+*                                              It takes in 2 parameters, the name of the
+*                                              LIST file and the variable that holds the ids
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 01/02/2011 -                            New   - Shiva Shankar G
+*                                                 Thesys Technologies
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE JBL.BP I_JBL.B.CLOSED.ACCT.LIST.COMMON
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB PROCESS
+
+    RETURN
+*-------------------------------------------------------------------------
+PROCESS:
+*-------------------------------------------------------------------------
+
+!Selecting the accounts will category between 1000-1999 and field INACTIV.MARKER marked as 'Y'
+
+    SEL.CMD ='SELECT ':FN.ACCOUNT:' WITH CATEGORY GE 1000 AND CATEGORY LE 1003 AND INACTIV.MARKER EQ "Y" '
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,SEL.ERR)
+
+    SEL.CMD1 = 'SELECT ':FN.ACCOUNT:' WITH CATEGORY GE 6001 AND CATEGORY LE 6022 AND INACTIV.MARKER EQ "Y" '
+    CALL EB.READLIST(SEL.CMD1,SEL.LIST1,'',NO.OF.REC,SEL.ERR)
+
+    IF SEL.LIST1 NE '' THEN
+        FINAL.LIST = SEL.LIST1:FM:SEL.LIST
+    END ELSE
+        FINAL.LIST = SEL.LIST:FM:SEL.LIST1
+    END
+
+
+    CALL BATCH.BUILD.LIST('',FINAL.LIST)
+
+    RETURN
+*-------------------------------------------------------------------------
+END

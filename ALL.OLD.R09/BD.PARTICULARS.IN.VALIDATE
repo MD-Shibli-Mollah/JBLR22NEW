@@ -1,0 +1,41 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.PARTICULARS.IN.VALIDATE
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*-----------------------
+* This routine is to validate the entered Amount and calculate total
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 08/09/2013 New   - Manjunath Suvarna
+*                    Sepit SoftTech Pvt. Ltd.
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE JBL.BP I_F.BD.PARTICULARS.IN
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.PARTI.IN = 'F.BD.PARTICULARS.IN'
+    F.PARTI.IN = ''
+
+    CALL OPF(FN.PARTI.IN,F.PARTI.IN)
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+*
+    R.NEW(PCULAR.IN.SUB.TOTAL) = (R.NEW(PCULAR.IN.A.CRR.SURPLUS) + R.NEW(PCULAR.IN.A.CRR.DECREASE) + R.NEW(PCULAR.IN.A.ST.DIFFER) + R.NEW(PCULAR.IN.A.HIGH.CLEARING) + R.NEW(PCULAR.IN.A.REGULAR.CLEARING) + R.NEW(PCULAR.IN.A.TT.KLN.OTHER) + R.NEW(PCULAR.IN.A.CASH.DEPOSIT) + R.NEW(PCULAR.IN.A.OUTSIDE.DHAKA) + R.NEW(PCULAR.IN.A.FDR.MATURED) + R.NEW(PCULAR.IN.A.BGTB.MATUR.BB) + R.NEW(PCULAR.IN.A.BGTB.MATUR.IB) + R.NEW(PCULAR.IN.A.BB.BILL.MATUR) + R.NEW(PCULAR.IN.A.FX.DOLR.SALE) + R.NEW(PCULAR.IN.A.ALS.FROM.BB) + R.NEW(PCULAR.IN.A.CHEQUE.DEPOSIT))
+*
+    RETURN
+END

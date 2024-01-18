@@ -1,0 +1,32 @@
+*-----------------------------------------------------------------------------
+* <Rating>89</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE E.GET.JOB.NO(ID.LIST)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.BD.BTB.JOB.REGISTER
+    CLEARSELECT
+
+    LOCATE 'CUSTOMER.NO' IN D.FIELDS<1> SETTING POS ELSE POS = ''
+    CUS.NO= D.RANGE.AND.VALUE<1,POS>
+    FN.JOB.NO='F.BD.BTB.JOB.REGISTER'
+    F.JOB.NO=''
+    CALL OPF(FN.JOB.NO,F.JOB.NO)
+    SEL.CMD="SELECT ":FN.JOB.NO:" WITH @ID LIKE '...":CUS.NO:"...'"
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.REC,ERR)
+    LOOP
+        REMOVE Y.JOB.ID FROM SEL.LIST SETTING POS1
+    WHILE Y.JOB.ID:POS1
+        CALL F.READ(FN.JOB.NO,Y.JOB.ID,R.JOB.REC,F.JOB.NO,Y.JOB.ERR)
+        Y.CUS.NO=R.JOB.REC<BTB.JOB.CUSTOMER.NO>
+        Y.EXP.LC.TF=R.JOB.REC<BTB.JOB.EX.TF.REF>
+        Y.EXP.LC.NO=R.JOB.REC<BTB.JOB.EX.LC.NUMBER>
+        ID.LIST<-1> = Y.JOB.ID:'*':Y.CUS.NO:'*':Y.EXP.LC.TF:'*':Y.EXP.LC.NO
+        Y.JOB.ID=''
+        Y.CUS.NO=''
+        Y.EXP.LC.TF=''
+        Y.EXP.LC.NO=''
+    REPEAT
+    RETURN
+END

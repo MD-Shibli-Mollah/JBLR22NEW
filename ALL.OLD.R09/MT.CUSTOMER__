@@ -1,0 +1,31 @@
+*-----------------------------------------------------------------------------
+* <Rating>100</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.CUSTOMER(Y.REC.ID)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_GTS.COMMON
+
+    $INSERT JBL.BP/REPGEN MT.CUSTOMER.VARS
+
+    CALL F.READ(FN.CUS,Y.REC.ID,R.CUS,F.CUS,ERR.CODE.CUS)
+
+    Y.COMP.CODE = 'BD0010914'
+    Y.CURNO = R.CUS<EB.CUS.CURR.NO>
+    Y.COMPANY.BOOK = R.CUS<EB.CUS.COMPANY.BOOK>
+
+    IF Y.CURNO GT 1 AND Y.COMPANY.BOOK EQ Y.COMP.CODE THEN
+
+        Y.LAST.DATE = '20':R.CUS<EB.CUS.DATE.TIME>[1,6]
+
+        Y.RETURN = Y.REC.ID:'|':Y.CURNO:'|':Y.COMPANY.BOOK:'|':Y.LAST.DATE:'|':TODAY:'|'
+
+        WRITESEQ Y.RETURN APPEND TO F.FILE.DIR ELSE NULL
+    END
+
+    RETURN
+END

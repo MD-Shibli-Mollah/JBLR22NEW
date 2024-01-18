@@ -1,0 +1,150 @@
+!************************************************
+!Modified by Fairooz Chowdhury
+!Date :27.03.2018
+!for DD/TT/MT/PO/SDR account.1 should be shown instead of account.2
+!**********************************************
+
+!    PROGRAM CASH.PAYMENT.REG
+    SUBROUTINE CASH.PAYMENT.REG(Y.RETURN)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CLASS
+    $INSERT GLOBUS.BP I_F.TELLER
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+    FN.TT="F.TELLER"
+    F.TT=''
+    FN.AC.CLS="F.ACCOUNT.CLASS"
+    F.AC.CLS=''
+    Y.SL.NO=''
+    Y.TRANSACTION.REF=''
+    Y.AC.NO=''
+    Y.AC.NAME=''
+    Y.AMOUNT=''
+    Y.INPUTTER=''
+
+    LOCATE "PRODUCT.TYPE" IN ENQ.SELECTION<2,1> SETTING CLS.ENQ.POS THEN
+        Y.AC.CLS = ENQ.SELECTION<4,CLS.ENQ.POS>
+        Y.AC.CLS.OPT=ENQ.SELECTION<3,CLS.ENQ.POS>
+    END
+    LOCATE "AMOUNT" IN ENQ.SELECTION<2,1> SETTING AMT.ENQ.POS THEN
+        Y.ENQ.AMT=ENQ.SELECTION<4,AMT.ENQ.POS>
+        Y.ENQ.AMT.OPT=ENQ.SELECTION<3,AMT.ENQ.POS>
+    END
+    LOCATE "ACCOUNT.NO" IN ENQ.SELECTION<2,1> SETTING AC.ENQ.POS THEN
+        Y.ENQ.AC=ENQ.SELECTION<4,AC.ENQ.POS>
+        Y.ENQ.AC.OPT=ENQ.SELECTION<3,AC.ENQ.POS>
+    END
+    LOCATE "TELLER.ID" IN ENQ.SELECTION<2,1> SETTING IMP.ENQ.POS THEN
+        Y.ENQ.IMP=ENQ.SELECTION<4,IMP.ENQ.POS>
+        Y.ENQ.IMP.OPT=ENQ.SELECTION<3,IMP.ENQ.POS>
+    END
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.AC.CLS,F.AC.CLS)
+    RETURN
+
+PROCESS:
+
+    GOSUB BUILD.CMD
+    SEL.CMD="SELECT ": FN.TT :" WITH CO.CODE EQ ":ID.COMPANY: " AND TRANSACTION.CODE EQ 5 14 16 23 32 110 112 114 154 155 156 157 22 ":SEL.WHERE
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.REC,RET.CODE)
+    CALL F.READ(FN.AC.CLS,Y.AC.CLS,R.AC.CLS,F.AC.CLS,RET.ERR)
+
+    NO.OF.CAT=DCOUNT(R.AC.CLS<AC.CLS.CATEGORY>,@VM)
+    FOR I=1 TO NO.OF.REC
+        REMOVE Y.REC.ID FROM SEL.LIST SETTING Y.POS
+        Y.SL.NO=I
+        Y.TRANSACTION.REF=Y.REC.ID
+        CALL F.READ(FN.TT,Y.REC.ID,R.TT,F.TT,RET.CODE)
+!------------------MODIFIED BY FAIROOZ--------------------------------------
+        Y.TR.CODE=R.TT<TT.TE.TRANSACTION.CODE>
+        IF ((Y.TR.CODE EQ '110') OR  (Y.TR.CODE EQ '112')  OR (Y.TR.CODE EQ '114')) THEN
+
+
+            Y.AC.NO=R.TT<TT.TE.ACCOUNT.1>
+            CALL F.READ(FN.AC,Y.AC.NO,R.AC,F.AC,RET.CODE)
+            Y.CAT=R.AC<AC.CATEGORY>
+            IF Y.AC.CLS NE '' THEN
+                FLUG=0
+                FOR J=1 TO NO.OF.CAT
+                    Y.TEMP=FIELD(R.AC.CLS<AC.CLS.CATEGORY>,@VM,J)
+                    IF Y.CAT EQ Y.TEMP THEN
+                        FLUG =1
+                        BREAK
+                    END
+                NEXT J
+            END  ELSE
+                FLUG=1
+            END
+            Y.AC.NAME=R.AC<AC.ACCOUNT.TITLE.1>
+            Y.AC.CAT=R.AC<AC.CATEGORY>
+            Y.AC.ALT.ID=R.AC<AC.ALT.ACCT.ID>
+
+        END ELSE
+            Y.AC.NO=R.TT<TT.TE.ACCOUNT.2>
+            CALL F.READ(FN.AC,Y.AC.NO,R.AC,F.AC,RET.CODE)
+            Y.CAT=R.AC<AC.CATEGORY>
+            IF Y.AC.CLS NE '' THEN
+                FLUG=0
+                FOR J=1 TO NO.OF.CAT
+                    Y.TEMP=FIELD(R.AC.CLS<AC.CLS.CATEGORY>,@VM,J)
+                    IF Y.CAT EQ Y.TEMP THEN
+                        FLUG =1
+                        BREAK
+                    END
+                NEXT J
+            END  ELSE
+                FLUG=1
+            END
+            Y.AC.NAME=R.AC<AC.ACCOUNT.TITLE.1>
+            Y.AC.CAT=R.AC<AC.CATEGORY>
+            Y.AC.ALT.ID=R.AC<AC.ALT.ACCT.ID>
+        END
+
+!-----------------------------------------------
+        Y.CHK.NO=R.TT<TT.TE.CHEQUE.NUMBER>
+        Y.AMOUNT=R.TT<TT.TE.AMOUNT.LOCAL.1>
+        Y.INPUTTER= FIELD(R.TT<TT.TE.INPUTTER>,'_',2)
+*----------------------------------------------------
+        IF FLUG THEN
+            Y.RETURN<-1>= Y.SL.NO:"*":Y.TRANSACTION.REF:"*":Y.AC.NO:"*":Y.AC.ALT.ID:"*":Y.AC.NAME:"*":Y.AC.CAT:"*":Y.AMOUNT:"*":Y.CHK.NO:"*":Y.INPUTTER
+        END
+    NEXT I
+
+    RETURN
+
+BUILD.CMD:
+    SEL.WHERE=''
+    BEGIN CASE
+    CASE Y.ENQ.AMT NE "" AND Y.ENQ.AC NE "" AND Y.ENQ.IMP NE ""
+        SEL.WHERE=" AND AMOUNT.LOCAL.1  ":Y.ENQ.AMT.OPT:" ":Y.ENQ.AMT:" AND ACCOUNT.2 EQ ":Y.ENQ.AC:" AND TELLER.ID.1 EQ ":Y.ENQ.IMP
+    CASE Y.ENQ.AMT NE "" AND Y.ENQ.AC NE ""
+        SEL.WHERE="AND AMOUNT.LOCAL.1 ":Y.ENQ.AMT.OPT:" ":Y.ENQ.AMT:" AND ACCOUNT.2 EQ ":Y.ENQ.AC
+    CASE Y.ENQ.AMT NE "" AND Y.ENQ.IMP NE ""
+        SEL.WHERE="AND AMOUNT.LOCAL.1 ":Y.ENQ.AMT.OPT:" ":Y.ENQ.AMT:" AND TELLER.ID.1 EQ ":Y.ENQ.IMP
+    CASE Y.ENQ.AMT NE ""
+        SEL.WHERE="AND AMOUNT.LOCAL.1 ":Y.ENQ.AMT.OPT:" ":Y.ENQ.AMT
+    CASE Y.ENQ.AC NE "" AND Y.ENQ.IMP NE ""
+        SEL.WHERE="AND ACCOUNT.2 EQ ":Y.ENQ.AC:" AND TELLER.ID.1 EQ ":Y.ENQ.IMP
+    CASE Y.ENQ.AC NE ""
+        SEL.WHERE="AND ACCOUNT.2 EQ ":Y.ENQ.AC
+    CASE Y.ENQ.IMP NE ""
+        SEL.WHERE="AND TELLER.ID.1 EQ ":Y.ENQ.IMP
+    END CASE
+    RETURN
+END

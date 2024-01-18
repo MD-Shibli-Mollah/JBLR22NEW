@@ -1,0 +1,424 @@
+*-----------------------------------------------------------------------------
+* <Rating>970</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.E.GET.NAU.ENTRY
+!PROGRAM BD.E.GET.NAU.ENTRY
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.COMPANY
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.CATEGORY
+    $INSERT I_F.HOLD.CONTROL
+    $INSERT I_RC.COMMON
+    $INSERT I_F.PRINTER.ID
+    $INSERT I_F.SPOOL.BATCH.OUTPUT
+    $INSERT I_F.LETTER.OF.CREDIT
+    $INSERT I_F.LC.TYPES
+
+    GOSUB INIT
+    GOSUB PROCESS.VOUCHER
+    GOSUB GEN.HOLD.DELETE.VOU
+    RETURN
+
+*---------------------------------------------------
+INIT:
+*****
+
+    Y.LC.ID = ''
+    Y.TRANS.ID = ''
+    BEGIN CASE
+    CASE APPLICATION EQ 'LETTER.OF.CREDIT' OR APPLICATION EQ 'DRAWINGS'
+        Y.TRANS.ID = 'LC' : ID.NEW
+        Y.LC.ID = ID.NEW[1,12]
+    CASE APPLICATION EQ 'LD.LOANS.AND.DEPOSITS'
+        Y.TRANS.ID = 'LD' : ID.NEW
+    CASE APPLICATION EQ 'MD.DEAL'
+        Y.TRANS.ID = 'MD' : ID.NEW
+    CASE APPLICATION EQ 'TELLER'
+        Y.TRANS.ID = 'TT' : ID.NEW
+    CASE APPLICATION EQ 'FUNDS.TRANSFER'
+        Y.TRANS.ID = 'FT' : ID.NEW
+    CASE APPLICATION EQ 'ACCOUNT.CLOSURE'
+        Y.TRANS.ID = 'ACCOUNT.CLOSURE' : ID.NEW
+    END CASE
+!DEBUG
+
+!Y.TRANS.ID = "LCTF1213524226"
+
+    FN.LC = 'F.LETTER.OF.CREDIT'
+    F.LC = ''
+    R.LC.REC = ''
+    Y.LC.ERR = ''
+    CALL OPF(FN.LC,F.LC)
+
+    FN.LCTYPES = 'F.LC.TYPES'
+    F.LCTYPES = ''
+    R.LCTYPES.REC = ''
+    Y.LCTYPES.ERR = ''
+    CALL OPF(FN.LCTYPES,F.LCTYPES)
+
+    FN.ENT.HOLD = 'F.ENTRY.HOLD.OLD'
+    F.ENT.HOLD = ''
+    R.ENT.HOLD.REC = ''
+    Y.ENT.HOLD.ERR = ''
+    CALL OPF(FN.ENT.HOLD,F.ENT.HOLD)
+
+    FN.COM = 'F.COMPANY'
+    F.COM = ''
+    R.COM.REC = ''
+    Y.COM.ERR = ''
+    CALL OPF(FN.COM,F.COM)
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    R.AC.REC = ''
+    Y.AC.ERR = ''
+    CALL OPF(FN.AC,F.AC)
+
+    FN.CATEG = 'F.CATEGORY'
+    F.CATEG = ''
+    R.CATEG.REC = ''
+    Y.CATEG.ERR = ''
+    CALL OPF(FN.CATEG,F.CATEG)
+
+    FN.HC = 'F.HOLD.CONTROL'
+    F.HC = ''
+    R.HC.REC = ''
+    Y.RC.ERR = ''
+    CALL OPF(FN.HC,F.HC)
+
+    PRT.ID = ''
+    RETURN
+
+*--------------------------------------------------------------
+PROCESS.VOUCHER:
+****************
+!DEBUG
+    CALL F.READ(FN.LC,Y.LC.ID,R.LC.REC,F.LC,Y.LC.ERR)
+    Y.LCTYPES = R.LC.REC<TF.LC.LC.TYPE>
+    Y.LC.CATEGORY = R.LC.REC<TF.LC.CATEGORY.CODE>
+    CALL F.READ(FN.LCTYPES,Y.LCTYPES,R.LCTYPES.REC,F.LCTYPES,Y.LCTYPES.ERR)
+    Y.EXPORT.IMPORT = R.LCTYPES.REC<LC.TYP.IMPORT.EXPORT>
+    CALL F.READ(FN.COM,ID.COMPANY,R.COM.REC,F.COM,Y.COM.ERR)
+    CALL F.READ(FN.ENT.HOLD,Y.TRANS.ID,R.ENT.HOLD.REC,F.ENT.HOLD,Y.ENT.HOLD.ERR)
+    Y.TOT.ENT = DCOUNT(R.ENT.HOLD.REC,@FM)
+    FOR I = 1 TO Y.TOT.ENT-1
+        Y.TRAN.REC = R.ENT.HOLD.REC<I>
+        Y.ACCOUNT.NO = FIELD(Y.TRAN.REC,@VM,1,1)
+        Y.TRANS.CODE = FIELD(R.ENT.HOLD.REC<I>,@VM,4,1)
+        Y.PL.CATEGORY = FIELD(R.ENT.HOLD.REC<I>,@VM,7,1)
+        Y.AMOUNT.LCY = FIELD(R.ENT.HOLD.REC<I>,@VM,3,1)
+        Y.VALUE.DATE = FIELD(R.ENT.HOLD.REC<I>,@VM,11,1)
+        Y.CURRENCY = FIELD(R.ENT.HOLD.REC<I>,@VM,12,1)
+        Y.AMOUNT.FCY = FIELD(R.ENT.HOLD.REC<I>,@VM,13,1)
+        Y.CRF.TYPE = FIELD(R.ENT.HOLD.REC<I>,@VM,36,1)
+        Y.CRF.TRANS.CODE = FIELD(R.ENT.HOLD.REC<I>,@VM,37,1)
+        BEGIN CASE
+        CASE Y.ACCOUNT.NO NE '' AND LEN(Y.ACCOUNT.NO) LE "16"
+            CALL F.READ(FN.AC,Y.ACCOUNT.NO,R.AC.REC,F.AC,Y.AC.ERR)
+            IF Y.AMOUNT.LCY LT 0 THEN
+                Y.GL.VOUTYPE = "Debit Voucher"
+            END ELSE
+                Y.GL.VOUTYPE = "Credit Voucher"
+            END
+            GOSUB GEN.GL.VOUCHER
+        CASE Y.PL.CATEGORY NE '' AND Y.CRF.TRANS.CODE NE 'ACC'
+            CALL F.READ(FN.CATEG,Y.PL.CATEGORY,R.CATEG.REC,F.CATEG,Y.CATEG.ERR)
+            IF Y.AMOUNT.LCY LT 0 THEN
+                Y.GL.VOUTYPE = "Debit Voucher"
+            END ELSE
+                Y.GL.VOUTYPE = "Credit Voucher"
+            END
+            GOSUB GEN.PL.VOUCHER
+        CASE Y.CRF.TYPE EQ '51001' AND Y.CRF.TRANS.CODE EQ 'CAP'
+            GOSUB GEN.CAP.INT.VOUCHER
+        CASE Y.CRF.TYPE EQ 'ISSUE' AND Y.CRF.TRANS.CODE EQ 'NEW'
+            Y.VOUTYPE.DR = "Debit Voucher"
+            Y.VOUTYPE.CR = "Credit Voucher"
+            Y.CONT.AC.DR = "Customer Liability LC"
+            Y.CONT.AC.CR = "Banker Liability LC"
+            GOSUB GEN.CONT.CR.VOUCHER
+            GOSUB GEN.CONT.DR.VOUCHER
+        CASE Y.CRF.TYPE EQ 'ISSUE' AND Y.CRF.TRANS.CODE EQ 'LIQ'
+            Y.VOUTYPE.DR = "Debit Voucher"
+            Y.VOUTYPE.CR = "Credit Voucher"
+            Y.CONT.AC.DR = "Banker Liability LC"
+            Y.CONT.AC.CR = "Customer Liability LC"
+            GOSUB GEN.CONT.CR.VOUCHER
+            GOSUB GEN.CONT.DR.VOUCHER
+        CASE Y.CRF.TYPE EQ 'COLL' AND Y.CRF.TRANS.CODE EQ 'NEW'
+            Y.VOUTYPE.DR = "Debit Voucher"
+            Y.VOUTYPE.CR = "Credit Voucher"
+            IF Y.EXPORT.IMPORT EQ 'I' THEN
+                Y.CONT.AC.DR = "Customer Liability IFDBC"
+                Y.CONT.AC.CR = "Banker Liability IFDBC"
+                GOSUB GEN.CONT.CR.VOUCHER
+                GOSUB GEN.CONT.DR.VOUCHER
+            END ELSE
+                IF Y.LC.CATEGORY EQ '23105' OR Y.LC.CATEGORY EQ '23110' THEN
+                    Y.CONT.AC.DR = "Customer Liability FDBC"
+                    Y.CONT.AC.CR = "Banker Liability FDBC"
+                    GOSUB GEN.CONT.CR.VOUCHER
+                    GOSUB GEN.CONT.DR.VOUCHER
+                END
+                IF Y.LC.CATEGORY EQ '23106' OR Y.LC.CATEGORY EQ '23111' THEN
+                    Y.CONT.AC.DR = "Customer Liability LDBC"
+                    Y.CONT.AC.CR = "Banker Liability LDBC"
+                    GOSUB GEN.CONT.CR.VOUCHER
+                    GOSUB GEN.CONT.DR.VOUCHER
+                END
+                IF Y.LC.CATEGORY EQ '23107' OR Y.LC.CATEGORY EQ '23112' THEN
+                    Y.CONT.AC.DR = "Customer Liability FDBC GMT"
+                    Y.CONT.AC.CR = "Banker Liability FDBC GMT"
+                    GOSUB GEN.CONT.CR.VOUCHER
+                    GOSUB GEN.CONT.DR.VOUCHER
+                END
+            END
+        CASE Y.CRF.TYPE EQ 'COLL' AND Y.CRF.TRANS.CODE EQ 'LIQ'
+            Y.VOUTYPE.DR = "Debit Voucher"
+            Y.VOUTYPE.CR = "Credit Voucher"
+            IF Y.EXPORT.IMPORT EQ 'I' THEN
+                Y.CONT.AC.DR = "Banker Liability IFDBC"
+                Y.CONT.AC.CR = "Customer Liability IFDBC"
+                GOSUB GEN.CONT.CR.VOUCHER
+                GOSUB GEN.CONT.DR.VOUCHER
+            END ELSE
+                IF Y.LC.CATEGORY EQ '23105' OR Y.LC.CATEGORY EQ '23110' THEN
+                    Y.CONT.AC.DR = "Banker Liability FDBC"
+                    Y.CONT.AC.CR = "Customer Liability FDBC"
+                    GOSUB GEN.CONT.CR.VOUCHER
+                    GOSUB GEN.CONT.DR.VOUCHER
+                END
+                IF Y.LC.CATEGORY EQ '23106' OR Y.LC.CATEGORY EQ '23111' THEN
+                    Y.CONT.AC.DR = "Banker Liability LDBC"
+                    Y.CONT.AC.CR = "Customer Liability LDBC"
+                    GOSUB GEN.CONT.CR.VOUCHER
+                    GOSUB GEN.CONT.DR.VOUCHER
+                END
+                IF Y.LC.CATEGORY EQ '23107' OR Y.LC.CATEGORY EQ '23112' THEN
+                    Y.CONT.AC.DR = "Banker Liability FDBC GMT"
+                    Y.CONT.AC.CR = "Customer Liability FDBC GMT"
+                    GOSUB GEN.CONT.CR.VOUCHER
+                    GOSUB GEN.CONT.DR.VOUCHER
+                END
+            END
+        CASE Y.CRF.TYPE EQ 'CONTDB' AND Y.CRF.TRANS.CODE EQ 'LNW'
+            Y.VOUTYPE.DR = "Debit Voucher"
+            Y.VOUTYPE.CR = "Credit Voucher"
+            Y.CONT.AC.DR = "Customer Liability LG"
+            Y.CONT.AC.CR = "Banker Liability LG"
+            GOSUB GEN.CONT.CR.VOUCHER
+            GOSUB GEN.CONT.DR.VOUCHER
+        CASE Y.CRF.TYPE EQ 'CONTDB' AND Y.CRF.TRANS.CODE EQ 'MAT'
+            Y.VOUTYPE.DR = "Debit Voucher"
+            Y.VOUTYPE.CR = "Credit Voucher"
+            Y.CONT.AC.DR = "Banker Liability LC"
+            Y.CONT.AC.CR = "Customer Liability LC"
+            GOSUB GEN.CONT.CR.VOUCHER
+            GOSUB GEN.CONT.DR.VOUCHER
+        CASE Y.CRF.TYPE EQ 'LIVEDB' AND Y.CRF.TRANS.CODE EQ 'CNW'
+            Y.VOUTYPE.DR = "Debit Voucher"
+            Y.CONT.AC.DR = "Loan Account :":ID.NEW
+            GOSUB GEN.CONT.DR.VOUCHER
+        CASE Y.CRF.TYPE EQ 'LIVEDB' AND Y.CRF.TRANS.CODE EQ 'MAT'
+            Y.VOUTYPE.CR = "Credit Voucher"
+            Y.CONT.AC.CR = "Loan Account :":ID.NEW
+            GOSUB GEN.CONT.CR.VOUCHER
+        END CASE
+    NEXT I
+
+    RETURN
+
+*----------------------------------------------------------
+GEN.GL.VOUCHER:
+****************
+!DEBUG
+    PRT.ID = 'JBL.TF.VOUCHER'
+    CALL PRINTER.ON(PRT.ID,0)
+    PRINT"                                 JANATA BANK LIMITED"
+    PRINT"                              ":R.COM.REC<EB.COM.COMPANY.NAME>
+    PRINT"                              ":R.COM.REC<EB.COM.NAME.ADDRESS>
+    PRINT
+    PRINT
+    PRINT"":Y.GL.VOUTYPE
+    PRINT
+    PRINT"Account Number :":R.AC.REC<AC.ACCOUNT.TITLE.1>:" A/C No :(":Y.ACCOUNT.NO:")"
+    PRINT"Date           :":TODAY
+    PRINT"Currency       :":Y.CURRENCY
+    PRINT"Transaction No :":Y.TRANS.CODE
+    PRINT"Amount LCY     :":Y.AMOUNT.LCY
+    PRINT"Amount FCY     :":Y.AMOUNT.FCY
+    PRINT
+    PRINT
+    PRINT
+    PRINT"______________                                                         _______________"
+    PRINT"Officer                                                                        Manager"
+    PRINT
+    PRINT
+    PRINT"__________________________________________________________________________________________________"
+
+    CALL PRINTER.CLOSE(PRT.ID,'',0)
+    Y.TEMP.HOLD.ID = ''
+    Y.TEMP.HOLD.ID = C$LAST.HOLD.ID
+    CALL F.READ(FN.HC,Y.TEMP.HOLD.ID,R.HC.REC,F.HC,Y.HC.ERR)
+    R.HC.REC<HCF.RESERVED3> = ID.NEW
+    WRITE R.HC.REC TO F.HC,Y.TEMP.HOLD.ID
+    CALL PRINTER.OFF
+    RETURN
+
+*----------------------------------------------------------
+GEN.PL.VOUCHER:
+****************
+!DEBUG
+    PRT.ID = 'JBL.TF.VOUCHER'
+    CALL PRINTER.ON(PRT.ID,0)
+    PRINT"                                 JANATA BANK LIMITED"
+    PRINT"                              ":R.COM.REC<EB.COM.COMPANY.NAME>
+    PRINT"                              ":R.COM.REC<EB.COM.NAME.ADDRESS>
+    PRINT
+    PRINT
+    PRINT"":Y.GL.VOUTYPE
+    PRINT
+    PRINT"PL A/C Number  :":R.CATEG.REC<EB.CAT.DESCRIPTION>:" A/C No :(":Y.PL.CATEGORY:")"
+    PRINT"Date           :":TODAY
+    PRINT"Currency       :":Y.CURRENCY
+    PRINT"Transaction No :":Y.TRANS.CODE
+    PRINT"Amount LCY     :":Y.AMOUNT.LCY
+    PRINT
+    PRINT
+    PRINT
+    PRINT"______________                                                         _______________"
+    PRINT"Officer                                                                        Manager"
+    PRINT
+    PRINT
+    PRINT"__________________________________________________________________________________________________"
+
+    CALL PRINTER.CLOSE(PRT.ID,'',0)
+    Y.TEMP.HOLD.ID = ''
+    Y.TEMP.HOLD.ID = C$LAST.HOLD.ID
+    CALL F.READ(FN.HC,Y.TEMP.HOLD.ID,R.HC.REC,F.HC,Y.HC.ERR)
+    R.HC.REC<HCF.RESERVED3> = ID.NEW
+    WRITE R.HC.REC TO F.HC,Y.TEMP.HOLD.ID
+    CALL PRINTER.OFF
+    RETURN
+
+*----------------------------------------------------------
+GEN.CAP.INT.VOUCHER:
+*******************
+!DEBUG
+    PRT.ID = 'JBL.TF.VOUCHER'
+    CALL PRINTER.ON(PRT.ID,0)
+    PRINT"                                 JANATA BANK LIMITED"
+    PRINT"                              ":R.COM.REC<EB.COM.COMPANY.NAME>
+    PRINT"                              ":R.COM.REC<EB.COM.NAME.ADDRESS>
+    PRINT
+    PRINT
+    PRINT"Credit Voucher"
+    PRINT
+    PRINT"Account Number :":"Income Account PL"
+    PRINT"Date           :":TODAY
+    PRINT"Currency       :":Y.CURRENCY
+    PRINT"Transaction No :":Y.CRF.TRANS.CODE
+    PRINT"Amount LCY     :":Y.AMOUNT.LCY
+    PRINT
+    PRINT
+    PRINT
+    PRINT"______________                                                         _______________"
+    PRINT"Officer                                                                        Manager"
+    PRINT
+    PRINT
+    PRINT"__________________________________________________________________________________________________"
+
+    CALL PRINTER.CLOSE(PRT.ID,'',0)
+    Y.TEMP.HOLD.ID = ''
+    Y.TEMP.HOLD.ID = C$LAST.HOLD.ID
+    CALL F.READ(FN.HC,Y.TEMP.HOLD.ID,R.HC.REC,F.HC,Y.HC.ERR)
+    R.HC.REC<HCF.RESERVED3> = ID.NEW
+    WRITE R.HC.REC TO F.HC,Y.TEMP.HOLD.ID
+    CALL PRINTER.OFF
+    RETURN
+
+
+*----------------------------------------------------------
+GEN.CONT.CR.VOUCHER:
+*******************
+!DEBUG
+    PRT.ID = 'JBL.TF.VOUCHER'
+    CALL PRINTER.ON(PRT.ID,0)
+    PRINT"                                 JANATA BANK LIMITED"
+    PRINT"                              ":R.COM.REC<EB.COM.COMPANY.NAME>
+    PRINT"                              ":R.COM.REC<EB.COM.NAME.ADDRESS>
+    PRINT
+    PRINT
+    PRINT"":Y.VOUTYPE.CR
+    PRINT
+    PRINT"Account Number :":Y.CONT.AC.CR
+    PRINT"Date           :":TODAY
+    PRINT"Currency       :":Y.CURRENCY
+    PRINT"Transaction No :":Y.CRF.TRANS.CODE
+    PRINT"Amount LCY     :":Y.AMOUNT.LCY
+    PRINT"Amount FCY     :":Y.AMOUNT.FCY
+    PRINT
+    PRINT
+    PRINT
+    PRINT"______________                                                         _______________"
+    PRINT"Officer                                                                        Manager"
+    PRINT
+    PRINT
+    PRINT"__________________________________________________________________________________________________"
+
+    CALL PRINTER.CLOSE(PRT.ID,'',0)
+    Y.TEMP.HOLD.ID = ''
+    Y.TEMP.HOLD.ID = C$LAST.HOLD.ID
+    CALL F.READ(FN.HC,Y.TEMP.HOLD.ID,R.HC.REC,F.HC,Y.HC.ERR)
+    R.HC.REC<HCF.RESERVED3> = ID.NEW
+    WRITE R.HC.REC TO F.HC,Y.TEMP.HOLD.ID
+    CALL PRINTER.OFF
+    RETURN
+
+*----------------------------------------------------------
+GEN.CONT.DR.VOUCHER:
+*******************
+!DEBUG
+    PRT.ID = 'JBL.TF.VOUCHER'
+    CALL PRINTER.ON(PRT.ID,0)
+    PRINT"                                 JANATA BANK LIMITED"
+    PRINT"                              ":R.COM.REC<EB.COM.COMPANY.NAME>
+    PRINT"                              ":R.COM.REC<EB.COM.NAME.ADDRESS>
+    PRINT
+    PRINT
+    PRINT"":Y.VOUTYPE.DR
+    PRINT
+    PRINT"Account Number :":Y.CONT.AC.DR
+    PRINT"Date           :":TODAY
+    PRINT"Currency       :":Y.CURRENCY
+    PRINT"Transaction No :":Y.CRF.TRANS.CODE
+    PRINT"Amount LCY     :":Y.AMOUNT.LCY
+    PRINT"Amount FCY     :":Y.AMOUNT.FCY
+    PRINT
+    PRINT
+    PRINT
+    PRINT"______________                                                         _______________"
+    PRINT"Officer                                                                        Manager"
+    PRINT
+    PRINT
+    PRINT"__________________________________________________________________________________________________"
+
+    CALL PRINTER.CLOSE(PRT.ID,'',0)
+    Y.TEMP.HOLD.ID = ''
+    Y.TEMP.HOLD.ID = C$LAST.HOLD.ID
+    CALL F.READ(FN.HC,Y.TEMP.HOLD.ID,R.HC.REC,F.HC,Y.HC.ERR)
+    R.HC.REC<HCF.RESERVED3> = ID.NEW
+    WRITE R.HC.REC TO F.HC,Y.TEMP.HOLD.ID
+    CALL PRINTER.OFF
+    RETURN
+
+*-------------------------------------------
+GEN.HOLD.DELETE.VOU:
+********************
+    CALL F.DELETE(FN.ENT.HOLD,Y.TRANS.ID)
+    RETURN
+
+*------------------------------------------------------------------------
+END

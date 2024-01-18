@@ -1,0 +1,19 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM ST.EN.DAYS
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+
+    Y.ST.DATE="20120301"
+    Y.EN.DATE="20120331"
+    Y.DAYS="W"
+    CALL CDD('',Y.ST.DATE,Y.EN.DATE,Y.DAYS)
+    Y.DAYS=Y.DAYS+1
+    FOR I = 1 TO Y.DAYS
+        PRINT" ":Y.ST.DATE
+        CALL CDT("",Y.ST.DATE,"+1W")
+
+    NEXT
+
+END

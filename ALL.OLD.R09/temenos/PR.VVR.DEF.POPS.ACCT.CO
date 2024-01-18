@@ -1,0 +1,37 @@
+*-----------------------------------------------------------------------------
+* <Rating>-36</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VVR.DEF.POPS.ACCT.CO
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.PR.H.INSTRUMENT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.TELLER
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+INIT:
+
+    FN.INS = 'F.PR.H.INSTRUMENT'
+    F.INS = ''
+    R.INS = ''
+    Y.ERR = ''
+    Y.ACCT.NO = ''
+    Y.ID = ID.COMPANY
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.INS,F.INS)
+    RETURN
+
+PROCESS:
+    CALL F.READ(FN.INS,Y.ID,R.INS,F.INS,Y.ERR)
+    R.NEW(FT.DEBIT.ACCT.NO)=R.INS<INS.PO.ACCOUNT>
+    RETURN
+
+    RETURN
+END

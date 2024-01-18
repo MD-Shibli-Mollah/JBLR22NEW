@@ -1,0 +1,137 @@
+******************************************************************************************************
+*This routine check if credit account is                                                             *
+*Developed By: Md. Zahid Hasan                                                                       *
+*              Datasoft Systems Bangladesh Limited                                                   *
+*Date:13/11/2014                                                                                     *
+******************************************************************************************************
+
+    SUBROUTINE JBL.GHBL.INT.TXN.AUTH
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_GTS.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+INIT:
+
+    FN.TELLER = 'F.TELLER'
+    F.TELLER = ''
+
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.TELLER,F.TELLER)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.AC,F.AC)
+
+    CALL GET.LOC.REF("TELLER","GHBL.INT.TXN",Y.GHBL.INT.TXN.POS)
+    RETURN
+
+PROCESS:
+
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        CR.ACCT = R.NEW(FT.CREDIT.ACCT.NO)
+        NEW.TXN.AMT = R.NEW(FT.PAYMENT.DETAILS)
+    END
+    IF APPLICATION EQ 'TELLER' THEN
+        DR.CR.MARK = R.NEW(TT.TE.DR.CR.MARKER)
+        NEW.TXN.AMT = R.NEW(TT.TE.LOCAL.REF)<1,Y.GHBL.INT.TXN.POS>
+        IF DR.CR.MARK EQ 'CREDIT' THEN
+            CR.ACCT = R.NEW(TT.TE.ACCOUNT.1)
+        END
+        ELSE
+            CR.ACCT = R.NEW(TT.TE.ACCOUNT.2)
+        END
+    END
+
+    CALL F.READ(FN.AC,CR.ACCT,R.AC,F.AC,ERR.AC)
+
+    CR.CATEG = R.AC<AC.CATEGORY>
+    INT.LIQ.ACC = R.AC<AC.INTEREST.LIQU.ACCT>
+
+    IF CR.CATEG EQ '1717' OR CR.CATEG EQ '1718' OR CR.CATEG EQ '1955' OR CR.CATEG EQ '1956' THEN
+        IF NEW.TXN.AMT GT 0 THEN
+            GOSUB Y.OFS.STR.BLD
+        END
+    END
+
+    RETURN
+
+Y.OFS.STR.BLD:
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        Y.OFS.STR = "TRANSACTION.TYPE::=AC,"
+        Y.OFS.STR := "DEBIT.ACCT.NO::=":R.NEW(FT.DEBIT.ACCT.NO):","
+        Y.OFS.STR := "DEBIT.CURRENCY::=BDT,"
+        Y.OFS.STR := "DEBIT.AMOUNT::=":NEW.TXN.AMT:","
+        Y.OFS.STR := "DEBIT.THEIR.REF::=":ID.NEW:","
+        Y.OFS.STR := "CREDIT.THEIR.REF::=":ID.NEW:","
+        Y.OFS.STR := "ORDERING.CUST::=JBL,"
+        Y.OFS.STR := "CREDIT.ACCT.NO::=":INT.LIQ.ACC 
+    END
+    ELSE
+        IF APPLICATION EQ 'TELLER' THEN
+            Y.OFS.STR = "AMOUNT.LOCAL.1::=":NEW.TXN.AMT:","
+            Y.OFS.STR := "ACCOUNT.2::=":INT.LIQ.ACC:","
+            Y.OFS.STR := "THEIR.REFERENCE::=":ID.NEW:","
+            Y.OFS.STR := "THEIR.REFERENCE::=":ID.NEW
+        END
+    END
+
+    GOSUB OFS.MSG.VAL
+
+    RETURN
+
+OFS.MSG.VAL:
+
+    Y.SOURCE = 'DM.OFS.SRC.VAL'
+    Y.USER = OPERATOR
+    SENSITIVITY = ''
+
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        Y.OFS.MSG.VAL = "FT,GHBL.TXN/I/VALIDATE,//":ID.COMPANY:","::",": Y.OFS.STR
+    END
+    ELSE
+        IF APPLICATION EQ 'TELLER' THEN
+            Y.OFS.MSG.VAL = "TT,GHBL.TXN/I/VALIDATE,//":ID.COMPANY:","::",": Y.OFS.STR
+        END
+    END
+    Y.OFS.MSG.ID = ''
+    CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.OFS.MSG.VAL)
+    Y.OFS.ERR.CODE = FIELD(Y.OFS.MSG.VAL,"/",3)
+    IF Y.OFS.ERR.CODE EQ '-1' THEN
+        ETEXT = Y.OFS.MSG.VAL
+        CALL STORE.END.ERROR
+    END
+    ELSE
+        IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+            Y.OFS.MSG.VAL = "FT,MIG/I/PROCESS,//":ID.COMPANY:","::",": Y.OFS.STR
+            OFS.APP = 'FT'
+        END
+        ELSE
+            IF APPLICATION EQ 'TELLER' THEN
+                Y.OFS.MSG.VAL = "TT,GHBL.TXN/I/PROCESS,//":ID.COMPANY:","::",": Y.OFS.STR
+                OFS.APP = 'TT'
+            END
+        END
+        Y.OFS.MSG.ID = ''
+        CALL OFS.POST.MESSAGE(Y.OFS.MSG.VAL,Y.OFS.MSG.ID,Y.SOURCE,Y.USER)
+    END
+
+    RETURN
+
+END

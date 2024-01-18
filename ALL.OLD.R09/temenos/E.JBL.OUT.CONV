@@ -1,0 +1,64 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE E.JBL.OUT.CONV
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.TELLER
+    $INSERT I_F.DATES
+
+    GOSUB INIT
+    GOSUB PROCESS
+    RETURN
+
+*******************************************************************
+INIT:
+********************************************************************
+    FN.TELLER = "F.TELLER" ; F.TELLER = ""
+    CALL OPF(FN.TELLER,F.TELLER)
+
+    FN.TELLER.HIS = "F.TELLER$HIS" ; F.TELLER$HIS = ""
+    CALL OPF(FN.TELLER.HIS,F.TELLER$HIS)
+
+    Y.ARR = O.DATA
+
+    Y.FIELD = "BB.ROUTE.CODE"
+    Y.FIELD1 = "PR.CHEQUE.NO"
+    Y.APP = "TELLER"
+    Y.LOC.POS = ""
+    Y.LOC.POS1 = ""
+
+    CALL GET.LOC.REF(Y.APP,Y.FIELD,Y.LOC.POS)
+    CALL GET.LOC.REF(Y.APP,Y.FIELD1,Y.LOC.POS1)
+    RETURN
+
+********************************************************************
+PROCESS:
+********************************************************************
+
+    Y.TT.ID = O.DATA
+    Y.JUL.DATE = RIGHT(R.DATES(EB.DAT.JULIAN.DATE),5)
+    Y.ID = Y.TT.ID[3,5]
+
+    IF Y.ID EQ Y.JUL.DATE THEN
+        CALL F.READ(FN.TELLER,Y.TT.ID,R.TELLER.REC,F.TELLER,Y.ERR)
+        Y.BANK.NAME  = R.TELLER.REC<TT.TE.LOCAL.REF,Y.LOC.POS>
+        Y.INSTRUMENT = R.TELLER.REC<TT.TE.LOCAL.REF,Y.LOC.POS1>
+    END ELSE
+        Y.TT.ID.H = Y.TT.ID:";":1
+        CALL F.READ(FN.TELLER.HIS,Y.TT.ID.H,R.TELL.HIS.REC,F.TELLER$HIS,Y.ERR1)
+        Y.BANK.NAME = R.TELL.HIS.REC<TT.TE.LOCAL.REF,Y.LOC.POS>
+        Y.BANK.1 = R.TELL.HIS.REC<TT.TE.LOCAL.REF,Y.LOC.POS>
+        Y.INSTRUMENT = R.TELL.HIS.REC<TT.TE.LOCAL.REF,Y.LOC.POS1>
+    END
+
+    GOSUB UPDATE
+    RETURN
+*************************************************************************************
+UPDATE:
+************************************************************************************
+    Y.ARRAY = Y.BANK.NAME:"*":Y.INSTRUMENT
+    O.DATA = Y.ARRAY
+    RETURN
+END

@@ -1,0 +1,55 @@
+*-----------------------------------------------------------------------------
+* THIS ROUTINE USE CRMS: REISSUE AND PIN-REISSUE REASON VALIDATION
+
+*Deploy Date: 12 JAN 2019
+*-----------------------------------------------------------------------------
+ SUBROUTINE JBL.CARD.ISS.VLD
+!PROGRAM JBL.CARD.ISS.VLD
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT BP I_F.ATM.CARD.MGT
+
+    Y.CARD.NAME=R.NEW(EB.ATM19.CARD.NAME)
+    Y.RES.REASON=1:@FM:2:@FM:3:@FM:4:@FM:5
+    Y.PIN.REASON=1:@FM:2:@FM:6:@FM:7
+    Y.REQUEST.TYPE=R.NEW(EB.ATM19.REQUEST.TYPE)
+    Y.REASON=R.NEW(EB.ATM19.REISSUE.REASON)
+    Y.COUNT=DCOUNT(Y.CARD.NAME," ")
+    FOR I=1 TO Y.COUNT
+        IF NOT(ALPHA(FIELD(Y.CARD.NAME," ",I))) THEN
+            ETEXT ="PLEASE REMOVE SPECIAL CHARACTER FROM CARD NAME"
+            CALL STORE.END.ERROR
+        END
+    NEXT I
+
+    Y.CATE.CHK=0
+
+
+    IF Y.REQUEST.TYPE EQ "REISSUE" THEN
+        Y.RES.COUNT=DCOUNT(Y.RES.REASON,@FM)
+        FOR I=1 TO Y.RES.COUNT
+            Y.CATE=FIELD(Y.RES.REASON,@FM,I)
+            IF Y.CATE EQ Y.REASON THEN
+                Y.CATE.CHK=1
+                BREAK
+            END
+        NEXT I
+    END
+
+    IF Y.REQUEST.TYPE EQ "PINREISSUE" THEN
+        Y.RES.COUNT=DCOUNT(Y.PIN.REASON,@FM)
+        FOR I=1 TO Y.RES.COUNT
+            Y.CATE=FIELD(Y.RES.REASON,@FM,I)
+            IF Y.CATE EQ Y.REASON THEN
+                Y.CATE.CHK=1
+                BREAK
+            END
+        NEXT I
+    END
+
+    IF Y.CATE.CHK EQ 0 THEN
+        ETEXT ="Invalid Reason"
+        CALL STORE.END.ERROR
+    END
+END

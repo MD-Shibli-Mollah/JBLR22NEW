@@ -1,0 +1,69 @@
+*-------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-40</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE E.CONV.GET.HOME.LOAN.RB.PR
+*-------------------------------------------------------------------------
+* Convesion routine attached to Enquiry E.JBL.HME.LOAN.REBATE.ONLINE to
+* get the local field value for the display in the enquiry.
+*---------------------------------------------------------------------
+* Modification History:
+* --------------------
+* 14/03/2011 - New - Naveen Kumar N
+*---------------------------------------------------------------------
+* Common Variables Used:
+* ----------------------
+* O.DATA - Holds current value
+*---------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_ENQUIRY.COMMON
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+
+    GOSUB INIT
+    GOSUB GET.MULTI.LOC.REF
+    GOSUB PROCESS
+    RETURN
+
+*----------------------------------------------------------------------
+INIT:
+    FN.LD.LOANS.AND.DEPOSITS = "F.LD.LOANS.AND.DEPOSITS"
+    F.LD.LOANS.AND.DEPOSITS  = ""
+    R.LD.LOANS.AND.DEPOSITS  = ""
+    E.LD.LOANS.AND.DEPOSITS  = ""
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+*
+    Y.HOME.LOAN.RB.PR        = ""
+    RETURN
+
+*-----------------------------------------------------------------------
+PROCESS:
+*------- 
+    Y.DATA                   = O.DATA
+    CALL F.READ(FN.LD.LOANS.AND.DEPOSITS,Y.DATA,R.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS,E.LD.LOANS.AND.DEPOSITS)
+    IF R.LD.LOANS.AND.DEPOSITS THEN
+        Y.LOCAL.REF.DATA         = R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF>
+        Y.HOME.LOAN.RB.DT        = R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF,Y.HOME.LOAN.RB.DT.POS>
+        Y.DATA                   = ENQ.SELECTION<4>
+
+        LOCATE Y.DATA IN Y.HOME.LOAN.RB.DT<1,1,1> SETTING POSITION THEN
+            Y.HOME.LOAN.RB.PR    = R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF,Y.HOME.LOAN.RB.PR.POS,POSITION>
+        END
+        IF Y.HOME.LOAN.RB.PR THEN
+            O.DATA = Y.HOME.LOAN.RB.PR
+        END ELSE
+            O.DATA = ""
+        END
+    END
+    RETURN
+*------------------------------------------------------------------------
+GET.MULTI.LOC.REF:
+*-----------------
+    APPLICATION           = "LD.LOANS.AND.DEPOSITS"
+    FIELD.NAME            = "HOME.LOAN.RB.PR":VM:"HOME.LOAN.RB.DT"
+    FIELD.POS             = ""
+    CALL MULTI.GET.LOC.REF(APPLICATION,FIELD.NAME,FIELD.POS)
+    Y.HOME.LOAN.RB.PR.POS = FIELD.POS<1,1>
+    Y.HOME.LOAN.RB.DT.POS = FIELD.POS<1,2>
+    RETURN
+END

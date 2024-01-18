@@ -1,0 +1,473 @@
+!PROGRAM RTGS.IN.TXN
+    SUBROUTINE RTGS.IN.TXN(Y.FILE)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT JBL.BP I_F.BD.RTGS.PARAM
+    $INSERT JBL.BP I_F.BD.RTGS.CONS.INFO
+    $INSERT BP I_F.BD.RTGS.INW.SERIAL.NUM
+    $INSERT JBL.BP I_F.BD.BANK.ROUTING.LIST
+    $INSERT JBL.BP I_F.RTGS.IN.TXN.COMMON
+
+    GOSUB PROCESS
+    GOSUB COPY.INWARD.BACKUP
+    GOSUB DEL.INWARD.PACS
+    RETURN
+
+PROCESS:
+
+*Check Inward File in Txn Log Directory if exist then just return the program
+
+    READ IN.TXN FROM F.IN.TXN.LOG.DIR,Y.FILE THEN
+        RETURN
+    END
+
+    READ ALL.VALUES FROM F.FROM.DIR,Y.FILE THEN
+        L.HEADER = FIELD(ALL.VALUES,@FM,1)
+        LEN.HEADER = LEN(L.HEADER)
+        L.HEADER = L.HEADER[1,LEN.HEADER-1]
+        L.HEADER := ',TxnStatus,TxnId/ErrReason'
+
+        L.VALUES = FIELD(ALL.VALUES,@FM,2)
+        LEN.VALUES = LEN(L.VALUES)
+        L.VALUES = L.VALUES[1,LEN.VALUES-1]
+        Y.REC.ID = FIELD(L.VALUES,',',1)
+        IF Y.REC.ID NE '' THEN
+            GOSUB RECORD.BUILD
+            GOSUB OFS.VALIDATE
+            RtrRsnPrtry = ''
+        END
+    END
+    RETURN
+
+RECORD.BUILD:
+************************************************************************
+*             Extract necessay info from inward file                   *
+************************************************************************
+    Ccy = FIELD(L.VALUES,',',20)
+    IntrBkSttlmAmt = FIELD(L.VALUES,',',22)
+    DbtrNm = FIELD(L.VALUES,',',31)
+    DbtrAgtBICFI = FIELD(L.VALUES,',',38)
+    DbtrAgtBranchId = FIELD(L.VALUES,',',40)
+    DbtrAgtAcctOthrId = FIELD(L.VALUES,',',41)
+    CdtrAgtNm = FIELD(L.VALUES,',',44)
+    CdtrAgtBranchId = FIELD(L.VALUES,',',45)
+****************NEWLY ADDED FIELD*********************************
+!PACS08CdtrNm = FIELD(L.VALUES,',',48)
+*******************END********************************************
+    CdtrAcctOthrId = FIELD(L.VALUES,',',54)
+    Ustrd = FIELD(L.VALUES,',',57)
+
+    CALL F.READ(FN.ACC, CdtrAcctOthrId, R.ACC , F.ACC , Y.ACC.ERR)
+************* OMITTING FOR INWARD LEGACY ACCOUNT **************
+!IF NOT(R.ACC) THEN
+!CALL F.READ(FN.ALT.ACCT, CdtrAcctOthrId, R.ACC.ALT , F.ALT.ACCT , Y.ALT.ACCT.ERR)
+!Y.ALT.ACCT.ID = R.ACC.ALT<1>
+!CALL F.READ(FN.ACC, Y.ALT.ACCT.ID , R.ACC , F.ACC , Y.ACC.ERR)
+!END
+********************** END OMITTING ****************************
+    Y.CO.CODE = R.ACC<AC.CO.CODE>
+    Y.DR.ACC.N0 = 'BDT':REC.RTGS.PARAM<EB.BD.29.IW.SETT.CATEG>:'0001':Y.CO.CODE[6,4]
+    Y.POSTING.RESTRICT = R.ACC<AC.POSTING.RESTRICT>
+    Y.RECORD.STATUS = R.ACC<AC.RECORD.STATUS>
+    Y.CATEGORY = R.ACC<AC.CATEGORY>
+********************NEWLY ADDED************************
+!Y.SHORT.TITLE = R.ACC<AC.SHORT.TITLE>
+**********************END******************************
+    CALL F.READ(FN.CONS,'SYSTEM',REC.CONS,F.CONS,ERR.CONS)
+    ALW.CATEGORIES = REC.CONS<EB.BD.54.INSERT.CATEG>
+    FINDSTR Y.CATEGORY IN ALW.CATEGORIES SETTING CATEGORY.POS ELSE NULL
+    RETURN
+
+OFS.VALIDATE:
+************************************************************************
+*Prepare ofs string & validate ofs string, if error occured generate   *
+*pacs004 else execute funds transfer & write tnx record into           *
+*                       transaction log file                           *
+************************************************************************
+
+    GOSUB GET.ERROR.STATUS
+    IF NOT(RtrRsnPrtry) THEN
+        GOSUB OFS.STRING
+        Y.B.USER = 'DMUSER'
+        Y.SOURCE = 'DM.OFS.SRC.VAL'
+        CALL LOAD.COMPANY(Y.CO.CODE)
+        OPERATOR = Y.B.USER
+        Y.FT.ID = ''
+        Y.OFS.MSG.VAL = "FUNDS.TRANSFER,RTGS.INW.TXN/I/VALIDATE,//,":Y.FT.ID:",": Y.OFS.STR
+!Y.OFS.MSG.ID = ''
+        CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.OFS.MSG.VAL)
+        Y.OFS.ERR.CODE = FIELD(FIELD(Y.OFS.MSG.VAL,"/",3),',',1)
+
+        IF Y.OFS.ERR.CODE EQ '1' THEN
+            GOSUB OFS.POST
+        END
+        ELSE
+            Y.ERR = FIELD(Y.OFS.MSG.VAL,'/',4)
+            Y.ERRF = FIELD(Y.ERR,',',2)
+            Y.IS.ERROR = 'Error'
+            L.VALUES = L.VALUES :',':Y.IS.ERROR:',':Y.ERRF
+            GOSUB GET.ERR.REASON
+            GOSUB GENERATE.PACS004
+            GOSUB WRITE.PACS004.MSG
+            GOSUB WRITE.PACS008.LOG
+!GOSUB VERIFY.PACS004
+        END
+    END
+    RETURN
+
+GET.ERROR.STATUS:
+************************************************************************
+*Assign error code & error reason, if error occured generate pacs004 & *
+*           write tnx record into transaction log file                 *
+************************************************************************
+
+    IF Y.POSTING.RESTRICT THEN
+        IF Y.POSTING.RESTRICT EQ '17' THEN
+            RtrRsnPrtry = 'R 07'
+            RtrRsnAddtlInf = 'Account Frozen'
+            L.VALUES : = ',Error,Account Frozen'
+        END ELSE
+            RtrRsnPrtry = 'R 08'
+            RtrRsnAddtlInf = 'Non-Transaction Account'
+            L.VALUES : = ',Error,Non-Transaction Account'
+        END
+    END
+    IF NOT(R.ACC) THEN
+        RtrRsnPrtry = 'R 03'
+        RtrRsnAddtlInf = 'Invalid Account Number'
+        L.VALUES : = ',Error,Invalid Account Number'
+    END  ELSE
+        IF NOT(CATEGORY.POS) THEN
+            RtrRsnPrtry = 'R 02'
+            RtrRsnAddtlInf = 'No Account/Unable to Locate Account'
+            L.VALUES : = ',Error,No Account/Unable to Locate Account'
+        END ELSE
+            SEL.CMD = 'SELECT ':FN.RL:' WITH BRANCH.CODE EQ ':Y.CO.CODE
+            CALL EB.READLIST(SEL.CMD,ROUTING.NO,'',NO.OF.REC,Y.ERR.RL)
+            CALL F.READ(FN.RL,ROUTING.NO , R.RL.REC , F.RL , Y.RL.ERR)
+            IF (ROUTING.NO NE CdtrAgtBranchId) OR (R.RL.REC<EB.BD.91.RTGS.TXN.ALLOWED> NE 'YES') THEN
+                RtrRsnPrtry = 'R 04'
+                RtrRsnAddtlInf = 'Returned per Originator/Originating Bank.s Request'
+*****************************NEWLY ADDED**********************************************
+                L.VALUES : = ',Error,Returned per Originator/Originating Bank.s Request'
+*************************************END****************************************************
+            END
+**************************************NEWLY ADDED*******************************************
+*C1 START
+!IF TRIM(UPCASE(Y.SHORT.TITLE),' ','B') NE  TRIM(UPCASE(PACS08CdtrNm),' ','B') THEN
+!RtrRsnPrtry = 'R 02'
+!RtrRsnAddtlInf = 'No Account/Unable to Locate Account'
+!L.VALUES : = ',Error,No Account/Unable to Locate Account'
+!END
+*C1 STOP
+***************************************END***************************************
+        END
+    END
+    IF IntrBkSttlmAmt LT REC.RTGS.PARAM<EB.BD.29.MIN.TXN.AMT> THEN
+        RtrRsnPrtry = 'R 09'
+        RtrRsnAddtlInf = 'Minimum amount required has not been remitted'
+        L.VALUES : = ',Error,Minimum amount required has not been remitted'
+    END
+    IF IntrBkSttlmAmt GT REC.RTGS.PARAM<EB.BD.29.MAX.TXN.AMT> THEN
+        RtrRsnPrtry = 'R 09'
+        RtrRsnAddtlInf = 'Amount is too high'
+        L.VALUES : = ',Error,Amount is too high'
+    END
+    IF RtrRsnPrtry THEN
+        GOSUB GENERATE.PACS004
+        GOSUB WRITE.PACS004.MSG
+        GOSUB WRITE.PACS008.LOG
+!GOSUB VERIFY.PACS004
+    END
+    RETURN
+
+OFS.STRING:
+************************************************************************
+*                         Build ofs string                             *
+************************************************************************
+    Y.OFS.STR = 'TRANSACTION.TYPE::=ACIR':','
+    Y.OFS.STR := 'DEBIT.CURRENCY::=':Ccy : ','
+    Y.OFS.STR := 'DEBIT.ACCT.NO::=':Y.DR.ACC.N0:','
+    Y.OFS.STR := 'DEBIT.AMOUNT::=':IntrBkSttlmAmt : ','
+    Y.OFS.STR := 'DEBIT.VALUE.DATE::=':TODAY:','
+    Y.OFS.STR := 'CREDIT.ACCT.NO::=':CdtrAcctOthrId:','
+    Y.OFS.STR := 'ORDERING.BANK::=JBL':','
+    Y.OFS.STR := 'BICC.CODE::=':DbtrAgtBICFI:','
+    Y.OFS.STR := 'BRANCH::=':DbtrAgtBranchId:','
+    Y.OFS.STR := 'ACCT.NO::=':DbtrAgtAcctOthrId:','
+    Y.OFS.STR := 'BENEFI.NAME::=':DbtrNm:','
+    Y.OFS.STR := 'REMARKS::=':Ustrd:','
+    Y.OFS.STR := 'CO.CODE::=':Y.CO.CODE
+    RETURN
+
+OFS.POST:
+************************************************************************
+*               Execute funds transfer & write txn log                 *
+************************************************************************
+    Y.OFS.MSG.POST = "FUNDS.TRANSFER,RTGS.INW.TXN/I/PROCESS,//,":Y.FT.ID:",": Y.OFS.STR
+!Y.SOURCE = 'DM.OFS.SRC'
+    RUNNING.UNDER.BATCH = 1
+    CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.OFS.MSG.POST)
+    RUNNING.UNDER.BATCH = 0
+
+    Y.GEN.FT.ID = FIELD(Y.OFS.MSG.POST,'/',1)
+    Y.OFS.ERR.CODE = FIELD(FIELD(Y.OFS.MSG.POST,'/',3),',',1)
+    IF Y.OFS.ERR.CODE EQ '1' THEN
+        Y.IS.ERROR = 'Success'
+        L.VALUES = L.VALUES:',':Y.IS.ERROR:',':Y.GEN.FT.ID
+        GOSUB WRITE.PACS008.LOG
+        Y.APPR.INW.PACS008.DATA = FIELD(L.VALUES,',',1):',':FIELD(L.VALUES,',',4):',':FIELD(L.VALUES,',',8):',':'Success'
+        GOSUB WRITE.APPR.PACS008
+    END ELSE
+        Y.IS.ERROR = 'Error'
+        Y.ERR = FIELD(Y.OFS.MSG.VAL,'/',4)
+        Y.ERRF = FIELD(Y.ERR,',',2)
+        L.VALUES = L.VALUES :',':Y.IS.ERROR:',':Y.ERRF
+        GOSUB GET.ERR.REASON
+        GOSUB GENERATE.PACS004
+        GOSUB WRITE.PACS004.MSG
+        GOSUB WRITE.PACS008.LOG
+!GOSUB VERIFY.PACS004
+    END
+!GOSUB WRITE.PACS008.LOG
+!GOSUB VERIFY.PACS004
+    RETURN
+
+GET.ERR.REASON:
+************************************************************************
+*                 Assign Error Code & Error Reason                     *
+************************************************************************
+    IF (FIELD(Y.ERRF,'=',2) EQ 'EB-MISSING.RECORD') AND ( LEFT(FIELD(Y.ERRF,'=',1),5) EQ 'DEBIT' OR LEFT(FIELD(Y.ERRF,'=',1),6) EQ 'CREDIT') THEN
+        RtrRsnPrtry = 'R 03'
+        RtrRsnAddtlInf = 'Invalid Account Number'
+    END ELSE
+        IF Y.RECORD.STATUS EQ 'Closed' THEN
+            RtrRsnPrtry = 'R 01'
+            RtrRsnAddtlInf = 'Account Closed'
+        END ELSE
+            RtrRsnPrtry = 'R 09'
+            RtrRsnAddtlInf = 'Entry Refused by the Receiver'
+        END
+    END
+    RETURN
+
+GENERATE.PACS004:
+************************************************************************
+*            Assign message values & prepare message                   *
+************************************************************************
+
+!GOSUB TXN.LIMIT.CHK       ;*to check maximum no of today's txn NEW ADD
+    GOSUB GET.SEQ.NO          ;*generate unique id NEW ADD
+*Start Assiging Values
+    FrBICFI = FIELD(L.VALUES,',',3) ;ToBICFI = FIELD(L.VALUES,',',2) ;BizMsgIdr = FIELD(L.VALUES,',',4) ;MsgDefIdr = 'pacs.004.001.04' ;BizSvc = FIELD(L.VALUES,',',6) ;CreDt = FIELD(L.VALUES,',',7)
+!MsgId = FIELD(L.VALUES,',',8)
+!                      2                                3                                  4                5                                  6                               7                            8
+    CreDtTm = FIELD(L.VALUES,',',9) ;BtchBookg = FIELD(L.VALUES,',',10) ;BtchBookgID = FIELD(L.VALUES,',',11) ;TtlIntrBkSttlmAmt = FIELD(L.VALUES,',',21) ;NbOfTxs = FIELD(L.VALUES,',',12) ;OrgnlMsgId = FIELD(L.VALUES,',',8) ;OrgnlMsgNmId = MsgDefIdr ;OrgnlCreDtTm = CreDtTm
+!                      9                                  10                11                                     12                                        13                               14                  15                        16
+    RtrRsnOrgtrNm = '' ;RtrRsnCd = RtrRsnPrtry ;RtrRsnPrtry = RtrRsnAddtlInf ;RtrRsnAddtlInf = '' ;  RtrId = '' ;OrgnlInstrId = FIELD(L.VALUES,',',13) ;OrgnlEndToEndId = FIELD(L.VALUES,',',14) ;OrgnlTxId = FIELD(L.VALUES,',',15)
+!       17                 18                     19                    20          21                             22                                      23                                       24
+    RtrdIntrBkSttlmCcy = FIELD(L.VALUES,',',20) ;RtrdIntrBkSttlmAmt = FIELD(L.VALUES,',',22) ;TxInfIntrBkSttlmDt = FIELD(L.VALUES,',',23) ;ChrgBr = FIELD(L.VALUES,',',24) ;ChrgsInfBICFI = '' ;ChrgsInfNm = '' ;ChrgsInfBranchId = '' ;InstgAgtBICFI = FIELD(L.VALUES,',',38)
+!     25                                               26                                            27                                       28                             29                   30               31                     32
+    InstdAgtBICFI = FIELD(L.VALUES,',',28) ;TxRefIntrBkSttlmCcy = FIELD(L.VALUES,',',20) ;TxRefIntrBkSttlmAmt = FIELD(L.VALUES,',',22) ;TxRefIntrBkSttlmDt = FIELD(L.VALUES,',',23) ;SvcLvlPrtry = FIELD(L.VALUES,',',17) ;LclInstrmPrtry = FIELD(L.VALUES,',',18) ;CtgyPurpPrtry = FIELD(L.VALUES,',',19) ;PmtMtd = ''
+!          33                                      34                                              35                                          36                                     37                                    38                                       39                                      40
+    RmtInfUstrd = FIELD(L.VALUES,',',57) ;DbtrNm = FIELD(L.VALUES,',',48) ;DbtrNmPstlAdr = FIELD(L.VALUES,',',49) ;DbtrNmStrtNm = FIELD(L.VALUES,',',50) ;DbtrNmTwnNm = FIELD(L.VALUES,',',51) ;DbtrNmCtry = FIELD(L.VALUES,',',53) ;DbtrNmAdrLine = FIELD(L.VALUES,',',52) ;DbtrAcctId = FIELD(L.VALUES,',',37)
+!        41                                 42                               43                                      44                                     45                                    46                                   47                                          48
+    DbtrAcctTpPrtry = FIELD(L.VALUES,',',55) ;DbtrAgtBICFINm = '' ;DbtrAgtBICFI = FIELD(L.VALUES,',',38) ;DbtrAgtBranchId = FIELD(L.VALUES,',',40) ;DbtrAgtAcctId = FIELD(L.VALUES,',',41) ;DbtrAgtAcctPrtry = FIELD(L.VALUES,',',42) ;CdtrAgtBICFI = FIELD(L.VALUES,',',43) ;CdtrAgtNm = FIELD(L.VALUES,',',44)
+!        49                                       50                   51                                     52                                        53                                      54                                         55                                     56
+    CdtrAgtBranchId = FIELD(L.VALUES,',',45) ;CdtrAgtAcctId = FIELD(L.VALUES,',',46) ;CdtrAgtAcctTpPrtry = FIELD(L.VALUES,',',47) ;CdtrNm = FIELD(L.VALUES,',',31) ;CdtrAdrLine = FIELD(L.VALUES,',',35) ;CdtrAcctId = FIELD(L.VALUES,',',54) ;CdtrAcctTpPrtry = ''
+!     57                                        58                                        59                                         60                               61                                    62                                   63
+
+*End Assignibg & Strat Preparing Message
+    Y.PACS004.DATA = Y.REC.ID:',':FrBICFI:',':ToBICFI:',':BizMsgIdr:',':MsgDefIdr:',':BizSvc:',':CreDt:',':MsgId
+!                       1           2           3             4             5            6         7         8
+    Y.PACS004.DATA := ',':CreDtTm:',':BtchBookg:',':BtchBookgID:',':TtlIntrBkSttlmAmt:',':NbOfTxs:',':OrgnlMsgId:',':OrgnlMsgNmId:',':OrgnlCreDtTm
+!                            9            10             11                12                13           14               15                16
+    Y.PACS004.DATA := ',':RtrRsnOrgtrNm:',':RtrRsnCd:',':RtrRsnPrtry:',':RtrRsnAddtlInf:',':RtrId:',':OrgnlInstrId:',':OrgnlEndToEndId:',':OrgnlTxId
+!                            17                18           19              20               21         22              23                 24
+    Y.PACS004.DATA := ',':RtrdIntrBkSttlmCcy:',':RtrdIntrBkSttlmAmt:',':TxInfIntrBkSttlmDt:',':ChrgBr:',':ChrgsInfBICFI:',':ChrgsInfNm:',':ChrgsInfBranchId:',':InstgAgtBICFI
+!                             25                     26                      27             28         29                30             31                       32
+    Y.PACS004.DATA := ',':InstdAgtBICFI:',':TxRefIntrBkSttlmCcy:',':TxRefIntrBkSttlmAmt:',':TxRefIntrBkSttlmDt:',':SvcLvlPrtry:',':LclInstrmPrtry:',':CtgyPurpPrtry:',':PmtMtd
+!                             33               34                      35                      36                      37            38                     39         40
+    Y.PACS004.DATA := ',':RmtInfUstrd:',':DbtrNm:',':DbtrNmPstlAdr:',':DbtrNmStrtNm:',':DbtrNmTwnNm:',':DbtrNmCtry:',':DbtrNmAdrLine:',':DbtrAcctId
+!                             41       42          43                44               45              46             47                48
+    Y.PACS004.DATA := ',':DbtrAcctTpPrtry:',':DbtrAgtBICFINm:',':DbtrAgtBICFI:',':DbtrAgtBranchId:',':DbtrAgtAcctId:',':DbtrAgtAcctPrtry:',':CdtrAgtBICFI:',':CdtrAgtNm
+!                             49            50                 51               52                  53                54                   55               56
+    Y.PACS004.DATA := ',':CdtrAgtBranchId:',':CdtrAgtAcctId:',':CdtrAgtAcctTpPrtry:',':CdtrNm:',':CdtrAdrLine:',':CdtrAcctId:',':CdtrAcctTpPrtry
+!                             57                    57                     59            60         61              62             63
+
+    RETURN
+
+WRITE.PACS004.MSG:
+************************************************************************
+*              Write pacs004 message to related file                   *
+************************************************************************
+
+    OPEN Y.OUTW.DIR TO FP.OUTW.DIR ELSE STOP
+    Y.OUTWPACS004.FN = 'OP4D':TODAY:'F':FIELD(FIELD(Y.FILE,'F',2),'.',1):EREPLACE(OCONV(TIME(), "MTS"),":",''):'.csv'
+    Y.OUTWPACS004.PATH = Y.OUTW.DIR:'/':Y.OUTWPACS004.FN
+
+    Y.OUT.BACK.PATH = Y.OUT.BACKUP.DIR :'/':Y.OUTWPACS004.FN
+
+    OPENSEQ Y.OUTWPACS004.PATH TO F.FILE.OUTWPACS004 THEN NULL
+
+!OPEN Y.OUT.BACKUP.DIR TO FP.FILE.OUT.BACK ELSE STOP
+    OPENSEQ Y.OUT.BACK.PATH TO F.FILE.OUT.BACK THEN NULL
+
+!READ MY.OUT.REC FROM FP.OUTW.DIR, Y.OUTWPACS004.FN THEN
+!WRITESEQ Y.PACS004.DATA APPEND TO F.FILE.OUTWPACS004 ELSE
+!ETEXT = 'No file name found to WRITE TRANSACTION data'
+!CALL STORE.END.ERROR
+!RETURN
+!END
+!END ELSE
+    WRITESEQ Y.WRITE.HEADER APPEND TO F.FILE.OUTWPACS004 ELSE
+        ETEXT = "No file name found to WRITE TRANSACTION data"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    WRITESEQ Y.WRITE.HEADER APPEND TO F.FILE.OUT.BACK ELSE
+        ETEXT = "No file name found to WRITE TRANSACTION data"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+!READ MY.OUT.REC.TEMP FROM FP.OUTW.DIR, Y.OUTWPACS004.FN THEN
+!TEMP.HDR = FIELD(MY.OUT.REC.TEMP,@FM,1)
+!NO.OF.REC = DCOUNT(MY.OUT.REC.TEMP,@FM)
+!IF TEMP.HDR EQ Y.WRITE.HEADER THEN
+    IF Y.PACS004.DATA THEN
+        WRITESEQ Y.PACS004.DATA APPEND TO F.FILE.OUTWPACS004 ELSE
+            ETEXT = 'No file name found to WRITE TRANSACTION data'
+            CALL STORE.END.ERROR
+            RETURN
+        END
+
+        WRITESEQ Y.PACS004.DATA APPEND TO F.FILE.OUT.BACK ELSE
+            ETEXT = 'No file name found to WRITE TRANSACTION data'
+            CALL STORE.END.ERROR
+            RETURN
+        END
+
+    END
+!END ELSE
+!ETEXT = "No file name found to WRITE TRANSACTION data"
+!CALL STORE.END.ERROR
+!RETURN
+!END
+!END
+!END
+
+    WEOFSEQ F.FILE.OUTWPACS004
+    CLOSESEQ F.FILE.OUTWPACS004
+!WEOFSEQ F.FILE.OUT.BACK
+! CLOSESEQ F.FILE.OUT.BACK
+
+    RETURN
+
+WRITE.PACS008.LOG:
+************************************************************************
+*              Write txn record to related log file                    *
+************************************************************************
+
+    Y.INWPACS008.TXN.LOG.PATH = Y.IN.TXN.LOG.DIR:'/':Y.FILE
+    OPENSEQ Y.INWPACS008.TXN.LOG.PATH TO F.FILE.INWPACS008.TXN.LOG THEN NULL
+
+    WRITESEQ L.HEADER APPEND TO F.FILE.INWPACS008.TXN.LOG ELSE
+        CRT "No file name found to WRITE TRANSACTION data"
+    END
+    WRITESEQ L.VALUES APPEND TO F.FILE.INWPACS008.TXN.LOG ELSE
+        CRT "No file name found to WRITE TRANSACTION data"
+    END
+    RETURN
+
+WRITE.APPR.PACS008:
+************************************************************************
+*          Write approved pacs008 message to related file              *
+************************************************************************
+
+    Y.APPR.INWPACS008.FN ='AI8D':TODAY:Y.GEN.FT.ID:EREPLACE(OCONV(TIME(), "MTS"),":",''):'.csv'
+    Y.APPR.INWPACS008.PATH = Y.OUTW.DIR:'/':Y.APPR.INWPACS008.FN
+
+    OPEN Y.OUTW.DIR TO FP.APPR.INW.DIR ELSE STOP
+    OPENSEQ Y.APPR.INWPACS008.PATH TO F.FILE.APPR.INWPACS008 THEN NULL
+    WRITESEQ Y.APPR.HEADER APPEND TO F.FILE.APPR.INWPACS008 ELSE
+        ETEXT = "No file name found to WRITE TRANSACTION data"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    WRITESEQ Y.APPR.INW.PACS008.DATA APPEND TO F.FILE.APPR.INWPACS008 ELSE
+        ETEXT = 'No file name found to WRITE TRANSACTION data'
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    WEOFSEQ F.FILE.APPR.INWPACS008
+    CLOSESEQ F.FILE.APPR.INWPACS008
+    RETURN
+
+VERIFY.PACS004:
+************************************************************************
+*    Verifie pacs004 message is generated if not then generate again   *
+************************************************************************
+    OPEN Y.OUTW.DIR TO FP.OUTW.DIR.TEMP ELSE STOP
+    OPENSEQ Y.OUTWPACS004.PATH TO F.FILE.OUTWPACS004.TEMP THEN NULL
+    READ MY.OUT.REC.TEMP FROM FP.OUTW.DIR.TEMP, Y.OUTWPACS004.FN THEN
+        FINDSTR Y.REC.ID IN MY.OUT.REC.TEMP SETTING PACS004.ID.POS ELSE
+            GOSUB GENERATE.PACS004      ;*if outward pacs004 file exist
+            GOSUB WRITE.PACS004.MSG
+        END
+    END ELSE
+!Y.REC.ID = FIELD(TEMP.MY.REC,',',1)
+        GOSUB GENERATE.PACS004          ;*if outward pacs004 file does not exist
+        GOSUB WRITE.PACS004.MSG
+    END
+    RETURN
+**************
+TXN.LIMIT.CHK:
+**************
+*to check maximum no of today's txn
+    Y.APP.ID = 'RTGS.SEQ.':TODAY
+    CALL F.READ( FN.RTGS.INW.SLN , Y.APP.ID , R.RTGS.INW.SLN , F.RTGS.INW.SLN , Y.ERR1 )
+    IF R.RTGS.INW.SLN NE ""  THEN
+        ALL.SEQ = R.RTGS.INW.SLN<EB.BD.25.RTGS.SEQ.NUM>
+        TOT.SEQ = SUM(ALL.SEQ)
+        IF TOT.SEQ GE '9999' THEN
+            ETEXT = "Maximum No. of Today's Transaction Exceeded"
+            CALL STORE.END.ERROR
+            RETURN
+        END
+    END
+*end of maximum no of txn check
+
+    RETURN
+***********
+GET.SEQ.NO:
+***********
+    Y.B.USER = 'DMUSER'
+    Y.SOURCE = 'DM.OFS.SRC.VAL'
+    OPERATOR = Y.B.USER
+    Y.FT.ID = ''
+    Y.OFS.MSG.VAL = "FUNDS.TRANSFER,RTGS.INW.TXN/I/VALIDATE,//,":Y.FT.ID
+    CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.OFS.MSG.VAL)
+    Y.REF.NO = FIELD(FIELD(Y.OFS.MSG.VAL,"/",1),',',1)
+    MsgId = 'JANB':TODAY[3,2]:TODAY[5,2]:TODAY[7,2]:RIGHT(Y.REF.NO,6)
+
+    RETURN
+*************
+COPY.INWARD.BACKUP:
+************
+*   Copy file from RTGS/RTGS.INWARD directory to RTGS.BAK/RTGS.INWARD
+    CMD = 'COPY FROM ':FROM.DIR:' TO ':Y.IN.BACKUP.DIR:' ':Y.FILE:' OVERWRITING'
+    EXECUTE CMD
+    RETURN
+
+*************
+DEL.INWARD.PACS:
+************
+*   Delete file from RTGS/RTGS.INWARD directory
+    CMD = 'DELETE ':FROM.DIR:' ':Y.FILE
+    EXECUTE CMD
+    RETURN
+
+END

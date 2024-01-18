@@ -1,0 +1,93 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+!!! This routine is to return beneficiary account no and postage charge
+
+!PROGRAM BEN.ACCT.CHARGE
+    SUBROUTINE BEN.ACCT.CHARGE
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.COMPANY
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.TELLER
+    $INSERT I_F.FUNDS.TRANSFER
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.TT = "F.TELLER"
+    F.TT = ""
+    FN.TT.HIS = "F.TELLER$HIS"
+    F.TT.HIS = ""
+    FN.FT = "F.FUNDS.TRANSFER"
+    F.FT = ""
+    FN.FT.HIS = "F.FUNDS.TRANSFER$HIS"
+    F.FT.HIS = ""
+
+    Y.TRANS.ID = O.DATA
+    Y.TT.FT = SUBSTRINGS(Y.TRANS.ID,1,2)
+    Y.TT.MT.BENF.AC = ""
+    Y.CHARGE.COUNT = ""
+    Y.CHARGE.AMOUNT = ""
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.TT.HIS,F.TT.HIS)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    CALL GET.LOC.REF("TELLER","TT.MT.BENF.AC",Y.TT.TT.MT.BENF.AC.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","TT.MT.BENF.AC",Y.FT.TT.MT.BENF.AC.POS)
+
+    RETURN
+
+PROCESS:
+
+    BEGIN CASE
+    CASE Y.TT.FT EQ "TT"
+
+        CALL F.READ(FN.TT,Y.TRANS.ID,R.TT.REC,F.TT,Y.ERR)
+        IF R.TT.REC EQ "" THEN
+            CALL EB.READ.HISTORY.REC(F.TT.HIS,Y.TRANS.ID,R.TT.REC,Y.ERR)
+        END
+        Y.TT.MT.BENF.AC = R.TT.REC<TT.TE.LOCAL.REF,Y.TT.TT.MT.BENF.AC.POS>
+
+        Y.CHARGE.COUNT = DCOUNT(R.TT.REC<39>,@VM)
+        FOR I = 1 TO Y.CHARGE.COUNT
+            IF R.TT.REC<39,I> EQ 'GBPOSTAGE' THEN
+                Y.CHARGE.AMOUNT  = R.TT.REC<37,I>
+                EXIT
+            END
+        NEXT
+        O.DATA = Y.TT.MT.BENF.AC:"*":Y.CHARGE.AMOUNT
+
+    CASE Y.TT.FT EQ "FT"
+
+        CALL F.READ(FN.FT,Y.TRANS.ID,R.FT.REC,F.FT,Y.ERR)
+        IF R.FT.REC EQ "" THEN
+            CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.TRANS.ID,R.FT.REC,Y.ERR)
+        END
+        Y.TT.MT.BENF.AC = R.FT.REC<FT.LOCAL.REF,Y.FT.TT.MT.BENF.AC.POS>
+
+        Y.CHARGE.COUNT = DCOUNT(R.FT.REC<46>,@VM)
+        FOR I = 1 TO Y.CHARGE.COUNT
+            IF R.FT.REC<46,I> EQ 'GBPOSTAGE' THEN
+                Y.CHARGE.AMOUNT  = SUBSTRINGS(R.FT.REC<47,I>,4,8)
+                EXIT
+            END
+        NEXT
+        O.DATA = Y.TT.MT.BENF.AC:"*":Y.CHARGE.AMOUNT
+
+    CASE 1
+
+        O.DATA = Y.TT.MT.BENF.AC:"*":Y.CHARGE.AMOUNT
+
+    END CASE
+    RETURN
+END

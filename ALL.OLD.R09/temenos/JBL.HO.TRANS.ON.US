@@ -1,0 +1,218 @@
+*---------`--------------------------------------------------------------------
+* <Rating>1049</Rating>
+
+* DEVELOPED BY: S.M. SAYEED
+* COMPANY NAME: DATASOFT BD LTD.
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.HO.TRANS.ON.US(Y.RETURN)
+!PROGRAM JBL.HO.TRANS.ON.US
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.COMPANY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.AC.ENT = "FBNK.ACCT.ENT.TODAY"
+    F.AC.ENT = ""
+    FN.STMT.XREF = "FBNK.STMT.ENTRY.DETAIL.XREF"
+    F.STMT.XREF = ""
+    FN.STMT.DET = "FBNK.STMT.ENTRY.DETAIL"
+    F.STMT.DET = ""
+    FN.STMT.ENT = "FBNK.STMT.ENTRY"
+    F.STMT.ENT = ""
+    FN.TT = "FBNK.TELLER"
+    F.TT = ""
+    FN.FT = "FBNK.FUNDS.TRANSFER"
+    F.FT = ""
+
+    Y.BR.CODE = RIGHT(ID.COMPANY,4)
+    Y.ENTRY.COUNT = ""
+    Y.XREF.ID.COUNT = ""
+    Y.XREF.ID = ""
+    Y.TRANS.REF = ""
+    DBT.COM.CODE = ""
+    CRDT.COM.CODE = ""
+    BANK.ACCOUNT = ""
+    CUS.ACCT.NO = ""
+    Y.CO.MNEMONIC = ""
+    Y.REC.STATUS = ""
+    Y.BANK.CO.CODE = ""
+    DEST.BR.CODE=""
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.AC.ENT,F.AC.ENT)
+    CALL OPF(FN.STMT.XREF,F.STMT.XREF)
+    CALL OPF(FN.STMT.DET,F.STMT.DET)
+    CALL OPF(FN.STMT.ENT,F.STMT.ENT)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.FT,F.FT)
+    RETURN
+
+PROCESS:
+! DEBUG
+    SEL.CMD = "SELECT ":FN.AC.ENT:" WITH @ID LIKE ...12800...":Y.BR.CODE
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+
+        CALL F.READ(FN.AC.ENT,Y.ID,R.REC,F.AC.ENT,Y.ERR)
+        Y.ENTRY.COUNT = DCOUNT(R.REC,@FM)
+        FOR I = 1 TO Y.ENTRY.COUNT
+
+            Y.XREF.ID=R.REC<I>
+
+            CALL F.READ(FN.STMT.ENT,Y.XREF.ID,R.STMT.REC,F.STMT.ENT,Y.ERR)
+            IF R.STMT.REC<AC.STE.TRANS.REFERENCE> MATCHES "...\..."  THEN
+
+            END
+            ELSE
+                Y.TRANS.REF = R.STMT.REC<AC.STE.TRANS.REFERENCE>
+                Y.REC.STATUS = R.STMT.REC<AC.STE.RECORD.STATUS>
+                IF Y.TRANS.REF MATCHES "TT..." AND Y.REC.STATUS EQ "" THEN
+
+                END ELSE
+                    IF Y.TRANS.REF MATCHES "FT..." AND Y.REC.STATUS EQ "" THEN
+!------------------------------S.M. SAYEED--------------------------------------
+
+                        CALL F.READ(FN.FT,Y.TRANS.REF,R.FT.REC,F.FT,Y.ERR)
+                        DBT.COM.CODE = R.FT.REC<FT.DEBIT.COMP.CODE>
+                        CRDT.COM.CODE = R.FT.REC<FT.CREDIT.COMP.CODE>
+                        Y.TRANS.TYPE=R.FT.REC<FT.TRANSACTION.TYPE>
+                        IF Y.TRANS.TYPE EQ 'ACBR' OR Y.TRANS.TYPE EQ 'ACPL' THEN
+!----------------------------------------------FOR BRIEF DESCRIPTION-----------------------------------------------------------
+                            CALL GET.LOC.REF('FUNDS.TRANSFER','DR.BRIEF.VAL',Y.DR.BRF.POS)
+                            Y.DR.BRIEF=R.FT.REC<FT.LOCAL.REF,Y.DR.BRF.POS>
+                            IF Y.DR.BRIEF THEN
+                                Y.LEN=LEN(Y.DR.BRIEF)
+                                FOR K=1 TO Y.LEN
+                                    Y.TEMP.DATA1 = Y.DR.BRIEF[K,25]
+                                    Y.DATA1<-1> = TRIM(Y.TEMP.DATA1)
+                                    K=K+25
+                                    Y.TEMP.DATA1=""
+                                NEXT K
+                                Y.DR.BRIEF=""
+                            END
+                            CALL GET.LOC.REF('FUNDS.TRANSFER','CR.BRIEF.VAL',Y.CR.BRF.POS)
+                            Y.CR.BRIEF=R.FT.REC<FT.LOCAL.REF,Y.CR.BRF.POS>
+                            IF Y.CR.BRIEF THEN
+                                Y.LEN.1=LEN(Y.CR.BRIEF)
+                                FOR J=1 TO Y.LEN.1
+                                    Y.TEMP.DATA2 = Y.CR.BRIEF[J,25]
+                                    Y.DATA2<-1> = TRIM(Y.TEMP.DATA2)
+                                    J=J+25
+                                    Y.TEMP.DATA2=""
+                                NEXT J
+                                Y.CR.BRIEF=""
+                            END
+!-----------------------------------------------END---------------------------------------------------------------
+                            IF DBT.COM.CODE EQ ID.COMPANY THEN
+                                DEST.BR.CODE=CRDT.COM.CODE
+
+                                CUS.ACCT.NO = R.FT.REC<FT.DEBIT.ACCT.NO>
+
+                                BANK.ACCOUNT = R.FT.REC<FT.CREDIT.ACCT.NO>
+                                Y.AMOUNT = R.FT.REC<FT.DEBIT.AMOUNT>
+                                IF Y.AMOUNT EQ "" THEN
+                                    Y.AMOUNT = R.FT.REC<FT.CREDIT.AMOUNT>
+                                END
+                                IF BANK.ACCOUNT[1,2] EQ "PL" AND Y.TRANS.TYPE NE 'ACPL' THEN
+                                    Y.BANK.ACC = BANK.ACCOUNT[1,7]:"\":DEST.BR.CODE[6,4]
+                                END
+                                ELSE
+                                    Y.BANK.ACC = BANK.ACCOUNT
+                                END
+
+                                IF Y.TRANS.TYPE EQ 'ACPL' THEN
+                                    CALL GET.LOC.REF('FUNDS.TRANSFER','CR.PL.ACCOUNT',Y.CR.PL.POS)
+                                    CUS.ACCT.NO = R.FT.REC<FT.DEBIT.ACCT.NO>
+                                    Y.BANK.ACC = R.FT.REC<FT.LOCAL.REF,Y.CR.PL.POS>
+!IF LEN(Y.BANK.ACC) GE 7 THEN
+!Y.BANK.ACC = 'PL52333\9999'
+!CUS.ACCT.NO = 'PL52333'
+!END
+                                END
+                            END ELSE
+                                IF CRDT.COM.CODE EQ ID.COMPANY THEN
+                                    DEST.BR.CODE=DBT.COM.CODE
+
+                                    CUS.ACCT.NO = R.FT.REC<FT.CREDIT.ACCT.NO>
+
+                                    BANK.ACCOUNT = R.FT.REC<FT.DEBIT.ACCT.NO>
+                                    IF BANK.ACCOUNT[1,2] EQ "PL" AND Y.TRANS.TYPE NE 'ACPL' THEN
+                                        Y.BANK.ACC = BANK.ACCOUNT[1,7]:"\":DEST.BR.CODE[6,4]
+                                    END
+                                    ELSE
+                                        Y.BANK.ACC = BANK.ACCOUNT
+                                    END
+                                    Y.AMOUNT = R.FT.REC<FT.CREDIT.AMOUNT>
+                                    IF Y.AMOUNT EQ "" THEN
+                                        Y.AMOUNT = R.FT.REC<FT.DEBIT.AMOUNT>
+                                    END
+                                    IF Y.TRANS.TYPE EQ 'ACPL' THEN
+                                        CALL GET.LOC.REF('FUNDS.TRANSFER','CR.PL.ACCOUNT',Y.CR.PL.POS)
+                                        CUS.ACCT.NO = R.FT.REC<FT.LOCAL.REF,Y.CR.PL.POS>
+!IF LEN(Y.BANK.ACC) GT 7 THEN
+!Y.BANK.ACC = 'PL52333\9999'
+!CUS.ACCT.NO = 'PL52333'
+!END
+                                    END
+                                END
+                            END
+                        END
+                    END
+                END
+                IF DEST.BR.CODE NE '' THEN
+                    IF Y.REC.STATUS EQ "" AND (DBT.COM.CODE EQ "" OR DBT.COM.CODE EQ ID.COMPANY OR CRDT.COM.CODE EQ "" OR CRDT.COM.CODE EQ ID.COMPANY) THEN
+
+                        TRANS.MODE = R.STMT.REC<AC.STE.SYSTEM.ID>
+
+                        IF R.STMT.REC<AC.STE.AMOUNT.LCY> LT 0 THEN
+                            TRANS.TYPE ="DR"
+                        END
+                        ELSE
+                            TRANS.TYPE ="CR"
+                        END
+
+                        Y.CURRENCY =  R.STMT.REC<AC.STE.CURRENCY>
+                        CONVERT SM TO "" IN Y.DATA1
+                        CONVERT SM TO "" IN Y.DATA2
+                        CONVERT FM TO VM IN Y.DATA1
+                        CONVERT FM TO VM IN Y.DATA2
+                        Y.RETURN<-1> = DEST.BR.CODE:"*":Y.BANK.ACC:"*":CUS.ACCT.NO:"*":TRANS.MODE:"*":TRANS.TYPE:"*":Y.CURRENCY:"*":Y.AMOUNT:"*":Y.DATA1:"*":Y.DATA2:"*":Y.TRANS.REF
+                    END
+!PRINT DEST.BR.CODE:"*":CUS.ACCT.NO:"*":BANK.ACCOUNT:"*":TRANS.MODE:"*":TRANS.TYPE:"*":Y.CURRENCY:"*":Y.AMOUNT:"*":Y.DATA1:"*":Y.DATA2:"*":Y.TRANS.REF
+                END
+                CUS.ACCT.NO = ""
+                BANK.ACCOUNT = ""
+                DEST.BR.CODE = ""
+                Y.TRANS.REF = ""
+                TRANS.MODE = ""
+                TRANS.TYPE = ""
+                Y.CURRENCY = ""
+                Y.AMOUNT = ""
+                Y.CO.MNEMONIC = ""
+                Y.REC.STATUS = ""
+                DBT.COM.CODE = ""
+                CRDT.COM.CODE = ""
+                Y.DATA1=""
+                Y.DATA2=""
+            END
+!NEXT
+!REPEAT
+        NEXT
+    REPEAT
+
+    RETURN
+END

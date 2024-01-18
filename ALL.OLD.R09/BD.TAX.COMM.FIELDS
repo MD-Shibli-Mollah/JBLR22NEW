@@ -1,0 +1,62 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-13</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.TAX.COMM.FIELDS
+*-----------------------------------------------------------------------------
+* Description:
+*--------------
+* This routine is defines the fields of BD.TAX.COMM template
+*-----------------------------------------------------------------------------
+* Modification History :
+*-----------------------
+* New - Mohammed Anies K                           Date: 31th Jan 2011
+*       Thesys Technologies
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_DataTypes
+*-------------------------------------------------------------------------
+    CALL Table.defineId("APPLICATION.ID", T24_String)       ;* Define Table id
+    ID.N = '35'    ; ID.T = 'A'
+    ID.CHECKFILE = 'FILE.CONTROL'
+*-----------------------------------------------------------------------------
+    neighbour = ''
+    fieldName = 'XX<FT.COMMISSION.CODE'   ; fieldLength = '15'   ; fieldType = 'A'   ;  GOSUB ADD.FIELDS
+    CALL Field.setCheckFile('FT.COMMISSION.TYPE')
+
+    fieldName = 'XX>DESCRIPTION'   ; fieldLength = '35'   ; fieldType = 'A'   ;  GOSUB ADD.FIELDS
+
+    fieldName = 'SRCTAX.ACCT'     ; fieldLength = '20'   ; fieldType = 'A'   ;  GOSUB ADD.FIELDS
+    CALL Field.setCheckFile('ACCOUNT')
+
+    fieldName = 'SRCTAX.COMM.PER'    ; fieldLength = '5'   ; fieldType = ''   ;  GOSUB ADD.FIELDS
+
+    CALL Table.addReservedField('RESERVED.10')
+    CALL Table.addReservedField('RESERVED.9')
+    CALL Table.addReservedField('RESERVED.8')
+    CALL Table.addReservedField('RESERVED.7')
+    CALL Table.addReservedField('RESERVED.6')
+    CALL Table.addReservedField('RESERVED.5')
+    CALL Table.addReservedField('RESERVED.4')
+    CALL Table.addReservedField('RESERVED.3')
+    CALL Table.addReservedField('RESERVED.2')
+    CALL Table.addReservedField('RESERVED.1')
+
+    CALL Table.addLocalReferenceField('XX.LOCAL.REF')
+
+    CALL Table.addOverrideField
+
+    CALL Table.setAuditPosition         ;* Poputale audit information
+
+    RETURN
+*-----------------------------------------------------------------------------
+***********
+ADD.FIELDS:
+***********
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, neighbour) ;* Add a new field
+
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

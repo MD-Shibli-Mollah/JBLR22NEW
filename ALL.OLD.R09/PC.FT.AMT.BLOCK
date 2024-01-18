@@ -1,0 +1,49 @@
+*-----------------------------------------------------------------------------
+* <Rating>-31</Rating>                                                       *
+*Developed By: Kamran                                                        *
+*-----------------------------------------------------------------------------
+    SUBROUTINE PC.FT.AMT.BLOCK
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT BP I_F.BD.BTB.JOB.REGISTER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+******
+INIT:
+******
+    FN.JOB.REGISTER = 'F.BD.BTB.JOB.REGISTER'
+    F.JOB.REGISTER = ''
+    FN.FT.NAU = 'F.FUNDS.TRANSFER$NAU'
+    F.FT.NAU = ''
+    RETURN
+
+***********
+OPENFILES:
+***********
+    CALL OPF(FN.JOB.REGISTER,F.JOB.REGISTER)
+    CALL OPF(FN.FT.NAU,F.FT.NAU)
+    RETURN
+
+********
+PROCESS:
+********
+    IF V$FUNCTION EQ 'A' THEN
+        CALL GET.LOC.REF("FUNDS.TRANSFER","JOB.NUMBER",Y.JOB.NUMBER.POS)
+        CALL GET.LOC.REF("FUNDS.TRANSFER","DOC.VALUE.FC",Y.DOC.VALUE.FC.POS)
+        Y.JOB.NO = R.NEW(FT.LOCAL.REF)<1,Y.JOB.NUMBER.POS>
+        CALL F.READ(FN.JOB.REGISTER,Y.JOB.NO,R.JOB.REGISTER,F.JOB.REGISTER,Y.JOB.REG.ERR)
+        Y.TOT.PC.AVL.AMT = R.JOB.REGISTER<BTB.JOB.TOT.PC.AVL.AMT>
+        Y.FT.NO = ID.NEW
+        CALL F.READ(FN.FT.NAU,Y.FT.NO,R.FT.NAU,F.FT.NAU,Y.FT.NAU.ERR)
+        Y.DOC.VALUE.FC = R.NEW(FT.LOCAL.REF)<1,Y.DOC.VALUE.FC.POS>
+        IF Y.DOC.VALUE.FC GT Y.TOT.PC.AVL.AMT THEN
+            AF = Y.ENTIT.AMT
+            ETEXT = "AUTHORIZE NOT POSSIBLE, LIMIT EXCEED!!!!!!"
+            CALL STORE.END.ERROR
+        END
+    END
+    RETURN

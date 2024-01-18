@@ -1,0 +1,47 @@
+*-----------------------------------------------------------------------------
+* <Rating>77</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.E.NOM.AGE.CALC
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB GET.DATA
+
+******************
+INIT:
+******************
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCT = ""
+    CALL OPF(FN.ACCOUNT,F.ACCT)
+    Y.TODATE = TODAY
+    Y.ID = O.DATA
+    Y.DAYS = ''
+    Y.AGE = ''
+    RETURN
+
+*****************
+GET.DATA:
+*****************
+!  Y.SEL = "SELECT " :FN.ACCOUNT
+! CALL EB.READLIST(Y.SEL,Y.SEL.LIST,'',Y.SEL.CNT,ERR)
+
+! REMOVE Y.ID FROM Y.SEL.LIST SETTING POS
+
+    CALL F.READ(FN.ACCOUNT,Y.ID,R.ACCT,F.ACCT,CUS.ERR)
+    CALL GET.LOC.REF('ACCOUNT','JBL.NOM.DOB',Y.NOM.BT.DT.POS)
+    Y.NOM.DATE.OF.BIRTH = R.ACCT<AC.LOCAL.REF,Y.NOM.BT.DT.POS>
+    IF Y.NOM.DATE.OF.BIRTH NE "" THEN
+        CALL CDD('C',Y.NOM.DATE.OF.BIRTH,Y.TODATE,Y.DAYS)
+        Y.YRS = DROUND(Y.DAYS/365,0)
+        Y.WORD = " YRS"
+        Y.AGE = Y.YRS : Y.WORD
+        O.DATA = Y.AGE
+    END
+    ELSE O.DATA = "NO DATA"
+
+
+    RETURN
+END

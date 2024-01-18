@@ -1,0 +1,97 @@
+    SUBROUTINE JBL.ENDORSE.CERTIFICATE(Y.ARR)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.COMPANY
+
+    FN.TT = 'F.TELLER'
+    F.TT = ''
+    FN.COMP = 'F.COMPANY'
+    F.COMP = ''
+    Y.DATE = TODAY
+    Y.COMP = ID.COMPANY
+
+
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.COMP,F.COMP)
+
+    LOCATE 'TT.ID' IN ENQ.SELECTION<2,1> SETTING TT.ID.POS THEN
+        Y.TT.ID = ENQ.SELECTION<4,TT.ID.POS>
+    END
+    CALL F.READ(FN.COMP,Y.COMP,R.COMP,F.COMP,Y.F.COMP.ERR)
+    Y.COMP.NAME = R.COMP<EB.COM.COMPANY.NAME>
+    Y.APPN  = 'TELLER'
+    Y.FLDS  = 'NATIONAL.ID.NO':VM:'BENEFI.NAME':VM:'REG.NO':VM:'CURRENT.ID'
+    Y.POS = ''
+    CALL MULTI.GET.LOC.REF(Y.APPN,Y.FLDS,Y.POS)
+    Y.NID.POS = Y.POS<1,1>
+    Y.NAME.POS = Y.POS<1,2>
+    Y.MOB.NO.POS = Y.POS<1,3>
+    Y.VISIT.CNTRY.POS = Y.POS<1,4>
+
+    CALL F.READ(FN.TT,Y.TT.ID,R.TT,F.TT,Y.TT.ERR)
+    Y.NID.NO = R.TT<TT.TE.LOCAL.REF,Y.NID.POS>
+    Y.NAME = R.TT<TT.TE.LOCAL.REF,Y.NAME.POS>
+    Y.COUNTRY = 'BANGLADESH'
+    Y.MOBILE.NO = R.TT<TT.TE.LOCAL.REF,Y.MOB.NO.POS>
+    Y.VISIT.COUNTRY = R.TT<TT.TE.LOCAL.REF,Y.VISIT.CNTRY.POS>
+    Y.SL = '1'
+    Y.TXN.TYPE = 'SALE'
+    Y.CURRENCY = R.TT<TT.TE.CURRENCY.1>
+    Y.AMOUNT = R.TT<TT.TE.AMOUNT.FCY.1>
+    Y.RATE = R.TT<TT.TE.RATE.1>
+    Y.AMT.BDT = R.TT<TT.TE.AMOUNT.LOCAL.1>
+    Y.CHRG.AMT = R.TT<TT.TE.CHRG.AMT.LOCAL>
+    Y.ENDRS.FEE = FIELD(Y.CHRG.AMT,VM,1)
+    Y.TAX.FEE = FIELD(Y.CHRG.AMT,VM,2)
+    Y.TOT.CHRG = Y.ENDRS.FEE + Y.TAX.FEE
+    Y.DATE.TRIM = SUBSTRINGS(Y.DATE,3,2)
+    INT.DATE = ICONV(TODAY,"D")
+    DISP.DATE = OCONV(INT.DATE, 'DD') "R%2":" ":OCONV(INT.DATE, 'DMA'):" ":OCONV(INT.DATE, 'DY4')
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = "Ref:JBL/LO/FRMT/Endorsement Certificate/15/":Y.DATE.TRIM:"/":Y.TT.ID:"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":"DATE :": DISP.DATE
+    Y.FINAL.TXT<-1> = "Acknowledgement of Foreign Exchange Transaction":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = "Customer Information":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = "Passport No. :":Y.NID.NO:"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = "Name :":Y.NAME:"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = "Country Name :":Y.COUNTRY:"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = "Contact No. :":Y.MOBILE.NO:"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = "Visiting Country :":Y.VISIT.COUNTRY:"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = "Foreign Exchange Transaction Details :":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":"Sl No":"*":"Transaction Type":"*":"Currency":"*":"Amount":"*":"Rate":"*":"Amount In BDT"
+    Y.FINAL.TXT<-1> = " ":"*":Y.SL:"*":Y.TXN.TYPE:"*":Y.CURRENCY:"*":Y.AMOUNT:"*":Y.RATE:"*":Y.AMT.BDT
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":"Total : ":"*":Y.AMT.BDT
+    Y.FINAL.TXT<-1> = "Charges For EndorseMent :":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = "Particular":"*":" ":"*":" ":"*":"BDTK":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = "Endorsement Fee :":"*":" ":"*":" ":"*":Y.ENDRS.FEE:"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = "VAT @ 15% :":"*":" ":"*":" ":"*":Y.TAX.FEE:"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = "TOTAL :":"*":" ":"*":" ":"*":Y.TOT.CHRG:"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":"For Janata Bank Limited":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":     Y.COMP.NAME:"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" "
+    Y.FINAL.TXT<-1> = " ______________________":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":" _____________________"
+    Y.FINAL.TXT<-1> = "        Officer":"*":" ":"*":" ":"*":" ":"*":" ":"*":" ":"*":"         Manager/In-charge"
+    Y.ARR = Y.FINAL.TXT
+    RETURN
+END

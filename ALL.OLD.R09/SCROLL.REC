@@ -1,0 +1,48 @@
+*-----------------------------------------------------------------------------
+* <Rating>69</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM SCROLL.REC
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ABL.H.SCROLL
+    $INSERT I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+INIT:
+
+!DEBUG
+    FN.DM.SDF = 'F.ABL.H.SCROLL$HIS'
+    F.DM.SDF = ''
+
+    Y.DATA = ""
+
+    CO.LIST = "'BD0010384' 'BD0010216' 'BD0010003' 'BD0010197' 'BD0010904' 'BD0010106' 'BD0010138' 'BD0010745'"
+
+
+    CALL OPF(FN.DM.SDF,F.DM.SDF)
+
+    RETURN
+
+PROCESS:
+    SEL.CMD.AC = "SELECT ":FN.DM.SDF:" @ID WITH CO.CODE EQ ":CO.LIST:" BY @ID"
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.DM.SDF,'',TOT.REC,Y.ERR)
+    LOOP
+        REMOVE Y.REC.ID FROM SEL.LIST.DM.SDF SETTING POS
+    WHILE Y.REC.ID:POS
+
+        CALL F.READ(FN.DM.SDF,Y.REC.ID,R.REC,F.DM.SDF,Y..ERR1)
+        Y.DATA<-1> = Y.REC.ID:'*':R.REC<SC.DD.SCROLL.NO>:'*':R.REC<SC.INPUTTER>:'*':R.REC<SC.AUTHORISER>:'*':R.REC<SC.DATE.TIME>:'*':R.REC<SC.CO.CODE>
+
+    REPEAT
+
+    OPEN "DATA.BP" TO F.DATA ELSE NULL
+    Y.SEQ.ID = 'DD.SCROLL.LIST.HIS'
+    WRITE Y.DATA TO F.DATA,Y.SEQ.ID
+
+
+    RETURN
+END

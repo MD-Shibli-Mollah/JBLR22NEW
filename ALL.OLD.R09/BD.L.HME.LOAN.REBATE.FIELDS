@@ -1,0 +1,29 @@
+*-----------------------------------------------------------------------------
+* <Rating>-2</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.L.HME.LOAN.REBATE.FIELDS
+*-----------------------------------------------------------------------------
+* Description:
+*--------------
+* This file is used to hold the fields of BD.L.HME.LOAN.REBATE
+*-----------------------------------------------------------------------------
+* Modification History :
+*-----------------------
+* 16/2/2011 New - Sabari.G
+*                 Thesys Technologies
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_DataTypes
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("ID", T24_String)         ;* Define Table id
+    ID.N = '25'
+*-----------------------------------------------------------------------------
+    CALL Table.addField('XX<LOAN.ID','20','A','') ;* Add a new field
+    CALL Table.addField('XX-INTEREST.AMOUNT','25','','')
+    CALL Table.addField('XX-AMT.TO.REBATE','25','','')
+    CALL Table.addField('XX>AMT.TO.REB.LCY','25','','')
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

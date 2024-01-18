@@ -1,0 +1,61 @@
+*-----------------------------------------------------------------------------
+* <Rating>-21</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.PC.EXCH.AMT
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This routine Calculate FT.DEBIT.AMOUNT base in Exchange Rate & Purchase Fc Amount
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20/04/2012 - New - Rayhan
+* 24/12/2013 - modified - Huraira
+* ---------------------
+* Provision made to change Debit Amount Manually
+* Debit Amount must be Less than or equal Calculated Amount with manually Change option
+*-----------------------------------------------------------------------------
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+
+INITIALISE:
+*----------
+    CALL GET.LOC.REF("FUNDS.TRANSFER","DOC.VALUE.FC",Y.PC.FCVAL.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","EXCHANGE.RATE",Y.RATE.POS)
+
+    RETURN
+
+PROCESS:
+*-------
+    Y.EXCH.RATE = COMI
+    Y.PC.FC.AMT = R.NEW(FT.LOCAL.REF)<1,Y.PC.FCVAL.POS>
+    IF Y.PC.FC.AMT NE "" THEN
+        IF Y.EXCH.RATE LE "0" THEN
+            Y.PC.AMT.LCY = Y.PC.FC.AMT * 1
+        END ELSE
+            Y.PC.AMT.LCY = Y.PC.FC.AMT * Y.EXCH.RATE
+        END
+
+        CALL EB.ROUND.AMOUNT('LCCY',Y.PC.AMT.LCY,'2','')
+
+*changed by huraira
+*------------------
+        R.NEW(FT.DEBIT.AMOUNT) = ''
+        IF R.NEW(FT.DEBIT.AMOUNT) EQ "" THEN
+            R.NEW(FT.DEBIT.AMOUNT) = Y.PC.AMT.LCY
+        END ELSE
+            IF R.NEW(FT.DEBIT.AMOUNT) GT Y.PC.AMT.LCY THEN
+                ETEXT="Dr. Amt Exceeds Cal. Amount"
+                CALL STORE.END.ERROR
+            END
+        END
+    END
+    RETURN
+END

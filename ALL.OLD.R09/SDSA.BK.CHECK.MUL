@@ -1,0 +1,251 @@
+    SUBROUTINE SDSA.BK.CHECK.MUL
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT BP I_F.BD.BREAKUP
+    $INSERT BP I_F.JBL.H.BK.MCD
+
+    IF V$FUNCTION EQ 'D' THEN RETURN
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB FT.VAL.PROCESS
+
+    RETURN
+
+INIT:
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+
+    FN.FT.NAU = 'FBNK.FUNDS.TRANSFER$NAU'
+    F.FT.NAU = ''
+
+    FN.TT = 'F.TELLER'
+    F.TT = ''
+
+    FN.TT.NAU = 'FBNK.TELLER$NAU'
+    F.TT.NAU = ''
+
+    FN.CAT = 'F.CATEGORY'
+    F.CAT = ''
+
+    FN.SDSA = 'F.BD.BREAKUP'
+    F.SDSA = ''
+
+    FN.MCD = 'F.JBL.H.BK.MCD'
+    F.MCD = ''
+
+
+    Y.BR.CODE  = ID.COMPANY[6,4]
+    Y.YEAR = TODAY[3,2]
+
+    CALL GET.LOC.REF("CATEGORY","A.L",Y.CAT.AL.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","FT.DR.DETAILS",Y.FT.DR.DETAILS.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","FT.CR.DETAILS",Y.FT.CR.DETAILS.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","A.L",Y.FT.AL.POS)
+    CALL GET.LOC.REF("TELLER","A.L",Y.TT.AL.POS)
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.CAT,F.CAT)
+    CALL OPF(FN.FT.NAU,F.FT.NAU)
+    CALL OPF(FN.TT.NAU,F.TT.NAU)
+    CALL OPF(FN.SDSA,F.SDSA)
+    CALL OPF(FN.MCD,F.MCD)
+    RETURN
+
+FT.VAL.PROCESS:
+!DEBUG
+    CALL F.READ(FN.MCD,ID.NEW,R.CK,F.MCD,MCD.ERROR)
+    IF R.CK NE '' AND V$FUNCTION EQ 'I' THEN
+        AF = 0
+        ETEXT = "This Transaction ID is already Authorised."
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    Y.DR.AC = R.NEW(MCD.BK.DEBIT.ACCT.NO)
+    Y.CR.AC = R.NEW(MCD.BK.CREDIT.ACCT.NO)
+    Y.DR.REF = R.NEW(MCD.BK.DR.REF.NO)
+    Y.CR.REF = R.NEW(MCD.BK.CR.REF.NO)
+    Y.DR.AMT = R.NEW(MCD.BK.DEBIT.AMOUNT)
+    Y.CR.AMT = R.NEW(MCD.BK.CREDIT.AMOUNT)
+    Y.AL.CNT = ''
+    FOR I = 1 TO DCOUNT(Y.DR.AC,@VM)
+        IF COUNT(R.NEW(MCD.BK.DR.PAYMENT.DETAILS),'*') GT 0 THEN
+            AF = MCD.BK.DR.PAYMENT.DETAILS
+            AV = I
+            ETEXT = "Invalid Swift character (not allow * for Debit Payment Details)"
+            CALL STORE.END.ERROR
+            RETURN
+        END
+
+        Y.ORG.ADJ = ''
+        Y.REF.NO = ''
+        AC.NO = ''
+        Y.AL = ''
+        AC.NO = FIELD(Y.DR.AC,@VM,I)
+        Y.REF.NO = FIELD(Y.DR.REF,@VM,I)
+        Y.CUR.AMT = FIELD(Y.DR.AMT,@VM,I)
+        IF LEFT(AC.NO,3) EQ "BDT" THEN
+            Y.CATEGORY=RIGHT(LEFT(AC.NO,8),5)
+            CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.ERR)
+            CALL GET.LOC.REF('CATEGORY','A.L',Y.AL.POS)
+            Y.AL=R.CAT<EB.CAT.LOCAL.REF,Y.AL.POS>
+        END
+
+        AV = I
+
+        IF LEFT(AC.NO,3) EQ "BDT" AND Y.AL EQ 'A' 'L'  AND Y.REF.NO EQ '' THEN
+            AF = MCD.BK.DR.REF.NO
+            ETEXT = "Transaction Ref is mandatory for ":AC.NO
+            CALL STORE.END.ERROR
+            RETURN
+        END
+        IF Y.AL EQ 'A' THEN
+            AF = MCD.BK.DR.REF.NO
+            Y.ORG.ADJ = 'ORG'
+            GOSUB CHECK.REF
+            IF V$FUNCTION EQ 'R' THEN
+                AF = MCD.BK.DEBIT.AMOUNT
+                GOSUB CHECK.OUT.BALANCE
+            END
+        END
+        IF Y.AL EQ 'L' THEN
+            AF = MCD.BK.DR.REF.NO
+            Y.ORG.ADJ = 'ADJ'
+            GOSUB CHECK.REF
+            IF Y.REF.CK EQ 0 THEN RETURN
+            IF V$FUNCTION EQ 'I' THEN
+                AF = MCD.BK.DEBIT.AMOUNT
+                GOSUB CHECK.OUT.BALANCE
+            END
+        END
+        IF Y.AL EQ 'A' OR Y.AL EQ 'L' THEN
+            Y.AL.CNT = Y.AL.CNT + 1
+        END
+        ELSE
+            R.NEW(MCD.BK.DR.REF.NO)<1,I> = ''
+            R.NEW(MCD.BK.DR.PAYEE.NAME)<1,I> = ''
+        END
+    NEXT I
+    FOR I = 1 TO DCOUNT(Y.CR.AC,@VM)
+        IF COUNT(R.NEW(MCD.BK.CR.PAYMENT.DETAILS),'*') GT 0 THEN
+            AF = MCD.BK.CR.PAYMENT.DETAILS
+            AV = I
+            ETEXT ="Invalid Swift character (not allow * for Credit Payment Details)"
+            CALL STORE.END.ERROR
+            RETURN
+        END
+        Y.ORG.ADJ = ''
+        Y.REF.NO = ''
+        AC.NO = ''
+        Y.AL = ''
+        AC.NO = FIELD(Y.CR.AC,@VM,I)
+        Y.REF.NO = FIELD(Y.CR.REF,@VM,I)
+        Y.CUR.AMT = FIELD(Y.CR.AMT,@VM,I)
+        IF LEFT(AC.NO,3) EQ "BDT" THEN
+            Y.CATEGORY=RIGHT(LEFT(AC.NO,8),5)
+            CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.ERR)
+            CALL GET.LOC.REF('CATEGORY','A.L',Y.AL.POS)
+            Y.AL=R.CAT<EB.CAT.LOCAL.REF,Y.AL.POS>
+        END
+        AV = I
+!IF Y.AL EQ '' AND (LEFT(AC.NO,3) EQ "BDT" OR LEFT(AC.NO,2) EQ "PL") AND LEFT(AC.NO,8) NE "BDT12810" THEN
+!AF = MCD.BK.CREDIT.ACCT.NO
+!ETEXT = AC.NO:" Is Not Asset / Liability Account"
+!CALL STORE.END.ERROR
+!RETURN
+!END
+        IF LEFT(AC.NO,3) EQ "BDT" AND Y.AL EQ 'A' 'L' AND Y.REF.NO EQ '' THEN
+            AF = MCD.BK.CR.REF.NO
+            ETEXT = "Transaction Ref is mandatory for ":AC.NO
+            CALL STORE.END.ERROR
+            RETURN
+        END
+        IF Y.AL EQ 'A' THEN
+            AF = MCD.BK.CR.REF.NO
+            Y.ORG.ADJ = 'ADJ'
+            GOSUB CHECK.REF
+            IF Y.REF.CK EQ 0 THEN RETURN
+            IF V$FUNCTION EQ 'I' THEN
+                AF = MCD.BK.CREDIT.AMOUNT
+                GOSUB CHECK.OUT.BALANCE
+            END
+        END
+        IF Y.AL EQ 'L' THEN
+            AF = MCD.BK.CR.REF.NO
+            Y.ORG.ADJ = 'ORG'
+            GOSUB CHECK.REF
+            IF V$FUNCTION EQ 'R' THEN
+                AF = MCD.BK.CREDIT.AMOUNT
+                GOSUB CHECK.OUT.BALANCE
+            END
+        END
+        IF Y.AL EQ 'A' OR Y.AL EQ 'L' THEN
+            Y.AL.CNT = Y.AL.CNT + 1
+        END
+        ELSE
+            R.NEW(MCD.BK.CR.REF.NO)<1,I> = ''
+            R.NEW(MCD.BK.CR.PAYEE.NAME)<1,I> = ''
+        END
+    NEXT I
+    IF  Y.AL.CNT EQ '' THEN
+        AF = 0
+        ETEXT = 'At least one breakup account is needed.'
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    RETURN
+CHECK.REF:
+!DEBUG
+    Y.REF.CK = 1
+    IF Y.REF.NO EQ ''  THEN
+        ETEXT = "Ref.No Should Not be Null for ":AC.NO
+    END
+    FOR Z = 1 TO LEN(Y.REF.NO)
+        Y.CH = Y.REF.NO[Z,1]
+        IF ISALNUM(Y.CH) EQ 1 OR Y.CH EQ '.' THEN
+        END
+        ELSE ETEXT = "Invalid character in Ref.No for ":AC.NO
+    NEXT Z
+    IF LEN(Y.REF.NO) GT 35 THEN
+        ETEXT = "Maximum length of Ref.No is 35 for ":AC.NO
+    END
+!IF COUNT(Y.REF.NO,"AM") GT 1 THEN
+!   ETEXT ="Do Not Use AM in a Ref no ":Y.REF.NO
+!END
+    IF ETEXT NE '' THEN
+        CALL STORE.END.ERROR
+        Y.REF.CK = 0
+    END
+    RETURN
+
+CHECK.OUT.BALANCE:
+!DEBUG
+    Y.BAL=0
+    SEL.CMD = 'SELECT ':FN.SDSA:' WITH @ID LIKE ':AC.NO:'*...'
+    CALL EB.READLIST(SEL.CMD, SEL.REF.LIST, F.SDSA, NO.OF.REC.REF, RET.CODE.SUB)
+    SEL.REF.LIST = SORT(SEL.REF.LIST)
+    FOR K = 1 TO NO.OF.REC.REF
+        Y.CUR.ID = SEL.REF.LIST<K>
+        IF FIELD(Y.CUR.ID,'*',2) EQ Y.REF.NO AND DCOUNT(Y.CUR.ID,'*') EQ 10 AND SEL.REF.LIST<K+1> NE Y.CUR.ID:'*REV' THEN
+            IF FIELD(Y.CUR.ID,'*',10) EQ 'ORG' THEN
+                Y.BAL = Y.BAL + FIELD(Y.CUR.ID,'*',9)
+            END
+            IF FIELD(Y.CUR.ID,'*',10) EQ 'ADJ' THEN
+                Y.BAL = Y.BAL - FIELD(Y.CUR.ID,'*',9)
+            END
+        END
+    NEXT K
+
+    IF (Y.BAL - Y.CUR.AMT) LT 0 THEN
+        ETEXT = "Oustanding Amount: ":Y.BAL:" Current Amount: ":Y.CUR.AMT:" FOR Account Number: ":AC.NO:", Ref: ":Y.REF.NO
+        CALL STORE.END.ERROR
+    END
+    RETURN
+END

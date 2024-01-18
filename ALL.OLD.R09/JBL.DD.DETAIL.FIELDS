@@ -1,0 +1,44 @@
+
+    SUBROUTINE JBL.DD.DETAIL.FIELDS
+* TEMPLATE DEV: ALIN BOBY
+* DEPLOYMENT DATE: 20191018
+
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("DD.ID", T24_String)      ;* Define Table id
+*-----------------------------------------------------------------------------
+    CALL Table.addFieldDefinition("DATE.OF.ISSUE","8", "D","")
+    CALL Table.addFieldDefinition("INS.PRINTED.NO","20", "A","")
+    CALL Table.addFieldDefinition("BENIFICIARY","35","A","")
+    CALL Table.addFieldDefinition("PURCHASER","35","A","")
+    CALL Table.addFieldDefinition("AMOUNT","19","AMT","")
+    CALL Table.addFieldDefinition("CHARGE","19","AMT","")
+    CALL Table.addFieldDefinition("VAT","19","AMT","")
+    CALL Table.addFieldDefinition("ISSUE.REF.NO","20","A","")
+    CALL Table.addFieldDefinition("ADV.PAY.REF.NO","20","A","")
+    CALL Table.addFieldDefinition("ADV.DATE.OF.PAY","8","D","")
+    CALL Table.addFieldDefinition("INS.PAY.REF.NO","20","A","")
+    CALL Table.addFieldDefinition("INS.DATE.OF.PAY","8","D","")
+    CALL Table.addFieldDefinition("ISSUE.ADVICE.NO","20","A","")
+    CALL Table.addFieldDefinition("PAY.ADVICE.NO","20","A","")
+    CALL Table.addFieldDefinition("INS.PAID","1","":FM:"Y_N","")
+    CALL Table.addFieldDefinition("ADVICE","1","":FM:"Y_N","")
+
+    CALL Table.addFieldDefinition("CANCEL","1","":FM:"Y","")
+    CALL Table.addFieldDefinition("DUPLICATE","1","":FM:"Y","")
+    CALL Table.addFieldDefinition("CAUTION","1","":FM:"Y","")
+
+    CALL Table.addFieldDefinition("INS.TYPE","2","":FM:"DD_TT_MT","")
+    CALL Table.addOverrideField
+
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

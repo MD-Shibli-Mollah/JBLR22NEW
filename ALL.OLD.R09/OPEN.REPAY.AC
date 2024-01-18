@@ -1,0 +1,109 @@
+*-----------------------------------------------------------------------------
+* <Rating>-10</Rating>
+*-----------------------------------------------------------------------------
+***************************************************************************************
+*Company Name   : Datasoft
+*Developed By   : Md. Obaydul Faruque Mehedi
+*Subroutine Type: ID Routine
+*----------------------------------------------------------------------------------------
+*Description    : This Routine used in Auto Open Liq Account & Auto Authorized when Base
+*                 Account was authorized and also auto taged in 'Interest Liqu Acct'
+*                 field only for JBMBS(6623).
+*****************************************************************************************
+* UPDATE: 20200212
+* BY ALIN BOBY
+* ADD ONE CATEGORY 6613
+* UPDATE: 20211230 | REMOVE 6613
+* UPDATE: 20200321
+* BY: Mazba Uddin
+* ADD ONE CATEGORY 6627 & Open two Repay Account
+
+
+    SUBROUTINE OPEN.REPAY.AC
+
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CATEGORY
+
+    CALL GET.LOC.REF('CATEGORY','LINK.INT.LIQ',Y.LINK.INT.LIQ.POS)
+
+    Y.BASE.CATEGORY = R.NEW(AC.CATEGORY)
+    CALL F.READ('F.CATEGORY',Y.BASE.CATEGORY,R.CATEG,F.CATEG,ERR)
+
+    Y.CATEGORY = ''
+
+    IF R.CATEG THEN
+        Y.CATEGORY = R.CATEG<EB.CAT.LOCAL.REF,Y.LINK.INT.LIQ.POS>
+    END
+
+    IF Y.CATEGORY THEN
+        Y.CUS.ID = R.NEW(AC.CUSTOMER)
+        Y.TITLE.1 = R.NEW(AC.ACCOUNT.TITLE.1)
+        Y.SHORT.TITLE = R.NEW(AC.SHORT.TITLE)
+        Y.AC.OFFICER = R.NEW(AC.ACCOUNT.OFFICER)
+
+        Y.MESSAGE = "ACCOUNT,/I/PROCESS//1,//":ID.COMPANY:",,CUSTOMER=":Y.CUS.ID:",ACCOUNT.TITLE.1=":Y.TITLE.1:",SHORT.TITLE=":Y.SHORT.TITLE:",ACCOUNT.OFFICER=":Y.AC.OFFICER:",CATEGORY=":Y.CATEGORY:",CURRENCY=BDT"
+
+********Added by Mazba for credit account*********
+        IF R.NEW(AC.CATEGORY) EQ '6627' THEN
+            Y.MESSAGE.AC2 = "ACCOUNT,/I/PROCESS//1,//":ID.COMPANY:",,CUSTOMER=":Y.CUS.ID:",ACCOUNT.TITLE.1=":Y.TITLE.1:",SHORT.TITLE=":Y.SHORT.TITLE:",ACCOUNT.OFFICER=":Y.AC.OFFICER:",CATEGORY=":Y.CATEGORY:",CURRENCY=BDT"
+        END
+***********************************
+		GOSUB DO.TRANSACTION
+        IF Y.STATUS EQ '1' OR Y.STATUS EQ '11' THEN
+            Y.ID = FIELD(FIELD(Y.MESSAGE,"/",1,1),",",1)
+            Y.TASK = "ACCOUNT S ":Y.ID
+********Added by Mazba for credit account*********
+            IF Y.MESSAGE.AC2 THEN
+                Y.ID.AC2 = FIELD(FIELD(Y.MESSAGE.AC2,"/",1,1),",",1)
+                Y.TASK = "ACCOUNT S ":Y.ID.AC2
+            END
+****************************************
+            OFS$NEW.COMMAND = Y.TASK
+        END
+    END
+
+    IF R.NEW(AC.CATEGORY) EQ '6623' OR R.NEW(AC.CATEGORY) EQ '6625' OR R.NEW(AC.CATEGORY) EQ '6626' OR R.NEW(AC.CATEGORY) EQ '1055' OR R.NEW(AC.CATEGORY) EQ '1056' OR R.NEW(AC.CATEGORY) EQ '6627' THEN
+        R.NEW(AC.INTEREST.LIQU.ACCT) = Y.ID
+    END
+
+    Y.OFS.MSG.POST = 'ACCOUNT,/A/PROCESS,//,':Y.ID
+********Added by Mazba for credit account*********
+    IF Y.ID.AC2 THEN
+        Y.OFS.MSG.POST.AC2 = 'ACCOUNT,/A/PROCESS,//,':Y.ID.AC2
+    END
+******************************************
+    RUNNING.UNDER.BATCH = 1
+    CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.OFS.MSG.POST)
+********Added by Mazba for credit account*********
+    IF Y.OFS.MSG.POST.AC2 THEN
+        CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.OFS.MSG.POST.AC2)
+    END
+****************************************
+    RUNNING.UNDER.BATCH = 0
+    CALL JOURNAL.UPDATE('')
+    SENSITIVITY = ''
+
+    RETURN
+*--------------
+DO.TRANSACTION:
+*--------------
+    RUNNING.UNDER.BATCH = 1
+    Y.SOURCE = "DM.OFS.SRC.VAL"
+    CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.MESSAGE)
+********Added by Mazba for credit account*********
+    IF Y.MESSAGE.AC2 THEN
+        CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.MESSAGE.AC2)
+    END
+******************************
+    RUNNING.UNDER.BATCH = 0
+    SENSITIVITY = ''
+********Added by Mazba for credit account*********
+    Y.MESSAGE.FINAL = Y.MESSAGE:"/":Y.MESSAGE.AC2
+*****************************
+    Y.STATUS = FIELD(FIELD(Y.MESSAGE.FINAL,"/",3,1),",",1)
+
+    RETURN
+END

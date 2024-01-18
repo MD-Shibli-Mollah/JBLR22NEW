@@ -1,0 +1,31 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.GET.CLEARING.VER
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    Y.TR.CODE = O.DATA
+
+    BEGIN CASE
+    CASE Y.TR.CODE EQ '41'
+        O.DATA = 'TELLER,TRANSFER.DELIVERY'
+    CASE Y.TR.CODE EQ '42'
+        O.DATA ='TELLER,OUT.CLEAR.SAME.DAY'
+    CASE Y.TR.CODE EQ '43'
+        O.DATA = 'TELLER,OUT.CLEAR.OTHER.DAY'
+    CASE Y.TR.CODE EQ '44'
+        O.DATA = 'TELLER,IN.CLEAR'
+    CASE Y.TR.CODE EQ '45'
+        O.DATA = 'TELLER,TRANSFER.DELIVERY.INWARD'
+    CASE Y.TR.CODE EQ '28'
+        O.DATA = 'TELLER,IN.CLEAR.INTERNAL.AC'
+    CASE Y.TR.CODE EQ '46'
+        O.DATA = 'TELLER,TRANSFER.DELIVERY.INWARD.OTHER'
+
+    CASE 1
+        O.DATA ='TELLER'
+    END CASE
+
+    RETURN
+END

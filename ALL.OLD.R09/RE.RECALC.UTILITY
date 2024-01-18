@@ -1,0 +1,177 @@
+*-----------------------------------------------------------------------------
+* <Rating>9</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE RE.RECALC.UTILITY
+
+*   20/10/2015 Code modified to initialise RE.RLC.REPORT variable
+* 17/07/2020 code modified by Alin Boby line 94 to line 96
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.COMPANY.CHECK
+    $INSERT GLOBUS.BP I_F.DATES
+    EQU RE.RLC.REPORT TO 1
+
+    GOSUB OPEN.FILES
+    GOSUB GET.INPUT
+    IF COMI = 99 THEN RETURN
+    GOSUB PROCESS
+
+    RETURN
+
+OPEN.FILES:
+*----------
+    FN.HEAD="F.RE.STAT.REPORT.HEAD"
+    F.HEAD=""
+    CALL OPF(FN.HEAD,F.HEAD)
+
+    FN.COMP = 'F.COMPANY'
+    F.COMP = ''
+    CALL OPF(FN.COMP,F.COMP)
+
+    FN.COMP.CHECK = 'F.COMPANY.CHECK'
+    F.COMP.CHECK = ''
+    CALL OPF(FN.COMP.CHECK,F.COMP.CHECK)
+    RECALC.RUN = ''
+
+    RETURN
+
+GET.INPUT:
+*---------------------------------------------------------------------------------------------------
+    PRINT @(5,4) : "You are running RE RECALC Version 1.0"
+    PRINT @(5,7) : "1.  ENTER THE REPORT NAME "
+    PRINT @(5,16) : "99. EXIT "
+    PRINT @(5,11) : "Note: The report name is record ID of RE.STAT.REPORT.HEAD file"
+
+    CALL TXTINP('Awaiting REPORT name ', 8, 22,32, 'ANY')
+
+    RETURN
+GET.COMP.LIST:
+*--------------
+    ID.COMP = ''
+    CRT @(-1)
+    PRINT @(5,6) : "2. Enter The LEAD Company code for which RECALC needs to be run "
+    PRINT @(5,11) : "Note: Enter The company code value like GB0010001"
+
+    CALL TXTINP('Awaiting CO.CODE ', 8, 22,32, 'ANY')
+
+    ID.COMP=COMI
+    GOSUB CHECK.COMP
+    GOSUB GET.FIN.FILE
+
+    RETURN
+
+CHECK.COMP:
+*----------
+    R.COMP = ''
+    COMP.ERR = ''
+    CALL F.READ(FN.COMP,ID.COMP,R.COMP,F.COMP,COMP.ERR)
+
+    IF COMP.ERR NE '' THEN
+        CRT @(-1)
+        PRINT @(5,6) : "INVALID COMPANY ID GIVEN"
+        SLEEP(2)
+        GOSUB GET.COMP.LIST
+    END ELSE
+        IF R.COMP<EB.COM.FINANCIAL.COM> NE ID.COMP THEN
+            ID.COMP = R.COMP<EB.COM.FINANCIAL.COM>
+            GOSUB CHECK.COMP
+        END
+    END
+
+    RETURN
+
+GET.FIN.FILE:
+*------------
+    ID.FIN = 'FIN.FILE'
+    R.FIN = ''
+    COMP.CHECK = ''
+    CALL F.READ(FN.COMP.CHECK,ID.FIN,R.FIN,F.COMP.CHECK,COMP.CHECK)
+    COMP.POS = ''
+    COMP.LIST = ''
+    LOCATE ID.COMP IN R.FIN<EB.COC.COMPANY.CODE,1> SETTING COMP.POS THEN
+*        COMP.LIST = RAISE(R.FIN<EB.COC.USING.COM,COMP.POS,1>)
+        COMP.LIST = R.FIN<EB.COC.USING.COM,COMP.POS>        ;*Changes done here for book company*
+        CONVERT @SM TO @FM IN COMP.LIST
+        INS ID.COMP BEFORE COMP.LIST<-1>
+    END
+
+    RETURN
+
+
+PROCESS:
+!---------
+    HEAD.ERR =''
+    ID.HEAD = COMI
+    R.HEAD=''
+
+    CALL F.READ(FN.HEAD,ID.HEAD,R.HEAD,F.HEAD,HEAD.ERR)
+    IF HEAD.ERR THEN
+        CRT @(-1)
+        PRINT @(5,6) : "INVALID REPORT NAME"
+        SLEEP(2)
+        GOSUB GET.INPUT
+    END ELSE
+        GOSUB GET.COMP.LIST
+        Y.ASSET.CHANGED = 1
+        Y.PROFT.CHANGED = 1
+        GOSUB UPDATE.REP.CALC
+    END
+
+    IF RECALC.RUN THEN
+*        GOSUB CALL.MAINLINE
+        CRT @(-1)
+        PRINT @(5,4) : " Thanks for running RE RECALC Version 1.0"
+        PRINT @(5,6) : " ** RECALC OPERATION COMPLETED ** "
+        SLEEP(2)
+    END
+
+
+    RETURN
+
+UPDATE.REP.CALC:
+*---------------
+*COMP.ERR =""
+*R.COMP = ''
+*CALL F.READ(FN.COMP,ID.COMP,R.COMP.F.COMP,COMP.ERR)
+    LOOP REMOVE COMP.ID FROM COMP.LIST SETTING COMP.ID.LIST
+    WHILE COMP.ID <> ""
+        IF Y.ASSET.CHANGED THEN
+            YRLC.REC = ""
+            Y.RLC.REC.ID = "ASSET":"-":COMP.ID
+            GOSUB UPDATE.RE.REP.LINE.CALC
+        END
+        IF Y.PROFT.CHANGED THEN
+            YRLC.REC = ""
+            Y.RLC.REC.ID = "PROFIT":"-":COMP.ID
+            GOSUB UPDATE.RE.REP.LINE.CALC
+        END
+    REPEAT
+
+    RETURN
+
+UPDATE.RE.REP.LINE.CALC:
+*-----------------------
+    YERR = ''
+    F.RE.REP.LINE.CALCULATE = ''
+    CALL F.READU("F.RE.REP.LINE.CALCULATE",Y.RLC.REC.ID,YRLC.REC,F.RE.REP.LINE.CALCULATE,YERR,"")
+    YID.1 = ID.HEAD
+    LOCATE YID.1 IN YRLC.REC<RE.RLC.REPORT,1> SETTING YREP.POS ELSE
+        INS YID.1 BEFORE YRLC.REC<RE.RLC.REPORT,YREP.POS>
+    END
+    CALL F.WRITE("F.RE.REP.LINE.CALCULATE",Y.RLC.REC.ID,YRLC.REC)
+    CALL JOURNAL.UPDATE('')
+    RECALC.RUN = 1
+
+    RETURN
+
+CALL.MAINLINE:
+!--------------
+
+    SAVE.COMP = ID.COMPANY
+    CALL LOAD.COMPANY(ID.COMP)
+*    CALL RE.RECALC.REP.LINES
+*ID.COMPANY = SAVE.COMP
+    CALL LOAD.COMPANY(SAVE.COMP)
+    RETURN

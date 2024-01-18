@@ -1,0 +1,166 @@
+*-----------------------------------------------------------------------------
+* <Rating>713</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.NPL.CLASSIFICATION
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.DATES
+    $INSERT I_F.PD.PAYMENT.DUE
+    $INSERT I_F.CUSTOMER
+    $INSERT I_F.PD.BALANCES
+    $INSERT I_F.ABL.H.ASST.PM
+!----------Modification History------------------------------------------------------------------------!
+!1) 27/12/2011 ---if status is not eq NAB then remove whatever values in PR.ASSET.CLASS and BL.DATE
+!------------------------------------------------------------------------------------------------------!
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+INIT:
+* Initialise File variables
+    FN.PD.PAYMENT.DUE = 'F.PD.PAYMENT.DUE'
+    F.PD.PAYMENT.DUE  = ''
+    FN.ABL.H.ASST.PM = 'F.ABL.H.ASST.PM'
+    F.ABL.H.ASST.PM = ''
+    FN.LD.LOANS.AND.DEPOSITS = 'F.LD.LOANS.AND.DEPOSITS'
+    F.LD.LOANS.AND.DEPOSITS = ''
+    FN.PD.BAL='F.PD.BALANCES'
+    F.PD.BAL=''
+
+    Y.ASSET.CLASS.POS=''
+    Y.MAN.ASSET.CLASS.POS=''
+    Y.CL.DATE.POS=''
+    Y.BL.DATE.POS=''
+    Y.PD.ST.DATE=''
+    Y.LIMIT.PROD.POS=''
+    Y.INTEREST.RATE.POS=''
+    REC.PD=''
+    REC.PD.BAL=''
+    Y.PD.BAL.ID=''
+    ERR.PD.BAL=''
+    DATE.1=''
+    DATE.2=''
+    DAYS=''
+    ERR.ASSET.PARAM=''
+    Y.ASS.CL.SLAB=''
+    Y.CL.ASST.CL=''
+    Y.PD.ID=''
+    CNT=''
+    CNT.PD=''
+    Y.SOURCE=''
+    Y.MESSAGE=''
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE)
+    CALL OPF(FN.ABL.H.ASST.PM,F.ABL.H.ASST.PM)
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+    CALL OPF(FN.PD.BAL,F.PD.BAL)
+    RETURN
+
+PROCESS:
+    CALL GET.LOC.REF("PD.PAYMENT.DUE","PR.ASSET.CLASS",Y.ASSET.CLASS.POS)
+    CALL GET.LOC.REF("PD.PAYMENT.DUE","MAN.ASSET.CLASS",Y.MAN.ASSET.CLASS.POS)
+    CALL GET.LOC.REF("PD.PAYMENT.DUE","CL.DATE",Y.CL.DATE.POS)
+    CALL GET.LOC.REF("PD.PAYMENT.DUE","BL.DATE",Y.BL.DATE.POS)
+    CALL GET.LOC.REF("PD.PAYMENT.DUE","LIMIT.PROD",Y.LIMIT.PROD.POS)
+    CALL GET.LOC.REF("PD.PAYMENT.DUE","MAN.ASSET.CLASS",Y.MAN.ASSET.POS)
+    CALL GET.LOC.REF("PD.PAYMENT.DUE","INT.RATE",Y.INTEREST.RATE.POS)
+
+    SEL.CMD = "SELECT ": FN.PD.PAYMENT.DUE :" WITH @ID LIKE 'PDPD...' 'PDLD...'  BY CUSTOMER"
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+    CRT" TOTAL RECORDS SELECTED ....... ":NO.OF.REC
+    CRT" DO YOU WANT TO START THE PROCESSING  Y/N"
+
+    INPUT USER.CHOICE
+    IF USER.CHOICE EQ 'Y' THEN
+        LOOP
+            REMOVE Y.PD.ID FROM SEL.LIST SETTING PD.POS
+        WHILE Y.PD.ID:PD.POS
+            CALL F.READ(FN.PD.PAYMENT.DUE,Y.PD.ID,REC.PD,F.PD.PAYMENT.DUE,ERR.PD)
+            IF  REC.PD<PD.LOCAL.REF,Y.BL.DATE.POS> EQ '' AND REC.PD<PD.TOTAL.AMT.TO.REPAY> GT 0 AND REC.PD<PD.LOCAL.REF,Y.MAN.ASSET.POS> EQ '' THEN
+                Y.PD.DTE.COUNT=DCOUNT(REC.PD<PD.PAYMENT.DTE.DUE>,VM)
+                Y.PD.BAL.ID=Y.PD.ID:"-":REC.PD<PD.PAYMENT.DTE.DUE,Y.PD.DTE.COUNT>
+                CALL F.READ(FN.PD.BAL,Y.PD.BAL.ID,REC.PD.BAL,F.PD.BAL,ERR.PD.BAL)
+                DAYS=REC.PD.BAL<PD.BAL.NO.DAYS.OVERDUE> + 1
+                Y.ASSET.CLASS.ID=FIELD(REC.PD<PD.ORIG.LIMIT.REF>,".",1)
+                CALL F.READ(FN.ABL.H.ASST.PM,Y.ASSET.CLASS.ID,REC.ASSET.CLASS.PARAM,F.ABL.H.ASST.PM,ERR.ASSET.PARAM)
+                Y.ASS.CL.SLAB=DCOUNT(REC.ASSET.CLASS.PARAM<IS.ASSET.CL.ASSET.CLASS>,VM)
+                I=''
+                FOR I=1 TO Y.ASS.CL.SLAB
+                    IF I NE Y.ASS.CL.SLAB THEN
+                        IF DAYS GE REC.ASSET.CLASS.PARAM<IS.ASSET.CL.OVERDUE.FR,I> AND DAYS LE REC.ASSET.CLASS.PARAM<IS.ASSET.CL.OVERDUE.TO,I> THEN
+                            Y.CL.ASST.CL =REC.ASSET.CLASS.PARAM<IS.ASSET.CL.ASSET.CLASS,I>
+                        END
+                    END
+                    ELSE
+                        IF  DAYS GE REC.ASSET.CLASS.PARAM<IS.ASSET.CL.OVERDUE.FR,I> THEN
+                            Y.CL.ASST.CL =REC.ASSET.CLASS.PARAM<IS.ASSET.CL.ASSET.CLASS,I>
+                            IF Y.CL.ASST.CL EQ '50' THEN
+                                REC.PD<PD.LOCAL.REF,Y.BL.DATE.POS>=TODAY
+                                BEGIN CASE
+                                CASE REC.PD<PD.PENALTY.RATE> GT 0 AND REC.PD<PD.PENALTY.SPREAD> GT 0
+                                    Y.MESSAGE="PD.PAYMENT.DUE,SCH.CHNG/I/PROCESS,DMUSER.1//":REC.PD<PD.CO.CODE>:",":Y.PD.ID:",OPERATION=SCHEDULE,SCHD.TYPE:1:1=RC,SCHD.TYPE:2:1=SC,SCHD.DATE.FREQ:1:1=":TODAY:",SCHD.DATE.FREQ:2:1=":TODAY:",SCHD.END.DATE:1:1=":TODAY:",SCHD.END.DATE:2:1=":TODAY:",SCHD.RATE:1:1=0,SCHD.SPREAD:2:1=0"
+
+                                CASE REC.PD<PD.PENALTY.RATE> GT 0
+                                    Y.MESSAGE="PD.PAYMENT.DUE,SCH.CHNG/I/PROCESS,DMUSER.1//":REC.PD<PD.CO.CODE>:",":Y.PD.ID:",OPERATION=SCHEDULE,SCHD.TYPE:1:1=RC,SCHD.DATE.FREQ:1:1=":TODAY:",SCHD.END.DATE:1:1=":TODAY:",SCHD.RATE:1:1=0"
+
+                                CASE REC.PD<PD.PENALTY.SPREAD> GT 0
+                                    Y.MESSAGE="PD.PAYMENT.DUE,SCH.CHNG/I/PROCESS,DMUSER.1//":REC.PD<PD.CO.CODE>:",":Y.PD.ID:",OPERATION=SCHEDULE,SCHD.TYPE:1:1=SC,SCHD.DATE.FREQ:1:1=":TODAY:",SCHD.END.DATE:1:1=":TODAY:",SCHD.SPREAD:1:1=0"
+                                CASE OTHERWISE
+                                    Y.MESSAGE="PD.PAYMENT.DUE,SCH.CHNG/I/PROCESS,DMUSER.1//":REC.PD<PD.CO.CODE>:",":Y.PD.ID:",OPERATION=SCHEDULE,SCHD.TYPE:1:1=RC,SCHD.TYPE:2:1=SC,SCHD.DATE.FREQ:1:1=":TODAY:",SCHD.DATE.FREQ:2:1=":TODAY:",SCHD.END.DATE:1:1=":TODAY:",SCHD.END.DATE:2:1=":TODAY:",SCHD.RATE:1:1=0,SCHD.SPREAD:2:1=0"
+                                END CASE
+                                GOSUB DO.TRANSACTION
+                            END
+                        END
+                    END
+                NEXT
+
+                IF Y.CL.ASST.CL NE '50' THEN
+                    REC.PD<PD.LOCAL.REF,Y.ASSET.CLASS.POS>=Y.CL.ASST.CL
+                    WRITE REC.PD TO F.PD.PAYMENT.DUE,Y.PD.ID
+                    CNT=CNT+1
+                    CRT" PROCESS................":CNT
+                END
+
+            END
+!-----1/S------!
+            ELSE
+                IF REC.PD<PD.STATUS> NE 'NAB' THEN
+                    REC.PD<PD.LOCAL.REF,Y.ASSET.CLASS.POS>=""
+                    REC.PD<PD.LOCAL.REF,Y.BL.DATE.POS>=""
+                    WRITE REC.PD TO F.PD.PAYMENT.DUE,Y.PD.ID
+                END
+            END
+            Y.CL.ASST.CL=''
+!------1/S------!
+            Y.PD.ID=''
+        REPEAT
+
+        RETURN
+
+DO.TRANSACTION:
+        RUNNING.UNDER.BATCH=1
+        Y.SOURCE="DM.OFS.SRC.VAL"
+        CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.MESSAGE)
+        RUNNING.UNDER.BATCH=0
+        SENSITIVITY=''
+        Y.STATUS =FIELD(FIELD(Y.MESSAGE,"/",3,1),",",1)
+        Y.MESSAGE = ''
+        IF Y.STATUS EQ '1' THEN
+            Y.MESSAGE="PD.PAYMENT.DUE,SCH.CHNG/I/PROCESS,DMUSER.1//":REC.PD<PD.CO.CODE>:",":Y.PD.ID:",OPERATION=MAINTENANCE,PR.ASSET.CLASS=":Y.CL.ASST.CL:",BL.DATE=":TODAY:",INT.RATE=":REC.PD<PD.PENALTY.RATE>+REC.PD<PD.PENALTY.SPREAD>
+            RUNNING.UNDER.BATCH=1
+            CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.MESSAGE)
+            RUNNING.UNDER.BATCH=0
+            SENSITIVITY=''
+            CNT.PD =CNT.PD+1
+            CRT" BL RATE PROCESS................":CNT.PD
+        END
+        Y.MESSAGE = ''
+        RETURN
+
+    END

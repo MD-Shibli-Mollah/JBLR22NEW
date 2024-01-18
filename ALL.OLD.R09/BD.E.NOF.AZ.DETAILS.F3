@@ -1,0 +1,172 @@
+*-----------------------------------------------------------------------------
+* <Rating>12</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.E.NOF.AZ.DETAILS.F3(Y.RETURN)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.AZ.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_F.STMT.ACCT.CR
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CLASS
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    Y.ID=''  ;                            Y.ID.HIS='' ;   Y.ID.CL=''
+
+    FN.CUS = 'FBNK.CUSTOMER';             F.CUS = ''
+    FN.AZ = 'FBNK.AZ.ACCOUNT';            F.AZ = ''
+    FN.AZ.HIS = 'FBNK.AZ.ACCOUNT$HIS';    F.AZ.HIS = ''
+    FN.AC.CL='FBNK.ACCOUNT.CLOSED';       F.AC.CL=''
+    FN.STMT.ACCT.CR ='FBNK.STMT.ACCT.CR'  ; F.STMT.ACCT.CR = ''
+
+    Y.AC.TITLE = '';  Y.TAX.CUS = '';  Y.INT = '';  Y.TERM=''
+
+    R.AZ='' ; R.AZ.HIS='';  R.STMT.AC.CR.REC=''
+    Y.ERR=''
+    Y.COMPANY=''
+    Y.STMT.ACCT.ID=''
+    Y.DATE='';Y.CATEGORY=''
+    Y.AC.CATEGORY = ''
+
+    FN.AC.CLASS = "F.ACCOUNT.CLASS"
+    F.AC.CLASS = ""
+
+    FN.ACCT = "FBNK.ACCOUNT"
+    F.ACCT = ""
+
+    Y.CAT.LIST.ARRY = 'U-FDR':@FM:'U-FDLK':@FM:'U-RD'
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.AZ,F.AZ)
+    CALL OPF(FN.AZ.HIS,F.AZ.HIS)
+    CALL OPF(FN.CUS,F.CUS)
+
+    CALL OPF(FN.STMT.ACCT.CR,F.STMT.ACCT.CR)
+    CALL OPF(FN.AC.CL,F.AC.CL)
+    CALL OPF(FN.AC.CLASS,F.AC.CLASS)
+    CALL OPF(FN.ACCT,F.ACCT)
+
+    RETURN
+
+PROCESS:
+
+    LOCATE "CATEGORY" IN ENQ.SELECTION<2,1> SETTING CATEGORY.POS THEN
+        Y.CATEGORY = ENQ.SELECTION<4,CATEGORY.POS>
+    END
+
+    LOCATE "DATE" IN ENQ.SELECTION<2,1> SETTING DATE.POS THEN
+        Y.DATE = ENQ.SELECTION<4,DATE.POS>
+    END
+
+    Y.ID.COMP = ID.COMPANY
+
+
+    IF LEFT(Y.CATEGORY,1) EQ 'U' THEN
+
+        LOCATE Y.CATEGORY IN Y.CAT.LIST.ARRY SETTING CAT.POS THEN
+            CALL F.READ(FN.AC.CLASS,Y.CATEGORY,R.AC.CLASS.REC,F.AC.CLASS,Y.ERR)
+            Y.CATEG.COUNT = DCOUNT(R.AC.CLASS.REC<3>,@VM)
+            FOR I = 1 TO Y.CATEG.COUNT
+                INS R.AC.CLASS.REC<3,I> BEFORE Y.CATEG.LIST<0,0,0>
+            NEXT
+            CONVERT FM TO " " IN Y.CATEG.LIST
+        END
+        ELSE
+            RETURN
+        END
+    END
+    ELSE
+        IF Y.CATEGORY EQ '' OR Y.CATEGORY EQ 'ALL' THEN
+            RETURN
+        END
+        ELSE
+            Y.CATEG.LIST = Y.CATEGORY
+        END
+    END
+
+
+
+
+
+
+    L1W.DATE=Y.DATE
+    CALL CDT('', L1W.DATE,'-1W')
+    LWORK.DATE=L1W.DATE
+
+!************************************ROLLOVER AZ ON INPUT DATE*******************************
+    SEL.CMD.2="SELECT ":FN.ACCT:" WITH CATEGORY EQ ":Y.CATEG.LIST:" AND CO.CODE EQ ":Y.ID.COMP
+    CALL EB.READLIST(SEL.CMD.2,SEL.LIST.2,"",NO.OF.RECORD,RET.CODE)
+
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST.2 SETTING POS
+    WHILE Y.ID:POS
+        Y.STMT.ACCT.ID = Y.ID : "-" : LWORK.DATE
+        CALL F.READ(FN.STMT.ACCT.CR,Y.STMT.ACCT.ID,R.STMT.AC.CR.REC,F.STMT.ACCT.CR,Y.ERR)
+        IF R.STMT.AC.CR.REC NE '' THEN
+            Y.PRINCIPLE.AMT =  R.STMT.AC.CR.REC<IC.STMCR.CR.VAL.BALANCE>
+            Y.RATE =  R.STMT.AC.CR.REC<IC.STMCR.CR.INT.RATE>
+            Y.TAX.CUS = R.STMT.AC.CR.REC<IC.STMCR.TAX.FOR.CUSTOMER>
+            Y.INT = R.STMT.AC.CR.REC<IC.STMCR.TOTAL.INTEREST>
+
+            Y.ID.HIS=Y.ID
+            CALL EB.READ.HISTORY.REC(F.AZ.HIS,Y.ID.HIS,R.AZ.HIS,Y.ERR)
+
+            Y.CUSTOMER=R.AZ.HIS<AZ.CUSTOMER>
+            CALL F.READ(FN.CUS,Y.CUSTOMER,R.CUS,F.CUS,Y.ERR)
+            Y.NAME=R.CUS<EB.CUS.SHORT.NAME>
+            Y.TERM=R.AZ.HIS<AZ.ALL.IN.ONE.PRODUCT>
+            Y.AC.CATEGORY = R.AZ.HIS<AZ.CATEGORY>
+            Y.INT.LIQ.ACCT = R.AZ.HIS<AZ.INTEREST.LIQU.ACCT>
+            CALL F.READ(FN.ACCT,Y.INT.LIQ.ACCT,R.ACCT,F.ACCT,ACCT.ERR)
+            Y.INT.LIQ.BAL = R.ACCT<AC.ONLINE.ACTUAL.BAL>
+
+            Y.RETURN<-1>= Y.ID:'*':Y.AC.CATEGORY:'*':Y.NAME:'*':Y.PRINCIPLE.AMT:'*':Y.INT.LIQ.BAL:'*':Y.RATE:'*':Y.TAX.CUS:'*':Y.INT:'*':Y.TERM
+        END
+    REPEAT
+!****************ROLLOVER AZ ON INPUT DATE*************************************************
+!***************CLOSED ACCOUNT ON INPUT DATE************************************************
+
+    SEL.CMD.3="SELECT ":FN.AC.CL:" WITH ACCT.CLOSE.DATE EQ ":Y.DATE
+    CALL EB.READLIST(SEL.CMD.3,SEL.LIST.3,"",NO.OF.RECORD3,RET.CODE)
+    LOOP
+        REMOVE Y.ID.CL FROM SEL.LIST.3 SETTING POS3
+    WHILE Y.ID.CL:POS3
+        Y.ID.HIS=Y.ID.CL
+        CALL EB.READ.HISTORY.REC(F.AZ.HIS,Y.ID.HIS,R.AZ.HIS,Y.ERR)
+        IF R.AZ.HIS<AZ.CO.CODE> EQ Y.ID.COMP THEN
+            LOCATE R.AZ.HIS<AZ.CATEGORY> IN Y.CATEG.LIST SETTING CAT.POS THEN
+                Y.STMT.ACCT.ID = Y.ID.CL : "-" : LWORK.DATE
+                CALL F.READ(FN.STMT.ACCT.CR,Y.STMT.ACCT.ID,R.STMT.AC.CR.REC,F.STMT.ACCT.CR,Y.ERR)
+                IF R.STMT.AC.CR.REC NE '' THEN
+                    Y.PRINCIPLE.AMT =  R.STMT.AC.CR.REC<IC.STMCR.CR.VAL.BALANCE>
+                    Y.RATE =  R.STMT.AC.CR.REC<IC.STMCR.CR.INT.RATE>
+                    Y.TAX.CUS = R.STMT.AC.CR.REC<IC.STMCR.TAX.FOR.CUSTOMER>
+                    Y.INT = R.STMT.AC.CR.REC<IC.STMCR.TOTAL.INTEREST>
+                    Y.CUSTOMER=R.AZ.HIS<AZ.CUSTOMER>
+                    CALL F.READ(FN.CUS,Y.CUSTOMER,R.CUS,F.CUS,Y.ERR)
+                    Y.NAME=R.CUS<EB.CUS.SHORT.NAME>
+                    Y.TERM=R.AZ.HIS<AZ.ALL.IN.ONE.PRODUCT>
+                    Y.AC.CATEGORY = R.AZ.HIS<AZ.CATEGORY>
+                    Y.INT.LIQ.ACCT = R.AZ.HIS<AZ.INTEREST.LIQU.ACCT>
+                    CALL F.READ(FN.ACCT,Y.INT.LIQ.ACCT,R.ACCT,F.ACCT,ACCT.ERR)
+                    Y.INT.LIQ.BAL = R.ACCT<AC.ONLINE.ACTUAL.BAL>
+                    Y.RETURN<-1>= Y.ID.CL:'*':Y.AC.CATEGORY:'*':Y.NAME:'*':Y.PRINCIPLE.AMT:'*':Y.INT.LIQ.BAL:'*':Y.RATE:'*':Y.TAX.CUS:'*':Y.INT:'*':Y.TERM
+                END
+            END
+        END
+    REPEAT
+!*************END OF CLOSED ACC****************************************************
+
+    RETURN
+END

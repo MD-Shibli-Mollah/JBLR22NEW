@@ -1,0 +1,46 @@
+*-------------------------------------------------------------------------
+* <Rating>300</Rating>
+*-------------------------------------------------------------------------
+    PROGRAM AC.COMP.CORR
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.ACCOUNT.COMPENSATION
+
+    F.ACC = ''
+    FN.ACC = 'F.ACCOUNT'
+    CALL OPF(FN.ACC,F.ACC)
+
+    F.AC.COMP = ''
+    FN.AC.COMP = 'F.ACCOUNT.COMPENSATION'
+    CALL OPF(FN.AC.COMP,F.AC.COMP)
+
+    Y.CNT = ''
+
+    SELECT F.AC.COMP
+    LOOP READNEXT Y.AC.COMP.ID ELSE Y.AC.COMP.ID = ''
+    WHILE Y.AC.COMP.ID <> ''
+        READ R.AC.COMP FROM F.AC.COMP, Y.AC.COMP.ID ELSE R.AC.COMP = ''
+               Y.CNT = DCOUNT(R.AC.COMP, FM)
+       I=1
+       FOR Y.CNT = Y.CNT TO I STEP-1
+           Y.AC.ID=R.AC.COMP<Y.CNT>
+           READ R.AC FROM F.ACC, Y.AC.ID ELSE R.AC = ''
+           IF R.AC<AC.INTEREST.COMP.ACCT> NE Y.AC.COMP.ID THEN
+               DEL R.AC.COMP<Y.CNT>
+               WRITE.FLAG = 1
+           END
+
+       NEXT Y.CNT
+
+       IF WRITE.FLAG THEN
+           IF R.AC.COMP THEN
+               WRITE R.AC.COMP TO F.AC.COMP, Y.AC.COMP.ID
+           END ELSE
+               DELETE F.AC.COMP, Y.AC.COMP.ID
+           END
+       END
+
+   REPEAT
+STOP
+END

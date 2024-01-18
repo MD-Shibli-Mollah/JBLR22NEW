@@ -1,0 +1,62 @@
+*-----------------------------------------------------------------------------
+* <Rating>80</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.PO.PS.COLL.RESTRICTION
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.PR.H.INSTR.ISSUED
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.CHEQUE.TYPE.ACCOUNT
+    $INSERT I_F.TELLER
+
+
+    IF MESSAGE EQ 'VAL' THEN RETURN
+    Y.CHQ.NUMBER=''
+    Y.ACCOUNT.NUMBER =''
+    Y.CHQ.TYPE = ''
+    FN.INS.ISS='F.PR.H.INSTR.ISSUED'
+    F.INS.ISS=''
+    R.INS.ISS=''
+    Y.ERR=''
+    Y.ISS.AMOUNT=''
+    Y.PAY.TO = ''
+    CALL OPF(FN.INS.ISS,F.INS.ISS)
+
+    IF APPLICATION EQ 'TELLER' THEN
+        Y.ACCOUNT.NUMBER= R.NEW(TT.TE.ACCOUNT.1)
+        Y.CHQ.TYPE = R.NEW(TT.TE.CHEQ.TYPE)
+        Y.CHQ.NUMBER=R.NEW(TT.TE.CHEQUE.NUMBER)
+        Y.INS.ISS.ID=Y.CHQ.TYPE:'.':Y.ACCOUNT.NUMBER:'-':Y.CHQ.NUMBER
+
+        CALL F.READ(FN.INS.ISS,Y.INS.ISS.ID,R.INS.ISS,F.INS.ISS,Y.ERR)
+        IF Y.ERR THEN
+            E='INSTRUMENT NOT ISSUED'
+            CALL ERR
+        END
+        IF R.INS.ISS<INS.COLL.TXN.REF> NE '' AND R.INS.ISS<INS.DATE.OF.PRESENTED> NE '' THEN
+            E='THIS ':Y.CHQ.TYPE:' ALREADY PRESENTED'
+            CALL ERR
+        END
+
+    END
+
+    ELSE
+
+        Y.ACCOUNT.NUMBER= R.NEW(FT.DEBIT.ACCT.NO)
+        Y.CHQ.TYPE = R.NEW(FT.CHEQ.TYPE)
+        Y.CHQ.NUMBER=R.NEW(FT.CHEQUE.NUMBER)
+        Y.INS.ISS.ID=Y.CHQ.TYPE:'.':Y.ACCOUNT.NUMBER:'-':Y.CHQ.NUMBER
+
+        CALL F.READ(FN.INS.ISS,Y.INS.ISS.ID,R.INS.ISS,F.INS.ISS,Y.ERR)
+        IF Y.ERR THEN
+            E='INSTRUMENT NOT ISSUED'
+            CALL ERR
+        END
+        IF R.INS.ISS<INS.COLL.TXN.REF> NE '' AND R.INS.ISS<INS.DATE.OF.PRESENTED> NE '' THEN
+            E='THIS ':Y.CHQ.TYPE:' ALREADY PRESENTED'
+            CALL ERR
+        END
+    END
+
+    RETURN
+END

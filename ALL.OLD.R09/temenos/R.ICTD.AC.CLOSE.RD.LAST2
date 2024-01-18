@@ -1,0 +1,417 @@
+*----------------------------------------------------------------------
+** Program Information
+
+** Written By : MD IMRAN HASAN
+** Created Date : 2015-08-20
+** Last Modification Date : 2015-08-30
+
+** This program is used to close RD account from AC module**
+
+** Tools
+** ACCOUNT.CLOSURE,  (zero authorisation version)
+** SETTLEMENT ACCOUNT TOS ACCOUNT
+*-----------------------------------------------------------------------
+
+    PROGRAM R.ICTD.AC.CLOSE.RD.LAST2
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB FILEOPEN
+    GOSUB PROCESS
+
+INIT:
+
+    FN.ACCOUNT = 'FBNK.ACCOUNT'
+    FN.AZ.ACCOUNT = 'FBNK.AZ.ACCOUNT'
+    F.ACCOUNT = ''
+    F.AZ.ACCOUNT = ''
+    AR.LIQ.ACCOUNT = ''
+    AR.BASE.ACCOUNT = ''
+    R.AZ.ACCOUNT = ''
+    Y.NOMINATED.ACCOUNT = ''
+    Y.PRE.CLOSURE.IND = 'Y'
+    Y.EARLY.RED.INT = ''
+    Y.ERR.MSG.STR = ''
+    DEBIT.ACCT.NO = ''
+
+    RETURN
+
+FILEOPEN:
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    RETURN
+
+PROCESS:
+!DEBUG
+    PRINT 'INPUT BRANCH CODE :'
+    INPUT Y.CO.CODE
+
+    Y.UPLOAD.COM = 'BD001':Y.CO.CODE
+    Y.USER = 'DMUSER'
+    Y.SOURCE = 'DM.OFS.SRC.VAL'
+    CALL LOAD.COMPANY(Y.UPLOAD.COM)
+    SENSITIVITY = ''
+    Y.POSTING.RESTRICT = 90
+    Y.CAP.INTEREST = 'WAIVE'
+    Y.CLOSE.ONLINE = 'Y'
+
+*--Check branch code----------------------------------------------------------------
+    Y.LIVE.BR.CODE = '0012':@FM:'0019':@FM:'0108':@FM:'0864':@FM:'0343'
+    Y.COUNT = DCOUNT(Y.LIVE.BR.CODE,@FM)
+    FOR P = 1 TO Y.COUNT
+        Y.BR.CODE = FIELD(Y.LIVE.BR.CODE,@FM,P)
+        IF Y.BR.CODE EQ Y.CO.CODE THEN
+            PRINT 'LIVE BRANCH'
+            RETURN
+        END
+    NEXT P
+*--End check-----------------------------------------------------------------------
+
+! Y.CAT.CODE.LIST = '6601':@FM:'6602':@FM:'6603':@FM:'6604':@FM:'6605':@FM:'6606':@FM:'6608'
+! Y.CAT.CODE.LIST = '6601':@FM:'6602':@FM:'6603':@FM:'6604':@FM:'6605':@FM:'6606'
+!Y.CAT.CODE.COUNT = DCOUNT(Y.CAT.CODE.LIST,@FM)
+! FOR C = 1 TO Y.CAT.CODE.COUNT
+!      Y.CATEGORY.CODE = FIELD(Y.CAT.CODE.LIST,@FM,C)
+!       GOSUB EXECUTE.CODE
+!    NEXT C
+    Y.CATEGORY.CODE = '6608'
+!    GOSUB EXECUTE.CODE
+!EXECUTE.CODE:
+    Y.INTERNAL.CREDIT.ACCT = 'BDT149999999':Y.CO.CODE
+    IF Y.CATEGORY.CODE EQ 6601 THEN
+        Y.LIQ.CODE = 1081
+    END
+    ELSE
+        IF Y.CATEGORY.CODE EQ 6602 THEN
+            Y.LIQ.CODE = 1082
+        END
+        ELSE
+            IF Y.CATEGORY.CODE EQ 6603 THEN
+                Y.LIQ.CODE = 1083
+            END
+            ELSE
+                IF Y.CATEGORY.CODE EQ 6604 THEN
+                    Y.LIQ.CODE = 1084
+                END
+                ELSE
+                    IF Y.CATEGORY.CODE EQ 6605 THEN
+                        Y.LIQ.CODE = 1085
+                    END
+                    ELSE
+                        IF Y.CATEGORY.CODE EQ 6606 THEN
+                            Y.LIQ.CODE = 1086
+                        END
+                        ELSE
+                            IF Y.CATEGORY.CODE EQ 6608 THEN
+                                Y.LIQ.CODE = 1088
+                            END
+                            ELSE
+                                PRINT 'PRODUCT CODE IS NOT RD PRODUCT CODE'
+                                RETURN
+                            END
+                        END
+                    END
+                END
+            END
+        END
+    END
+
+    Y.FDCLOSE.DIR = 'JBL.BP/FDCLOSE'
+    Y.FDCLOSE.FILE = 'RD.AC.CLOSE.LAST.':Y.CO.CODE:'.':Y.CATEGORY.CODE:'.': TODAY :'.txt'
+    OPENSEQ Y.FDCLOSE.DIR,Y.FDCLOSE.FILE TO F.FILE.POINT ELSE NULL
+
+! SEL.CMD = 'SELECT ':FN.ACCOUNT:' WITH CATEGORY EQ ':Y.CATEGORY.CODE: ' AND CO.CODE EQ BD001':Y.CO.CODE
+! CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+    SEL.LIST = '0100000916701':@FM:'0100000915887'
+    NO.OF.REC = 2
+*RD Preclose---------------------------------------------------------------------------
+    IF NO.OF.REC EQ 0 THEN
+        Y.ERR.MSG.STR = ''
+        Y.ERR.MSG.STR<-1> ='==========================================='
+        GOSUB TEXTFILE.WRITE
+        Y.ERR.MSG.STR = ''
+        Y.ERR.MSG.STR<-1> ='No account found in this category'
+        GOSUB TEXTFILE.WRITE
+        Y.ERR.MSG.STR = ''
+        Y.ERR.MSG.STR<-1> ='==========================================='
+        GOSUB TEXTFILE.WRITE
+        PRINT 'No account found in this category'
+        RETURN
+    END
+
+*Remove posting restriction from base account-------------------------------------------------------------
+    FOR P = 1 TO NO.OF.REC
+        BASE.ID = FIELD(SEL.LIST,@FM,P)
+        CALL F.READ(FN.ACCOUNT,BASE.ID,R.ACCOUNT,'',Y.ERROR)
+        POST.RESTRICT = R.ACCOUNT<AC.POSTING.RESTRICT>
+        IF (POST.RESTRICT) THEN
+            R.ACCOUNT<AC.POSTING.RESTRICT> = ''
+            CALL F.WRITE (FN.ACCOUNT, BASE.ID, R.ACCOUNT)
+            Y.ERR.MSG.STR = ''
+            Y.ERR.MSG.STR<-1> ='': BASE.ID :' Posting restriction removed from base account'
+            GOSUB TEXTFILE.WRITE
+        END
+    NEXT P
+    CALL JOURNAL.UPDATE('')
+*End------------------------------------------------------------------------------------
+
+    FOR J=1 TO NO.OF.REC
+        Y.ACC.ID = FIELD(SEL.LIST,@FM,J)
+        AR.BASE.ACCOUNT<-1> = Y.ACC.ID
+    NEXT J
+
+    Y.ERR.MSG.STR = ''
+    Y.ERR.MSG.STR<-1> ='':'Start Remove Legacy ID from base account'
+    GOSUB TEXTFILE.WRITE
+
+    GOSUB RM.LEGACY.BASE
+
+    Y.ERR.MSG.STR = ''
+    Y.ERR.MSG.STR<-1> ='':'End Remove of Legacy ID from base account'
+    GOSUB TEXTFILE.WRITE
+
+    Y.ERR.MSG.STR = ''
+    Y.ERR.MSG.STR<-1> ='':'Start Close of Base account'
+    GOSUB TEXTFILE.WRITE
+
+    GOSUB OFS.CLOSE.BASE.ACCOUNT
+
+    Y.ERR.MSG.STR = ''
+    Y.ERR.MSG.STR<-1> ='':'End Close of Base account'
+    GOSUB TEXTFILE.WRITE
+
+    Y.ERR.MSG.STR = ''
+    Y.ERR.MSG.STR<-1> ='':'Start Close of Free liquidation account'
+    GOSUB TEXTFILE.WRITE
+
+!GOSUB FREE.LIQUIDATION
+
+    Y.ERR.MSG.STR = ''
+    Y.ERR.MSG.STR<-1> ='':'End Close of Free liquidation account'
+    GOSUB TEXTFILE.WRITE
+
+    CLOSESEQ F.FILE.POINT
+    RETURN
+
+*End of program---------------------------------------------------------------------------
+*Remove Legacy ID from FDR-------------------------------------------------------------
+RM.LEGACY.BASE:
+    FD.COUNT = DCOUNT(AR.BASE.ACCOUNT,@FM)
+    FOR K = 1 TO FD.COUNT
+        BASE.ACCT.ID = FIELD(AR.BASE.ACCOUNT,@FM,K)
+        CALL F.READ(FN.ACCOUNT,BASE.ACCT.ID,R.ACCOUNT,'',Y.ERROR)
+        R.ACCOUNT<AC.ALT.ACCT.ID> = ''
+        CALL F.WRITE (FN.ACCOUNT, BASE.ACCT.ID, R.ACCOUNT)
+        Y.ERR.MSG.STR = ''
+        Y.ERR.MSG.STR<-1> ='': Y.CO.CODE :',':BASE.ACCT.ID:',':'Alternate id removed from base account'
+        GOSUB TEXTFILE.WRITE
+    NEXT K
+    CALL JOURNAL.UPDATE('')
+    RETURN
+*End------------------------------------------------------------------------------------
+
+*--Close BASE Account-------------------------------------------------------
+OFS.CLOSE.BASE.ACCOUNT:
+!DEBUG
+    FD.COUNT2 = DCOUNT(AR.BASE.ACCOUNT,@FM)
+    IF FD.COUNT2 GT 0 THEN
+        FOR M = 1 TO FD.COUNT2
+            BASE.ACCT.ID = FIELD(AR.BASE.ACCOUNT,@FM,M)
+            Y.OFS.CLOSE.BASE.STR =''
+            Y.OFS.CLOSE.BASE.STR :="SETTLEMENT.ACCT:":":=":Y.INTERNAL.CREDIT.ACCT:','
+            Y.OFS.CLOSE.BASE.STR :="POSTING.RESTRICT:":":=":Y.POSTING.RESTRICT :','
+            Y.OFS.CLOSE.BASE.STR :="CAP.INTEREST:":":=":Y.CAP.INTEREST
+            Y.OFS.CLOSE.BASE.VALIDATE = "ACCOUNT.CLOSURE,RTN/I/VALIDATE,DMUSER.1//":Y.UPLOAD.COM:",":BASE.ACCT.ID:",":Y.OFS.CLOSE.BASE.STR
+            CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.OFS.CLOSE.BASE.VALIDATE)
+            Y.OFS.ERR.CODE = FIELD(Y.OFS.CLOSE.BASE.VALIDATE,'/',3)
+
+            IF Y.OFS.ERR.CODE EQ '-1' THEN
+                Y.ERR.MSG.STR = ''
+                Y.ERR.MSG.STR<-1> ='': Y.CO.CODE :',':Y.OFS.CLOSE.BASE.VALIDATE
+                GOSUB TEXTFILE.WRITE
+            END
+            ELSE
+                CRT 'VALIDATION OK'
+                Y.OFS.CLOSE.BASE.PROCESS = "ACCOUNT.CLOSURE,RTN/I/PROCESS,DMUSER.1//":Y.UPLOAD.COM:",":BASE.ACCT.ID:",":Y.OFS.CLOSE.BASE.STR
+                CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.OFS.CLOSE.BASE.PROCESS)
+                Y.OFS.ERR.CODE = FIELD(Y.OFS.CLOSE.BASE.PROCESS,'/',3)
+                IF Y.OFS.ERR.CODE EQ '-1' THEN
+                    Y.ERR.MSG.STR = ''
+                    Y.ERR.MSG.STR<-1> ='': Y.CO.CODE :',':Y.OFS.CLOSE.BASE.PROCESS
+                    GOSUB TEXTFILE.WRITE
+                END
+                ELSE
+                    CALL JOURNAL.UPDATE('')
+                    CRT 'PROCESS OK'
+                    Y.ERR.MSG.STR = ''
+                    Y.ERR.MSG.STR<-1> ='': Y.CO.CODE :',':BASE.ACCT.ID:',':'Base account close OK'
+                    GOSUB TEXTFILE.WRITE
+                END
+            END
+        NEXT M
+    END
+    RETURN
+*--End FD Close----------------------------------------------------------------------------
+
+*-Operation of free Liquidition Accout--------------------------------
+FREE.LIQUIDATION:
+!DEBUG
+    SEL.CMD = 'SELECT ':FN.ACCOUNT:' WITH CATEGORY EQ ':Y.LIQ.CODE:'  AND CO.CODE EQ BD001':Y.CO.CODE
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC2,RET.CODE)
+    Y.ERR.MSG.STR = ''
+    Y.ERR.MSG.STR<-1> ='':'Start Operation of free Liquidition Accout'
+    GOSUB TEXTFILE.WRITE
+    AR.LIQ.ACCOUNT = ''
+    IF NO.OF.REC2 EQ 0 THEN
+        Y.ERR.MSG.STR = ''
+        Y.ERR.MSG.STR<-1> ='No free liquidition account found in this category'
+        GOSUB TEXTFILE.WRITE
+    END
+    ELSE
+        FOR A=1 TO NO.OF.REC2
+            Y.ACC.ID = FIELD(SEL.LIST,@FM,A)
+            AR.LIQ.ACCOUNT<-1> = Y.ACC.ID
+            CALL F.READ(FN.ACCOUNT,Y.ACC.ID,R.ACCOUNT,'',Y.ERROR)
+            Y.NOMINATED.ACCOUNT = Y.ACC.ID
+            IF (Y.NOMINATED.ACCOUNT) THEN
+                Y.DEBIT.AMOUNT = R.ACCOUNT<AC.WORKING.BALANCE>
+                IF Y.DEBIT.AMOUNT GT 0 THEN
+                    Y.CREDIT.ACCOUNT = Y.INTERNAL.CREDIT.ACCT
+                    Y.DEBIT.ACCOUNT = Y.NOMINATED.ACCOUNT
+                    GOSUB OFS.FT.STRING
+                END
+                ELSE
+                    IF Y.DEBIT.AMOUNT LT 0 THEN
+                        Y.DEBIT.AMOUNT = ABS(Y.DEBIT.AMOUNT)
+                        Y.CREDIT.ACCOUNT = Y.NOMINATED.ACCOUNT
+                        Y.DEBIT.ACCOUNT = Y.INTERNAL.CREDIT.ACCT
+                        GOSUB OFS.FT.STRING
+                    END
+                END
+            END
+!IF J EQ 20 THEN
+            BREAK
+!END
+        NEXT A
+    END
+    Y.ERR.MSG.STR = ''
+    Y.ERR.MSG.STR<-1> ='':'Start Remove Legacy ID from Liquidation'
+    GOSUB TEXTFILE.WRITE
+    GOSUB RM.LEGACY.LIQ
+    Y.ERR.MSG.STR = ''
+    Y.ERR.MSG.STR<-1> ='':'End Remove of Legacy ID form Liquidation'
+    GOSUB TEXTFILE.WRITE
+    Y.ERR.MSG.STR = ''
+    Y.ERR.MSG.STR<-1> ='':'Start Close of Liquidation'
+    GOSUB TEXTFILE.WRITE
+    GOSUB OFS.CLOSE.LIQ
+    Y.ERR.MSG.STR = ''
+    Y.ERR.MSG.STR<-1> ='':'End Close of Liquidation'
+    GOSUB TEXTFILE.WRITE
+    Y.ERR.MSG.STR = ''
+    Y.ERR.MSG.STR<-1> ='':'End Operation of free Liquidition Accout'
+    GOSUB TEXTFILE.WRITE
+    RETURN
+*-End Operation of free Liquidition Accout--------------------------------
+*-Remove Legacy ID from Liquidition Accout--------------------------------
+RM.LEGACY.LIQ:
+    LIQU.COUNT = DCOUNT(AR.LIQ.ACCOUNT,@FM)
+    FOR I = 1 TO LIQU.COUNT
+        LIQ.ACCT.ID = FIELD(AR.LIQ.ACCOUNT,@FM,I)
+        CALL F.READ(FN.ACCOUNT,LIQ.ACCT.ID,R.ACCOUNT,'',Y.ERROR)
+        R.ACCOUNT<AC.ALT.ACCT.ID> = ''
+        CALL F.WRITE (FN.ACCOUNT, LIQ.ACCT.ID, R.ACCOUNT)
+        Y.ERR.MSG.STR = ''
+        Y.ERR.MSG.STR<-1> ='': Y.CO.CODE :',':LIQ.ACCT.ID:',':'Alternate id removed from liquidation account'
+        GOSUB TEXTFILE.WRITE
+    NEXT I
+    CALL JOURNAL.UPDATE('')
+    RETURN
+*--End-------------------------------------------------------------------
+
+*--Close Liquidation account---------------------------------------------------------------
+OFS.CLOSE.LIQ:
+!DEBUG
+    LIQU.COUNT2 = DCOUNT(AR.LIQ.ACCOUNT,@FM)
+    IF LIQU.COUNT2 GT 0 THEN
+        FOR Z = 1 TO LIQU.COUNT2
+            LIQ.ACCT.ID = FIELD(AR.LIQ.ACCOUNT,@FM,Z)
+            Y.OFS.CLOSE.LIQ.STR =''
+            Y.OFS.CLOSE.LIQ.STR :="CAPITAL.DATE:":":=":TODAY :','
+            Y.OFS.CLOSE.LIQ.STR :="SETTLEMENT.ACCT:":":=":Y.INTERNAL.CREDIT.ACCT
+
+            Y.OFS.CLOSE.LIQ.VALIDATE = "ACCOUNT.CLOSURE,ANY.ACCOUNT/I/VALIDATE,DMUSER.1//":Y.UPLOAD.COM:",":LIQ.ACCT.ID:",":Y.OFS.CLOSE.LIQ.STR
+            CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.OFS.CLOSE.LIQ.VALIDATE)
+            Y.OFS.ERR.CODE = FIELD(Y.OFS.CLOSE.LIQ.VALIDATE,'/',3)
+
+            IF Y.OFS.ERR.CODE EQ '-1' THEN
+                Y.ERR.MSG.STR = ''
+                Y.ERR.MSG.STR<-1> ='': Y.CO.CODE :',':Y.OFS.CLOSE.LIQ.VALIDATE
+                GOSUB TEXTFILE.WRITE
+            END
+            ELSE
+                Y.OFS.CLOSE.LIQ.PROCESS = "ACCOUNT.CLOSURE,ANY.ACCOUNT/I/PROCESS,DMUSER.1//":Y.UPLOAD.COM:",":LIQ.ACCT.ID:",":Y.OFS.CLOSE.LIQ.STR
+                CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.OFS.CLOSE.LIQ.PROCESS)
+                Y.OFS.ERR.CODE = FIELD(Y.OFS.CLOSE.LIQ.PROCESS,'/',3)
+                IF Y.OFS.ERR.CODE EQ '-1' THEN
+                    Y.ERR.MSG.STR = ''
+                    Y.ERR.MSG.STR<-1> ='': Y.CO.CODE :',':Y.OFS.CLOSE.LIQ.PROCESS
+                    GOSUB TEXTFILE.WRITE
+                END
+                ELSE
+                    Y.ERR.MSG.STR = ''
+                    Y.ERR.MSG.STR<-1> ='': Y.CO.CODE :',':LIQ.ACCT.ID:',':'Liquidation account close OK'
+                    GOSUB TEXTFILE.WRITE
+                END
+            END
+        NEXT Z
+    END
+    RETURN
+*End Liquidation close--------------------------------------------------------------------
+
+OFS.FT.STRING:
+!DEBUG
+    Y.OFS.FT.STR =''
+    Y.OFS.FT.STR :="DEBIT.ACCT.NO:":":=":Y.DEBIT.ACCOUNT :','
+    Y.OFS.FT.STR :="DEBIT.CURRENCY:":":=":'BDT' :','
+    Y.OFS.FT.STR :="DEBIT.AMOUNT:":":=":Y.DEBIT.AMOUNT :','
+    Y.OFS.FT.STR :="CREDIT.ACCT.NO:":":=":Y.CREDIT.ACCOUNT
+    IF Y.OFS.FT.STR NE '' THEN
+        GOSUB OFS.FT.VALIDATE
+    END
+    RETURN
+OFS.FT.VALIDATE:
+!DEBUG
+    Y.OFS.FT.MSG.VAL = ''
+    Y.OFS.FT.MSG.VAL = "FUNDS.TRANSFER,ACTR.FTHP.MIG/I/VALIDATE,DMUSER.1//":Y.UPLOAD.COM:",":"":",":Y.OFS.FT.STR
+    CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.OFS.FT.MSG.VAL)
+    Y.OFS.ERR.CODE = FIELD(Y.OFS.FT.MSG.VAL,'/',3)
+
+    IF Y.OFS.ERR.CODE EQ '-1' THEN
+        Y.ERR.MSG.STR =''
+        Y.ERR.MSG.STR<-1> ='': Y.CO.CODE :',':Y.ACC.ID:',':DEBIT.ACCT.NO:',':Y.OFS.FT.MSG.VAL
+        GOSUB TEXTFILE.WRITE
+    END
+    ELSE
+        GOSUB OFS.FT.POST
+        Y.ERR.MSG.STR =''
+        Y.ERR.MSG.STR<-1> ='': Y.CO.CODE :',':Y.ACC.ID:',':DEBIT.ACCT.NO:',':'Fund Transfer OK'
+        GOSUB TEXTFILE.WRITE
+        AR.LIQ.ACCOUNT<-1> = Y.NOMINATED.ACCOUNT
+    END
+    RETURN
+OFS.FT.POST:
+    Y.OFS.FT.MSG.POST = ''
+    Y.OFS.FT.MSG.POST = "FUNDS.TRANSFER,ACTR.FTHP.MIG/I/PROCESS,DMUSER.1//":Y.UPLOAD.COM:",":"":",":Y.OFS.FT.STR
+    CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.OFS.FT.MSG.POST)
+    Y.OFS.ERR.CODE = FIELD(Y.OFS.FT.MSG.POST,'/',3)
+    CALL REBUILD.SCREEN
+    CALL JOURNAL.UPDATE('')
+    RETURN
+
+TEXTFILE.WRITE:
+    WRITESEQ Y.ERR.MSG.STR APPEND TO F.FILE.POINT ELSE NULL
+    RETURN
+END

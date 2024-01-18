@@ -1,0 +1,29 @@
+*-----------------------------------------------------------------------------
+* <Rating>100</Rating>
+*-----------------------------------------------------------------------------
+     SUBROUTINE JBL.BUILD.BTB.DOCUMENT.DETAILS(ENQ.DATA)
+     $INSERT GLOBUS.BP I_EQUATE
+     $INSERT GLOBUS.BP I_COMMON
+     $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+     Y.FIELDS = FIELD(ENQ.DATA,FM,2)
+     FINDSTR 'CATEGORY' IN Y.FIELDS SETTING POS1,POS2,POS3 ELSE NULL
+     Y.FIELD.VALUES = FIELD(ENQ.DATA,FM,4)
+
+     IF POS2 NE '' THEN
+         Y.CATEGORY = FIELD(Y.FIELD.VALUES,VM,POS2)
+     END
+     IF Y.CATEGORY EQ '' THEN
+         IF POS2 NE '' THEN
+             ENQ.DATA<3,POS2> = 'EQ'
+             ENQ.DATA<4,POS2> = '23305 23310 23315 23320 23325 23330 23335 23340 23345 23346 23350 23351'
+         END
+         ELSE
+             Y.FIELDS.COUNT = DCOUNT(ENQ.DATA<2>,VM) + 1
+             ENQ.DATA<2,Y.FIELDS.COUNT> = 'CATEGORY'
+             ENQ.DATA<3,Y.FIELDS.COUNT> = 'EQ'
+             ENQ.DATA<4,Y.FIELDS.COUNT> = '23305 23310 23315 23320 23325 23330 23335 23340 23345 23346 23350 23351'
+         END
+     END
+     RETURN
+ END

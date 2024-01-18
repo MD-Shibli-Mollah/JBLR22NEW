@@ -1,0 +1,48 @@
+*-----------------------------------------------------------------------------
+* <Rating>-22</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.GL.PL.AC(Y.RETURN)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.CATEGORY
+
+    FN.AC='F.ACCOUNT'
+    F.AC=''
+    REC.AC=''
+
+    FN.CAT='F.CATEGORY'
+    F.CAT=''
+    REC.CAT=''
+
+    Y.AC.ID=''
+    Y.CAT.ID=''
+    Y.RESULT=''
+
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.CAT,F.CAT)
+
+    SEL.CMD.AC="SSELECT ":FN.AC:" WITH CATEGORY GE 10000 AND CO.CODE EQ ":ID.COMPANY:" BY SHORT.TITLE "
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.AC,'',NO.OF.REC.AC,ERR.AC)
+
+    LOOP
+        REMOVE Y.AC.ID FROM SEL.LIST.AC SETTING AC.POS
+    WHILE Y.AC.ID:AC.POS
+        CALL F.READ(FN.AC,Y.AC.ID,REC.AC,F.AC,E.AC)
+        Y.RESULT<-1>=Y.AC.ID:"*":REC.AC<AC.SHORT.TITLE>
+    REPEAT
+
+    SEL.CMD.CAT="SSELECT ":FN.CAT:" WITH @ID GE 50000 BY DESCRIPTION "
+    CALL EB.READLIST(SEL.CMD.CAT,SEL.LIST.CAT,'',NO.OF.REC.CAT,ERR.CAT)
+
+    LOOP
+        REMOVE Y.CAT.ID FROM SEL.LIST.CAT SETTING CAT.POS
+    WHILE Y.CAT.ID:CAT.POS
+        CALL F.READ(FN.CAT,Y.CAT.ID,REC.CAT,F.CAT,E.CAT)
+        Y.RESULT<-1>="PL":Y.CAT.ID:"*":REC.CAT<EB.CAT.DESCRIPTION>
+    REPEAT
+
+    Y.RETURN=Y.RESULT
+
+    RETURN
+END

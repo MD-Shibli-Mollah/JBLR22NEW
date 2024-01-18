@@ -1,0 +1,173 @@
+*-----------------------------------------------------------------------------
+* <Rating>894</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE NOFILE.JBL.AC.MODIFICATION(Y.ARRAY)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.CUSTOMER.ACCOUNT
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.CUSTOMER
+
+*Its an Nofile Enquiry Routine Which Gives the data for the changes that have been Occured
+*in The Account Records.If an account record is updated,than the deatils of old values are fetched frm
+*Account history record.
+
+
+
+    GOSUB INIT
+    GOSUB GET.LOC
+    GOSUB PROCESS
+
+******************************************************************************************
+INIT:
+*****************************************************************************************
+
+    FN.CUS.ACCOUNT = "F.CUSTOMER.ACCOUNT" ; F.CUSTOMER.ACCOUNT = ""
+    CALL OPF(FN.CUS.ACCOUNT,F.CUSTOMER.ACCOUNT)
+
+    FN.ACCOUNT = "F.ACCOUNT" ; F.ACCOUNT = ""
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    FN.CUSTOMER = "FBNK.CUSTOMER" ; FBNK.CUSTOMER = ""
+    CALL OPF(FN.CUSTOMER, F.CUSTOMER)
+
+    FN.ACCOUNT$HIS = "F.ACCOUNT$HIS" ; F.ACCOUNT$HIS = ""
+    CALL OPF(FN.ACCOUNT$HIS,F.ACCOUNT$HIS)
+
+    Y.APP = "ACCOUNT"
+    Y.FIELD = "JBL.NOM.NAME"
+    Y.FIELD1 = "ACCOUNT.NATURE"
+    Y.FIELD2 = "GUARDIAN.NAME"
+    Y.LOC.POS = ""
+    Y.LOC.POS1 = ""
+    Y.LOC.POS2 = ""
+    Y.EDIT=""
+    Y.DATE=""
+    CALL GET.LOC.REF(Y.APP,Y.FIELD,Y.LOC.POS)
+    CALL GET.LOC.REF(Y.APP,Y.FIELD1,Y.LOC.POS1)
+    CALL GET.LOC.REF(Y.APP,Y.FIELD2,Y.LOC.POS2)
+
+    RETURN
+**********************************************************************************
+GET.LOC:
+****************************************************************************************
+    LOCATE "FROM.DATE" IN D.FIELDS<1> SETTING Y.DFROM.POS THEN
+        Y.DATE.FROM = D.RANGE.AND.VALUE<Y.DFROM.POS>
+    END
+
+    LOCATE "TO.DATE" IN D.FIELDS<1> SETTING Y.DFROM.POS THEN
+        Y.DATE.TO = D.RANGE.AND.VALUE<Y.DFROM.POS>
+    END
+    RETURN
+*******************************************************************************************
+PROCESS:
+*********************************************************************************************
+
+    Y.ID.COM = ID.COMPANY
+    SEL = "SELECT ":FN.CUS.ACCOUNT
+    CALL EB.READLIST(SEL,SEL.LIST,'',SEL.CNT,RET.ERR)
+
+    LOOP
+        REMOVE Y.CUS.AC.ID FROM SEL.LIST SETTING Y.CUS.AC.POS
+    WHILE Y.CUS.AC.ID:Y.CUS.AC.POS
+        CALL F.READ(FN.CUS.ACCOUNT,Y.CUS.AC.ID,R.CUS.AC.REC,F.CUSTOMER.ACCOUNT,Y.CUS.ERR)
+        Y.COUNT = DCOUNT(R.CUS.AC.REC, FM)
+        FOR K = 1 TO Y.COUNT
+            Y.ACCOUNT.NO = R.CUS.AC.REC<K>
+            CALL F.READ(FN.ACCOUNT,Y.ACCOUNT.NO,R.ACCT.REC,FBNK.ACCOUNT,Y.ERR)
+            Y.CURR.NO = R.ACCT.REC<AC.CURR.NO>
+
+            Y.DATE = R.ACCT.REC<AC.DATE.TIME>
+            Y.CO.CODE=R.ACCT.REC<AC.CO.CODE>
+
+*            Y.DATE = OCONV(ICONV(Y.DATE[1,6],"D2/"),'D4Y'):Y.DATE[3,4]
+
+            Y.DATE = 20:Y.DATE[1,6]
+
+            IF Y.DATE GE Y.DATE.FROM AND Y.DATE LE Y.DATE.TO AND Y.ID.COM EQ Y.CO.CODE THEN
+                Y.ACCT.TITLE =  R.ACCT.REC<AC.ACCOUNT.TITLE.1>
+                Y.ACCT.TITLE2 = R.ACCT.REC<AC.ACCOUNT.TITLE.2>
+                Y.ACCT.CATEGORY = R.ACCT.REC<AC.CATEGORY>
+                Y.ACCT.POST.RESTRICT = R.ACCT.REC<AC.POSTING.RESTRICT>
+                Y.ACCT.NOM.NAME = R.ACCT.REC<AC.LOCAL.REF,Y.LOC.POS>
+                Y.ACCT.NATURE = R.ACCT.REC<AC.LOCAL.REF,Y.LOC.POS1>
+                Y.ACCT.GURDN.NAME = R.ACCT.REC<AC.LOCAL.REF,Y.LOC.POS2>
+
+                IF Y.CURR.NO GT 1 THEN
+
+                    FOR J = 1 TO Y.CURR.NO - 1
+                        Y.ACT.ID = Y.ACCOUNT.NO:";":J
+                        CALL F.READ(FN.ACCOUNT$HIS,Y.ACT.ID,R.ACCT$HIS.REC,F.ACCOUNT$HIS,Y.ERR1)
+                        Y.ACCT.TITLE.HIS = R.ACCT$HIS.REC<AC.ACCOUNT.TITLE.1>
+                        Y.ACCT.TITLE2.HIS = R.ACCT$HIS.REC<AC.ACCOUNT.TITLE.2>
+                        Y.ACCT.CATEGORY.HIS = R.ACCT$HIS.REC<AC.CATEGORY>
+                        Y.ACCT.POST.RESTRICT.HIS = R.ACCT$HIS.REC<AC.POSTING.RESTRICT>
+                        Y.ACCT.NOM.NAME.HIS = R.ACCT$HIS.REC<AC.LOCAL.REF,Y.LOC.POS>
+                        Y.ACCT.NATURE.HIS = R.ACCT$HIS.REC<AC.LOCAL.REF,Y.LOC.POS1>
+                        Y.ACCT.GURDN.NAME.HIS = R.ACCT$HIS.REC<AC.LOCAL.REF,Y.LOC.POS2>
+                        IF J EQ Y.CURR.NO-1 THEN
+                            Y.EDIT = R.ACCT.REC<AC.AUTHORISER>
+                            Y.DATE = R.ACCT.REC<AC.DATE.TIME>
+                            Y.DATE = 20:Y.DATE[1,6]
+*     Y.DATE = OCONV(ICONV(Y.DATE[1,6],"D2/"),'D4Y'):Y.DATE[3,4]
+
+
+                        END
+                        ELSE
+                            Y.ACT.ID.H = Y.ACCOUNT.NO:";":J+1
+                            CALL F.READ(FN.ACCOUNT$HIS,Y.ACT.ID.H,R.ACCT.H.REC,F.ACCOUNT$HIS,Y.ERR1)
+                            Y.EDIT = R.ACCT.H.REC<AC.AUTHORISER>
+                            Y.DATE = R.ACCT.H.REC<AC.DATE.TIME>
+                            Y.DATE = 20:Y.DATE[1,6]
+*                            Y.DATE = OCONV(ICONV(Y.DATE[1,6],"D2/"),'D4Y'):Y.DATE[3,4]
+
+                        END
+
+                        Y.EDIT.BY = FIELD(Y.EDIT,'_',2)
+                        IF Y.ACCT.TITLE NE Y.ACCT.TITLE.HIS THEN
+                            Y.ACCT.TIT.1 = "ACCOUNT.TITLE.1 :- "
+
+                            Y.ARRAY<-1> = Y.ACCOUNT.NO:" * ":Y.DATE:" * ":Y.ACCT.TIT.1: '*': Y.ACCT.TITLE.HIS:"* ":Y.ACCT.TITLE:"*":Y.EDIT.BY
+
+                        END
+                        IF Y.ACCT.TITLE2 NE Y.ACCT.TITLE2.HIS THEN
+                            Y.ACCT.TIT.2 = "ACCOUNT.TITLE.2 :- "
+
+                            Y.ARRAY<-1> = Y.ACCOUNT.NO:" * ":Y.DATE:" * ":Y.ACCT.TIT.2:'*':Y.ACCT.TITLE2.HIS:" * ":Y.ACCT.TITLE2:"*":Y.EDIT.BY
+                        END
+                        IF Y.ACCT.CATEGORY NE Y.ACCT.CATEGORY.HIS THEN
+                            Y.ACCT.CAT = "CATEGORY :- "
+
+                            Y.ARRAY<-1> = Y.ACCOUNT.NO:" * ":Y.DATE:" * ": Y.ACCT.CAT:"*":Y.ACCT.CATEGORY.HIS:" *  ":Y.ACCT.CATEGORY:" * ":Y.EDIT.BY
+                        END
+                        IF Y.ACCT.POST.RESTRICT NE Y.ACCT.POST.RESTRICT.HIS THEN
+                            Y.ACCT.POST.RES = "POSTING.RESTRICT :- "
+                            Y.ARRAY<-1> = Y.ACCOUNT.NO:" * ":Y.DATE:" * ": Y.ACCT.POST.RES:"*":Y.ACCT.POST.RESTRICT.HIS:"* ":Y.ACCT.POST.RESTRICT:" * ":Y.EDIT.BY
+                        END
+                        IF Y.ACCT.NOM.NAME NE Y.ACCT.NOM.NAME.HIS THEN
+                            Y.ACCT.NOM.NAM = "JBL.NOM.NAME :- "
+
+                            Y.ARRAY<-1> = Y.ACCOUNT.NO:" * ":Y.DATE:" * ": Y.ACCT.NOM.NAM: "*" : Y.ACCT.NOM.NAME.HIS:"* ":Y.ACCT.NOM.NAME:" * ":Y.EDIT.BY
+                        END
+                        IF Y.ACCT.NATURE NE Y.ACCT.NATURE.HIS THEN
+                            Y.ACCT.NATUR = "ACCOUNT.NATURE :- "
+
+                            Y.ARRAY<-1> = Y.ACCOUNT.NO:" * ":Y.DATE:" * " :Y.ACCT.NATUR:" * ":Y.ACCT.NATURE.HIS:" * ":Y.ACCT.NATURE:" * ":Y.EDIT.BY
+                        END
+                        IF Y.ACCT.GURDN.NAME NE Y.ACCT.GURDN.NAME.HIS THEN
+                            Y.ACCT.GUARD.NAM = "GUARDIAN.NAME :- "
+
+                            Y.ARRAY<-1> = Y.ACCOUNT.NO:" * ":Y.DATE:" * ": Y.ACCT.GUARD.NAM: " * " : Y.ACCT.GURDN.NAME.HIS:" * ":Y.ACCT.GURDN.NAME:" * ":Y.EDIT.BY
+                        END
+*       Y.ARRAY<-1> = Y.ACCOUNT.NO:" * ":Y.DATE:" * ":Y.AR
+                        Y.AR = ''
+                    NEXT J
+                END
+            END
+        NEXT K
+    REPEAT
+    RETURN
+
+*  Y.ARRAY<-1> = Y.ACCOUNT.NO:" * ":Y.DATE:" * ":Y.AR
+END

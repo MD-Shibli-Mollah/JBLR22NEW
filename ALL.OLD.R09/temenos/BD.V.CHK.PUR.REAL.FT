@@ -1,0 +1,87 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.CHK.PUR.REAL.FT
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This routine is Check Purchase Realization Amt in FT
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20/04/2012 - New - Rayhan
+*
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LETTER.OF.CREDIT
+    $INSERT I_F.LC.TYPES
+    $INSERT I_F.DRAWINGS
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.FUNDS.TRANSFER
+
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.DRAWINGS = 'F.DRAWINGS'
+    F.DRAWINGS = ''
+    CALL OPF(FN.DRAWINGS,F.DRAWINGS)
+    R.DRAWINGS = ''
+    Y.DRAWINGS.ERR = ''
+
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+    CALL OPF(FN.FT,F.FT)
+    R.FT.REC = ''
+    Y.FT.ERR = ''
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    CALL OPF(FN.AC,F.AC)
+    R.AC.REC = ''
+    Y.AC.ERR = ''
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+    GOSUB GET.LOC.REF.POS
+    Y.AC.ID = R.NEW(FT.CREDIT.ACCT.NO)
+    Y.FT.DR.AMT = R.NEW(FT.DEBIT.AMOUNT)
+    CALL F.READ(FN.AC,Y.AC.ID,R.AC.REC,F.AC,Y.AC.ERR)
+    Y.DR.ID = R.AC.REC<AC.LOCAL.REF,Y.AC.DRNO.POS>
+    Y.AC.CATEG = R.AC.REC<AC.CATEGORY>
+    CALL F.READ(FN.DRAWINGS,Y.DR.ID,R.DRAWINGS,F.DRAWINGS,Y.DRAWINGS.ERR)
+    Y.DOC.PUR.AMT = R.DRAWINGS<TF.DR.DOCUMENT.AMOUNT>
+    Y.DOC.PUR.EXCHTT = R.DRAWINGS<TF.DR.LOCAL.REF,Y.DR.EXCHTT.POS>
+    IF Y.AC.CATEG GE '1961' AND Y.AC.CATEG LE '1963' THEN
+        IF Y.FT.DR.AMT GT Y.DOC.PUR.AMT THEN
+            AF = FT.DEBIT.AMOUNT
+            ETEXT ="Dr Amount GT Purchase Amount"
+            CALL STORE.END.ERROR
+        END
+    END ELSE
+        AF = FT.CREDIT.ACCT.NO
+        ETEXT ="Not Purchase Account"
+        CALL STORE.END.ERROR
+    END
+
+    IF R.NEW(FT.DEBIT.CURRENCY) NE LCCY AND R.NEW(FT.TREASURY.RATE) EQ "" THEN
+        R.NEW(FT.TREASURY.RATE) = Y.DOC.PUR.EXCHTT
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+GET.LOC.REF.POS:
+*--------------
+    CALL GET.LOC.REF("ACCOUNT","LINKED.TFDR.REF",Y.AC.DRNO.POS)
+    CALL GET.LOC.REF("DRAWINGS","PUR.EXCH.RATE",Y.DR.EXCHTT.POS)
+    RETURN
+END

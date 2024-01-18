@@ -1,0 +1,68 @@
+*-----------------------------------------------------------------------------
+* TO CHECK LISTED ACCOUNT LISTING
+*-----------------------------------------------------------------------------
+
+* REQ: CARD DIVISION
+**************************************************
+    SUBROUTINE JBL.ATM.ACC.STMT.LST(ENQ.DATA)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    ACC.ARY=''
+    Y.FLAG=""
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    Y.ACC.COUNT=0
+    CALL OPF(FN.AC,F.AC)
+
+    ACC.ARY="0100000991109":@FM:"BDT13105" : @FM : "BDT13522" : @FM :"BDT13071" :@FM:"BDT17332":@FM:"BDT17333":@FM:"BDT17257":@FM:"BDT15222":@FM:"BDT17221":@FM:"BDT13058":@FM:"BDT13503":@FM:"BDT17208"
+
+
+    LOCATE '@ID' IN ENQ.DATA<2,1> SETTING BACC.POS THEN
+        Y.ACCOUNT = ENQ.DATA<4,BACC.POS>
+    END
+    LOCATE 'CATEGORY' IN ENQ.DATA<2,1> SETTING BACC.POS1 THEN
+        Y.CATEGORY = ENQ.DATA<4,BACC.POS1>
+    END
+
+    CALL F.READ(FN.AC,Y.ACCOUNT,R.AC.REC,F.AC,Y.ERR)
+    CALL GET.LOC.REF('ACCOUNT','AC.ATM.CARD.NUM',Y.AC.ATM.CARD.NUM)
+    Y.ACC.COUNT=DCOUNT(R.AC.REC<AC.LOCAL.REF,Y.AC.ATM.CARD.NUM>,@SM)
+
+    IF Y.ACC.COUNT GT 0 THEN
+        ACC.ARY =ACC.ARY : @FM : Y.ACCOUNT
+    END
+
+    Y.LEN=DCOUNT(ACC.ARY,@FM)
+    FOR I=1 TO Y.LEN
+
+        IF LEFT(Y.ACCOUNT,8) EQ ACC.ARY<I> OR Y.ACCOUNT EQ ACC.ARY<I> THEN
+            ENQ.DATA<4,BACC.POS> = Y.ACCOUNT
+            Y.FLAG=1
+            BREAK
+        END
+
+    NEXT I
+    IF Y.FLAG EQ "" THEN
+        FOR I=1 TO Y.LEN
+
+            IF  Y.CATEGORY EQ RIGHT(ACC.ARY<I>,5)  THEN
+                ENQ.DATA<4,BACC.POS1> = Y.CATEGORY
+                Y.FLAG=1
+                BREAK
+            END
+
+        NEXT I
+    END
+
+    IF Y.FLAG NE 1 THEN
+        ENQ.DATA<4,BACC.POS> =""
+        ENQ.DATA<4,BACC.POS1>=""
+        ENQ.DATA=""
+    END
+
+    RETURN
+END
+

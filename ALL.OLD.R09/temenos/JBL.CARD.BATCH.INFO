@@ -1,0 +1,43 @@
+    SUBROUTINE JBL.CARD.BATCH.INFO
+*-----------------------------------------------------------------------------
+*<doc>
+* TODO add a description of the application here.
+* @stereotype H type template Application
+* @package TODO define the product group and product, e.g. infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* TODO - You MUST write a .FIELDS routine for the field definitions
+*-----------------------------------------------------------------------------
+* Modification History :
+*-----------------------
+* Description : Template Definition for Card Information file Upload
+* Author      : AVIJIT SAHA
+* 21/11/21 - New Template changes for ATM Card Issue Reissue Info
+*
+* ----------------------------------------------------------------------------
+* <region name= Inserts>
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_Table
+* </region>
+*-----------------------------------------------------------------------------
+    Table.name = 'JBL.CARD.BATCH.INFO'  ;* Full application name including product prefix
+    Table.title = 'CARD ISSUE-REISSUE'  ;* Screen title
+    Table.stereotype = 'H'    ;* H, U, L, W or T
+    Table.product = 'EB'      ;* Must be on EB.PRODUCT
+    Table.subProduct = ''     ;* Must be on EB.SUB.PRODUCT
+    Table.classification = 'INT'        ;* As per FILE.CONTROL
+    Table.systemClearFile = 'Y'         ;* As per FILE.CONTROL
+    Table.relatedFiles = ''   ;* As per FILE.CONTROL
+    Table.isPostClosingFile = ''        ;* As per FILE.CONTROL
+    Table.equatePrefix = 'JBCARD.INFO'  ;* Use to create I_F.EB.LOG.PARAMETER
+*-----------------------------------------------------------------------------
+    Table.idPrefix = ''       ;* Used by EB.FORMAT.ID if set
+    Table.blockedFunctions = ''         ;* Space delimeted list of blocked functions
+    Table.trigger = ''        ;* Trigger field used for OPERATION style fields
+*-----------------------------------------------------------------------------
+
+
+    RETURN
+END
+

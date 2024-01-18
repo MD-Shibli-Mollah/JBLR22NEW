@@ -1,0 +1,164 @@
+*--------------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>23</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE NOFILE.UNUSED.CHEQUES(Y.ARR)
+*--------------------------------------------------------------------------------------
+*
+*--------------------------------------------------------------------------------------
+*
+* This is a Nofile Enquiry Routine used to display Unused Cheques of the
+* Customer by account wise
+*
+*@author        emmanuel.livingston@capgemini.com
+*
+*--------------------------------------------------------------------------------------
+*
+*--------------------------------------------------------------------------------------
+* Modification History:
+*--------------------------------------------------------------------------------------
+*
+* 28/07/2011            -Janatha Bank Limited
+*                        New changes
+*
+*--------------------------------------------------------------------------------------
+*
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.CHEQUE.ISSUE
+    $INSERT GLOBUS.BP I_F.CHEQUES.PRESENTED
+    $INSERT GLOBUS.BP I_F.CHEQUES.STOPPED
+*
+*--------------------------------------------------------------------------------------
+* Main controlling section:
+*--------------------------------------------------------------------------------------
+*
+    GOSUB INITIALISATION
+    GOSUB MAIN.PROCESS
+*
+    RETURN
+*
+*--------------------------------------------------------------------------------------
+* Subroutine Section:
+*--------------------------------------------------------------------------------------
+*
+INITIALISATION:
+*--------------------------------------------------------------------------------------
+* File Opening and Variable set up
+*--------------------------------------------------------------------------------------
+*
+    FN.CHEQUE.ISSUE = "FBNK.CHEQUE.ISSUE"
+    F.CHEQUE.ISSUE = ""
+    R.CHEQUE.ISSUE = ""
+    CALL OPF(FN.CHEQUE.ISSUE,F.CHEQUE.ISSUE)
+*
+    FN.CHEQUES.PRESENTED = "FBNK.CHEQUES.PRESENTED"
+    F.CHEQUES.PRESENTED = ""
+    R.CHEQUES.PRESENTED = ""
+    CALL OPF(FN.CHEQUES.PRESENTED,F.CHEQUES.PRESENTED)
+*
+    FN.CHEQUES.STOPPED = "FBNK.CHEQUES.STOPPED"
+    F.CHEQUES.STOPPED = ""
+    R.CHEQUES.STOPPED = ""
+    CALL OPF(FN.CHEQUES.STOPPED,F.CHEQUES.STOPPED)
+*
+    RETURN
+*
+*--------------------------------------------------------------------------------------
+*
+MAIN.PROCESS:
+*------------
+* Main Subroutine processing:
+*-----------------------------
+*
+*--------------------------------------------------------------------------------------
+* Locating the field of Account Number in the ENQUIRY which should be a Mandatory input
+*--------------------------------------------------------------------------------------
+*
+    LOCATE "ACCOUNT.NO" IN  D.FIELDS SETTING POS ELSE NULL
+    Y.ACCT.NO = D.RANGE.AND.VALUE<POS>
+*
+    GOSUB CHEQUE.UNUSED
+*
+    RETURN
+*
+*--------------------------------------------------------------------------------------
+CHEQUE.UNUSED:
+*--------------------------------------------------------------------------------------
+*
+    SEL.CMD = "SELECT ":FN.CHEQUE.ISSUE:" WITH @ID LIKE ...":Y.ACCT.NO:"..."
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORDS,RET.CODE)
+*
+    LOOP
+        REMOVE CHQ.ID FROM SEL.LIST SETTING CHQ.POS
+    WHILE CHQ.ID:CHQ.POS
+*
+        CALL F.READ(FN.CHEQUE.ISSUE,CHQ.ID,R.CHEQUE.ISSUE,F.CHEQUE.ISSUE,Y.ERR)
+        Y.CHEQUE.TYPE = FIELD(CHQ.ID,".",1,1)
+        Y.DATE = R.CHEQUE.ISSUE<CHEQUE.IS.ISSUE.DATE>
+        Y.CHQ.BEGIN = R.CHEQUE.ISSUE<CHEQUE.IS.CHQ.NO.START>
+        Y.CHQ.END.NO = R.CHEQUE.ISSUE<CHEQUE.IS.NUMBER.ISSUED>
+        Y.CHQ.END.NUMBER = Y.CHQ.BEGIN + Y.CHQ.END.NO
+        Y.CHQ.END = Y.CHQ.END.NUMBER - 1
+        Y.CHEQUES = Y.CHQ.BEGIN
+*
+        GOSUB CHQ.STOPPED
+*
+        GOSUB CHQ.PRESENTED
+*
+        LOOP
+        WHILE Y.CHEQUES LE Y.CHQ.END
+            FIND Y.CHEQUES IN Y.CHQ.ARR SETTING UNUSED.POS THEN
+            END ELSE
+                Y.CHEQUE.ARR<-1> = Y.CHEQUES
+            END
+            Y.CHEQUES = Y.CHEQUES + 1
+        REPEAT
+*
+        CONVERT FM TO VM IN Y.CHEQUE.ARR
+*
+        Y.ARR<-1> = Y.DATE:"*":Y.CHQ.BEGIN:"*":Y.CHQ.END:"*":Y.CHEQUE.ARR
+*
+        Y.CHEQUE.ARR=''
+        Y.DATE=''
+        Y.CHQ.BEGIN=''
+        Y.CHQ.END=''
+*
+    REPEAT
+*
+*--------------------------------------------------------------------------------------
+CHQ.STOPPED:
+*--------------------------------------------------------------------------------------
+*
+    SEL.CMD.STOPPED = "SELECT ":FN.CHEQUES.STOPPED:" WITH @ID LIKE ...":Y.ACCT.NO:"... AND CHQ.STP.CHQ.TYP EQ ":Y.CHEQUE.TYPE
+    CALL EB.READLIST(SEL.CMD.STOPPED,SEL.LIST.STOPPED,"",NO.OF.RECORDS,RET.CODE)
+    LOOP
+        REMOVE Y.CHQ.STOPPED.ID FROM SEL.LIST.STOPPED SETTING STOPPED.POS
+    WHILE Y.CHQ.STOPPED.ID:STOPPED.POS
+        Y.CHQ.STOPPED = FIELD(Y.CHQ.STOPPED.ID,"*",2,1)
+        Y.CHQ.ARR<-1>=Y.CHQ.STOPPED
+*
+    REPEAT
+*
+    RETURN
+*
+*--------------------------------------------------------------------------------------
+CHQ.PRESENTED:
+*--------------------------------------------------------------------------------------
+*
+    SEL.CMD.PRESENT =  "SELECT ":FN.CHEQUES.PRESENTED:" WITH @ID LIKE ...":Y.ACCT.NO:"..."
+    CALL EB.READLIST(SEL.CMD.PRESENT,SEL.LIST.PRESENT,"",NO.OF.RECORDS,RET.CODE)
+    LOOP
+        REMOVE Y.CHQ.PRESENT.ID FROM SEL.LIST.PRESENT SETTING PRESENT.POS
+    WHILE Y.CHQ.PRESENT.ID:PRESENT.POS
+        Y.CHQ.PRESENT=Y.CHQ.PRESENT.ID
+        Y.CHQ.NO=FIELD(Y.CHQ.PRESENT,"-",2,1)
+        Y.CHQ.ARR<-1>=Y.CHQ.NO
+    REPEAT
+*
+    RETURN
+*--------------------------------------------------------------------------------------
+*
+    RETURN
+END

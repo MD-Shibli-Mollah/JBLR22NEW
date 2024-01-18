@@ -1,0 +1,128 @@
+*-----------------------------------------------------------------------------
+* <Rating>-32</Rating>
+*-----------------------------------------------------------------------------
+!--------------------------------------------------------------------------------------------
+!This subroutine perform the posting of Excise duty amount calculated by ABL.S.EXCISE.DUTY.CALC
+!from ABL.H.ED local template
+!--------------------------------------------------------------------------------------------
+    SUBROUTINE ABL.S.EXCISE.DUTY.POST
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ABL.H.ED
+    $INSERT I_F.AB.H.ED.SLAB.PARAM
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.ABL.H.ED.CATEG
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.SLAB ='F.AB.H.ED.SLAB.PARAM'
+    F.SLAB = ''
+    Y.SLAB.ID ='SYSTEM'
+    REC.SLAB = ''
+    Y.EXCISE.ACCT=''
+    Y.EXCISE.AMT=''
+
+    FN.ABL.ED ='F.ABL.H.ED'
+    F.ABL.ED=''
+    REC.ED=''
+    Y.ED.ID=''
+
+    FN.ACCT='F.ACCOUNT'
+    F.ACCT=''
+    REC.ACCT=''
+    Y.AC.ID=''
+    Y.SOURCE = "DM.OFS.SRC"
+    Y.MESSAGE=''
+    CNT =''
+
+    FN.ED.CATEG='F.ABL.H.ED.CATEG'
+    F.ED.CATEG=''
+    REC.ED.CATEG=''
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.ABL.ED,F.ABL.ED)
+    CALL OPF(FN.SLAB,F.SLAB)
+    CALL OPF(FN.ED.CATEG,F.ED.CATEG)
+
+    RETURN
+
+PROCESS:
+    CALL F.READ(FN.SLAB,Y.SLAB.ID,REC.SLAB,F.SLAB,ERR.SLAB)
+
+    IF REC.SLAB EQ "" THEN
+        ETEXT="There must be a record SYSTEM in AB.H.ED.SLAB.PARAM"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    Y.EXCISE.ACCT="BDT":REC.SLAB<EB.SL.PARAM.CATEGORY>:"0001"
+
+    CALL F.READ(FN.ED.CATEG,'SYSTEM',REC.ED.CATEG,F.ED.CATEG,ERR.ED.CATEG)
+
+    IF REC.ED.CATEG EQ "" THEN
+        ETEXT="There must be a record SYSTEM in ABL.H.ED.CATEG"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    Y.EN.MN.YR=''
+    Y.EN.MN.YR=REC.ED.CATEG<EDC.END.DATE>[1,6]
+!    SEL.CMD.ED="SELECT ":FN.ABL.ED:" WITH HIGHEST.BAL.DATE LIKE '":TODAY[1,4]:"...' AND EXCISE.DUTY.POST NE 'YES'"
+
+    SEL.CMD.ED="SELECT ":FN.ABL.ED:" WITH YR.MNTH EQ ":Y.EN.MN.YR:" AND EXCISE.DUTY.POST NE 'YES' AND TYPE EQ 'CREDIT'"
+    CALL EB.READLIST(SEL.CMD.ED,SEL.LIST.ED,'',NO.OF.REC.ED,ERR.ED)
+    CRT" TOTAL RECORDS SELECTED FOR FDR EXCISE DUTY......":NO.OF.REC.ED
+    CRT" DO YOU WANT TO START THE PROCESSING OF EXCISE DUTY Y/N"
+    INPUT USER.CHOICE
+    IF USER.CHOICE EQ 'Y' THEN
+
+        LOOP
+            REMOVE   Y.ED.ID FROM SEL.LIST.ED SETTING Y.ED.POS
+        WHILE Y.ED.ID:Y.ED.POS
+            CALL F.READ(FN.ABL.ED,Y.ED.ID,REC.ED,F.ABL.ED,ERR.ED)
+            Y.AC.ID = FIELD(Y.ED.ID,".",1)
+            CALL F.READ(FN.ACCT,Y.AC.ID,REC.ACCT,F.ACCT,ERR.ACCT)
+            IF REC.ACCT<AC.WORKING.BALANCE> GT REC.ED<EXCS.DUT.EX.DUTY.AMT.LCY> THEN
+                Y.EXCISE.AMT=REC.ED<EXCS.DUT.EX.DUTY.AMT.LCY>
+            END
+            ELSE
+                Y.EXCISE.AMT=REC.ACCT<AC.WORKING.BALANCE>
+            END
+            IF  Y.EXCISE.AMT GT 0 THEN
+                Y.MESSAGE="FUNDS.TRANSFER,BANK.ED.CHRG/I/PROCESS,DMUSER.1//":REC.ED<EXCS.DUT.CO.CODE>:",,TRANSACTION.TYPE=ACED,DEBIT.ACCT.NO=":Y.AC.ID:",CREDIT.ACCT.NO=":Y.EXCISE.ACCT:",DEBIT.AMOUNT=":Y.EXCISE.AMT:",DEBIT.CURRENCY=BDT,ORDERING.BANK=ABL,DR.ADVICE.REQD.Y.N=N,CR.ADVICE.REQD.Y.N=N"
+*RUNNING.UNDER.BATCH=1
+*CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.MESSAGE)
+*RUNNING.UNDER.BATCH=0
+
+                OPTNS = ''
+                MSG.ID = ''
+                CALL OFS.POST.MESSAGE(Y.MESSAGE, MSG.ID , Y.SOURCE, OPTNS)
+                CALL JOURNAL.UPDATE ('TEST')
+
+*SENSITIVITY=''
+                Y.STATUS =FIELD(FIELD(Y.MESSAGE,"/",3,1),",",1)
+                Y.MESSAGE = ''
+                !IF Y.STATUS EQ '1' THEN
+                    CNT =CNT+1
+                    CRT" PROCESS................":CNT
+                    REC.ED<EXCS.DUT.EX.DUTY.POST.AMT>=Y.EXCISE.AMT
+                    REC.ED<EXCS.DUT.EXCISE.DUTY.POST>='YES'
+                    REC.ED<EXCS.DUT.POSTING.DATE>=TODAY
+*REC.ED<EXCS.DUT.REFERNCE>=FIELD(FIELD(Y.MESSAGE,",",1,1),"/",1)
+                    WRITE REC.ED TO F.ABL.ED,Y.ED.ID
+                !END
+
+            END
+            Y.EXCISE.AMT=''
+        REPEAT
+    END
+
+    RETURN
+
+END

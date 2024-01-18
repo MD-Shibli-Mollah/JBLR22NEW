@@ -1,0 +1,430 @@
+    SUBROUTINE JBL.CON.LOAN.LISTING(Y.DATA)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.LIMIT
+    $INSERT GLOBUS.BP I_F.COLLATERAL
+    $INSERT GLOBUS.BP I_F.PD.PAYMENT.DUE
+    $INSERT GLOBUS.BP I_F.ACCOUNT.DEBIT.INT
+    $INSERT GLOBUS.BP I_F.COLLATERAL.CODE
+    $INSERT GLOBUS.BP I_F.GROUP.DEBIT.INT
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+*-----
+INIT:
+*-----
+
+    FN.ACCOUNT = 'F.ACCOUNT';                 F.ACCOUNT = ' '
+    FN.LIMIT = 'F.LIMIT';                     F.LIMIT = ' '
+    FN.ACC.DR.INT = 'FBNK.ACCOUNT.DEBIT.INT'; F.ACC.DR.INT = ' '
+    FN.PD = 'F.PD.PAYMENT.DUE';               F.PD = ' '
+    FN.COLTR = 'F.COLLATERAL';                F.COLTR = ' '
+    FN.COLTR.CODE = 'F.COLLATERAL.CODE';      F.COLTR.CODE = ' '
+    FN.AGC = 'F.ACCT.GEN.CONDITION';           F.AGC = ''
+
+    FN.GDI = 'FBNK.GROUP.DEBIT.INT';           F.GDI = ' '
+    FN.CATEGORY = 'F.CATEGORY';                F.CATEGORY = ' '
+
+    FN.STMT.ENTRY = 'FBNK.STMT.ENTRY';         F.STMT.ENTRY = ''
+
+    Y.TODAY = TODAY
+    Y.BALANCE.TYPE = 'VALUE'
+
+    LOCATE 'CATEGORY' IN ENQ.SELECTION<2,1> SETTING CATEGORY.POS THEN
+        Y.CATEGORY =  ENQ.SELECTION<4,CATEGORY.POS>
+    END
+    Y.TOTAL.PE = 0; Y.TOTAL.PS = 0
+
+    RETURN
+
+*----------
+OPENFILES:
+*-----------
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    CALL OPF(FN.LIMIT,F.LIMIT)
+    CALL OPF(FN.PD,F.PD)
+    CALL OPF(FN.ACC.DR.INT,F.ACC.DR.INT)
+    CALL OPF(FN.COLTR,F.COLTR)
+    CALL OPF(FN.COLTR.CODE,F.COLTR.CODE)
+    CALL OPF(FN.AGC,F.AGC)
+    CALL OPF(FN.GDI,F.GDI)
+    CALL OPF(FN.CATEGORY,F.CATEGORY)
+    CALL OPF(FN.STMT.ENTRY,F.STMT.ENTRY)
+
+    CALL GET.LOC.REF('ACCOUNT','PAST.DUE.REF',Y.PAST.DUE.REF.POS)
+    CALL GET.LOC.REF('ACCOUNT', 'LOAN.START.DATE', Y.AC.LOAN.START.DATE.POS)
+    CALL GET.LOC.REF('ACCOUNT', 'LOAN.MAT.DATE', Y.AC.LOAN.MAT.DATE.POS)
+    CALL GET.LOC.REF('ACCOUNT','LOAN.AMOUNT',Y.LOAN.AMOUNT.POS)
+    CALL GET.LOC.REF('ACCOUNT','LIEN.AGAINST',Y.LIEN.AGAINST.POS)
+
+    CALL GET.LOC.REF('LIMIT','DR.STOCK.VALUE',Y.DR.STOCK.VALUE.POS)
+    CALL GET.LOC.REF('LIMIT','SANCT.AUTHORITY',Y.SANCT.AUTHORITY.POS)
+    CALL GET.LOC.REF('LIMIT','SANC.ADV',Y.SANC.ADV.POS)
+    CALL GET.LOC.REF('COLLATERAL','INS.COVER.AMT',Y.INS.COVER.AMT.POS)
+    CALL GET.LOC.REF('COLLATERAL','INS.EXPIRY.DATE',Y.INS.EXPIRY.DATE.POS)
+    CALL GET.LOC.REF('COLLATERAL','NAME.OF.STOCK',Y.NAME.OF.STOCK.POS)
+    CALL GET.LOC.REF('COLLATERAL','TOTAL.PER.STOCK',Y.TOTAL.PER.STOCK.POS)
+    CALL GET.LOC.REF('COLLATERAL','MARGIN',Y.MARGIN.POS)
+    CALL GET.LOC.REF('COLLATERAL','DRAWING',Y.DRAWING.POS)
+    CALL GET.LOC.REF('COLLATERAL','INS.COVER.AMT',Y.INS.COVER.AMT.POS)
+    CALL GET.LOC.REF('COLLATERAL','INS.COMP.NAME',Y.INS.COMP.NAME.POS)
+    CALL GET.LOC.REF('COLLATERAL','DR.POWER.VAL', Y.DR.POWER.VAL.POS)
+    CALL GET.LOC.REF('COLLATERAL','TOT.POWER',Y.TOT.POWER.POS)
+
+    RETURN
+
+*---------
+PROCESS:
+*---------
+    IF Y.CATEGORY LE 21000 THEN
+
+        SEL.CMD.ACC = "SELECT ":FN.ACCOUNT:" WITH CATEGORY EQ ":Y.CATEGORY:" AND CO.CODE EQ ":ID.COMPANY
+        CALL EB.READLIST(SEL.CMD.ACC,SEL.LIST.ACC,'',NO.OF.REC.ACC,RET.CODE.ACC)
+
+        FOR J = 1 TO  NO.OF.REC.ACC
+            Y.ACCT.ID = FIELD(SEL.LIST.ACC,@FM,J)
+!            Y.ACCT.ID = 0100124053221
+
+            CALL F.READ(FN.ACCOUNT, Y.ACCT.ID , R.ACCOUNT, F.ACCOUNT , Y.ERR)
+            IF R.ACCOUNT THEN
+                Y.LEGACY.ID = R.ACCOUNT<AC.ALT.ACCT.ID>
+                Y.NAME = R.ACCOUNT<AC.SHORT.TITLE>
+                Y.CUS.NO = R.ACCOUNT<AC.CUSTOMER>
+                Y.PAST.DUE.REF = R.ACCOUNT<AC.LOCAL.REF,Y.PAST.DUE.REF.POS>
+                Y.BALANCE = R.ACCOUNT<AC.WORKING.BALANCE>
+                Y.LIMIT.REF = R.ACCOUNT<AC.LIMIT.REF>
+                Y.AC.LOAN.START.DATE = R.ACCOUNT<AC.LOCAL.REF, Y.AC.LOAN.START.DATE.POS>
+                Y.AC.LOAN.MAT.DATE = R.ACCOUNT<AC.LOCAL.REF, Y.AC.LOAN.MAT.DATE.POS>
+                Y.LOAN.AMOUNT = R.ACCOUNT<AC.LOCAL.REF, Y.LOAN.AMOUNT.POS>
+                Y.LIEN.AGAINST = R.ACCOUNT<AC.LOCAL.REF,Y.LIEN.AGAINST.POS>
+                Y.OPENING.DATE = R.ACCOUNT <AC.OPENING.DATE>
+
+                Y.LIMIT.ID = Y.CUS.NO:'.000':Y.LIMIT.REF
+                Y.OTHER.DRAWING = 0
+                GOSUB GET.LIMIT.DATA
+                GOSUB GET.COLTR.DATA
+                GOSUB GET.DR.INT
+                GOSUB GET.PD.DATA
+                GOSUB GET.COLTR.CODE.DATA
+                GOSUB GET.GDI.INT.RATE
+                GOSUB GET.CATEG.DIS
+                GOSUB GET.PREV.MONTH.BALANCE
+*----------------------------START---------------
+*Purpose: CHECK LOAN ADVANCE DATE AND EXPIRY DATE
+*Added by Mohammad Solaiman Hossain
+                IF Y.ADV.DATE EQ '' THEN
+                    Y.ADV.DATE = Y.AC.LOAN.START.DATE
+                END
+
+                IF Y.EXP.DATE EQ '' THEN
+                    Y.EXP.DATE = Y.AC.LOAN.MAT.DATE
+                END
+*---------------------------END------------------------------------------------
+
+*-------------------------------START-----------------------------
+*Purpose: CHEK LIMIT AMOUNT
+*Added by Mohammad Solaiman Hossain
+
+                IF Y.LIMIT.AMT EQ '' OR Y.LIMIT.AMT EQ '0' THEN
+                    Y.LIMIT.AMT = Y.LOAN.AMOUNT
+                END
+*-------------------------------END-------------------------------
+
+*-------------------START--------------------
+*Purpose: INTEREST RATE CHECK
+*Added by Mohammad Solaiman Hossain
+                IF  Y.DR.INT EQ ''   THEN
+                    Y.DR.INT  = Y.GDI.INT.RATE
+                END
+
+
+*-----------------END------------------------
+                GOSUB GET.LAST.CREDIT.DATE
+
+*--------------------START--------------
+                IF Y.CATEGORY EQ 1922  THEN
+                    CALL F.READ(FN.ACCOUNT, Y.LIEN.AGAINST , R.LIEN.ACCOUNT, F.ACCOUNT , Y.ERR)
+                    Y.NOMINAL.VALUE = R.LIEN.ACCOUNT<AC.WORKING.BALANCE>
+                    Y.DESCRIPTION = Y.LIEN.AGAINST
+                END
+
+*--------------------END----------------
+*--------------START--------------------
+
+!Y.BALANCE.PRE.MNTH = ABS(Y.LAST.MONTH.OUTS)
+                Y.BALANCE.PRE.MNTH = Y.LAST.MONTH.OUTS
+*--------------END----------------------
+
+                Y.TOT.WORK.BAL = ABS(Y.BALANCE) + ABS(Y.PD.AMT)-ABS(Y.TOTAL.PE+Y.TOTAL.PS)
+                Y.TOT.WORK.BAL = -1*Y.TOT.WORK.BAL
+                Y.DATA<-1> = Y.ADV.DATE :'*':Y.NAME:'*':Y.LIMIT.AMT:'*':Y.EXP.DATE:'*':Y.DR.INT:'*':Y.TOT.WORK.BAL:'*':Y.COLTR.CODE.DESCRIPTION :'*':Y.STOCK.VALUE:'*': Y.MARGIN :'*':Y.DP.ON.STOCK:'*':Y.OTHER.DRAWING:'*':Y.INS.COVER.AMT:'*':Y.INS.EXPIRY.DATE:'*':Y.INS.COMP.NAME:'*':Y.DESCRIPTION:'*':Y.NOMINAL.VALUE:'*':Y.SANCT.AUTHORITY:'*':Y.SANC.ADV:'*':Y.ACCT.ID :'*': Y.CATEG.DESCRIPTION:'*': Y.LAST.CR.DATE:'*':Y.BALANCE.PRE.MNTH
+!                              1               2           3               4              5                6                  7                            8                9          10(Y.DRAWING)       11                  12                     13             14                      15                16                 17                 18                  19                   20                      21                  22
+                Y.ADV.DATE = ''
+                Y.NAME = ''
+                Y.LIMIT.AMT = ''
+                Y.EXP.DATE = ''
+                Y.DR.INT = ''
+                Y.TOT.WORK.BAL = 0
+                Y.COLTR.CODE.DESCRIPTION = ''
+                Y.STOCK.VALUE = 0
+                Y.MARGIN = 0
+                Y.DP.ON.STOCK = 0
+                Y.OTHER.DRAWING = 0
+                Y.INS.COVER.AMT = 0
+                Y.INS.EXPIRY.DATE = ''
+                Y.INS.COMP.NAME = ''
+                Y.DESCRIPTION = ''
+                Y.NOMINAL.VALUE = 0
+                Y.SANCT.AUTHORITY = ''
+                Y.SANC.ADV = ''
+                Y.ACCT.ID  = ''
+                Y.CATEG.DESCRIPTION = ''
+                Y.LAST.CR.DATE = ''
+
+            END
+        NEXT J
+    END
+    RETURN
+
+*---------------
+GET.LIMIT.DATA:
+*---------------
+
+    CALL F.READ(FN.LIMIT, Y.LIMIT.ID, R.LIMIT, F.LIMIT , Y.ERR.LIMIT)
+    IF R.LIMIT THEN
+        Y.LIMIT.AMT = R.LIMIT<LI.INTERNAL.AMOUNT>
+        Y.ADV.DATE = R.LIMIT<LI.APPROVAL.DATE>
+        Y.EXP.DATE = R.LIMIT<LI.EXPIRY.DATE>
+        Y.DRAWING.POWER = R.LIMIT<LI.LOCAL.REF,Y.DR.STOCK.VALUE.POS>
+        Y.LIM.COLTR.CODE = R.LIMIT<LI.COLLATERAL.CODE>
+        Y.SANCT.AUTHORITY = R.LIMIT<LI.LOCAL.REF,Y.SANCT.AUTHORITY.POS>
+        Y.SANC.ADV = R.LIMIT<LI.LOCAL.REF,Y.SANC.ADV.POS>
+    END
+    ELSE
+        Y.LIMIT.AMT = 0
+        Y.SAN.DATE = ''
+        Y.EXP.DATE = ''
+        Y.DRAWING.POWER = ''
+        Y.LIM.COLTR.CODE = ''
+    END
+    RETURN
+
+*-------------
+GET.COLTR.DATA:
+*-------------
+    SEL.CMD.COLTR = 'SELECT ':FN.COLTR:' WITH @ID LIKE ':Y.CUS.NO:'...'
+    CALL EB.READLIST(SEL.CMD.COLTR,SEL.COLTR.LIST,'',NO.OF.COLTR.REC,RET.CODE.COLTR)
+    Y.TOT.COLTR = DCOUNT(SEL.COLTR.LIST,@FM)
+
+
+    FOR I = 1 TO Y.TOT.COLTR
+        Y.COLTR.ID = FIELD(SEL.COLTR.LIST,@FM,1)
+        CALL F.READ(FN.COLTR, Y.COLTR.ID, R.COLTR, F.COLTR , Y.ERR.COLTR)
+        IF R.COLTR THEN
+            Y.COLTR.CODE = R.COLTR<COLL.COLLATERAL.CODE>
+
+            IF Y.COLTR.CODE EQ Y.LIM.COLTR.CODE THEN
+                Y.DESC.STOCK = R.COLTR<COLL.LOCAL.REF,Y.NAME.OF.STOCK.POS>
+                Y.STOCK.VALUE = R.COLTR<COLL.LOCAL.REF,Y.TOTAL.PER.STOCK.POS>
+                Y.MARGIN = R.COLTR<COLL.LOCAL.REF,Y.MARGIN.POS>
+                Y.DRAWING = R.COLTR<COLL.LOCAL.REF,Y.DRAWING.POS>
+                Y.INS.COVER.AMT = R.COLTR<COLL.LOCAL.REF,Y.INS.COVER.AMT.POS>
+                Y.INS.EXPIRY.DATE = R.COLTR<COLL.LOCAL.REF,Y.INS.EXPIRY.DATE.POS>
+                Y.INS.COMP.NAME= R.COLTR<COLL.LOCAL.REF,Y.INS.COMP.NAME.POS>
+                Y.DESCRIPTION = R.COLTR<COLL.DESCRIPTION>
+                Y.NOMINAL.VALUE = R.COLTR<COLL.NOMINAL.VALUE>
+
+                Y.DP.ON.STOCK =  R.COLTR<COLL.LOCAL.REF,Y.DR.POWER.VAL.POS>
+
+                IF Y.DP.ON.STOCK EQ '' OR Y.DP.ON.STOCK EQ 0 THEN
+                    Y.DP.ON.STOCK = R.COLTR<COLL.LOCAL.REF,Y.TOT.POWER.POS>
+                END
+
+                BREAK
+            END
+        END
+        ELSE
+            Y.INS.COVER.AMT = 0
+            Y.INS.EXPIRY.DATE = ''
+            Y.DESC.STOCK = ''
+            Y.STOCK.VALUE = ''
+            Y.MARGIN = ''
+            Y.DRAWING = ''
+            Y.INS.COVER.AMT = ''
+            Y.INS.COMP.NAME = ''
+            Y.DESCRIPTION = ''
+            Y.NOMINAL.VALUE = ''
+            Y.DP.ON.STOCK = 0
+        END
+    NEXT I
+    RETURN
+
+*-------------
+GET.DR.INT:
+*-------------
+    SEL.CMD.DR = "SELECT ":FN.ACC.DR.INT :" WITH @ID LIKE ":Y.ACCT.ID:"... BY-DSND @ID"
+    CALL EB.READLIST(SEL.CMD.DR,SEL.LIST.DR,'',NO.OF.REC.DR,RET.CODE.DR)
+    IF SEL.LIST.DR THEN
+        LOOP
+            REMOVE Y.DR.INT.ID FROM SEL.LIST.DR SETTING POS.DR
+        WHILE Y.DR.INT.ID:POS.DR
+            CALL F.READ(FN.ACC.DR.INT, Y.DR.INT.ID, R.DR.INT, F.ACC.DR.INT , Y.ERR.DR.INT)
+            IF R.DR.INT THEN
+                Y.DR.INT = R.DR.INT<IC.ADI.DR.INT.RATE>
+            END
+            BREAK
+        REPEAT
+    END
+    RETURN
+
+*-----------
+GET.PD.DATA:
+*-----------
+    CALL F.READ(FN.PD, Y.PAST.DUE.REF, R.PD, F.PD , Y.ERR.PD)
+    IF R.PD THEN
+        Y.PD.AMT = R.PD<PD.TOTAL.AMT.TO.REPAY>
+        Y.TOT.OVRDUE.TYPE.NO=DCOUNT(R.PD<PD.TOT.OVRDUE.TYPE>,@VM)
+        FOR M = 1 TO Y.TOT.OVRDUE.TYPE.NO
+            Y.TOT.OVRDUE.TYPE = R.PD<PD.TOT.OVRDUE.TYPE,M>
+            IF Y.TOT.OVRDUE.TYPE EQ 'PE' THEN
+                Y.PE = R.PD<PD.TOT.OD.TYPE.AMT,M>
+                Y.TOTAL.PE = Y.TOTAL.PE + ABS(Y.PE)
+            END
+            IF Y.TOT.OVRDUE.TYPE EQ 'PS' THEN
+                Y.PS = R.PD<PD.TOT.OD.TYPE.AMT,M>
+                Y.TOTAL.PS = Y.TOTAL.PS+ABS(Y.PS)
+            END
+        NEXT M
+    END
+    ELSE
+        Y.PD.AMT = 0
+        Y.TOTAL.PE = 0
+        Y.TOTAL.PS = 0
+    END
+    RETURN
+*-------------------
+GET.COLTR.CODE.DATA:
+*-------------------
+    CALL F.READ(FN.COLTR.CODE,Y.LIM.COLTR.CODE,R.COLTR.CODE,F.COLTR.CODE,Y.ERR.COLTR.CODE)
+    IF R.COLTR.CODE THEN
+        Y.COLTR.CODE.DESCRIPTION = R.COLTR.CODE<COLL.CODE.DESCRIPTION>
+    END
+    RETURN
+
+*-----------------------------------------SATRT-----------
+GET.GDI.INT.RATE:
+    SEL.CMD.AGC = 'SELECT ':FN.AGC:' WITH VALUE EQ ': Y.CATEGORY
+
+    CALL EB.READLIST(SEL.CMD.AGC,SEL.LIST.AGC,'',NO.OF.REC.AGC,ERR.AGC)
+    LOOP
+        REMOVE AGC.ID FROM SEL.LIST.AGC SETTING POS1 WHILE AGC.ID:POS1
+    WHILE AGC.ID:POS1
+        SEL.CMD.GDI = "SELECT ":FN.GDI :" WITH @ID LIKE ":AGC.ID:'BDT... BY-DSND @ID'
+        CALL EB.READLIST(SEL.CMD.GDI,SEL.LIST.GDI,'',NO.OF.REC.GDI,ERR.AGC)
+        LOOP
+            REMOVE GDI.ID FROM SEL.LIST.GDI SETTING POS2
+        WHILE GDI.ID:POS2
+            CALL F.READ(FN.GDI,GDI.ID,R.GDI,F.GDI,ERR.GDI)
+            Y.GDI.INT.RT = R.GDI<IC.GDI.DR.INT.RATE> + R.GDI<IC.GDI.DR2.INT.RATE>
+            BREAK
+        REPEAT
+    REPEAT
+    Y.GDI.INT.RATE = Y.GDI.INT.RT
+    RETURN
+*----------------------------------------END--------------
+GET.CATEG.DIS:
+    CALL F.READ(FN.CATEGORY, Y.CATEGORY , R.CATEGORY, F.CATEGORY , Y.ERR)
+    Y.CATEG.DESCRIPTION = R.CATEGORY<EB.CAT.DESCRIPTION>
+    RETURN
+
+GET.LAST.CREDIT.DATE:
+
+    Y.FROM.DATE = Y.OPENING.DATE
+    Y.TO.DATE  = TODAY
+
+    CALL EB.ACCT.ENTRY.LIST(Y.ACCT.ID,Y.FROM.DATE,Y.TO.DATE,Y.AC.STMT.LIST,Y.AC.OPEN.BAL,Y.AC.ER)
+
+    Y.DCOUNT  =   DCOUNT(Y.AC.STMT.LIST, @FM)
+    TEMP.CNT = Y.DCOUNT
+    FOR I = 1 TO Y.DCOUNT
+        Y.STMT.ID = FIELD(Y.AC.STMT.LIST,@FM,TEMP.CNT)
+        CALL F.READ(FN.STMT.ENTRY, Y.STMT.ID , R.STMT, F.STMT.ENTRY , Y.ERR)
+        Y.BOOKING.DATE = R.STMT <AC.STE.BOOKING.DATE>
+        Y.AMOUNT.LCY = R.STMT<AC.STE.AMOUNT.LCY>
+        IF Y.AMOUNT.LCY GT 0 THEN
+            Y.LAST.CR.DATE = Y.BOOKING.DATE
+            BREAK
+        END
+        TEMP.CNT = TEMP.CNT - 1
+    NEXT I
+    RETURN
+
+*----------------------
+GET.PREV.MONTH.BALANCE:
+*----------------------
+
+    Y.LAST.MONTH.OUTS = 0
+
+
+    Y.PRESENT.MONTH = TODAY[5,2]
+
+    BEGIN CASE
+    CASE Y.PRESENT.MONTH EQ '01'
+        Y.LAST.DATE.PREV.MONTH = TODAY[1,4]-1:'12':'31'
+
+    CASE Y.PRESENT.MONTH EQ '02'
+        Y.LAST.DATE.PREV.MONTH = TODAY[1,4]:'01':'31'
+
+    CASE Y.PRESENT.MONTH EQ '03'
+        Y.LAST.DATE.PREV.MONTH = TODAY[1,4]:'02':'29'
+
+    CASE Y.PRESENT.MONTH EQ '04'
+
+        Y.LAST.DATE.PREV.MONTH = TODAY[1,4]:'03':'31'
+
+    CASE Y.PRESENT.MONTH EQ '05'
+        Y.LAST.DATE.PREV.MONTH = TODAY[1,4]:'04':'30'
+
+    CASE Y.PRESENT.MONTH EQ '06'
+        Y.LAST.DATE.PREV.MONTH = TODAY[1,4]:'05':'31'
+
+    CASE Y.PRESENT.MONTH EQ '07'
+        Y.LAST.DATE.PREV.MONTH = TODAY[1,4]:'06':'30'
+
+    CASE Y.PRESENT.MONTH EQ '08'
+        Y.LAST.DATE.PREV.MONTH = TODAY[1,4]:'07':'31'
+
+    CASE Y.PRESENT.MONTH EQ '09'
+        Y.LAST.DATE.PREV.MONTH = TODAY[1,4]:'08':'31'
+
+    CASE Y.PRESENT.MONTH EQ '10'
+        Y.LAST.DATE.PREV.MONTH = TODAY[1,4]:'09':'30'
+
+    CASE Y.PRESENT.MONTH EQ '11'
+        Y.LAST.DATE.PREV.MONTH = TODAY[1,4]:'10':'31'
+
+    CASE Y.PRESENT.MONTH EQ '12'
+        Y.LAST.DATE.PREV.MONTH = TODAY[1,4]:'11':'30'
+    END CASE
+
+    CALL EB.ACCT.ENTRY.LIST(Y.ACCT.ID, Y.OPENING.DATE,Y.LAST.DATE.PREV.MONTH,Y.AC.STMT.LIST,Y.AC.OPEN.BAL,Y.AC.ER)
+
+    Y.DCOUNT  =   DCOUNT(Y.AC.STMT.LIST, @FM)
+
+    FOR I = 1 TO Y.DCOUNT
+        Y.STMT.ID = FIELD(Y.AC.STMT.LIST,@FM,I)
+        CALL F.READ(FN.STMT.ENTRY, Y.STMT.ID , R.STMT, F.STMT.ENTRY , Y.ERR)
+        Y.AMOUNT.LCY = R.STMT<AC.STE.AMOUNT.LCY>
+
+        Y.LAST.MONTH.OUTS   = Y.LAST.MONTH.OUTS  + Y.AMOUNT.LCY
+
+
+    NEXT I
+    RETURN
+END

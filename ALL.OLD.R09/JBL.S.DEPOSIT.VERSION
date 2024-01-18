@@ -1,0 +1,43 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.DEPOSIT.VERSION
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+!---------------------------------------------------------------------!
+!This subroutine attached in the enquiry AZ.DEP.AMEND.NAU to select the
+!VERSION for Deposit Product based on CATEGORY
+!---------------------------------------------------------------------!
+
+    Y.CATEG=''
+    Y.CATEG = O.DATA
+
+    BEGIN CASE
+
+    CASE Y.CATEG EQ 6621
+        O.DATA = "AZ.ACCOUNT,FIX.DEP.OPEN"
+
+    CASE Y.CATEG EQ 6601
+        O.DATA = "AZ.ACCOUNT,PS.RD.OPEN"
+
+    CASE Y.CATEG EQ 6602
+        O.DATA = "AZ.ACCOUNT,RD.DS.OPEN"
+
+    CASE Y.CATEG EQ 6603
+        O.DATA = "AZ.ACCOUNT,RD.MDS.OPEN"
+
+    CASE Y.CATEG EQ 6604
+        O.DATA = "AZ.ACCOUNT,EDU.RD.OPEN"
+
+    CASE Y.CATEG EQ 6605
+        O.DATA = "AZ.ACCOUNT,SDS.RD.OPEN"
+
+    CASE Y.CATEG EQ 6606
+        O.DATA = "AZ.ACCOUNT,MSS.RD.OPEN"
+    CASE 1
+        O.DATA = "AZ.ACCOUNT,DEP.AMEND.AUTH"
+    END CASE
+
+    RETURN
+END

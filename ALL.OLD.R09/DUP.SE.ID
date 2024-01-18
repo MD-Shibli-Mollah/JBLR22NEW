@@ -1,0 +1,80 @@
+*-----------------------------------------------------------------------------
+* <Rating>-32</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM DUP.SE.ID
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.STMT.ENTRY
+
+
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+
+INIT:
+    DEBUG
+
+    FN.AC.ENT = "F.ACCT.ENT.TODAY"
+    F.AC.ENT = ""
+    FN.AC.ENT.LWORK.DAY = "F.ACCT.ENT.LWORK.DAY"
+    F.AC.ENT.LWORK.DAY = ""
+    FN.STMT.ENT = "F.STMT.ENTRY"
+    F.STMT.ENT = ""
+
+    ******ASSIGN THE STMT.ENTRY.ID
+    Y.STMT.ID = "164521008561153.000001"
+    Y.JULIAN.DATE = SUBSTRINGS(Y.STMT.ID,1,5)
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.AC.ENT,F.AC.ENT)
+    CALL OPF(FN.AC.ENT.LWORK.DAY,F.AC.ENT.LWORK.DAY)
+    CALL OPF(FN.STMT.ENT,F.STMT.ENT)
+    RETURN
+
+PROCESS:
+
+    SEL.CMD = "SELECT ":FN.AC.ENT
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.REC.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.REC.ID:Y.POS
+
+        CALL F.READ(FN.AC.ENT,Y.REC.ID,R.AC.ENT.REC,F.AC.ENT,Y.ERR)
+        Y.STMT.ID.COUNT = DCOUNT(R.AC.ENT.REC,@FM)
+
+        FOR J = 1 TO Y.STMT.ID.COUNT
+            IF SUBSTRINGS(R.AC.ENT.REC<J>,1,5) EQ Y.JULIAN.DATE THEN
+                Y.RETURN<-1> = R.AC.ENT.REC<J>
+                PRINT R.AC.ENT.REC<J>
+            END
+        NEXT
+    REPEAT
+
+    SEL.CMD.LWORK = "SELECT ":FN.AC.ENT.LWORK.DAY
+    CALL EB.READLIST(SEL.CMD.LWORK,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.REC.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.REC.ID:Y.POS
+
+        CALL F.READ(FN.AC.ENT.LWORK.DAY,Y.REC.ID,R.AC.ENT.REC,F.AC.ENT.LWORK.DAY,Y.ERR)
+        Y.STMT.ID.COUNT = DCOUNT(R.AC.ENT.REC,@FM)
+
+        FOR J = 1 TO Y.STMT.ID.COUNT
+            IF SUBSTRINGS(R.AC.ENT.REC<J>,1,5) EQ Y.JULIAN.DATE THEN
+                Y.RETURN<-1> = R.AC.ENT.REC<J>
+                PRINT R.AC.ENT.REC<J>
+            END
+        NEXT
+    REPEAT
+
+    RETURN
+END

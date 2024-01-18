@@ -1,0 +1,94 @@
+*-----------------------------------------------------------------------------
+* <Rating>90</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE TTV.CKID
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_System
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.RECORD.LOCK
+    $INSERT GLOBUS.BP I_F.TELLER.DENOMINATION
+    $INSERT BP I_F.TT.VAULT
+
+    IF ID.NEW NE ID.COMPANY[6,4]:'.':TODAY THEN
+        RL.ID = 'FBNK.TT.VAULT$NAU':'.':ID.NEW
+        FN.RL = 'F.RECORD.LOCK'
+        F.RL = ''
+        CALL OPF(FN.RL,F.RL)
+        CALL F.READ(FN.RL,RL.ID,R.RL,F.RL,ERR.RL)
+        DELETE F.RL,RL.ID SETTING RL.CONF
+        ID.NEW = ID.COMPANY[6,4]:'.':TODAY
+    END
+    IF ID.COMPANY[1,5] NE 'BD001' AND ID.COMPANY EQ 'BD0015051' AND ID.COMPANY EQ 'BD0019999' THEN RETURN
+    FN.V = 'F.TT.VAULT$NAU'
+    F.V = ''
+    FN.VA = 'F.TT.VAULT'
+    F.VA = ''
+    FN.CO = 'F.COMPANY'
+    F.CO = ''
+    FN.D = 'F.TELLER.DENOMINATION'
+    F.D = ''
+    CALL OPF(FN.D,F.D)
+    CALL OPF(FN.CO,F.CO)
+    CALL OPF(FN.V,F.V)
+    CALL OPF(FN.VA,F.VA)
+    IF R.NEW(TTV.RECORD.STATUS) EQ '' THEN
+        CALL F.READ(FN.VA,ID.NEW,R.CK,F.VA,ERR.CK)
+        IF R.CK EQ '' THEN
+            CALL F.READ(FN.CO,'BD001':ID.NEW[1,4],R.CO,F.CO,ERR.CO)
+            R.NEW(TTV.BR.INFO) = ID.NEW[1,4]:' ':R.CO<EB.COM.COMPANY.NAME>
+            SEL.CMD = 'SELECT ':FN.D:' BY-DSND VALUE WITH @ID LIKE BDT...'
+            CALL EB.READLIST(SEL.CMD, SEL.LIST, F.D, NO.OF.REC, D.CODE)
+            FOR I = 1 TO NO.OF.REC
+                R.NEW(TTV.DENOM)<1,I>=SEL.LIST<I>
+                R.NEW(TTV.F.UNIT)<1,I> = 0
+                R.NEW(TTV.M.UNIT)<1,I> = 0
+                R.NEW(TTV.N.UNIT)<1,I> = 0
+                R.NEW(TTV.COIN)<1,I> = 0
+            NEXT I
+            R.NEW(TTV.TXN.DATE) = ID.NEW[6,8]
+            R.NEW(TTV.T.M.UNIT) = 0
+            R.NEW(TTV.T.F.UNIT) = 0
+            R.NEW(TTV.T.N.UNIT) = 0
+            R.NEW(TTV.T.COIN) = 0
+            R.NEW(TTV.T.M.AMT) = 0
+            R.NEW(TTV.T.F.AMT) = 0
+            R.NEW(TTV.T.N.AMT) = 0
+            R.NEW(TTV.T.C.AMT) = 0
+            R.NEW(TTV.T.AMT) = 0
+            R.NEW(TTV.T.AMT.W) = ''
+            R.NEW(TTV.T.UNIT) = 0
+        END
+        ELSE
+            GOSUB OLD_ENTRY
+            RETURN
+        END
+    END
+    CALL F.READ(FN.V,ID.NEW,R.CK,F.V,ERR.CK)
+    IF R.CK<TTV.RECORD.STATUS> EQ 'INAU' THEN
+        GOSUB OLD_ENTRY
+    END
+    RETURN
+
+    OLD_ENTRY:
+!DEBUG
+    R.NEW(TTV.DENOM) = R.CK<TTV.DENOM>
+    R.NEW(TTV.F.UNIT) = R.CK<TTV.F.UNIT>
+    R.NEW(TTV.M.UNIT) = R.CK<TTV.M.UNIT>
+    R.NEW(TTV.N.UNIT) = R.CK<TTV.N.UNIT>
+    R.NEW(TTV.COIN) = R.CK<TTV.COIN>
+    R.NEW(TTV.BR.INFO) = R.CK<TTV.BR.INFO>
+    R.NEW(TTV.TXN.DATE) = R.CK<TTV.TXN.DATE>
+    R.NEW(TTV.T.M.UNIT) = R.CK<TTV.T.M.UNIT>
+    R.NEW(TTV.T.F.UNIT) = R.CK<TTV.T.F.UNIT>
+    R.NEW(TTV.T.N.UNIT) = R.CK<TTV.T.N.UNIT>
+    R.NEW(TTV.T.COIN) = R.CK<TTV.T.COIN>
+    R.NEW(TTV.T.M.AMT) = R.CK<TTV.T.M.AMT>
+    R.NEW(TTV.T.F.AMT) = R.CK<TTV.T.F.AMT>
+    R.NEW(TTV.T.N.AMT) = R.CK<TTV.T.N.AMT>
+    R.NEW(TTV.T.C.AMT) = R.CK<TTV.T.C.AMT>
+    R.NEW(TTV.T.AMT) = R.CK<TTV.T.AMT>
+    R.NEW(TTV.T.AMT.W) = R.CK<TTV.T.AMT.W>
+    R.NEW(TTV.T.UNIT) = R.CK<TTV.T.UNIT>
+    RETURN
+END 

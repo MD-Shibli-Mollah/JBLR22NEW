@@ -1,0 +1,37 @@
+    PROGRAM SDSA.DETAILS.OLD
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT BP I_F.BD.BREAKUP
+
+    FN.COMP = 'F.BD.BREAKUP'
+    F.COMP = ''
+    CALL OPF(FN.COMP,F.COMP)
+
+    SEL.CMD = 'SELECT ':FN.COMP:' WITH @ID LIKE ...**...'
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,F.COMP,NO.OF.REC,RET.CODE)
+    PRINT NO.OF.REC
+    CRT "DO YOU CONTINUE Y/NO"
+    INPUT USER.CH
+    IF USER.CH EQ 'Y' THEN
+        FOR I = 1 TO NO.OF.REC
+!DEBUG
+            Y.REF.START = FIELD(SEL.LIST<I>,'*',3)
+            Y.REF.DT = FIELD(SEL.LIST<I>,'*',4)
+            IF Y.REF.START = '' AND LEN(Y.REF.DT) GE 12 THEN
+                Y.ID = FIELD(SEL.LIST<I>,'*',1):'*':FIELD(SEL.LIST<I>,'*',2):'*':FIELD(SEL.LIST<I>,'*',4):'*':FIELD(SEL.LIST<I>,'*',5):'*':FIELD(SEL.LIST<I>,'*',6):'*':FIELD(SEL.LIST<I>,'*',7):'*':FIELD(SEL.LIST<I>,'*',8):'*':FIELD(SEL.LIST<I>,'*',9):'*':FIELD(SEL.LIST<I>,'*',10):'*':FIELD(SEL.LIST<I>,'*',11)
+                CALL F.READ(FN.COMP,Y.ID,R.CK,F.COMP,MCD.ERROR)
+                IF R.CK EQ '' THEN
+                    CALL F.READ(FN.COMP,SEL.LIST<I>,R.BK,F.COMP,MCD.ERROR)
+                    IF R.BK NE '' THEN
+                        WRITE R.BK TO F.COMP,Y.ID
+                        DELETE F.COMP,SEL.LIST<I>
+                    END
+                END
+                ELSE
+                    PRINT 'NOT DONE ID: ':SEL.LIST<I>
+                END
+            END
+        NEXT I
+    END
+    PRINT 'ALL DONE'
+END

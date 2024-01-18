@@ -1,0 +1,58 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SP.STOCK.BATCH.GEN
+********************************************************************
+* routine to generate batch in F.BD.H.SP.STOCK.BATCH application
+* and add all SP ID with related info
+* alin@janatabank-bd.com
+* 20180212
+********************************************************************
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT SP.BP I_F.BD.H.SP.STOCK.ISSUE
+    $INSERT SP.BP I_F.BD.H.SP.STOCK.BATCH
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    FN.SP.ISSUE='F.BD.H.SP.STOCK.ISSUE$NAU'
+    F.SP.ISSUE=''
+    FN.SP.BATCH.NAU='F.BD.H.SP.STOCK.BATCH$NAU'
+    F.SP.BATCH.NAU=''
+
+
+    CALL OPF(FN.SP.ISSUE,F.SP.ISSUE)
+    CALL OPF(FN.SP.BATCH.NAU,F.SP.BATCH.NAU)
+
+    Y.ID=ID.NEW
+    Y.REF.NO = R.NEW(SP.STK.REF.NO)
+    Y.PACKS.POS = 1
+
+    CALL F.READ(FN.SP.BATCH.NAU,Y.REF.NO,R.SP.BATCH.NAU,F.SP.BATCH.NAU,Y.ERR.BATCH)
+    IF R.SP.BATCH.NAU THEN
+        Y.SP.PACKS = R.SP.BATCH.NAU<SP.SBC.SP.PACKS>
+        Y.PACKS.POS = DCOUNT(Y.SP.PACKS,@VM)+1
+        Y.ARR<SP.SBC.SP.PACKS> = Y.SP.PACKS
+        Y.ARR<SP.SBC.SP.PACKS,Y.PACKS.POS> = Y.ID
+        Y.ARR<SP.SBC.TOTAL.FV> = R.NEW(SP.STK.FACE.VALUE) + R.SP.BATCH.NAU<SP.SBC.TOTAL.FV>
+        Y.ARR<SP.SBC.TOTAL.COM> = R.NEW(SP.STK.COMMISSION.AMT) + R.SP.BATCH.NAU<SP.SBC.TOTAL.COM>
+        Y.ARR<SP.SBC.TYPE.OF.SP> = R.SP.BATCH.NAU<SP.SBC.TYPE.OF.SP>
+        Y.ARR<SP.SBC.INPUTTER> = R.SP.BATCH.NAU<SP.SBC.INPUTTER>
+        Y.ARR<SP.SBC.CO.CODE> = R.SP.BATCH.NAU<SP.SBC.CO.CODE>
+
+    END
+    ELSE
+        Y.ARR<SP.SBC.SP.PACKS,Y.PACKS.POS> = Y.ID
+        Y.ARR<SP.SBC.TOTAL.FV> = R.NEW(SP.STK.FACE.VALUE)
+        Y.ARR<SP.SBC.TOTAL.COM> = R.NEW(SP.STK.COMMISSION.AMT)
+        Y.ARR<SP.SBC.TYPE.OF.SP> = R.NEW(SP.STK.TYPE.OF.SP)
+        Y.ARR<SP.SBC.INPUTTER> = R.NEW(SP.STK.INPUTTER)
+        Y.ARR<SP.SBC.CO.CODE> = R.NEW(SP.STK.CO.CODE)
+    END
+    Y.ARR<SP.SBC.RECORD.STATUS> = 'INAU'
+    Y.ARR<SP.SBC.CURR.NO> = 1
+
+    WRITE Y.ARR TO F.SP.BATCH.NAU,Y.REF.NO
+
+RETURN
+END

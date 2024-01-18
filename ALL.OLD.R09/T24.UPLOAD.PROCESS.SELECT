@@ -1,0 +1,285 @@
+*-----------------------------------------------------------------------------
+* <Rating>-172</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE T24.UPLOAD.PROCESS.SELECT
+*________________________________________________________________________
+* @author vsai@temenos.com
+* @stereotype subroutine
+* @package infra.eb
+*!
+*_____________________________________________________________________________
+* T24.UPLOAD.PROCESS Job:
+* ----------------------
+* Select routine of the generic service that can take the files
+* uploaded by the customer and create appropriate T24 records for
+* business processing
+*____________________________________________________________________________
+*
+*Modification Log:
+*----------------*
+*
+* 20/11/2009 - EN_10004423
+*              Creation
+*              SAR ref:<SAR-2009-07-16-0006>
+*
+* 24/11/09 - BG_100025890
+*            The field COMP.CODE in EB.LOGGING is updated with the Target Company
+*            as mentioned in EB.FILE.UPLOAD
+*            TTS ref:TTS0910733
+*
+* 17/12/09 - BG_100026232
+*            Uploaded File stored in common variable R.FLAT.FILE instead of R.FLAT.REC.
+*            TTS ref:TTS0911153
+*
+* 22/12/09 - BG_100026235
+*            COVERT the CR/LF characters to VMs in uploaded record.
+*            TTS ref : TTS0911039,TTS0911154
+*
+* 28/12/09 - BG_100026393
+*            If uploaded file is not a T24 file then skip the uploaded process
+*            to such a files.
+*            TTS ref:TTS0911207
+*
+* 01/02/10 - Task :18109 , Defect:18098
+*            The CRLF changed to null in the upload file.
+*
+* 04/02/10 - Task :18196 , Defect:13934
+*            FT Bulk Upload Changes.
+*            UPDATE process moved to record routine.
+*
+* 05/02/10 - Task:20064, Defect:19909
+*            File uploaded path changed according to Operating Systems
+*
+* 08/04/13 - CI_10076319 (Defect:601170)
+*            Backpatch of SAR-2009-07-16-0006 For Data File Upload Through Browser
+*
+*____________________________________________________________________________
+*
+*** <region name= Inserts>
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_BATCH.FILES     ;* Insert for batch related common variables
+    $INSERT I_F.EB.FILE.UPLOAD
+    $INSERT I_F.EB.FILE.UPLOAD.TYPE
+    $INSERT I_F.EB.FILE.UPLOAD.PARAM
+    $INSERT I_T24.UPLOAD.PROCESS.COMMON
+    $INSERT I_DAS.EB.FILE.UPLOAD        ;* Insert for DAS.EB.FILE.UPLOAD
+    $INSERT I_EB.LOG.MSG
+    $INSERT Logger
+
+*** </region>
+*_______________________________________________________________________
+*
+*** <region name= Main Process>
+    GOSUB INITIALISE          ;* Perform initialise
+DEBUG
+    IF NOT(CONTROL.LIST) THEN ;* If CONROL.LIST not built yet
+        GOSUB BUILD.CONTROL.LIST        ;* Go and build the list
+    END
+
+    EB.FILE.UPLOAD.ID = FIELD(CONTROL.LIST<1,1>,'*',1)      ;* The id of EB.FILE.UPLOAD
+    ACTION = FIELD(CONTROL.LIST<1,1>,'*',2)       ;* Actual operation
+
+    BEGIN CASE
+        CASE ACTION = 'HEADER'
+            GOSUB HEADER.PROCESSING         ;* Process header record
+        CASE ACTION = 'ITEM'
+            GOSUB ITEMS.PROCESSING          ;*Process items records
+        CASE ACTION = 'UPDATE'
+            GOSUB UPDATE.PROCESSED          ;*Process for updates the status
+    END CASE
+
+    RETURN
+*** </region>
+*_____________________________________________________________________________
+*
+*** <region name= INITIALISE>
+INITIALISE:
+*---------*
+*
+    LIST.PARAMETER = ''       ;* parameter to BBL
+    ID.LIST = ''    ;* parameter to BBL
+    sMessage=''     ;* eb.logging record
+
+    RETURN
+
+*** </region>
+*________________________________________________________________________________
+*** <region name= BUILD.CONTROL.LIST>
+BUILD.CONTROL.LIST:
+*----------------*
+*
+* Build id with the APPEND.PROCESS list. so that select is done once and the process
+* of creating HEADER, ITEM and update to EB.FILE.UPLOAD are done based on this appended
+* process values.
+*
+    GOSUB SELECT.ID.LIST      ;* do a select on EB.FILE.UPLOAD and get the list of IDs to be processed in this run
+    APPEND.PROCESS = 'HEADER*ITEM*UPDATE'         ;* for each id * append this in build.id.list para to form id as(ex: file1*HEADER*ITEMS*UPDATE)
+    CONVERT '*' TO FM IN APPEND.PROCESS
+
+    LOOP
+        REMOVE UPL.ID FROM THE.LIST SETTING POS
+    WHILE UPL.ID:POS
+        CONTROL.LIST<-1> = SPLICE(REUSE(UPL.ID),'*',APPEND.PROCESS)   ;*  for each id * append this in build.id.list (ex: file1*HEADER*ITEMS*UPDATE)
+    REPEAT
+
+    RETURN
+*** </region>
+*________________________________________________________________________________
+*** <region name= HEADER.PROCESSING>
+HEADER.PROCESSING:
+*----------------*
+*
+    CALL F.READU(FN.EB.FILE.UPLOAD,EB.FILE.UPLOAD.ID,R.EB.FILE.UPLOAD,F.EB.FILE.UPLOAD,ER,'')       ;*Read  the EB.FILE.UPLOAD record to get the upload file
+
+    IF ER THEN
+        TEXT = 'Unable to Read ':EB.FILE.UPLOAD.ID:' From ':FN.EB.FILE.UPLOAD   ;* If error while reading a record throw an error and fatal out
+        CALL FATAL.ERROR(" T24.UPLOAD.PROCESS.SELECT")
+    END
+
+    R.EB.FILE.UPLOAD<EB.UF.SERVICE.STATUS> = 'PROCESSING'   ;* mark the status as 'PROCESSING'
+    CALL F.WRITE(FN.EB.FILE.UPLOAD, EB.FILE.UPLOAD.ID, R.EB.FILE.UPLOAD)        ;* write the record back
+
+    TARGET.COMPANY = R.EB.FILE.UPLOAD<EB.UF.TARGET.COMPANY> ;* company for which we need to pump in the OFS record
+
+    GOSUB READ.UPLOADED.FILE  ;* open the path and read the uploaded file
+
+    ID.LIST = UPLOAD.TYPE.ID:'*':FILE.NAME:'*':HEADER.POS:'*':TARGET.COMPANY    ;* have all these as we need not read EB.FILE.UPLOAD in the record routine at all
+    GOSUB CALL.BBL  ;* write into the .LIST file
+
+    RETURN
+
+*** </region>
+*________________________________________________________________________________
+*** <region name= UPDATE.PROCESSE>
+UPDATE.PROCESSED:
+*----------------*
+*
+    CALL F.READU(FN.EB.FILE.UPLOAD,EB.FILE.UPLOAD.ID,R.EB.FILE.UPLOAD,F.EB.FILE.UPLOAD,ER,'')
+
+    IF R.EB.FILE.UPLOAD<EB.UF.SERVICE.STATUS> EQ 'ERROR.IN.PROCESSING' OR R.EB.FILE.UPLOAD<EB.UF.HEADER.ID> = '' THEN   ;* if there is an error in the HEADER processing or if the HEADER not processed successully
+        CALL F.RELEASE(FN.EB.FILE.UPLOAD,EB.FILE.UPLOAD.ID,F.EB.FILE.UPLOAD)    ;* release the lock and exit
+        RETURN
+    END
+    IF ER THEN
+        TEXT = 'Unable to Read ':EB.FILE.UPLOAD.ID:' From ':FN.EB.FILE.UPLOAD
+        CALL FATAL.ERROR(" T24.UPLOAD.PROCESS.SELECT")
+    END
+    TARGET.COMPANY = R.EB.FILE.UPLOAD<EB.UF.TARGET.COMPANY> ;* company for which we need to pump in the OFS record
+    UPLOAD.TYPE.ID = R.EB.FILE.UPLOAD<EB.UF.UPLOAD.TYPE>    ;*Get upload type ID
+*
+    ID.LIST = UPLOAD.TYPE.ID:'***':TARGET.COMPANY    ;* have all these as we need not read EB.FILE.UPLOAD in the record routine at all
+    GOSUB CALL.BBL  ;* write into the .LIST file
+*
+    RETURN
+*** </region>
+*________________________________________________________________________________
+*** <region name= ITEMS.PROCESSING>
+ITEMS.PROCESSING:
+*----------------*
+*
+    CALL F.READ(FN.EB.FILE.UPLOAD,EB.FILE.UPLOAD.ID,R.EB.FILE.UPLOAD,F.EB.FILE.UPLOAD,ER)
+    IF ER THEN
+        TEXT = 'Unable to Read ':EB.FILE.UPLOAD.ID:' From ':FN.EB.FILE.UPLOAD
+        CALL FATAL.ERROR(" T24.UPLOAD.PROCESS.SELECT")
+    END
+
+    IF R.EB.FILE.UPLOAD<EB.UF.SERVICE.STATUS> EQ 'ERROR.IN.PROCESSING' OR R.EB.FILE.UPLOAD<EB.UF.HEADER.ID> = '' THEN   ;* if there is an error in the HEADER processing
+        RETURN      ;* no need to process items
+    END
+
+    TARGET.COMPANY = R.EB.FILE.UPLOAD<EB.UF.TARGET.COMPANY>
+
+    GOSUB READ.UPLOADED.FILE  ;* get the uploaded file
+
+    NO.OF.ITEMS = DCOUNT(R.FLAT.FILE,FM)          ;* count the no of lines
+    FOR ITEM.CNT = 1 TO NO.OF.ITEMS     ;* for every line
+        IF  ITEM.CNT NE HEADER.POS THEN ;* don't include the header line no for items processing
+            ID.LIST<-1> = UPLOAD.TYPE.ID:'*':FILE.NAME:'*':ITEM.CNT:'*':TARGET.COMPANY
+        END
+    NEXT ITEM.CNT
+
+    GOSUB CALL.BBL  ;* write into the .LIST file
+
+    RETURN
+*** </region>
+*________________________________________________________________________________
+*** <region name= SELECT.ID.LIST>
+SELECT.ID.LIST:
+*-------------*
+*
+    THE.LIST = dasEbFileUploadEqStatus  ;* fetching list DAS selection criteria
+    THE.ARGS = '':FM:'NO'   ;* process only the new records uploaded by user with the status equals to "" and if its t24 file
+    APP.NAME = "EB.FILE.UPLOAD"         ;* this varibale holds the exact application name
+    CALL DAS(APP.NAME,THE.LIST,THE.ARGS,'')       ;* call and process` the DAS  based on the arguments mentioned
+
+    RETURN
+*** </region>
+*___________________________________________________________________________
+*
+*** <region name= GET.UPLOADED.FILE>
+*** <desc>GET.UPLOADED.FILE</desc>
+GET.UPLOADED.FILE:
+*----------------*
+* Here to perform file path validation
+
+    DIR.PATH.1 = R.EB.FILE.UPLOAD.PARAM<EB.UP.TC.UPLOAD.PATH>         ;* path where the customer uploaded file is available
+    DIR.FULL.PATH = DIR.PATH.1:'/':DIR.PATH       ;* this is the complete path where the file is uploaded
+
+    BEGIN CASE
+        CASE OS.NAME = 'WINNT' OR OS.NAME = 'WIN95'   ;* Windows environment
+            CONVERT '/' TO '\' IN DIR.FULL.PATH       ;* Convert path according to Windows environment
+        CASE OTHERWISE  ;* Unix or other windows
+            CONVERT '\' TO '/' IN DIR.FULL.PATH ;* Convert path according to Unix or other windows
+    END CASE
+
+
+    CRLF = CHARX(013):CHARX(010)        ;* New line
+
+    OPENPATH DIR.FULL.PATH TO FILE.OPEN ELSE      ;*open the path
+    TEXT = "UNABLE TO OPEN PATH"    ;*Thrown an error, unable to open path
+    CALL FATAL.ERROR("T24.UPLOAD.PROCESS.SELECT")       ;* Call FATAL.ERROR with routine name and to fatal out
+    END
+
+    READ R.FLAT.FILE FROM FILE.OPEN, FILE.NAME ELSE
+        TEXT = "FILE NOT EXIST"         ;* thrown an error, file not exist
+        CALL FATAL.ERROR("T24.UPLOAD.PROCESS")    ;* Call FATAL.ERROR with routine name and to fatal out
+    END
+
+    CONVERT CRLF TO '' IN R.FLAT.FILE   ;* Change a CRLF to NULL in FLAT.FILE
+
+    RETURN
+*** </region>
+*________________________________________________________________________
+*** <region name= CALL.BBL>
+CALL.BBL:
+*-------*
+
+    CALL BATCH.BUILD.LIST(LIST.PARAMETER,ID.LIST) ;* pass the fetched list to create a multi-thread list
+
+    RETURN
+*** </region>
+*___________________________________________________________________________
+*** <region name= READ.UPLOADED.FILE>
+READ.UPLOADED.FILE:
+*-----------------*
+
+    UPLOAD.TYPE.ID = R.EB.FILE.UPLOAD<EB.UF.UPLOAD.TYPE>    ;*Get upload type ID
+
+    CALL F.READ(FN.EB.FILE.UPLOAD.TYPE,UPLOAD.TYPE.ID,R.EB.FILE.UPLOAD.TYPE,F.EB.FILE.UPLOAD.TYPE,ERR)        ;* read eb.file.upload.type
+
+    IF ER THEN
+        TEXT = 'Unable to Read ':UPLOAD.TYPE.ID:' From ':FN.EB.FILE.UPLOAD.TYPE
+        CALL FATAL.ERROR(" T24.UPLOAD.PROCESS.SELECT")
+    END
+
+    FILE.NAME = R.EB.FILE.UPLOAD<EB.UF.SYSTEM.FILE.NAME>    ;* get the Uploaded file name
+    HEADER.POS = R.EB.FILE.UPLOAD.TYPE<EB.UT.HEADER.POSITION>         ;*Get the header position to read
+    DIR.PATH = R.EB.FILE.UPLOAD.TYPE<EB.UT.UPLOAD.DIR>      ;*Get the path to open the file
+    GOSUB GET.UPLOADED.FILE   ;* get the uploaded file
+
+    RETURN
+*** </region>
+*___________________________________________________________________________
+    END

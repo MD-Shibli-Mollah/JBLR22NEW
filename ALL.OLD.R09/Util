@@ -1,0 +1,15 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+**
+* Public T24 Utilities
+* @public
+* @link Util.createUniqueId
+* @link Util.cacheRead
+* @link Util.write
+*
+*!
+    DEFFUN Util.CreateUniqueId()
+    DEFFUN Util.CacheRead()
+    DEFFUN Util.write()
+    DEFFUN Util.logwrite()

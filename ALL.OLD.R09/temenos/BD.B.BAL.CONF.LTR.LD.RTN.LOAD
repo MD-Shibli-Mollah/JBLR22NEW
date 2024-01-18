@@ -1,0 +1,40 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.B.BAL.CONF.LTR.LD.RTN.LOAD
+*-------------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This subroutine will perform all Initializations and necessary files
+* will be opened here
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20110210 - New - Shiva Shankar G
+*                  Thesys Technologies
+*-------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.ENQUIRY.REPORT
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE JBL.BP I_BD.B.BAL.CONF.LTR.LD.RTN.COMMON
+    $INCLUDE JBL.BP I_F.BD.BAL.CONF.LETTER
+
+    FN.BD.BAL.CONF.LETTER = 'F.BD.BAL.CONF.LETTER'
+    F.BD.BAL.CONF.LETTER = ''
+    CALL OPF(FN.BD.BAL.CONF.LETTER,F.BD.BAL.CONF.LETTER)
+
+
+    FN.ENQUIRY.REPORT = 'F.ENQUIRY.REPORT'
+    F.ENQUIRY.REPORT = ''
+    R.ENQUIRY.REPORT = ''
+    CALL OPF(FN.ENQUIRY.REPORT,F.ENQUIRY.REPORT)
+
+    FN.LD.LOANS.AND.DEPOSITS = 'F.LD.LOANS.AND.DEPOSITS'
+    F.LD.LOANS.AND.DEPOSITS = ''
+    R.LD.LOANS.AND.DEPOSITS = ''
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+
+    RETURN
+END

@@ -1,0 +1,62 @@
+*-----------------------------------------------------------------------------
+* <Rating>-84</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.H.INSTR.DUPLICATE.FIELD.DEF
+*-------------------------------------------------------------------------
+*
+*-------------------------------------------------------------------------
+* Modification History :
+*-------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CHEQUE.TYPE
+*-------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB DEFINE.FIELDS
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+DEFINE.FIELDS:
+    ID.F = "ORG.INSTR.REF.NO" ; ID.N = "35" ; ID.T = "A"
+*
+    Z=0
+
+    Z+=1 ; F(Z) = "CHEQUE.TYPE" ; N(Z) = "10" ; T(Z) = "A":FM:"":FM:"NOINPUT"
+    CHECKFILE(Z) = CHK.CHQ.TYPE
+    Z+=1 ; F(Z) = "DUP.CHQ.NO" ; N(Z) = "015..C" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "TXN.COMPANY" ; N(Z) = "10" ; T(Z) = "COM":FM:"":FM:"NOINPUT"
+    Z+=1 ; F(Z) = "DATE.OF.DUP.ISSUE" ; N(Z) = "8" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "ORG.CHQ.NO" ; N(Z) = "15" ; T(Z) = "A":FM:"":FM:"NOINPUT"
+    Z+=1 ; F(Z) = "DUP.INSTR.REF.NO" ; N(Z) = "35" ; T(Z) = "A":FM:"":FM:"NOINPUT"
+    CONCATFILE(Z) = "NEW":FM:"BD.T.INSTR.DUP.ORG"
+
+    Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35" ; T(Z) = "A"
+
+*
+    V = Z + 9
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+INITIALISE:
+    MAT F = "" ; MAT N = "" ; MAT T = ""
+    MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+    ID.CHECKFILE = "" ; ID.CONCATFILE = ""
+*
+* Define often used checkfile variables
+*
+  !  CHK.ACCOUNT = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+   ! CHK.CUSTOMER = "CUSTOMER":FM:EB.CUS.SHORT.NAME:FM:'.A'
+   ! CHK.CUSTOMER.SECURITY = "CUSTOMER.SECURITY":FM:0:FM:'':FM:"CUSTOMER"
+    CHK.CHQ.TYPE = "CHEQUE.TYPE":FM:CHEQUE.TYPE.DESCRIPTION:FM:"L"
+
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+END

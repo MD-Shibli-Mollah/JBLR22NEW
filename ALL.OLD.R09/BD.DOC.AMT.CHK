@@ -1,0 +1,56 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.DOC.AMT.CHK
+
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.DRAWINGS
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE JBL.BP I_F.BD.BTB.JOB.REGISTER
+    $INCLUDE BP I_F.BD.L.DFC.ACCT.DETAILS
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*------
+INIT:
+*------
+    FN.DR = 'F.DRAWINGS'
+    F.DR = ''
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    FN.BTB.JOB.REG = 'F.BD.BTB.JOB.REGISTER'
+    F.BTB.JOB.REG = ''
+    FN.DFC.ACCT = 'F.BD.L.DFC.ACCT.DETAILS'
+    F.DFC.ACCT = ''
+    RETURN
+
+*----------
+OPENFILES:
+*----------
+    CALL OPF(FN.DR,F.DR)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.BTB.JOB.REG,F.BTB.JOB.REG)
+    CALL OPF(FN.DFC.ACCT,F.DFC.ACCT)
+    RETURN
+
+*---------
+PROCESS:
+*---------
+    Y.DR.ID = ID.NEW
+    CALL F.READ(FN.DR,Y.DR.ID,R.DR.REC,F.DR,Y.DR.ERR)
+    Y.DR.TYPE = R.DR.REC<TF.DR.DRAWING.TYPE>
+    Y.1 = R.NEW(TF.DR.DRAWING.TYPE)
+    IF R.DR.REC<TF.DR.DRAWING.TYPE> EQ 'CO' AND R.NEW(TF.DR.DRAWING.TYPE) EQ 'SP' THEN
+        Y.DOC.AMT.CO = R.DR.REC<TF.DR.DOCUMENT.AMOUNT>
+        Y.DOC.AMT.SP = R.NEW(TF.DR.DOCUMENT.AMOUNT)
+        IF Y.DOC.AMT.SP GT Y.DOC.AMT.CO THEN
+            AF = TF.DR.DOCUMENT.AMOUNT
+            ETEXT = 'Realized Amount Greater than Document Amount'
+            CALL STORE.END.ERROR
+        END
+    END
+    RETURN

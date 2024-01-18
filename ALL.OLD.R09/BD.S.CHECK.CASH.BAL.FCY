@@ -1,0 +1,94 @@
+*--------------------------------------------------------------------------------
+* <Rating>-50</Rating>
+*Developed By: Kamran Mallick
+*Developed Date: 30 Nov,2018
+*Use as INPUT Routine in TELLER,BD.FCY.CASHCHQ TELLER,BD.FCY.CASHCHQ.NEW Version
+*Restrict Transaction for Insufficient AC Balance & Insufficient Till Balance
+*--------------------------------------------------------------------------------
+    SUBROUTINE BD.S.CHECK.CASH.BAL.FCY
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*****
+INIT:
+*****
+    FN.ACC = 'F.ACCOUNT'
+    F.ACC = ''
+    R.ACC = ''
+    Y.CR.ACC = ''
+    Y.CR.AMT = ''
+    Y.TT.TR.CODE = ''
+    Y.AC.CATEG = ''
+    Y.WORKING.BAL = ''
+    RETURN
+
+**********
+OPENFILES:
+**********
+    CALL OPF(FN.ACC,F.ACC)
+    RETURN
+
+********
+PROCESS:
+********
+!DEBUG
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        Y.CR.ACC = R.NEW(FT.CREDIT.ACCT.NO)
+        IF R.NEW(FT.DEBIT.AMOUNT) NE '' THEN
+            Y.CR.AMT = R.NEW(FT.DEBIT.AMOUNT)
+        END ELSE
+            Y.CR.AMT = R.NEW(FT.CREDIT.AMOUNT)
+        END
+        AF = 2
+!GOSUB CASH.TILL.BAL
+    END
+
+    IF APPLICATION EQ 'TELLER' THEN
+        Y.CR.ACC = R.NEW(TT.TE.ACCOUNT.1)
+        Y.DR.ACC = R.NEW(TT.TE.ACCOUNT.2)
+        Y.CR.AMT = R.NEW(TT.TE.AMOUNT.FCY.1)
+        AF = 6
+!GOSUB CASH.TILL.BAL
+!GOSUB CASH.ACCT.BAL
+    END
+!RETURN
+
+**************
+!CASH.TILL.BAL:
+**************
+    CALL F.READ(FN.ACC,Y.CR.ACC,R.ACC,F.ACC,ERR.AC)
+    Y.AC.CATEG = R.ACC<AC.CATEGORY>
+    Y.WORKING.BAL  = R.ACC<AC.WORKING.BALANCE> + Y.CR.AMT
+    IF Y.AC.CATEG EQ '10001' OR Y.AC.CATEG EQ '10011' THEN
+        IF Y.WORKING.BAL GT 0 THEN
+            ETEXT = "Credit Till Closing Balance!!!"
+            CALL STORE.END.ERROR
+!CALL ERR
+!RETURN
+        END
+    END
+!RETURN
+
+**************
+!CASH.ACCT.BAL:
+**************
+**Comment By Zakir
+!CALL F.READ(FN.ACC,Y.DR.ACC,R.ACC,F.ACC,ERR.AC)
+!Y.AC.CATEG = R.ACC<AC.CATEGORY>
+!Y.WORKING.BAL = R.ACC<AC.WORKING.BALANCE>
+!IF Y.WORKING.BAL LT '0' THEN
+!ETEXT = "Insufficient Account Balance!!!"
+!CALL STORE.END.ERROR
+!END
+* Comment End
+
+    RETURN
+END

@@ -1,0 +1,52 @@
+*-----------------------------------------------------------------------------
+* <Rating>-24</Rating>
+*-----------------------------------------------------------------------------
+* File ASHU.BP , Record 'HSVALIDATION'
+
+*----------------------------------------------------------------------------------
+    SUBROUTINE HSVALIDATION
+*----------------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INSERT I_F.BD.HS.CODE
+*----------------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+    RETURN
+*----------------------------------------------------------------------------------
+INIT:
+*----------------------------------------------------------------------------------
+*DEBUG
+    FN.LETTER.OF.CREDIT = 'F.LETTER.OF.CREDIT'
+    F.LETTER.OF.CREDIT = ''
+    R.LC = ''
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+
+    FN.LC.HS.CODE = 'F.BD.HS.CODE'
+    F.LC.HS.CODE = ''
+    R.LC.HS.CODE = ''
+    CALL OPF(FN.LC.HS.CODE,F.LC.HS.CODE)
+
+    Y.HS.CODE = COMI
+
+    RETURN
+*----------------------------------------------------------------------------------
+PROCESS:
+*----------------------------------------------------------------------------------
+    CALL F.READ(FN.LC.HS.CODE,Y.HS.CODE,R.LC.HS.CODE,F.LC.HS.CODE,Y.HSCODE.ERR)
+    IF NOT(R.LC.HS.CODE) THEN
+        ETEXT ='HS CODE NOT FOUND LC.HS.CODE'
+        CALL STORE.END.ERROR
+    END
+
+!SEL.CMD = 'SELECT ':FN.LC.HS.CODE
+!CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.RECORDS,RET.CODE)
+!FIND Y.HS.CODE IN SEL.LIST SETTING POS1 THEN
+!END ELSE
+!    ETEXT ='INVALID CODE'
+!    CALL STORE.END.ERROR
+!END
+    RETURN
+*----------------------------------------------------------------------------------
+END

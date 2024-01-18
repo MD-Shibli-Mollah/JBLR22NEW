@@ -1,0 +1,56 @@
+***************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>75</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VIN.PD.LIMIT.PROD
+***************************************************************************
+*
+*   This INPUT routine is to default the value in LIMIT.PROD field
+*   by limit reference entered in all PD versions
+*
+****************************************************************************
+*   MODIFICATION HISTORY:
+*   ---------------------
+*
+*   30/8/2006 -- S.INDUMATHI -- NEW
+*
+**************************************************************************
+*
+*   Insert files required:
+*   ----------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.PD.PAYMENT.DUE
+    GOSUB INITIALIZE          ;* Initialize neccessary variables
+    GOSUB PROCESS   ;*Default the local ref field LIMIT.PROD in PD
+    RETURN
+***************************************************************************
+INITIALIZE:
+*----------
+
+    Y.LIM.PROD=''
+    Y.LIM.REF=''
+    Y.LIMIT=''
+    Y.LIM.PRO=''
+*Set the position for the local reference field in PD.PAYMENT.DUE
+    CALL GET.LOC.REF("PD.PAYMENT.DUE","LIMIT.PROD",Y.LIM.POS)
+    RETURN
+****************************************************************************
+PROCESS:
+*-------
+*
+* getting the value from PD and defaulting it in LIMIT.PROD field
+*
+    Y.LIM.PROD=R.NEW(PD.LOCAL.REF)<1,Y.LIM.POS>
+!    Y.LIM.REF=R.NEW(PD.LIMIT.REFERENCE)
+    Y.LIM.REF=R.NEW(PD.ORIG.LIMIT.REF)
+    Y.LIMIT=FIELD(Y.LIM.REF,".",1)
+!M.Suresh - To Avoid the auto populate od Limit prod for the PD created using PD.CAPTURE
+    IF Y.LIMIT EQ '9700' THEN RETURN
+!M.Suresh
+    R.NEW(PD.LOCAL.REF)<1,Y.LIM.POS>=Y.LIMIT
+    CALL REBUILD.SCREEN
+    RETURN
+*******************************************************************************
+END

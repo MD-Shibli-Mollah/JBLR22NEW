@@ -1,0 +1,102 @@
+*-----------------------------------------------------------------------------
+* <Rating>-42</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.PAIR.DEAL.AUTH
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This for Pair Deal Id updating to First Deal Ref. Field.
+* Pair Deal details storing to Live Template
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 12/08/2013 - New - Manjunath Suvarna
+*                    Sepit SoftTech Pvt. Ltd.
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CURRENCY
+    $INSERT I_F.FOREX
+    $INSERT JBL.BP I_F.BD.FIRST.PAIR.DEAL.DETAILS
+*
+*
+*-----------------------------------------------------------------------------
+*
+    GOSUB INITIALISE
+    GOSUB PROCESS
+*
+    RETURN
+*
+*
+*-----------------------------------------------------------------------------
+INITIALISE:
+*
+    FN.FOREX = 'F.FOREX'
+    F.FOREX = ''
+*
+    FN.FIRST.PAIR = 'F.BD.FIRST.PAIR.DEAL.DETAILS'
+    F.FIRST.PAIR = ''
+*
+    CALL OPF(FN.FOREX,F.FOREX)
+    CALL OPF(FN.FIRST.PAIR,F.FIRST.PAIR)
+*
+    RETURN
+*
+*
+*-----------------------------------------------------------------------------
+PROCESS:
+*
+*Pair Deal Id updating to First Deal Transaction
+*
+    Y.APP = "FOREX"
+    Y.FLD = "FIRST.DEAL.REF":VM:"PAIR.DEAL.REF"
+    CALL MULTI.GET.LOC.REF(Y.APP, Y.FLD, Y.POS)
+    Y.FIRST.POS = Y.POS<1,1>
+    Y.PAIR.POS = Y.POS<1,2>
+*
+    Y.FIRST = R.NEW(FX.LOCAL.REF)<1,Y.FIRST.POS>
+    CALL F.READ(FN.FOREX,Y.FIRST,R.FOREX,F.FOREX,Y.ERR)
+    R.FOREX<FX.LOCAL.REF,Y.PAIR.POS> = ID.NEW
+*
+    WRITE R.FOREX TO F.FOREX,Y.FIRST
+*------------------------------------------------------
+*Pair Deal Details storing in Live template
+*
+    Y.STATUS = R.NEW(FX.RECORD.STATUS)
+    IF Y.STATUS EQ 'RNAU' THEN
+        Y.ID = ID.NEW:".":TODAY
+        CALL F.READ(FN.FIRST.PAIR,Y.ID,R.FIRST.PAIR,F.FIRST.PAIR,Y.ERR)
+        R.FIRST.PAIR<BD.FPD.PAIR.DEAL.REF> = ''
+        R.FIRST.PAIR<BD.FPD.PAIR.DEAL.DATE> = ''
+        R.FIRST.PAIR<BD.FPD.PAIR.CURR.NO> = ''
+        R.FIRST.PAIR<BD.FPD.FP.DEAL.COMPLEATED> = ''
+        WRITE R.FIRST.PAIR TO F.FIRST.PAIR,Y.ID
+    END ELSE
+        Y.CURR = R.NEW(FX.CURR.NO)
+        Y.ID = Y.FIRST:".":TODAY
+        CALL F.READ(FN.FIRST.PAIR,Y.ID,R.FIRST.PAIR,F.FIRST.PAIR,Y.ERR)
+        IF R.FIRST.PAIR THEN
+            R.FIRST.PAIR<BD.FPD.PAIR.DEAL.REF> = ID.NEW
+            R.FIRST.PAIR<BD.FPD.PAIR.DEAL.DATE> = TODAY
+            R.FIRST.PAIR<BD.FPD.PAIR.CURR.NO> = Y.CURR
+            R.FIRST.PAIR<BD.FPD.FP.DEAL.COMPLEATED> = 'NO'
+            WRITE R.FIRST.PAIR TO F.FIRST.PAIR,Y.ID
+        END ELSE
+            SEL.CMD = "SELECT ":FN.FIRST.PAIR:" WITH @ID LIKE ":Y.FIRST:"..."
+            CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+            Y.ID = SEL.LIST
+            CALL F.READ(FN.FIRST.PAIR,Y.ID,R.FIRST.PAIR,F.FIRST.PAIR,Y.ERR)
+            R.FIRST.PAIR<BD.FPD.PAIR.DEAL.REF> = ID.NEW
+            R.FIRST.PAIR<BD.FPD.PAIR.DEAL.DATE> = TODAY
+            R.FIRST.PAIR<BD.FPD.PAIR.CURR.NO> = Y.CURR
+            R.FIRST.PAIR<BD.FPD.FP.DEAL.COMPLEATED> = 'NO'
+            WRITE R.FIRST.PAIR TO F.FIRST.PAIR,Y.ID
+        END
+    END
+*
+    RETURN
+*
+*
+*-----------------------------------------------------------------------------
+*
+END

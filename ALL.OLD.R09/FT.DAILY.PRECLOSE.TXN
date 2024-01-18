@@ -1,0 +1,342 @@
+****************************************************************************************
+*Developed By: Md. Zakir Hossain(JBL)*
+*Date:10/09/2015*
+****************************************************************************************
+
+!PROGRAM FT.DAILY.PRECLOSE.TXN
+    SUBROUTINE FT.DAILY.PRECLOSE.TXN
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.AZ.ACCOUNT
+    $INSERT BP I_F.EB.DAILY.TXN
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CLASS
+    $INSERT GLOBUS.BP I_F.FT.COMMISSION.TYPE
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.CATEG.ENTRY
+
+! GOSUB INIT
+!GOSUB OPENFILES
+!GOSUB PROCESS
+
+
+*------
+INIT:
+*------
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+
+    FN.AC.HIS = 'F.ACCOUNT$HIS'
+    F.AC.HIS = ''
+
+    FN.AZ.AC = 'F.AZ.ACCOUNT'
+    F.AZ.AC = ''
+
+    FN.TXN='F.EB.DAILY.TXN'
+    F.TXN=''
+    FN.AC.CLS='F.ACCOUNT.CLASS'
+    F.AC.CLS=''
+
+    FN.COMM.TYPE='F.FT.COMMISSION.TYPE'
+    F.COMM.TYPE=''
+
+    FN.TAX='F.TAX'
+    F.TAX=''
+
+    FN.STMT.ENT = "F.STMT.ENTRY"
+    F.STMT.ENT = ""
+
+    FN.AC.ENT = "F.ACCT.ENT.TODAY"
+    F.AC.ENT = ""
+
+    FN.CATEG.TODAY = "F.CATEG.ENT.TODAY"
+    F.CATEG.TODAY = ""
+
+    FN.CATEG.ENT = "F.CATEG.ENTRY"
+    F.CATEG.ENT = ""
+
+    REC.TXN=''
+    Y.CLS=''
+    Y.AC.TITLE=''
+    Y.GL.CATEG=1111:@FM:1112:@FM:1113:@FM:1114
+    Y.DR.AC.CO.CODE=''
+    Y.CR.AC.CO.CODE=''
+    Y.TXN.AMT=''
+    Y.TXN.TYPE=''
+    RETURN
+
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.AZ.AC,F.AZ.AC)
+    CALL OPF(FN.TXN,F.TXN)
+    CALL OPF(FN.AC.CLS,F.AC.CLS)
+    CALL OPF(FN.COMM.TYPE,F.COMM.TYPE)
+    CALL OPF(FN.STMT.ENT,F.STMT.ENT)
+    CALL OPF(FN.AC.ENT,F.AC.ENT)
+
+    CALL OPF(FN.CATEG.TODAY,F.CATEG.TODAY)
+    CALL OPF(FN.CATEG.ENT,F.CATEG.ENT)
+
+    RETURN
+
+*-------
+PROCESS:
+*-------
+    Y.REC.ID="AZ-":ID.NEW
+*********************** Read DEPOSIT Transaction ****************************
+
+    CALL F.READ(FN.AC.ENT,ID.NEW,R.AC.ENT.REC,F.AC.ENT,Y.ERR)
+    Y.STMT.ID.COUNT = DCOUNT(R.AC.ENT.REC,@FM)
+    FOR J = 1 TO Y.STMT.ID.COUNT
+        Y.STMT.REC.ID = R.AC.ENT.REC<J>
+        Y.ALL.AC.STMT<-1> = FIELD(Y.STMT.REC.ID,'.',1):'.':FIELD(Y.STMT.REC.ID,'.',2)[1,2]
+        CALL F.READ(FN.STMT.ENT,Y.STMT.REC.ID,R.STMT.REC,F.STMT.ENT,Y.ERR)
+
+        Y.TXN.AMT=ABS(R.STMT.REC<AC.STE.AMOUNT.LCY>)
+        Y.T24.ID=R.STMT.REC<AC.STE.ACCOUNT.NUMBER>
+        Y.TXN.TYPE=R.STMT.REC<AC.STE.TRANSACTION.CODE>
+        Y.TRANS.REF=R.STMT.REC<AC.STE.TRANS.REFERENCE>
+        IF Y.TXN.TYPE EQ '465' THEN
+            Y.TRANS.REF='AZ-':ID.NEW
+        END
+***** Remove by Aminul, By the concern of Zakir Vhai ******
+!IF Y.TRANS.REF NE 'AZ-':ID.NEW  THEN
+!CONTINUE
+!END
+***********************************************************
+        BEGIN CASE
+* AZ Deposit Pre Closure
+        CASE Y.TXN.TYPE EQ 367
+            Y.T24.ID=ID.NEW
+            GOSUB ID.GEN.DR
+            Y.T24.ID=R.NEW(AZ.NOMINATED.ACCOUNT)
+            GOSUB ID.GEN.CR
+* Tax Amount Due
+        CASE Y.TXN.TYPE EQ 464
+            Y.T24.ID=ID.NEW
+            GOSUB ID.GEN.CR
+            Y.T24.ID=R.NEW(AZ.NOMINATED.ACCOUNT)
+            GOSUB ID.GEN.DR
+            Y.T24.ID="BDT172220001":RIGHT(ID.COMPANY,4)
+            GOSUB ID.GEN.CR
+* Debit Interest
+        CASE Y.TXN.TYPE EQ 391
+            Y.T24.ID=ID.NEW
+            GOSUB ID.GEN.DR
+            Y.T24.ID=R.NEW(AZ.NOMINATED.ACCOUNT)
+            GOSUB ID.GEN.CR
+************Added by Shafiul Azam*******************
+*AZ Debits
+        CASE Y.TXN.TYPE EQ 493
+            Y.T24.ID=ID.NEW
+            GOSUB ID.GEN.DR
+            Y.T24.ID=R.NEW(AZ.NOMINATED.ACCOUNT)
+            GOSUB ID.GEN.CR
+*AZ Credits
+        CASE Y.TXN.TYPE EQ 494
+            Y.T24.ID=ID.NEW
+            GOSUB ID.GEN.CR
+            Y.T24.ID=R.NEW(AZ.NOMINATED.ACCOUNT)
+            GOSUB ID.GEN.DR
+****************************************************
+****************************ADDED BY KAMRAN*******************
+        CASE Y.TXN.TYPE EQ 381
+            Y.T24.ID=ID.NEW
+            GOSUB ID.GEN.CR
+            Y.T24.ID=R.NEW(AZ.NOMINATED.ACCOUNT)
+            GOSUB ID.GEN.DR
+        CASE Y.TXN.TYPE EQ 373
+            Y.T24.ID=ID.NEW
+            GOSUB ID.GEN.CR
+            Y.T24.ID=R.NEW(AZ.NOMINATED.ACCOUNT)
+            GOSUB ID.GEN.DR
+*****************************END******************************
+
+*Early Redemtion Interest
+!DEBUG
+!IF R.NEW(AZ.EARLY.RED.INT) NE R.NEW(AZ.INTEREST.RATE) THEN
+!SEL.CMD="SELECT ":FN.CATEG.TODAY:" WITH @ID LIKE 50000-IC-BDT-":FIELD(Y.STMT.REC.ID,'.',1):"...."
+! SEL.CMD="SELECT ":FN.CATEG.ENT:" WITH @ID LIKE ":FIELD(Y.STMT.REC.ID,'.',1):"...."
+!CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+!Y.CATEG.ID=FIELD(SEL.LIST<1>,'-',4)
+!Y.CATEG.ID=SEL.LIST<1>
+!CALL F.READ(FN.CATEG.ENT,Y.CATEG.ID,REC.CATEG,F.CATEG.ENT,CATEG.ERR)
+!Y.TXN.AMT=ABS(REC.CATEG<AC.CAT.AMOUNT.LCY>)
+!Y.TXN.TYPE=REC.CATEG<AC.CAT.TRANSACTION.CODE>
+!Y.T24.ID="PL":REC.CATEG<AC.CAT.PL.CATEGORY>
+!GOSUB ID.GEN.DR
+!END
+
+        END CASE
+
+    NEXT J
+
+*Excise Duty Deduction
+    IF R.NEW(AZ.CHARGE.AMOUNT) NE "0" THEN
+
+        CALL F.READ(FN.COMM.TYPE,R.NEW(AZ.CHARGE.CODE),REC.COMM,F.COMM.TYPE,COMM.ERR)
+        Y.CHG.CATEG=REC.COMM<FT4.CATEGORY.ACCOUNT>
+        Y.TXN.TYPE=REC.COMM<FT4.TXN.CODE.DR>
+
+        Y.T24.ID=R.NEW(AZ.CHG.LIQ.ACCT)
+        Y.TXN.AMT=R.NEW(AZ.CHARGE.AMOUNT)
+        GOSUB ID.GEN.DR
+
+        IF ISDIGIT(Y.CHG.CATEG) THEN
+            Y.CATEGORY=Y.CHG.CATEG
+            Y.T24.ID="PL":Y.CATEGORY
+        END ELSE
+            Y.CATGEORY=RIGHT(LEFT(Y.CHG.CATEG,8),5)
+            Y.T24.ID=LEFT(Y.CHG.CATEG,8):"0001":RIGHT(ID.COMPANY,4)
+        END
+        GOSUB ID.GEN.CR
+    END
+******************** FOR LIQ PURPOSE ****************
+    CALL F.READ(FN.AC.ENT,R.NEW(AZ.NOMINATED.ACCOUNT),R.LIQ.ENT.REC,F.AC.ENT,Y.ERR)
+    Y.STMT.LIQ.ID.COUNT = DCOUNT(R.LIQ.ENT.REC,FM)
+
+    FOR K = 1 TO Y.STMT.LIQ.ID.COUNT
+        Y.STMT.LIQ.REC.ID = R.LIQ.ENT.REC<K>
+        Y.STMT.LIQ.ID = FIELD(Y.STMT.LIQ.REC.ID,'.',1):'.':FIELD(Y.STMT.LIQ.REC.ID,'.',2)[1,2]
+
+        FINDSTR Y.STMT.LIQ.ID IN Y.ALL.AC.STMT SETTING LIQ.ID.POS ELSE
+            CALL F.READ(FN.STMT.ENT,Y.STMT.LIQ.REC.ID,R.STMT.REC,F.STMT.ENT,Y.ERR)
+            Y.TXN.AMT=ABS(R.STMT.REC<AC.STE.AMOUNT.LCY>)
+            Y.T24.ID=R.STMT.REC<AC.STE.ACCOUNT.NUMBER>
+            Y.TXN.TYPE=R.STMT.REC<AC.STE.TRANSACTION.CODE>
+            Y.TRANS.REF=R.STMT.REC<AC.STE.TRANS.REFERENCE>
+            IF Y.TXN.TYPE EQ '465' THEN
+                Y.TRANS.REF='AZ-':ID.NEW
+            END
+
+            BEGIN CASE
+* Tax Amount Due
+            CASE Y.TXN.TYPE EQ 464
+                Y.T24.ID=R.NEW(AZ.NOMINATED.ACCOUNT)
+                GOSUB ID.GEN.DR
+                Y.T24.ID="BDT172220001":RIGHT(ID.COMPANY,4)
+                GOSUB ID.GEN.CR
+* Credit Int from Another Acc
+            CASE Y.TXN.TYPE EQ 382
+                Y.T24.ID=R.NEW(AZ.NOMINATED.ACCOUNT)
+                GOSUB ID.GEN.CR
+                Y.T24.ID="BDT174180001":RIGHT(ID.COMPANY,4)
+                GOSUB ID.GEN.DR
+            END CASE
+        END
+    NEXT K
+*****************************************************
+    RETURN
+ID.GEN.DR:
+
+    IF ISDIGIT(Y.T24.ID) THEN
+        CALL F.READ(FN.AC, Y.T24.ID, R.DR.AC, F.AC, AC.DR.ERR)
+        Y.LEG.ID=R.DR.AC<AC.ALT.ACCT.ID>
+        Y.CATEGORY=R.DR.AC<AC.CATEGORY>
+        Y.AC.TITLE=R.DR.AC<AC.ACCOUNT.TITLE.1>
+        Y.DR.AC.CO.CODE=R.DR.AC<AC.CO.CODE>
+    END ELSE
+        IF LEFT(Y.T24.ID,2) EQ "PL" THEN
+            Y.CATEGORY=RIGHT(Y.T24.ID,5)
+            Y.CLS="PL"
+        END ELSE
+            CALL F.READ(FN.AC, Y.T24.ID, R.DR.AC, F.AC, AC.DR.ERR)
+            Y.AC.TITLE=R.DR.AC<AC.ACCOUNT.TITLE.1>
+            Y.CATEGORY=R.DR.AC<AC.CATEGORY>
+            Y.DR.AC.CO.CODE=R.DR.AC<AC.CO.CODE>
+            Y.CLS="GL"
+        END
+    END
+
+    IF Y.CLS EQ "" THEN
+        GOSUB CHECK.ACCT.CLASS
+    END
+    IF Y.DR.AC.CO.CODE EQ ID.COMPANY THEN
+        Y.ID=RIGHT(ID.COMPANY,4):".":RIGHT(ID.COMPANY,4):".DR.":Y.CLS:".FT.":Y.TXN.TYPE:".":Y.CATEGORY:".":Y.REC.ID
+    END ELSE
+        Y.ID=RIGHT(ID.COMPANY,4):".":RIGHT(Y.DR.AC.CO.CODE,4):".DR.":Y.CLS:".FT.":Y.TXN.TYPE:".":Y.CATEGORY:".":Y.REC.ID
+    END
+    GOSUB WRITE.TXN
+    RETURN
+
+ID.GEN.CR:
+    IF ISDIGIT(Y.T24.ID) THEN
+        CALL F.READ(FN.AC, Y.T24.ID, R.DR.AC, F.AC, AC.DR.ERR)
+        Y.LEG.ID=R.DR.AC<AC.ALT.ACCT.ID>
+        Y.CATEGORY=R.DR.AC<AC.CATEGORY>
+        Y.AC.TITLE=R.DR.AC<AC.ACCOUNT.TITLE.1>
+        Y.DR.AC.CO.CODE=R.DR.AC<AC.CO.CODE>
+    END ELSE
+        IF LEFT(Y.T24.ID,2) EQ "PL" THEN
+            Y.CATEGORY=RIGHT(Y.T24.ID,5)
+            Y.CLS="PL"
+        END ELSE
+            CALL F.READ(FN.AC, Y.T24.ID, R.DR.AC, F.AC, AC.DR.ERR)
+            Y.AC.TITLE=R.DR.AC<AC.ACCOUNT.TITLE.1>
+            Y.CATEGORY=R.DR.AC<AC.CATEGORY>
+            Y.DR.AC.CO.CODE=R.DR.AC<AC.CO.CODE>
+            Y.CLS="GL"
+        END
+    END
+
+    IF Y.CLS EQ "" THEN
+        GOSUB CHECK.ACCT.CLASS
+    END
+    Y.ID=RIGHT(ID.COMPANY,4):".":RIGHT(ID.COMPANY,4):".CR.":Y.CLS:".FT.":Y.TXN.TYPE:".":Y.CATEGORY:".":Y.REC.ID
+
+    GOSUB WRITE.TXN
+    RETURN
+
+CHECK.ACCT.CLASS:
+    CALL F.READ(FN.AC.CLS,"U-SB",REC.CLS,F.AC.CLS,CLS.ERR)
+    CONVERT VM TO FM IN REC.CLS<AC.CLS.CATEGORY>
+    LOCATE Y.CATEGORY IN REC.CLS<AC.CLS.CATEGORY> SETTING Y.POS THEN
+        Y.CLS="U-SB"
+    END ELSE
+        CALL F.READ(FN.AC.CLS,"U-CD",REC.CLS,F.AC.CLS,CLS.ERR)
+        CONVERT VM TO FM IN REC.CLS<AC.CLS.CATEGORY>
+        LOCATE Y.CATEGORY IN REC.CLS<AC.CLS.CATEGORY> SETTING Y.POS THEN
+            Y.CLS="U-CD"
+        END ELSE
+            CALL F.READ(FN.AC.CLS,"U-STD",REC.CLS,F.AC.CLS,CLS.ERR)
+            CONVERT VM TO FM IN REC.CLS<AC.CLS.CATEGORY>
+            LOCATE Y.CATEGORY IN REC.CLS<AC.CLS.CATEGORY> SETTING Y.POS THEN
+                Y.CLS="U-STD"
+            END ELSE
+                LOCATE  Y.CATEGORY IN Y.GL.CATEG SETTING Y.POS1 THEN
+                    Y.CLS="GL"
+                END ELSE
+************Added by DataSoft for Loan,Deposit & RD***************
+                    CALL GET.FT.PRECLOSE.CLS.FROM.CATEGORY(Y.CATEGORY,Y.CLS)
+****************************End***********************************
+                    IF Y.CLS EQ '' THEN
+                        Y.CLS=Y.CATEGORY
+                    END
+                END
+            END
+        END
+    END
+    RETURN
+
+WRITE.TXN:
+    REC.TXN<EB.DAI69.TXN.ID>="AZ-":ID.NEW
+    REC.TXN<EB.DAI69.ACCT.NO>=Y.T24.ID
+    REC.TXN<EB.DAI69.LAGACY.ID>=Y.LEG.ID
+    REC.TXN<EB.DAI69.ACCT.TITLE>=Y.AC.TITLE
+    REC.TXN<EB.DAI69.CATEGORY>=Y.CATEGORY
+    REC.TXN<EB.DAI69.AMOUNT>=Y.TXN.AMT
+    REC.TXN<EB.DAI69.TRANSACTION.TYPE>=Y.TXN.TYPE
+    REC.TXN<EB.DAI69.VERSION.NAME>=PGM.VERSION
+    REC.TXN<EB.DAI69.INPUT.BY>=FIELD(R.NEW(AZ.INPUTTER),"_",2)
+    REC.TXN<EB.DAI69.AUTHORISED.BY>=OPERATOR
+    WRITE REC.TXN TO F.TXN,Y.ID
+    REC.TXN=''
+    Y.LEG.ID=''
+    Y.CLS=''
+    RETURN
+
+END

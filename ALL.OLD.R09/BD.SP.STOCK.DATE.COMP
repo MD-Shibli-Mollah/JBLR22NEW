@@ -1,0 +1,30 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SP.STOCK.DATE.COMP
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT BP I_F.BD.H.SP.STOCK.ISSUE
+
+    Y.STOCK.ENTRY.DATE=R.NEW(SP.STK.RECEIVING.DATE)
+
+    Y.TRANSFER.DATE=R.NEW(SP.STK.DIS.DATE)
+
+    Y.ISSUE.DATE=R.NEW(SP.STK.ISSUE.DATE)
+
+
+    Y.REQUEST="BD.H.SP.STOCK.ISSUE":PGM.VERSION
+    IF Y.REQUEST EQ "BD.H.SP.STOCK.ISSUE,TRANSFER" AND Y.TRANSFER.DATE LT Y.STOCK.ENTRY.DATE THEN
+        AF=SP.STK.DIS.DATE
+        ETEXT = "Transfer Date Must be Greater or Equal Stock Date"
+        CALL STORE.END.ERROR
+    END
+
+    IF Y.REQUEST EQ "BD.H.SP.STOCK.ISSUE,ISSUE" AND Y.ISSUE.DATE LT Y.TRANSFER.DATE THEN
+        AF=SP.STK.ISSUE.DATE
+        ETEXT = "Issue Date Must be Greater or Equal Transfer Date"
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+END

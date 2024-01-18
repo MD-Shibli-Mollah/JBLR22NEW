@@ -1,0 +1,191 @@
+*-----------------------------------------------------------------------------
+* <Rating>1074</Rating>
+* update: alin boby
+* 20201230
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.FCY.CHARGE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT GLOBUS.BP I_F.CURRENCY
+    $INSERT BP I_F.EB.JBL.FCY.YR.CHRG
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.ACC = 'FBNK.ACCOUNT'
+    F.ACC = ''
+    FN.FC.CATG = 'F.EB.JBL.FCY.YR.CHRG'
+    F.FC.CATG = ''
+    FN.CURR= 'F.CURRENCY'
+    F.CURR = ''
+    Y.FC.CHRG.CATG = 'SYSTEM'
+    Y.SOURCE = 'DM.OFS.SRC'
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.ACC,F.ACC)
+    CALL OPF(FN.FC.CATG,F.FC.CATG)
+    CALL OPF(FN.CURR,F.CURR)
+    RETURN
+
+PROCESS:
+    CALL F.READ(FN.FC.CATG,Y.FC.CHRG.CATG,R.FC.CATG,F.FC.CATG,Y.ERR)
+
+    Y.INCL.CATG = R.FC.CATG<EB.JBL24.INCLUDE.CATEG>
+    Y.VAT.CATG = R.FC.CATG<EB.JBL24.VAT.CATEG>
+    Y.VAT.PRCNT = R.FC.CATG<EB.JBL24.VAT.PERCENT>
+    Y.CHRG.CATG = R.FC.CATG<EB.JBL24.CHRG.CATEG>
+    Y.SLAB.AMT = R.FC.CATG<EB.JBL24.CHRG.SLAB.AMT>
+    Y.COMPANY = R.FC.CATG<EB.JBL24.INCLUDE.COMP>
+    Y.FT.COMM = R.FC.CATG<EB.JBL24.FT.COMM>
+
+    SEL.CMD.AC = "SELECT ":FN.ACC:" WITH ( CATEGORY EQ "
+
+    IF Y.INCL.CATG THEN
+        CNT.EX.CATEG = DCOUNT(Y.INCL.CATG,VM)
+        FOR K = 1 TO CNT.EX.CATEG
+            IF K = CNT.EX.CATEG THEN
+                SEL.CMD.AC := Y.INCL.CATG<1,K>
+            END ELSE
+                SEL.CMD.AC := Y.INCL.CATG<1,K>:" OR CATEGORY EQ "
+            END
+        NEXT K
+    END
+
+    SEL.CMD.AC=SEL.CMD.AC:" ) AND ( CO.CODE EQ "
+    IF Y.COMPANY THEN
+        CNT.COMP = DCOUNT(Y.COMPANY,VM)
+        FOR J = 1 TO CNT.COMP
+            IF J = CNT.COMP THEN
+                SEL.CMD.AC := Y.COMPANY<1,J>
+            END ELSE
+                SEL.CMD.AC := Y.COMPANY<1,J>:" OR CO.CODE EQ "
+            END
+        NEXT J
+    END
+
+    SEL.CMD.AC :=" ) AND WORKING.BALANCE NE '0' AND MAIN.CHARGE NE 'Waive'"
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.AC,'',NO.OF.REC.AC,ERR.AC)
+    CRT" TOTAL RECORDS SELECTED FOR FCY CHARGE DEDUCTION......":NO.OF.REC.AC
+    CRT" DO YOU WANT TO START THE PROCESSING OF CHARGE DEDUCTION(2020) Y/N"
+    INPUT USER.CHOICE
+
+    IF USER.CHOICE EQ 'Y' THEN
+
+        LOOP
+            REMOVE Y.AC.ID FROM SEL.LIST.AC SETTING CD.POS
+        WHILE Y.AC.ID:CD.POS
+            CALL F.READ(FN.ACC,Y.AC.ID,REC.ACC,F.ACC,ERR.ACC)
+            Y.PL.AC = 'PL':Y.CHRG.CATG
+            Y.DEBIT.CURRENCY = REC.ACC<AC.CURRENCY>
+
+            IF Y.DEBIT.CURRENCY EQ 'USD' THEN
+                Y.CD.VAT.AMT = ( Y.SLAB.AMT * Y.VAT.PRCNT ) / 100
+                CALL EB.ROUND.AMOUNT(LCCY,Y.CD.VAT.AMT,"","")
+                Y.CD.CHRG.AMT = Y.SLAB.AMT
+                CALL EB.ROUND.AMOUNT(LCCY,Y.CD.CHRG.AMT,"","")
+                Y.TOTAL.DEBIT = Y.CD.CHRG.AMT + Y.CD.VAT.AMT
+                CALL EB.ROUND.AMOUNT(LCCY,Y.TOTAL.DEBIT,"","")
+            END
+
+            ELSE IF Y.DEBIT.CURRENCY EQ 'GBP' THEN
+                CALL F.READ(FN.CURR,Y.DEBIT.CURRENCY,R.CURR,F.CURR,ERR)
+                Y.GBP.CNT =DCOUNT(R.CURR<EB.CUR.CURRENCY.MARKET>,@VM)
+                FOR I = 1 TO Y.GBP.CNT
+                    Y.GBP.MKT = FIELD(R.CURR<EB.CUR.CURRENCY.MARKET>,@VM,I)
+                    IF Y.GBP.MKT EQ '5' THEN
+                        Y.GBP.RATE =FIELD(R.CURR<EB.CUR.MID.REVAL.RATE>,@VM,I)
+                        BREAK
+                    END
+                NEXT I
+                CALL F.READ(FN.CURR,"USD",R.CURR1,F.CURR,ERR)
+                Y.USD.CNT =DCOUNT(R.CURR1<EB.CUR.CURRENCY.MARKET>,@VM)
+                FOR P = 1 TO Y.USD.CNT
+                    Y.USD.MKT = FIELD(R.CURR1<EB.CUR.CURRENCY.MARKET>,@VM,P)
+                    IF Y.USD.MKT EQ '5' THEN
+                        Y.USD.RATE =FIELD(R.CURR1<EB.CUR.MID.REVAL.RATE>,@VM,P)
+                        BREAK
+                    END
+                NEXT P
+
+                Y.CD.CHRG.AMT = ((Y.USD.RATE*Y.SLAB.AMT)/Y.GBP.RATE)
+                CALL EB.ROUND.AMOUNT(LCCY,Y.CD.CHRG.AMT,"","")
+                Y.CD.VAT.AMT = ( Y.CD.CHRG.AMT * Y.VAT.PRCNT ) / 100
+                CALL EB.ROUND.AMOUNT(LCCY,Y.CD.VAT.AMT,"","")
+                Y.TOTAL.DEBIT = Y.CD.CHRG.AMT + Y.CD.VAT.AMT
+                CALL EB.ROUND.AMOUNT(LCCY,Y.TOTAL.DEBIT,"","")
+
+            END
+
+
+            ELSE IF Y.DEBIT.CURRENCY EQ 'EUR' THEN
+                CALL F.READ(FN.CURR,Y.DEBIT.CURRENCY,R.CURR,F.CURR,ERR)
+                Y.EUR.CNT =DCOUNT(R.CURR<EB.CUR.CURRENCY.MARKET>,@VM)
+                FOR I = 1 TO Y.EUR.CNT
+                    Y.EUR.MKT = FIELD(R.CURR<EB.CUR.CURRENCY.MARKET>,@VM,I)
+                    IF Y.EUR.MKT EQ '5' THEN
+                        Y.EUR.RATE =FIELD(R.CURR<EB.CUR.MID.REVAL.RATE>,@VM,I)
+                        BREAK
+                    END
+                NEXT I
+                CALL F.READ(FN.CURR,"USD",R.CURR1,F.CURR,ERR)
+                Y.USD.CNT =DCOUNT(R.CURR1<EB.CUR.CURRENCY.MARKET>,@VM)
+                FOR P = 1 TO Y.USD.CNT
+                    Y.USD.MKT = FIELD(R.CURR1<EB.CUR.CURRENCY.MARKET>,@VM,P)
+                    IF Y.USD.MKT EQ '5' THEN
+                        Y.USD.RATE =FIELD(R.CURR1<EB.CUR.MID.REVAL.RATE>,@VM,P)
+                        BREAK
+                    END
+                NEXT P
+
+                Y.CD.CHRG.AMT = ((Y.USD.RATE*Y.SLAB.AMT)/Y.EUR.RATE)
+                CALL EB.ROUND.AMOUNT(LCCY,Y.CD.CHRG.AMT,"","")
+                Y.CD.VAT.AMT = ( Y.CD.CHRG.AMT * Y.VAT.PRCNT ) / 100
+                CALL EB.ROUND.AMOUNT(LCCY,Y.CD.VAT.AMT,"","")
+                Y.TOTAL.DEBIT = Y.CD.CHRG.AMT + Y.CD.VAT.AMT
+                CALL EB.ROUND.AMOUNT(LCCY,Y.TOTAL.DEBIT,"","")
+
+            END
+
+            IF REC.ACC<AC.WORKING.BALANCE> LT Y.TOTAL.DEBIT THEN
+                Y.CD.CHRG.AMT = ( REC.ACC<AC.WORKING.BALANCE> * 100 ) / ( Y.VAT.PRCNT + 100 )
+                CALL EB.ROUND.AMOUNT(LCCY,Y.CD.CHRG.AMT,"","")
+                Y.CD.VAT.AMT = REC.ACC<AC.WORKING.BALANCE> - Y.CD.CHRG.AMT
+                CALL EB.ROUND.AMOUNT(LCCY,Y.CD.VAT.AMT,"","")
+                Y.TOTAL.DEBIT = Y.CD.CHRG.AMT + Y.CD.VAT.AMT
+                CALL EB.ROUND.AMOUNT(LCCY,Y.TOTAL.DEBIT,"","")
+            END
+
+            IF REC.ACC<AC.WORKING.BALANCE> GE Y.TOTAL.DEBIT THEN
+                Y.MESSAGE="FUNDS.TRANSFER,MAIN.CHARGES/I/PROCESS,DMUSER.1//":REC.ACC<AC.CO.CODE>:",,TRANSACTION.TYPE=ACFR,DEBIT.ACCT.NO=":Y.AC.ID:",CREDIT.ACCT.NO=":Y.PL.AC:",DEBIT.AMOUNT=":Y.CD.CHRG.AMT:",DEBIT.CURRENCY=":Y.DEBIT.CURRENCY:",ORDERING.BANK=JBL,DR.ADVICE.REQD.Y.N=N,CR.ADVICE.REQD.Y.N=N,COMMISSION.CODE=DEBIT PLUS CHARGES,COMMISSION.TYPE=":Y.FT.COMM:",COMMISSION.AMT=":Y.DEBIT.CURRENCY:" ":Y.CD.VAT.AMT
+                GOSUB DO.TRANSACTION
+            END
+            Y.AC.ID = ''
+            Y.CD.CHRG.AMT = ''
+            Y.CD.VAT.AMT = ''
+            REC.AC=''
+        REPEAT
+    END
+    RETURN
+
+DO.TRANSACTION:
+
+    OPTNS = ''
+    MSG.ID = ''
+    CALL OFS.POST.MESSAGE(Y.MESSAGE, MSG.ID , Y.SOURCE, OPTNS)
+    CALL JOURNAL.UPDATE ('TEST')
+
+    Y.STATUS =FIELD(FIELD(Y.MESSAGE,"/",3,1),",",1)
+    Y.MESSAGE = ''
+    IF Y.STATUS EQ '1' THEN
+        CNT =CNT+1
+        CRT" PROCESS................":CNT
+    END
+    RETURN
+
+END

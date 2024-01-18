@@ -1,0 +1,267 @@
+*-----------------------------------------------------------------------------
+* <Rating>-96</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.CAL.JBL.LCAMD.COM(Y.LC.AMDCOM.ID,Y.CONTINUE.FLAG,Y.MIN.CHRG.AMT,Y.TOT.AMD.CHRG.AMT)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.DRAWINGS
+    $INSERT GLOBUS.BP I_F.FT.COMMISSION.TYPE
+    $INSERT GLOBUS.BP I_F.CURRENCY
+    $INSERT GLOBUS.BP I_F.CURRENCY.MARKET
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INSERT GLOBUS.BP I_F.LC.TYPES
+
+    GOSUB INITIALISE
+    GOSUB ASSIGN.RATE
+
+    RETURN
+
+
+*----------
+INITIALISE:
+*----------
+
+    Y.CHRG.AMT = 0
+    Y.LC.TYPE = ''
+    Y.IMP.EXP = ''
+    Y.BBLC.TYPE = ''
+    Y.PROV.PER = ''
+    Y.LCOPEN.COM = 0
+    Y.LCOPEN.SEQ.COM = 0
+    Y.LC.ISSUE.DATE = ''
+    Y.LC.EXPIRY.DATE = ''
+    Y.TENOR.DAYS = ''
+    Y.TOT.CHG.QTR = 0
+    Y.TOT.CHG.QTR1 = 0
+    Y.TOT.CHG.QTR2 = 0
+    Y.LC.AMT = ''
+    Y.CAL.CHG.AMT = ''
+    Y.TOT.CHG.AMT = ''
+    Y.LCY.CHRG.AMT = ''
+    Y.AMD.CHRG.AMT.WOSTAX = ''
+    Y.SOURCE.TAX.AMT = ''
+
+    Y.LCY.AMD.CHRG.AMT = ''
+    Y.LCAMD.COM = ''
+    Y.LCAMD.SEQ.COM = ''
+    Y.ISSUE.DATE = ''
+    Y.ORG.EXPIRY.DATE = ''
+    Y.CURR.EXPIRY.DATE = ''
+    Y.ORG.LC.AMT = ''
+    Y.CURR.LC.AMT = ''
+    Y.TOT.AMD.CHRG.AMT = ''
+    Y.AMT.DIFF = ''
+    Y.TENOR.DIFF = ''
+    Y.AMT.INC.CHRG.AMT = ''
+    Y.ORG.TENOR.DIFF = ''
+    Y.TOT.ORG.QTR1 = ''
+    Y.TOT.ORG.QTR2 = ''
+    Y.ORG.QUARTER = ''
+    Y.CURR.TENOR.DIFF = ''
+    Y.TOT.CURR.QTR1 = ''
+    Y.TOT.CURR.QTR2 = ''
+    Y.CURR.QUARTER = ''
+    Y.QUARTER.DIFF = ''
+    Y.LIAB.AMT = ''
+    Y.TOL.PERCENT = ''
+    Y.TOLERANCE.AMT = ''
+    Y.CURR.LC.AMT = ''
+    Y.DATE.INC.CHRG.AMT = ''
+    Y.AMD.CHRG.AMT = ''
+
+    F.LC.TYPES = ''
+    FN.LC.TYPES = 'F.LC.TYPES'
+    CALL OPF(FN.LC.TYPES,F.LC.TYPES)
+    R.LC.TYPE.REC = ''
+
+    FN.LC = 'F.LETTER.OF.CREDIT'
+    F.LC =''
+    CALL OPF(FN.LC,F.LC)
+    R.LC.REC = ''
+
+    FN.DR = 'F.DRAWINGS'
+    F.DR = ''
+    CALL OPF(FN.DR,F.DR)
+    R.DR.REC = ''
+
+    FN.CUR = 'F.CURRENCY'
+    F.CUR = ''
+    CALL OPF(FN.CUR,F.CUR)
+    R.CUR.REC = ''
+
+    FN.FTCT = 'F.FT.COMMISSION.TYPE'
+    F.FTCT = ''
+    CALL OPF(FN.FTCT,F.FTCT)
+    R.FTCT.REC = ''
+
+    RETURN
+
+*----------
+ASSIGN.RATE:
+*----------
+!DEBUG
+    Y.CONTINUE.FLAG = ''
+    CALL F.READ(FN.FTCT,Y.LC.AMDCOM.ID,R.FTCT.REC,F.FTCT,Y.FTCT.ERR)
+    CALL GET.LOC.REF("FT.COMMISSION.TYPE","LC.AMD.SEQ.COM",Y.AMSEQ.COM.POS)
+    CALL GET.LOC.REF("FT.COMMISSION.TYPE","LC.AMD.FM.COM",Y.FM.COM.POS)
+    CALL GET.LOC.REF("FT.COMMISSION.TYPE","LC.AMD.FM.SQ.CM",Y.FMSEQ.COM.POS)
+    CALL GET.LOC.REF("FT.COMMISSION.TYPE","BB.LCTYPE.CODE",Y.BBLC.NO.POS)
+    CALL GET.LOC.REF('LETTER.OF.CREDIT','LC.MARGIN.RATE',Y.LC.MARGRATE.POS)
+    Y.LC.TYPE = R.NEW(TF.LC.LC.TYPE)
+    CALL F.READ(FN.LC.TYPES,Y.LC.TYPE,R.LC.TYPE.REC,F.LC.TYPES,ERR.MSG)
+    Y.IMP.EXP = R.LC.TYPE.REC<LC.TYP.IMPORT.EXPORT>
+    Y.BBLC.TYPE = R.LC.TYPE.REC<LC.TYP.LOCAL.REF,Y.BBLC.NO.POS>
+    IF Y.IMP.EXP EQ 'I' AND Y.BBLC.TYPE NE "" THEN          ;! All the calculations in this routine are done only for IMPORT type LCs
+        Y.CONTINUE.FLAG = 'Y'
+        Y.PROV.PER =  R.NEW(TF.LC.PROVIS.PERCENT)
+        IF R.NEW(TF.LC.PROVISION)[1,1] EQ 'Y' AND Y.PROV.PER EQ "100" THEN
+            Y.LCAMD.COM = R.FTCT.REC<FT4.LOCAL.REF,Y.FM.COM.POS>
+            Y.LCAMD.SEQ.COM = R.FTCT.REC<FT4.LOCAL.REF,Y.FMSEQ.COM.POS>
+        END ELSE
+            Y.LCAMD.COM = R.FTCT.REC<FT4.PERCENTAGE,1,1>
+            Y.LCAMD.SEQ.COM = R.FTCT.REC<FT4.LOCAL.REF,Y.AMSEQ.COM.POS>
+        END
+        GOSUB COND.CHECK
+    END ELSE
+        Y.CONTINUE.FLAG = 'N'
+        RETURN
+    END
+    Y.MIN.CHRG.AMT = R.FTCT.REC<FT4.MINIMUM.AMT,1,1>
+    RETURN
+
+*----------
+COND.CHECK:
+*----------
+*
+* All LC types if there is an amendment
+* Find which condition matches
+* Cond 1 : Only amount changes
+* Cond 2 : Only the tenor changes
+* Cond 3 : Both Changes
+* The charge amoung is based on these conditions
+*
+    Y.ISSUE.DATE = R.NEW(TF.LC.ISSUE.DATE)
+    Y.ORG.EXPIRY.DATE = R.OLD(TF.LC.ADVICE.EXPIRY.DATE)
+    Y.CURR.EXPIRY.DATE = R.NEW(TF.LC.ADVICE.EXPIRY.DATE)
+*
+    Y.ORG.LC.AMT = R.OLD(TF.LC.LC.AMOUNT)
+    Y.CURR.LC.AMT = R.NEW(TF.LC.LC.AMOUNT)
+*
+    BEGIN CASE
+    CASE (Y.CURR.LC.AMT GT Y.ORG.LC.AMT) AND (Y.CURR.EXPIRY.DATE EQ Y.ORG.EXPIRY.DATE)    ;! Amount changes and tenor remains the same
+        GOSUB CONDITION1
+        Y.TOT.AMD.CHRG.AMT = Y.AMT.INC.CHRG.AMT
+
+    CASE (Y.CURR.EXPIRY.DATE GT Y.ORG.EXPIRY.DATE) AND (Y.CURR.LC.AMT EQ Y.ORG.LC.AMT)    ;! Tenor changes and amount remains the same
+        GOSUB CONDITION2
+        Y.TOT.AMD.CHRG.AMT = Y.DATE.INC.CHRG.AMT
+
+    CASE (Y.CURR.EXPIRY.DATE GT Y.ORG.EXPIRY.DATE) AND (Y.CURR.LC.AMT GT Y.ORG.LC.AMT)    ;! Both changes
+        GOSUB CONDITION3
+        Y.TOT.AMD.CHRG.AMT = Y.AMD.CHRG.AMT
+    CASE 1
+        Y.CONTINUE.FLAG = 'N'
+    END CASE
+*-*
+    RETURN
+*----------
+CONDITION1:
+*----------
+* Find the difference in amount (Original amount - amended amount)
+*
+    Y.AMT.DIFF = Y.CURR.LC.AMT - Y.ORG.LC.AMT
+    Y.DAYS = 'C'
+    CALL CDD('',Y.ISSUE.DATE,Y.ORG.EXPIRY.DATE,Y.DAYS)      ;! note it is issue date (since there is no tenor change)
+    Y.TENOR.DIFF = Y.DAYS
+*
+
+    Y.TOT.CHG.QTR1 = Y.TENOR.DIFF/90
+    Y.TOT.CHG.QTR2 = INT(Y.TOT.CHG.QTR1)
+!IF Y.TOT.CHG.QTR1 GT Y.TOT.CHG.QTR2  THEN
+!    Y.TOT.CHG.QTR = Y.TOT.CHG.QTR2 + 1
+!END ELSE
+!    Y.TOT.CHG.QTR = Y.TOT.CHG.QTR2
+!END
+!Y.TOT.CHG.QTR = Y.TOT.CHG.QTR2 + 1
+
+!FOR I=1 TO Y.TOT.CHG.QTR
+!    IF I EQ "1" THEN
+!        Y.CAL.CHG.AMT = (Y.AMT.DIFF * Y.LCAMD.COM)/100
+!    END ELSE
+!        Y.CAL.CHG.AMT = (Y.AMT.DIFF * Y.LCAMD.SEQ.COM)/100
+!    END
+!    Y.TOT.CHG.AMT = Y.TOT.CHG.AMT + Y.CAL.CHG.AMT
+!    Y.CAL.CHG.AMT = ''
+!NEXT I
+
+    Y.TOT.CHG.QTR = Y.TOT.CHG.QTR2 + 1
+    Y.TOT.CHG.AMT = Y.TOT.CHG.QTR * (Y.AMT.DIFF * Y.LCAMD.SEQ.COM)/100
+    Y.AMT.INC.CHRG.AMT = Y.TOT.CHG.AMT
+
+    Y.DAYS = ''
+    Y.TOT.CHG.AMT = ''
+    Y.TENOR.DIFF = ''
+    Y.TOT.CHG.QTR1 = ''
+    Y.TOT.CHG.QTR2 = ''
+    Y.TOT.CHG.QTR = ''
+*-*
+    RETURN
+
+*----------
+CONDITION2:
+*----------
+!DEBUG
+    Y.DAYS = 'C'
+    CALL CDD('',Y.ISSUE.DATE,Y.ORG.EXPIRY.DATE,Y.DAYS)      ;! Original tenor
+    Y.ORG.TENOR.DIFF = Y.DAYS
+
+    Y.TOT.ORG.QTR1 = Y.ORG.TENOR.DIFF/90
+    Y.TOT.ORG.QTR2 = INT(Y.TOT.ORG.QTR1)
+!IF Y.TOT.ORG.QTR1 GT Y.TOT.ORG.QTR2  THEN
+!    Y.ORG.QUARTER = Y.TOT.ORG.QTR2 + 1
+!END ELSE
+!    Y.ORG.QUARTER = Y.TOT.ORG.QTR2
+!END
+    Y.ORG.QUARTER = Y.TOT.ORG.QTR2 + 1
+
+    Y.DAYS =  ''
+
+    Y.DAYS = 'C'
+    CALL CDD('',Y.ISSUE.DATE,Y.CURR.EXPIRY.DATE,Y.DAYS)     ;! Changed tenor
+    Y.CURR.TENOR.DIFF = Y.DAYS
+    Y.TOT.CURR.QTR1 = Y.CURR.TENOR.DIFF/90
+    Y.TOT.CURR.QTR2 = INT(Y.TOT.CURR.QTR1)
+!IF Y.TOT.CURR.QTR1 GT Y.TOT.CURR.QTR2  THEN
+!    Y.CURR.QUARTER = Y.TOT.CURR.QTR2 + 1
+!END ELSE
+!    Y.CURR.QUARTER = Y.TOT.CURR.QTR2
+!END
+    Y.CURR.QUARTER = Y.TOT.CURR.QTR2 + 1
+
+    Y.QUARTER.DIFF = Y.CURR.QUARTER - Y.ORG.QUARTER
+
+    Y.LIAB.AMT = R.OLD(TF.LC.LIABILITY.AMT)
+!Y.TOL.PERCENT = R.OLD(TF.LC.PERCENTAGE.CR.AMT)
+!IF Y.TOL.PERCENT THEN
+!    Y.TOLERANCE.AMT = (Y.ORG.LC.AMT) * (Y.TOL.PERCENT/100)
+!END ELSE
+!    Y.TOLERANCE.AMT = 0
+!END
+!Y.CURR.LC.AMT =  Y.LIAB.AMT - Y.TOLERANCE.AMT
+    Y.CURR.LC.AMT =  R.NEW(TF.LC.LC.AMOUNT)
+    Y.DATE.INC.CHRG.AMT = Y.QUARTER.DIFF * (Y.CURR.LC.AMT * Y.LCAMD.SEQ.COM)/100
+*-*
+    RETURN
+
+*----------
+CONDITION3:
+*----------
+!DEBUG
+    GOSUB CONDITION1
+    GOSUB CONDITION2
+    Y.AMD.CHRG.AMT = Y.AMT.INC.CHRG.AMT + Y.DATE.INC.CHRG.AMT
+    Y.AMT.INC.CHRG.AMT = ''
+    Y.DATE.INC.CHRG.AMT = ''
+    RETURN
+END

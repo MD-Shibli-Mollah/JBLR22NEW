@@ -1,0 +1,59 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.CHECK.OVERDRAFT
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.TELLER
+    $INSERT I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.ACC = 'F.ACCOUNT'
+    F.ACC = ''
+    R.ACC = ''
+    Y.DR.ACC = ''
+    Y.TT.TR.CODE = ''
+    Y.AC.CATEG = ''
+    Y.WORKING.BAL = ''
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.ACC,F.ACC)
+
+    RETURN
+
+PROCESS:
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        Y.DR.ACC = R.NEW(FT.DEBIT.ACCT.NO)
+        AF = 2
+    END
+
+    IF APPLICATION EQ 'TELLER' THEN
+        Y.TT.TR.CODE = R.NEW(TT.TE.TRANSACTION.CODE)
+        IF Y.TT.TR.CODE EQ 5 OR Y.TT.TR.CODE EQ 14 OR Y.TT.TR.CODE EQ 4 OR Y.TT.TR.CODE EQ 45 OR Y.TT.TR.CODE EQ 44 THEN
+            Y.DR.ACC = R.NEW(TT.TE.ACCOUNT.2)
+            AF = 18
+        END
+    END
+    CALL F.READ(FN.ACC,Y.DR.ACC,R.ACC,F.ACC,ERR.AC)
+    Y.AC.CATEG = R.ACC<AC.CATEGORY>
+    Y.WORKING.BAL  = R.ACC<AC.WORKING.BALANCE>
+    IF Y.AC.CATEG EQ 1001 OR Y.AC.CATEG EQ 6001 OR Y.AC.CATEG EQ 6002 OR Y.AC.CATEG EQ 1061 OR Y.AC.CATEG EQ 1062 OR Y.AC.CATEG EQ 1064 OR Y.AC.CATEG EQ 1065 OR Y.AC.CATEG EQ 1066 OR Y.AC.CATEG EQ 6601 OR Y.AC.CATEG EQ 6602 OR Y.AC.CATEG EQ 6603 OR Y.AC.CATEG EQ 6604 OR Y.AC.CATEG EQ 6605 OR Y.AC.CATEG EQ 1052 THEN
+        IF  Y.WORKING.BAL LE '-1' AND Y.WORKING.BAL NE '' THEN
+            E = "Overdraft Should Not Possible"
+            CALL ERR
+            RETURN
+        END
+    END
+    RETURN
+
+END 

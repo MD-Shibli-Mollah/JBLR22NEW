@@ -1,0 +1,126 @@
+***********************************************************************************************
+*This routine takes incoming messages from local template EB.BR.INTERIM.CAP and response to   *
+*that incoming messages to core application ACCT.INTERIM.CAP at the time of authorising       *
+*template record.                                                                             *
+*Developed By:Md. Zahid Hasan(Datasoft Systems)                                               *
+*             Md. Aminul Islam(Datasoft Systems)                                              *
+*Date:24/09/2014                                                                              *
+***********************************************************************************************
+    SUBROUTINE JBL.BR.INTERIM.CAP
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCT.INTERIM.CAP
+    $INSERT JBL.BP I_F.EB.BR.INTERIM.CAP
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+INIT:
+    FN.INCAP = 'F.ACCT.INTERIM.CAP'
+    F.INCAP = ''
+
+    FN.BR.INCAP = 'F.EB.BR.INTERIM.CAP'
+    F.BR.INCAP = ''
+
+    Y.BR.INCAP.ID = ID.NEW
+    Y.INCAP.ID = Y.BR.INCAP.ID[11,8]
+    Y.OFS.STR = ''
+    Y.DR.CAP.VAL = 'Y'
+    Y.CR.CAP.VAL = 'Y'
+    Y.FLG = 0
+    I = 0
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF (FN.INCAP,F.INCAP)
+    CALL OPF (FN.BR.INCAP,F.BR.INCAP)
+
+    RETURN
+
+PROCESS:
+
+    CALL F.READ(FN.INCAP,Y.INCAP.ID,R.INCAP,F.INCAP,Y.ERR)
+    Y.TOT.REC.INCAP = DCOUNT(R.INCAP<IC.INCAP.ACCOUNT.NUMBER>,@VM)
+
+    IF R.NEW(EB.BR.42.ACCOUNT.NUMBER) THEN
+        Y.TOT.ACCT = DCOUNT(R.NEW(EB.BR.42.ACCOUNT.NUMBER),@VM)
+
+        FOR J = 1 TO Y.TOT.ACCT
+            Y.PR.STATUS = R.NEW(EB.BR.42.PROCESS.STATUS)<1,J>
+            IF Y.PR.STATUS NE 'Processed' THEN
+                GOSUB RECORD.BUILD
+                Y.STATUS.REC.POS<-1> = J
+                I = I +1
+                GOSUB OFS.STRING
+                Y.FLG = 1
+            END
+        NEXT J
+        IF Y.FLG EQ '1' THEN
+            GOSUB OFS.VALIDATE
+        END
+    END
+
+    RETURN
+
+RECORD.BUILD:
+
+    Y.BR.ACCT = R.NEW(EB.BR.42.ACCOUNT.NUMBER)<1,J>
+
+    RETURN
+
+OFS.STRING:
+
+    Y.OFS.STR := "ACCOUNT.NUMBER:":I+Y.TOT.REC.INCAP:":=" : Y.BR.ACCT :","
+    Y.OFS.STR := "DR.CAPITALIS:":I+Y.TOT.REC.INCAP:":=" : Y.DR.CAP.VAL :","
+    Y.OFS.STR := "CR.CAPITALIS:":I+Y.TOT.REC.INCAP:":=" : Y.CR.CAP.VAL:","
+
+    RETURN
+
+OFS.VALIDATE:
+
+    Y.OFS.STR = LEFT(Y.OFS.STR,LEN(Y.OFS.STR)-1)
+    Y.USER = 'DMUSER'
+    Y.UPLOAD.COM = 'BD0012001'
+    Y.SOURCE = 'DM.OFS.SRC.VAL'
+    CALL LOAD.COMPANY(Y.UPLOAD.COM)
+    SENSITIVITY = ''
+
+    Y.OFS.MSG.VAL = "ACCT.INTERIM.CAP,JBL2/I/VALIDATE,DMUSER.1//":Y.UPLOAD.COM:",":Y.INCAP.ID:",": Y.OFS.STR
+    Y.OFS.MSG.ID = ''
+    CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.OFS.MSG.VAL)
+    Y.OFS.ERR.CODE = FIELD(Y.OFS.MSG.VAL,"/",3)
+    IF Y.OFS.ERR.CODE EQ '-1' THEN
+        Y.TOT.STATUS.REC = DCOUNT(Y.STATUS.REC.POS,@FM)
+        FOR K = 1 TO Y.TOT.STATUS.REC
+            Y.POS = FIELD(Y.STATUS.REC.POS,@FM,K)
+            R.NEW(EB.BR.42.PROCESS.STATUS)<1,Y.POS> = 'Error'
+        NEXT K
+    END
+    ELSE
+        GOSUB OFS.POST
+    END
+    RETURN
+
+OFS.POST:
+
+    Y.OFS.MSG.POST = "ACCT.INTERIM.CAP,JBL2/I/PROCESS,DMUSER.1//":Y.UPLOAD.COM:",":Y.INCAP.ID:",": Y.OFS.STR
+    Y.OFS.MSG.ID = ''
+
+    CALL OFS.POST.MESSAGE(Y.OFS.MSG.POST,Y.OFS.MSG.ID,Y.SOURCE,Y.USER)
+    CALL REBUILD.SCREEN
+
+    Y.TOT.STATUS.REC = DCOUNT(Y.STATUS.REC.POS,@FM)
+    FOR K = 1 TO Y.TOT.STATUS.REC
+        Y.POS = FIELD(Y.STATUS.REC.POS,@FM,K)
+        R.NEW(EB.BR.42.PROCESS.STATUS)<1,Y.POS> = 'Processed'
+    NEXT K
+    RETURN
+
+END

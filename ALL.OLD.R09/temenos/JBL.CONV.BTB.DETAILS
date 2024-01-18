@@ -1,0 +1,69 @@
+*-----------------------------------------------------------------------------
+* <Rating>168</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.CONV.BTB.DETAILS
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_F.CURRENCY
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+
+*--------------
+INIT:
+*--------------
+    Y.DATA=O.DATA
+    FN.LC='FBNK.LETTER.OF.CREDIT'
+    F.LC=''
+    FN.CUSTOMER = 'F.CUSTOMER'
+    F.CUSTOMER = ''
+    FN.CURR = 'F.CURRENCY'
+    F.CURR = ''
+    Y.BIN = 'BIN'
+    Y.IRC = 'IRC'
+    RETURN
+
+*-------------
+OPENFILE:
+*-------------
+    CALL OPF(FN.LC,F.LC)
+    CALL OPF(FN.CUSTOMER,F.CUSTOMER)
+    CALL OPF(FN.CURR,F.CURR)
+    RETURN
+
+*-------------
+PROCESS:
+*-------------
+
+    CALL F.READ(FN.LC,Y.DATA,R.LC.REC,F.LC,Y.LC.ERR)
+*To get bin and irc id
+    Y.APPLICANT.CUSTNO = R.LC.REC<TF.LC.APPLICANT.CUSTNO>
+    CALL F.READ(FN.CUSTOMER,Y.APPLICANT.CUSTNO,R.CUSTOMER,F.CUSTOMER,Y.CUS.ERR)
+    Y.LEGAL.DOC.NAME = R.CUSTOMER<EB.CUS.LEGAL.DOC.NAME>
+    Y.LEGAL.ID = R.CUSTOMER<EB.CUS.LEGAL.ID>
+    FINDSTR Y.BIN IN Y.LEGAL.DOC.NAME SETTING POS1,POS2,POS3 ELSE NULL
+    Y.BIN.ID = FIELD(Y.LEGAL.ID,VM,POS2)
+    POS1 = ''
+    POS2 = ''
+    POS3 = ''
+    FINDSTR Y.IRC IN Y.LEGAL.DOC.NAME SETTING POS1,POS2,POS3 ELSE NULL
+    Y.IRC.ID = FIELD(Y.LEGAL.ID,VM,POS2)
+    POS1 = ''
+    POS2 = ''
+    POS3 = ''
+*To get equivelent local currency amount
+    Y.LC.CURRENCY = R.LC.REC<TF.LC.LC.CURRENCY>
+    Y.LC.AMOUNT = R.LC.REC<TF.LC.LC.AMOUNT>
+!   CALL F.READ(FN.CURR,Y.LC.CURRENCY,R.CURR,F.CURR,Y.CURR.ERR)
+!   Y.CURR.RATE = R.CURR<EB.CUR.MID.REVAL.RATE,1>
+    Y.CURR.RATE = R.LC.REC<TF.LC.LC.ORIG.RATE>
+    Y.AMT.BDT = Y.LC.AMOUNT * Y.CURR.RATE
+
+    O.DATA = Y.BIN.ID:'*':Y.AMT.BDT:'*':Y.IRC.ID
+    RETURN
+END

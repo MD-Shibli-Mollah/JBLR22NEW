@@ -1,0 +1,72 @@
+*-----------------------------------------------------------------------------
+* <Rating>-40</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.DD.UNAUTH
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.TELLER
+    $INSERT I_F.FUNDS.TRANSFER
+
+    GOSUB INIT
+    GOSUB OPEN.FILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+*==========
+    FN.FT="F.FUNDS.TRANSFER$NAU"
+    F.FT = ''
+
+    FN.TT="F.TELLER$NAU"
+    F.TT =''
+
+    Y.CHQ.NO = 'PR.CHEQUE.NO'
+    Y.CHQ.POS = ''
+
+    NO.OF.REC.FT = ''
+    FT.ERR1 = ''
+
+    NO.OF.REC.TT =''
+    TT.ERR1 = ''
+    RETURN
+
+OPEN.FILES:
+*===========
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.TT,F.TT)
+    RETURN
+
+PROCESS:
+*========
+
+
+    CALL GET.LOC.REF(APPLICATION,Y.CHQ.NO,Y.CHQ.POS)
+    IF APPLICATION EQ 'TELLER' THEN
+        Y.CHEQUE.NO = R.NEW(TT.TE.LOCAL.REF)<1,Y.CHQ.POS>
+    END
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        Y.CHEQUE.NO = R.NEW(FT.LOCAL.REF)<1,Y.CHQ.POS>
+    END
+    IF V$FUNCTION EQ 'I' THEN
+        AF = FT.LOCAL.REF
+        AV = Y.CHQ.POS
+!        SEL.CMD = "SELECT ":FN.FT:" WITH PR.CHEQUE.NO EQ ":Y.CHEQUE.NO
+!        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC.FT,FT.ERR1)
+!        IF NO.OF.REC.FT NE 0 THEN
+!            E ="The Same Instrument in the FT unauth file"
+!            CALL ERR
+!            RETURN
+!        END
+
+        AF = TT.TE.LOCAL.REF
+        AV = Y.CHQ.POS
+!        SEL.CMD = "SELECT ":FN.TT:" WITH PR.CHEQUE.NO EQ ":Y.CHEQUE.NO
+!        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC.TT,TT.ERR1)
+!        IF NO.OF.REC.TT NE 0 THEN
+!            E ="The Same Instrument in the TT unauth file"
+!            CALL ERR
+!            RETURN
+!        END
+    END
+    RETURN
+END

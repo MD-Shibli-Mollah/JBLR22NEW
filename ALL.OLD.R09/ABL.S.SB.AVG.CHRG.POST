@@ -1,0 +1,165 @@
+*-----------------------------------------------------------------------------
+* <Rating>-55</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.SB.AVG.CHRG.POST
+!------------------------------------------------------
+!Mainline routine to deduct Saving Account Half yearly charges based on
+!the Average balance of a specific Account.It reads the Local Table ABL.H.SB.YRPAR
+!-----------------------------------------------------
+!---------Modification History-------------!
+!1) Staff Charge Functionality Remove
+!
+!------------------------------------------!
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.CUSTOMER
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ABL.H.SB.CHRG
+    $INSERT I_F.ABL.H.SB.YRPAR
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB CALC.CHRG
+    RETURN
+INIT:
+
+    FN.SB.CHRG='F.ABL.H.SB.CHRG'
+    F.SB.CHRG=''
+    REC.SB.CHRG=''
+    Y.SB.CHRG=''
+
+    FN.AC="F.ACCOUNT"
+    F.AC=''
+    REC.AC=''
+    Y.AC.ID=''
+
+    FN.SB.YR='F.ABL.H.SB.YRPAR'
+    F.SB.YR=''
+    Y.SB.YR.ID=''
+    REC.SB.YR=''
+    REC.SB.YR.SYS=''
+    Y.SB.CHRG.AMT=''
+    Y.SB.VAT.AMT=''
+
+    Y.SB.SLAB.AMT=''
+    Y.SB.STAFF.CHRG.AMT= ''
+    Y.SB.OTHER.CHRG.AMT1 =''
+    Y.SB.SLAB.AMT=''
+    Y.SB.OTHER.CHRG.AMT=''
+    Y.SB.STAFF.CHRG.AMT=''
+    Y.EXCLUDE.AC.LIST=''
+    Y.CHRG.INTERNAL.AC=''
+    Y.VAT.PERCENTAGE=''
+    Y.FT.COMM=''
+    Y.MESSAGE=''
+    Y.SOURCE=''
+    Y.CHRG.SLAB.COUNT=''
+
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.SB.CHRG,F.SB.CHRG)
+    CALL OPF(FN.SB.YR,F.SB.YR)
+    CALL OPF(FN.AC,F.AC)
+
+    RETURN
+
+CALC.CHRG:
+
+    CALL F.READ(FN.SB.YR,'SYSTEM',REC.SB.YR.SYS,F.SB.YR,ERR.SB.YR)
+    IF REC.SB.YR.SYS EQ '' THEN
+        ETEXT="There must be a record SYSTEM in ABL.H.SB.YRPAR"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    Y.VAT.PERCENTAGE=REC.SB.YR.SYS<SY.VAT.PERCENT>
+    Y.FT.COMM=REC.SB.YR.SYS<SY.FT.COMM>
+    Y.SB.STAFF.CHRG.AMT=REC.SB.YR.SYS<SY.STAFF.CHRG.AMT>
+    Y.CHRG.INTERNAL.AC="PL":REC.SB.YR.SYS<SY.CHRG.CATEG>
+
+    SEL.CMD.AC="SELECT ":FN.SB.CHRG:" WITH CHRG.STATUS EQ ''"
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.AC,'',NO.OF.REC.AC,ERR.AC)
+
+    CRT" TOTAL RECORDS SELECTED FOR SAVINGS HALF YEARLY CHRG ......":NO.OF.REC.AC
+    CRT" DO YOU WANT TO START THE PROCESSING OF SAVING HALF YEARLY CHRG Y/N"
+    INPUT USER.CHOICE
+
+    IF USER.CHOICE EQ 'Y' THEN
+        LOOP
+            REMOVE Y.AC.ID FROM SEL.LIST.AC SETTING AC.POS
+        WHILE Y.AC.ID:AC.POS
+            CALL F.READ(FN.AC,Y.AC.ID,REC.AC,F.AC,ERROR.AC)
+            CALL F.READ(FN.SB.CHRG,Y.AC.ID,REC.SB.CHRG,F.SB.CHRG,ERR.SB.CHRG)
+            Y.AC.WRK.BAL=REC.AC<AC.WORKING.BALANCE>
+            Y.TRANS.AMT=''
+!-------1/S-----!
+!            IF Y.SB.STAFF.CHRG.AMT EQ REC.SB.CHRG<SBC.SLAB.AMT> THEN
+!                IF Y.AC.WRK.BAL LT Y.SB.STAFF.CHRG.AMT THEN
+!                    Y.TRANS.AMT=Y.AC.WRK.BAL
+!                END
+!                ELSE
+!                    Y.TRANS.AMT= REC.SB.CHRG<SBC.SLAB.AMT>
+!                END
+!                Y.MESSAGE="FUNDS.TRANSFER,MAIN.CHARGES/I/PROCESS,DMUSER.1//":REC.AC<AC.CO.CODE>:",,TRANSACTION.TYPE=ACHY,DEBIT.ACCT.NO=":Y.AC.ID:",CREDIT.ACCT.NO=":Y.CHRG.INTERNAL.AC:",DEBIT.AMOUNT=":Y.TRANS.AMT:",DEBIT.CURRENCY=BDT,ORDERING.BANK=ABL,DR.ADVICE.REQD.Y.N=N,CR.ADVICE.REQD.Y.N=N"
+!                GOSUB DO.TRANSACTION
+!
+!           END
+!-----1/E-----!
+!---1/S-----!
+!            ELSE
+!----1/E----!
+                Y.SB.OTHER.CHRG.AMT=REC.SB.CHRG<SBC.SLAB.AMT>
+                Y.SB.VAT.AMT = ( Y.SB.OTHER.CHRG.AMT * Y.VAT.PERCENTAGE ) / 100
+                CALL EB.ROUND.AMOUNT(LCCY,Y.SB.VAT.AMT,"","")
+                Y.SB.OTHER.CHRG.AMT1 = Y.SB.OTHER.CHRG.AMT + Y.SB.VAT.AMT
+                IF Y.AC.WRK.BAL LT Y.SB.OTHER.CHRG.AMT1 THEN
+                    Y.TRANS.AMT = ( Y.AC.WRK.BAL * 100 ) / ( Y.VAT.PERCENTAGE + 100 )
+                    CALL EB.ROUND.AMOUNT(LCCY,Y.TRANS.AMT,"","")
+                    Y.SB.VAT.AMT = Y.AC.WRK.BAL - Y.TRANS.AMT
+                END
+                ELSE
+                    Y.TRANS.AMT = Y.SB.OTHER.CHRG.AMT
+                END
+                Y.MESSAGE="FUNDS.TRANSFER,MAIN.CHARGES/I/PROCESS,DMUSER.1//":REC.AC<AC.CO.CODE>:",,TRANSACTION.TYPE=ACHY,DEBIT.ACCT.NO=":Y.AC.ID:",CREDIT.ACCT.NO=":Y.CHRG.INTERNAL.AC:",DEBIT.AMOUNT=":Y.TRANS.AMT:",DEBIT.CURRENCY=BDT,ORDERING.BANK=ABL,DR.ADVICE.REQD.Y.N=N,CR.ADVICE.REQD.Y.N=N,COMMISSION.CODE=DEBIT PLUS CHARGES,COMMISSION.TYPE=":Y.FT.COMM:",COMMISSION.AMT=BDT ":Y.SB.VAT.AMT
+                GOSUB DO.TRANSACTION
+!------1/S-----!
+!            END
+!------1/E-----!
+            Y.AC.ID=''
+            REC.SB.CHRG=''
+            REC.AC=''
+            Y.AC.WRK.BAL=''
+            Y.SB.OTHER.CHRG.AMT=''
+            Y.SB.OTHER.CHRG.AMT1=''
+            Y.SB.VAT.AMT=''
+        REPEAT
+
+    END
+    RETURN
+
+
+DO.TRANSACTION:
+*    RUNNING.UNDER.BATCH=1
+    Y.SOURCE="DM.OFS.SRC"
+*    CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.MESSAGE)
+*    RUNNING.UNDER.BATCH=0
+*    SENSITIVITY=''
+
+	    OPTNS = ''
+            MSG.ID = ''
+            CALL OFS.POST.MESSAGE(Y.MESSAGE, MSG.ID , Y.SOURCE, OPTNS)
+            CALL JOURNAL.UPDATE ('TEST')
+
+    Y.STATUS =FIELD(FIELD(Y.MESSAGE,"/",3,1),",",1)
+    Y.MESSAGE = ''
+    IF Y.STATUS EQ '1' THEN
+        REC.SB.CHRG<SBC.CHRG.STATUS>="YES"
+        WRITE REC.SB.CHRG TO F.SB.CHRG,Y.AC.ID
+        CNT =CNT+1
+        CRT" PROCESS................":CNT
+
+    END
+    RETURN
+END

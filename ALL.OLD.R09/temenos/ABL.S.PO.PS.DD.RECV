@@ -1,0 +1,20 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.PO.PS.DD.RECV
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.FUNDS.TRANSFER
+
+    Y.PO.DD.RECV='PO.PS.DD.RECV'
+    Y.PO.DD.RECV.POS=''
+    CALL GET.LOC.REF("FUNDS.TRANSFER",Y.PO.DD.RECV,Y.PO.DD.RECV.POS)
+
+    IF R.NEW(FT.LOCAL.REF)<1,Y.PO.DD.RECV.POS> EQ 'Outstation Branch' THEN
+        R.NEW(FT.CREDIT.ACCT.NO)="BDT128200001":RIGHT(ID.COMPANY,4)
+    END
+    IF R.NEW(FT.LOCAL.REF)<1,Y.PO.DD.RECV.POS> EQ 'Local Branch' THEN
+        R.NEW(FT.CREDIT.ACCT.NO)="BDT128100001":RIGHT(ID.COMPANY,4)
+    END
+    RETURN
+END

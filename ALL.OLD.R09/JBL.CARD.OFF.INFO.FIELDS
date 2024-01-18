@@ -1,0 +1,59 @@
+*-----------------------------------------------------------------------------
+* <Rating>-7</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.CARD.OFF.INFO.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine
+*
+* @author mortoza@datasoft-bd.com
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* Modification History :
+*
+* 19/10/07 - EN_10003543
+*            New Template changes
+*
+* 14/11/07 - BG_100015736
+*            Exclude routines that are not released
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("JBL.CARD.OFF.ID", T24_String)      ;* Define Table id
+*-----------------------------------------------------------------------------
+    CALL Table.addOptionsField("CARD.OFFER","50Percent_NONE","","")
+    CALL Table.addFieldDefinition("ATTRIBUTE1","60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE2", "60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE3","60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE4", "60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE5","60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE6","60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE7", "60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE8","60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE9", "60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE10","60", "A", "")
+
+
+    CALL Table.addField("ATTRIBUTE11", T24_String, "", "")
+    CALL Table.addField("ATTRIBUTE12", T24_String, "", "")
+    CALL Table.addLocalReferenceField(neighbour)
+
+
+    CALL Table.addOverrideField
+
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END
+

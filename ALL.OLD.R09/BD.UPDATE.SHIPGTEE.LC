@@ -1,0 +1,59 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.UPDATE.SHIPGTEE.LC
+!PROGRAM BD.UPDATE.SHIPGTEE.LC
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This auth routine is update MD ID IN LC MD.GTEE.ID FIELD
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20/04/2012 - New - Rayhan
+*
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LETTER.OF.CREDIT
+    $INSERT I_F.MD.DEAL
+
+    IF V$FUNCTION EQ 'A' THEN
+        GOSUB INITIALISE
+        GOSUB PROCESS
+        RETURN
+    END
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+    FN.LC = 'F.LETTER.OF.CREDIT'
+    F.LC = ''
+    R.LC.REC = ''
+    Y.LC.ERR = ''
+    CALL OPF(FN.LC,F.LC)
+
+    FN.MD = 'F.MD.DEAL'
+    F.MD = ''
+    R.MD.REC = ''
+    F.MD.ERR = ''
+    CALL OPF(FN.MD,F.MD)
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+    GOSUB GET.LOC.REF.POS
+    Y.LC.TFNO = R.NEW(MD.DEA.LOCAL.REF)<1,Y.MD.TFNO.POS>
+    IF Y.LC.TFNO NE '' THEN
+        CALL F.READ(FN.LC,Y.LC.TFNO,R.LC.REC,F.LC,Y.LC.ERR)
+        R.LC.REC<TF.LC.LOCAL.REF,Y.LC.MDNO.POS> = ID.NEW
+        CALL F.WRITE(FN.LC,Y.LC.TFNO,R.LC.REC)
+    END
+    RETURN
+*-----------------------------------------------------------------------------
+GET.LOC.REF.POS:
+*--------------
+    CALL GET.LOC.REF('MD.DEAL','LINKED.TF.NO',Y.MD.TFNO.POS)
+    CALL GET.LOC.REF('LETTER.OF.CREDIT','MD.GTEE.ID',Y.LC.MDNO.POS)
+    RETURN
+END

@@ -1,0 +1,146 @@
+*-----------------------------------------------------------------------------
+* <Rating>194</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VAU.PD.PRE.MATLN
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine is an authorisation routine to calculate excise duty online
+* on all preclosed PDLD and PDPD
+*-------------------------------------------------------------------------
+* Project Name : Janatha Bank Limited(Bangladesh)
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+* NA
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+* R.NEW , R.OLD, ID.NEW
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+*CONCAT.FILE.UPDATE          Core           To update the concat table
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 28/04/2011 -                            New   - Chethana.H.N
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.PD.PAYMENT.DUE
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE GLOBUS.BP I_PD.COMMON
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+*-------------------------------------------------------------------------
+PROCESS:
+********
+! Process
+*If Repayment.date is today then return, we are processing today's closre by
+* PD.REPAYMENT
+    IF R.OLD(PD.REPAYMENT.DATE) EQ TODAY THEN RETURN
+
+    BEGIN CASE
+    CASE ID.NEW[3,2] EQ 'LD'
+! For preclosure of PDLD
+*
+        Y.LD.ID = ID.NEW[3,999]
+*
+        CALL F.READ(FN.LD.LOANS.AND.DEPOSITS,Y.LD.ID,R.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS,LD.ERR)
+        IF (R.LD.LOANS.AND.DEPOSITS) OR NOT(LD.ERR) THEN
+            IF (R.NEW(PD.TOTAL.AMT.TO.REPAY) EQ 0) AND (R.LD.LOANS.AND.DEPOSITS<LD.STATUS> EQ 'LIQ') THEN
+                GOSUB SEL.PD.REPAY
+                CALL CONCAT.FILE.UPDATE(FN.EB.BD.EXCISE.DUTY.PD,REPAY.ID,'','I','AR')
+            END
+        END
+
+    CASE ID.NEW[1,4] EQ 'PDPD'
+*
+
+        Y.PD.ID = ID.NEW
+*
+        CALL F.READ(FN.PD.PAYMENT.DUE,Y.PD.ID,R.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE,PD.ERR)
+*
+        IF NOT(R.PD.PAYMENT.DUE) OR PD.ERR THEN RETURN
+*
+
+        IF (R.NEW(PD.TOTAL.AMT.TO.REPAY) EQ '0') THEN
+            Y.LN.ACCT = R.NEW(PD.LOCAL.REF)<1,Y.LD.AC.POS>
+            CALL F.READ(FN.ACCOUNT,Y.LN.ACCT,R.ACCOUNT,F.ACCOUNT,AC.ERR)
+            IF R.ACCOUNT AND NOT(AC.ERR) THEN
+                Y.WORK.BAL = R.ACCOUNT<AC.WORKING.BALANCE>
+                IF (Y.WORK.BAL EQ '0') OR NOT(Y.WORK.BAL) THEN
+                    GOSUB SEL.PD.REPAY
+                    CALL CONCAT.FILE.UPDATE(FN.EB.BD.EXCISE.DUTY.PD,REPAY.ID,'','I','AR')
+                END
+            END
+        END
+*
+    END CASE
+    RETURN
+*
+*-------------------------------------------------------------------------
+SEL.PD.REPAY:
+*************
+*Logic for calculating the next sequence number
+    REPAY.ID = ''
+    NEW.RECORD = ''
+    SEQ.NO = 0
+    TEMP.ID = C$PD.ID:'-':R.OLD(PD.REPAYMENT.DATE):'-'
+    LOOP
+        SEQ.NO += 1
+        REPAY.ID = TEMP.ID:FMT(SEQ.NO,'3"0"R')    ;* GLOBUS_EN_10000168 S/E
+        NEW.RECORD = ''
+        CALL F.READV('F.PD.REPAYMENT',REPAY.ID,YID,0,F.PD.REPAYMENT,NEW.RECORD)
+    UNTIL NEW.RECORD
+    REPEAT
+
+    SEQ.NO -= 1
+    REPAY.ID = TEMP.ID:FMT(SEQ.NO,'3"0"R')
+
+    RETURN
+*-------------------------------------------------------------------------
+INIT:
+*****
+! Initialise variables
+*
+    FN.LD.LOANS.AND.DEPOSITS = 'F.LD.LOANS.AND.DEPOSITS'
+    F.LD.LOANS.AND.DEPOSITS = ''
+    LD.ERR = '' ; R.LD.LOANS.AND.DEPOSITS = ''
+*
+    FN.EB.BD.EXCISE.DUTY.PD = 'F.EB.BD.EXCISE.DUTY.PD'
+    F.EB.BD.EXCISE.DUTY.PD = ''
+*
+    FN.PD.REPAYMENT = 'F.PD.REPAYMENT'
+    F.PD.REPAYMENT = ''
+*
+    FN.PD.PAYMENT.DUE = 'F.PD.PAYMENT.DUE'
+    F.PD.PAYMENT.DUE = ''
+    PD.ERR = '' ; R.PD.PAYMENT.DUE = ''
+*
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+*
+    CALL GET.LOC.REF('PD.PAYMENT.DUE','ACCOUNT.NO',Y.LD.AC.POS)
+*
+    RETURN
+*-------------------------------------------------------------------------
+OPENFILES:
+***********
+! Open files
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+    CALL OPF(FN.EB.BD.EXCISE.DUTY.PD,F.EB.BD.EXCISE.DUTY.PD)
+    CALL OPF(FN.PD.REPAYMENT,F.PD.REPAYMENT)
+    CALL OPF(FN.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE)
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    RETURN
+*-------------------------------------------------------------------------
+END

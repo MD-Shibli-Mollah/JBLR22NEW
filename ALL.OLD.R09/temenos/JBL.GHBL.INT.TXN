@@ -1,0 +1,131 @@
+    SUBROUTINE JBL.GHBL.INT.TXN
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+INIT:
+
+    FN.TELLER = 'F.TELLER'
+    F.TELLER = ''
+
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.TELLER,F.TELLER)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.AC,F.AC)
+
+    CALL GET.LOC.REF('ACCOUNT','INT.INST.AMT',Y.INT.INST.AMT.POS)
+    CALL GET.LOC.REF('ACCOUNT','PRIN.INST.AMT',Y.PRIN.INST.AMT.POS)
+    CALL GET.LOC.REF('TELLER','GHBL.INT.TXN',Y.TT.GHBL.INT.TXN.POS)
+    CALL GET.LOC.REF('FUNDS.TRANSFER','GHBL.INT.TXN',Y.FT.GHBL.INT.TXN.POS)
+    CALL GET.LOC.REF('TELLER','GHBL.TOTAL.AMT',Y.TT.GHBL.TOTAL.AMT.POS)
+    CALL GET.LOC.REF('FUNDS.TRANSFER','GHBL.TOTAL.AMT',Y.FT.GHBL.TOTAL.AMT.POS)
+
+
+    RETURN
+
+PROCESS:
+
+    IF NOT(R.NEW(FT.PAYMENT.DETAILS)) AND NOT(R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.GHBL.INT.TXN.POS>) THEN
+        IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+            CR.ACCT = COMI
+            CR.AMT = R.NEW(FT.DEBIT.AMOUNT)
+            IF CR.AMT EQ '' THEN
+                CR.AMT = R.NEW(FT.CREDIT.AMOUNT)
+            END
+            CR.CCY = R.NEW(FT.CREDIT.CURRENCY)
+        END
+        IF APPLICATION EQ 'TELLER' THEN
+            DR.CR.MARK = R.NEW(TT.TE.DR.CR.MARKER)
+            IF DR.CR.MARK EQ 'CREDIT' THEN
+                CR.ACCT = COMI
+                CR.AMT = R.NEW(TT.TE.AMOUNT.LOCAL.1)
+                CR.CCY = R.NEW(TT.TE.CURRENCY.1)
+            END
+            ELSE
+                CR.ACCT = COMI
+                CR.AMT = R.NEW(TT.TE.AMOUNT.LOCAL.2)
+                CR.CCY = R.NEW(TT.TE.CURRENCY.2)
+            END
+        END
+
+        CALL F.READ(FN.AC, CR.ACCT , R.ACCOUNT, F.AC , Y.ERR)
+        IF R.ACCOUNT THEN
+            Y.CATEGORY = R.ACCOUNT<AC.CATEGORY>
+            IF Y.CATEGORY EQ '1717' OR Y.CATEGORY EQ '1718' THEN
+                Y.LIQ.ACC = R.ACCOUNT<AC.INTEREST.LIQU.ACCT>
+                Y.INT.INST.AMT = R.ACCOUNT<AC.LOCAL.REF,Y.INT.INST.AMT.POS>
+                Y.PRIN.INST.AMT = R.ACCOUNT<AC.LOCAL.REF,Y.PRIN.INST.AMT.POS>
+                Y.IN.RATIO = Y.INT.INST.AMT/(Y.INT.INST.AMT+Y.PRIN.INST.AMT)
+                Y.PR.RATIO = 1-Y.IN.RATIO
+                IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+                    IF CR.AMT LE Y.INT.INST.AMT THEN
+                        R.NEW(FT.DEBIT.AMOUNT) = CR.AMT
+                        R.NEW(FT.LOCAL.REF)<1,Y.FT.GHBL.INT.TXN.POS> = CR.AMT
+                        R.NEW(FT.LOCAL.REF)<1,Y.FT.GHBL.TOTAL.AMT.POS> = CR.AMT
+                        COMI = Y.LIQ.ACC
+                    END
+                    ELSE
+                        IF CR.AMT LE (Y.INT.INST.AMT+Y.PRIN.INST.AMT) THEN
+                            R.NEW(FT.DEBIT.AMOUNT) = CR.AMT - Y.INT.INST.AMT
+                            R.NEW(FT.PAYMENT.DETAILS) = Y.INT.INST.AMT
+                            R.NEW(FT.LOCAL.REF)<1,Y.FT.GHBL.INT.TXN.POS> = Y.INT.INST.AMT
+                            R.NEW(FT.LOCAL.REF)<1,Y.FT.GHBL.TOTAL.AMT.POS> = CR.AMT
+                        END
+                        ELSE
+                            R.NEW(FT.DEBIT.AMOUNT) = DROUND(CR.AMT*Y.PR.RATIO,2)
+                            R.NEW(FT.PAYMENT.DETAILS) = CR.AMT - DROUND(CR.AMT*Y.PR.RATIO,2)
+                            R.NEW(FT.LOCAL.REF)<1,Y.FT.GHBL.INT.TXN.POS> = R.NEW(FT.PAYMENT.DETAILS)
+                            R.NEW(FT.LOCAL.REF)<1,Y.FT.GHBL.TOTAL.AMT.POS> = CR.AMT
+                        END
+                    END
+                END
+                ELSE
+                    IF APPLICATION EQ 'TELLER' THEN
+                        IF CR.AMT LE Y.INT.INST.AMT THEN
+                            R.NEW(TT.TE.AMOUNT.LOCAL.1) = CR.AMT
+                            R.NEW(TT.TE.AMOUNT.LOCAL.2) = CR.AMT
+                            R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.GHBL.INT.TXN.POS> = CR.AMT
+                            R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.GHBL.TOTAL.AMT.POS> = CR.AMT
+                            COMI = Y.LIQ.ACC
+                        END
+                        ELSE
+                            IF CR.AMT LE (Y.INT.INST.AMT+Y.PRIN.INST.AMT) THEN
+                                R.NEW(TT.TE.AMOUNT.LOCAL.1) = CR.AMT - Y.INT.INST.AMT
+                                R.NEW(TT.TE.AMOUNT.LOCAL.2) = CR.AMT - Y.INT.INST.AMT
+                                R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.GHBL.INT.TXN.POS> = Y.INT.INST.AMT
+                                R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.GHBL.TOTAL.AMT.POS> = CR.AMT
+                            END
+                            ELSE
+                                R.NEW(TT.TE.AMOUNT.LOCAL.1) = DROUND(CR.AMT*Y.PR.RATIO,2)
+                                R.NEW(TT.TE.AMOUNT.LOCAL.2) = DROUND(CR.AMT*Y.PR.RATIO,2)
+                                R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.GHBL.INT.TXN.POS> = CR.AMT - DROUND(CR.AMT*Y.PR.RATIO,2)
+                                R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.GHBL.TOTAL.AMT.POS> = CR.AMT
+                            END
+                        END
+                    END
+                END
+            END
+        END
+    END
+
+    RETURN
+
+END

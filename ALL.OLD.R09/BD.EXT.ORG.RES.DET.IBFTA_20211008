@@ -1,0 +1,187 @@
+*-----------------------------------------------------------------------------
+* <Rating>193</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.EXT.ORG.RES.DET.IBFTA(Y.DATA)
+!    PROGRAM BD.EXT.ORG.RES.DET.IBFTA
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT JBL.BP I_F.ABL.H.NM.ER
+    $INSERT JBL.BP I_F.ABL.H.BRANCH.CODE
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*****
+INIT:
+*****
+    FN.AC = 'FBNK.ACCOUNT'
+    F.AC = ''
+    FN.ST.ENT = 'FBNK.STMT.ENTRY'
+    F.ST.ENT = ''
+    FN.NM = 'F.ABL.H.NM.ER'
+    F.NM = ''
+    FN.BR.ZN.CD = "F.ABL.H.BRANCH.CODE"
+    F.BR.ZN.CD = ""
+
+    ID.LIST = ''
+    RETURN
+
+
+**********
+OPENFILES:
+**********
+
+
+
+    LOCATE 'DATE' IN ENQ.SELECTION<2,1> SETTING DATE.POS THEN
+        FROM.DATE =  ENQ.SELECTION<4,DATE.POS>
+    END
+
+    LOCATE 'T.DATE' IN ENQ.SELECTION<2,2> SETTING DATE.POS THEN
+        END.DATE = ENQ.SELECTION<4,DATE.POS>
+    END
+
+!   FROM.DATE = "20200219"
+!  END.DATE = FROM.DATE
+
+
+
+    IF LEN(FROM.DATE) EQ 2 THEN
+        Y.TODAY = TODAY
+        FROM.DATE = SUBSTRINGS(Y.TODAY,1,6):"":FROM.DATE
+        END.DATE = FROM.DATE
+    END
+    IF LEN(FROM.DATE) EQ 1 THEN
+        Y.TODAY = TODAY
+        FROM.DATE = SUBSTRINGS(Y.TODAY,1,6):"0":FROM.DATE
+        END.DATE = FROM.DATE
+    END
+
+
+    Y.REPORT.DATE = ICONV(FROM.DATE,'D')
+    Y.REPORT.DATE = OCONV(Y.REPORT.DATE,'D2')
+*----------------------- END -----------------------------------
+
+    Y.CATEGORY = "12820"
+
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.ST.ENT,F.ST.ENT)
+    CALL OPF (FN.BR.ZN.CD,F.BR.ZN.CD)
+    RETURN
+
+
+********
+PROCESS:
+********
+    Y.ID.COMPANY = ID.COMPANY
+
+    SEL.CMD = 'SELECT FBNK.ACCOUNT WITH CATEGORY EQ ':Y.CATEGORY:' AND CO.CODE EQ ':Y.ID.COMPANY
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.RECORD,RET.CODE)
+
+    LOOP
+        REMOVE Y.AC.ID FROM SEL.LIST SETTING Y.AC.POS
+    WHILE Y.AC.ID:Y.AC.POS
+        CALL EB.ACCT.ENTRY.LIST(Y.AC.ID,FROM.DATE,END.DATE,ID.LIST,OPENING.BAL,ER)
+
+        IF ID.LIST NE '' THEN
+            GOSUB AC.STMT.DATA
+        END
+
+    REPEAT
+    RETURN
+
+*************
+AC.STMT.DATA:
+*************
+
+    Y.AMT = 0
+    FOR I = 1 TO DCOUNT(ID.LIST,FM)
+
+        Y.STMT.ENTRY.ID = FIELD(ID.LIST,FM,I)
+        CALL F.READ(FN.ST.ENT,Y.STMT.ENTRY.ID,R.ST.ENT,F.ST.ENT,ST.ENT.ERR)
+
+        Y.REC.STATUS = R.ST.ENT<AC.STE.RECORD.STATUS>
+        Y.TXN.REF = R.ST.ENT<AC.STE.TRANS.REFERENCE>
+
+        IF Y.TXN.REF EQ '' THEN
+            Y.TXN.REF = R.ST.ENT<AC.STE.OUR.REFERENCE>
+        END
+
+
+        Y.AMT = ABS(R.ST.ENT<AC.STE.AMOUNT.LCY>)
+
+        Y.STMT.ID = Y.STMT.ENTRY.ID
+
+        Y.NM.ID = Y.STMT.ID
+
+        CALL F.READ(FN.NM,Y.NM.ID,R.NM,F.NM,Y.ERR.NM)
+
+        IF R.NM EQ '' THEN
+            Y.NM.ID = Y.TXN.REF
+            CALL F.READ(FN.NM,Y.NM.ID,R.NM,F.NM,Y.ERR.NM)
+
+
+            IF Y.AMT NE R.NM<NM.AMOUNT> THEN
+                R.NM = ''
+            END
+
+        END
+
+!IF Y.TXN.REF EQ "TF200080402801" THEN
+!
+!END
+
+        IF R.NM NE '' THEN
+
+            Y.ZONAL.CODE = R.NM<NM.ZONAL.CODE>
+            Y.BRANCH.CODE = RIGHT(R.NM<NM.BRANCH.CODE>,4)
+            Y.VALUE.DATE = R.NM<NM.VALUE.DATE>
+            Y.TRANS.CODE = R.NM<NM.TRANS.CODE>
+            Y.DATE.OF.OE = R.NM<NM.DATE.OF.OE>
+            Y.ADVICE.NO = R.NM<NM.ADVICE.NO>
+            Y.OE.RE = R.NM<NM.OE.RE>
+            Y.DR.CR.MARKER = R.NM<NM.DR.CR.MARKER>
+            Y.CO.CODE = RIGHT(R.NM<NM.CO.CODE>,4)
+
+            CALL F.READ(FN.BR.ZN.CD, Y.CO.CODE , R.BR.ZN.CD, F.BR.ZN.CD , Y.ERR.BR.ZN.CD)
+
+            Y.BR.ZN.CD = R.BR.ZN.CD<BRN.ZONAL.CODE>
+            Y.PARTICULAR = R.NM<NM.REMARKS>
+            Y.AMOUNT.DR = 0
+            Y.AMOUNT.CR = 0
+            IF Y.OE.RE EQ 'OE' THEN
+                Y.OE.RE.MARKER = '1'
+            END
+            IF Y.OE.RE EQ 'RE' THEN
+                Y.OE.RE.MARKER = '2'
+            END
+            IF Y.DR.CR.MARKER EQ 'DR' THEN
+
+                Y.DR.AMT=Y.AMT
+                Y.AMOUNT.DR = ABS(Y.DR.AMT)
+
+            END
+            IF Y.DR.CR.MARKER EQ 'CR' THEN
+
+                Y.CR.AMT = R.ST.ENT<AC.STE.AMOUNT.LCY>
+                Y.AMOUNT.CR = ABS(Y.CR.AMT)
+
+            END
+
+            Y.DATA<-1> = Y.ZONAL.CODE:'*':Y.BRANCH.CODE:'*':Y.VALUE.DATE:'*':Y.TRANS.CODE:'*':Y.DATE.OF.OE:'*':Y.ADVICE.NO:'*': Y.OE.RE.MARKER: '*':Y.AMOUNT.DR:'*':Y.AMOUNT.CR:'*':Y.NM.ID:'*':Y.CO.CODE:'*':Y.PARTICULAR:'*':Y.BR.ZN.CD
+*                          1                  2               3                 4                5               6                 7                 8                9             10           11            12             13
+        END
+        Y.AMT = 0
+
+    NEXT I
+
+    ID.LIST = ''
+    Y.TXN.REF = ''
+
+    RETURN
+END

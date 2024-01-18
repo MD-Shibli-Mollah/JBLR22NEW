@@ -1,0 +1,224 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+
+*-----------------------------------------------------------------------------
+!PROGRAM JBL.ATM.AC.BAL.INT
+    SUBROUTINE JBL.ATM.AC.BAL.INT
+!-----------------------------------------------------------------------------!
+**********ATM TRANSACTION INTEREST CHK For Savings Account
+*DATE 20210331
+*DEV MOHAMMAD ROBIUL ISLAM
+!------------------------------------------------------------------------------!
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT I_F.ABL.H.AC.VIOLATION
+    $INSERT GLOBUS.BP I_F.ACCT.AVAILABILITY
+    $INSERT GLOBUS.BP I_F.ACCT.GROUP.CONDITION
+    $INSERT  I_F.ABP.H.NT.PM
+
+
+    IF APPLICATION EQ 'FUNDS.TRANSFER' ELSE RETURN
+
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        IF R.NEW(FT.DEBIT.ACCT.NO) MATCHES '3A...' THEN RETURN
+    END
+    GOSUB INITIALISE
+    GOSUB OPEN.FILES
+    GOSUB GET.TRANS.INFO
+    GOSUB CHK.CLEARED.BALANCE
+    GOSUB CHK.MAX.WITHDRAW
+
+    RETURN
+
+INITIALISE:
+*==========
+    Y.DR.CR.MARKER = ''
+    TRANS.CODE.1 = ''
+    Y.DEBIT.ACCT = ''
+    Y.TRANS.AMT = ''
+    Y.TELLER.TRANS = ''
+    Y.WORKING.BALANCE = ''
+    Y.NOTICE.AMOUNT = ''
+    Y.NOTICE.PERIOD = ''
+    Y.NOTICE.GRP = ''
+    Y.NOTICE.GRP.ID=''
+    R.NOTICE.PARAM = ''
+    RETURN
+
+OPEN.FILES:
+*==========
+    FN.ACCT.AVAIL = 'F.ACCT.AVAILABILITY'
+    F.ACCT.AVAIL = ''
+    R.ACCT.AVAIL = ''
+    CALL OPF(FN.ACCT.AVAIL,F.ACCT.AVAIL)
+
+    FN.AGC = 'F.ACCT.GROUP.CONDITION'
+    F.AGC = ''
+    R.AGC = ''
+    CALL OPF(FN.AGC,F.AGC)
+
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    FN.ABL.H.AC.VIOLATION = 'F.ABL.H.AC.VIOLATION'
+    F.ABL.H.AC.VIOLATION = ''
+    CALL OPF(FN.ABL.H.AC.VIOLATION,F.ABL.H.AC.VIOLATION)
+
+    FN.NOTICE.PARAM ='F.ABP.H.NT.PM'
+    F.NOTICE.PARAM =''
+    CALL OPF(FN.NOTICE.PARAM,F.NOTICE.PARAM)
+
+    RETURN
+
+GET.TRANS.INFO:
+*==============
+
+
+    Y.DEBIT.ACCT = R.NEW(FT.DEBIT.ACCT.NO)
+    Y.TRANS.AMT = R.NEW(FT.DEBIT.AMOUNT)
+    IF NOT(Y.TRANS.AMT) THEN Y.TRANS.AMT = R.NEW(FT.CREDIT.AMOUNT)
+    Y.VALUE.DATE = R.NEW(FT.DEBIT.VALUE.DATE)
+    IF NOT(Y.VALUE.DATE) THEN Y.VALUE.DATE = R.NEW(FT.CREDIT.VALUE.DATE)
+    CALL F.READ(FN.ACCOUNT,Y.DEBIT.ACCT,R.ACCOUNT,F.ACCOUNT,ACCT.READ.ERR)
+    Y.AC.COND.GRP = R.ACCOUNT<AC.CONDITION.GROUP>:R.ACCOUNT<AC.CURRENCY>
+    Y.CATEGORY = R.ACCOUNT<AC.CATEGORY>
+    Y.DR.AC.CO.CODE=R.ACCOUNT<AC.CO.CODE>
+    Y.WORKING.BALANCE = R.ACCOUNT<AC.WORKING.BALANCE> + Y.TRANS.AMT
+    Y.NOTICE.GRP = R.ACCOUNT<AC.CONDITION.GROUP>:R.ACCOUNT<AC.CURRENCY>
+
+    CALL F.READ(FN.NOTICE.PARAM,Y.NOTICE.GRP,R.NOTICE.PARAM,F.NOTICE.PARAM,NOTICE.PARAM.ERR)
+    Y.NOTICE.AMOUNT =  R.NOTICE.PARAM<NP.NOTICE.AMOUNT>
+
+
+    RETURN
+
+CHK.CLEARED.BALANCE:
+*================
+
+    IF  ( Y.TRANS.AMT GT Y.NOTICE.AMOUNT OR Y.TRANS.AMT GT (Y.WORKING.BALANCE/4)) AND Y.CATEGORY NE 1001  THEN
+
+        GOSUB CHK.WRITE.VIOLATION
+    END
+
+    RETURN
+CHK.MAX.WITHDRAW:
+*================
+
+    IF Y.CATEGORY NE 1001 THEN
+        GOSUB GET.MAX.TRAN
+        IF Y.TRAN.CNT > Y.MAX.NO.OF.TRAN THEN
+
+            GOSUB CHK.WRITE.VIOLATION
+        END
+    END
+    RETURN
+
+*------------
+GET.MAX.TRAN:
+*------------
+
+    CALL F.READ(FN.AGC,Y.AC.COND.GRP,R.AGC,F.AGC,ERR)
+    Y.TRAN.CODES = R.AGC<ACCT.GRP.WDL.TXN.CODE>
+    Y.MAX.NO.OF.TRAN = R.AGC<ACCT.GRP.MAX.NO.WDLS,1>
+
+*--------parameter---------------
+    Y.WEEK.START  = 'MONDAY'
+    Y.WEEK.END = 'SUNDAY'
+    Y.WEEK.DAYS = 'MONDAY' :VM: 'TUESDAY' :VM: 'WEDNESDAY' :VM: 'THURSDAY' :VM: 'FRIDAY' :VM: 'SATURDAY' : VM: 'SUNDAY'
+    Y.WEEK.DAYS.OFFSET = '0' :VM: '1' :VM: '2' :VM: '3' :VM: '4' :VM: '5' :VM: '6'
+*----------parameter-------------
+
+    CALC.DATE = ICONV(Y.VALUE.DATE,'D')
+    Y.VALUE.DAY = OCONV(CALC.DATE,'DWA')
+
+    Y.START.DTE.TO.COUNT = ''
+    Y.END.DTE.TO.COUNT = ''
+    IF Y.VALUE.DAY EQ Y.WEEK.START THEN ;* tran value date is on the first day of week
+        Y.START.DTE.TO.COUNT = Y.VALUE.DATE
+        Y.END.DTE.TO.COUNT = Y.VALUE.DATE
+
+    END
+    ELSE
+        IF Y.VALUE.DAY EQ Y.WEEK.END THEN         ;* tranv value date is on the last day of week
+            Y.START.DTE.TO.COUNT = Y.VALUE.DATE
+            Y.END.DTE.TO.COUNT = Y.VALUE.DATE
+            IF Y.END.DTE.TO.COUNT[7,2] GT 7 THEN
+                CALL CDT('',Y.START.DTE.TO.COUNT,'-6C')
+            END
+            ELSE
+                Y.START.DTE.TO.COUNT = Y.END.DTE.TO.COUNT[1,6] : '01'
+            END
+
+        END
+        ELSE        ;* tran value date is middle of the week
+            Y.END.DTE.TO.COUNT = Y.VALUE.DATE
+            IF Y.END.DTE.TO.COUNT[7,2] LE 7 THEN
+                Y.START.DTE.TO.COUNT = Y.END.DTE.TO.COUNT[1,6] : '01'
+            END
+            ELSE
+                LOCATE Y.VALUE.DAY IN Y.WEEK.DAYS<1,1> SETTING DAY.POS THEN
+                    Y.START.DTE.TO.COUNT = Y.VALUE.DATE
+                    CALL CDT('',Y.START.DTE.TO.COUNT,'-':Y.WEEK.DAYS.OFFSET<1,DAY.POS>:'C')
+                END
+            END
+        END
+    END
+    Y.TRAN.CNT = 0
+    CALL F.READ(FN.ACCT.AVAIL,Y.DEBIT.ACCT,R.ACCT.AVAIL,F.ACCT.AVAIL,ERR)
+    IF R.ACCT.AVAIL THEN
+        Y.DTE.CNT = DCOUNT(R.ACCT.AVAIL<AC.AVA.VALUE.DATE>,VM)
+        I = 1
+        LOOP
+            Y.CURR.DATE = R.ACCT.AVAIL<AC.AVA.VALUE.DATE,I>
+        UNTIL Y.CURR.DATE LT Y.START.DTE.TO.COUNT
+            Y.REV.MARK = R.ACCT.AVAIL<AC.AVA.REV.MARKER,I>
+            Y.CNT = DCOUNT(Y.REV.MARK,SM)
+            FOR J = 1 TO Y.CNT
+                Y.TXN.CODE = R.ACCT.AVAIL<AC.AVA.TXN.CODE,I,J>
+                Y.TXN.AMT = R.ACCT.AVAIL<AC.AVA.TXN.AMT,I,J>
+                IF Y.TXN.AMT < 0 THEN
+                    IF Y.REV.MARK<1,1,J> EQ 'Y' THEN
+                        Y.TRAN.CNT -= 1
+                    END
+                    ELSE
+                        Y.TRAN.CNT += 1
+                    END
+                END
+            NEXT J
+            I += 1
+        REPEAT
+    END
+
+    RETURN
+
+
+
+CHK.WRITE.VIOLATION:
+*===================
+
+    Y.AC.VL.ID = Y.DEBIT.ACCT:'.':TODAY[1,6]
+    CALL F.READ(FN.ABL.H.AC.VIOLATION,Y.AC.VL.ID,R.ABL.H.AC.VIOLATION,F.ABL.H.AC.VIOLATION,AC.VL.READ.ERR)
+
+    IF R.ABL.H.AC.VIOLATION THEN
+        R.ABL.H.AC.VIOLATION<ACV.AC.BAL.DATE.VL,-1> = Y.VALUE.DATE
+        R.ABL.H.AC.VIOLATION<ACV.AC.BAL.TXN.REF,-1> = ID.NEW
+    END ELSE
+        R.ABL.H.AC.VIOLATION<ACV.AC.BAL.DATE.VL,-1> = Y.VALUE.DATE
+        R.ABL.H.AC.VIOLATION<ACV.AC.BAL.TXN.REF,-1> = ID.NEW
+        R.ABL.H.AC.VIOLATION<ACV.FLAG> = 'Y'
+        R.ABL.H.AC.VIOLATION<ACV.CURR.NO> = 1
+        R.ABL.H.AC.VIOLATION<ACV.INPUTTER>= OPERATOR
+        R.ABL.H.AC.VIOLATION<ACV.AUTHORISER>=OPERATOR
+        R.ABL.H.AC.VIOLATION<ACV.CO.CODE> = Y.DR.AC.CO.CODE
+        R.ABL.H.AC.VIOLATION<ACV.DEPT.CODE>=1
+
+    END
+    IF R.ABL.H.AC.VIOLATION THEN
+        WRITE R.ABL.H.AC.VIOLATION TO F.ABL.H.AC.VIOLATION,Y.AC.VL.ID
+    END
+    RETURN
+END
+

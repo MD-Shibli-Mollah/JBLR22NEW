@@ -1,0 +1,25 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ACI.UPD.BF.MEND.SELECT
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT JBL.BP I_F.ABL.H.AC.VIOLATION
+    $INSERT JBL.BP I_ACI.UPD.BF.MEND.COMMON
+
+    Y.START.DATE=TODAY[1,6]
+    SEL.CMD.VIOL="SELECT ":FN.ABL.VIOL:" WITH @ID LIKE '....":Y.START.DATE:"'"
+    CALL EB.READLIST(SEL.CMD.VIOL,SEL.LIST.VIOL,'',NO.OF.REC.VIOL,SEL.ERR.VIOL)
+
+    CRT" TOTAL RECORDS SELECTED ....... ":NO.OF.REC.VIOL
+    CRT" DO YOU WANT TO START THE PROCESSING  Y/N"
+
+    INPUT USER.CHOICE
+    IF USER.CHOICE EQ 'Y' THEN
+        CALL BATCH.BUILD.LIST('',SEL.LIST.VIOL)
+    END
+
+    RETURN
+END

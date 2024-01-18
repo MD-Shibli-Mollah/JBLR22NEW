@@ -1,0 +1,143 @@
+*-----------------------------------------------------------------------------
+* <Rating>633</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.SOURCE.TAX.BTB(Y.RETURN)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.LETTER.OF.CREDIT
+    $INSERT I_F.LC.ACCOUNT.BALANCES
+    $INSERT I_F.BD.TAX.COMM
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    Y.RETURN = Y.OUT
+
+    RETURN
+
+
+INIT:
+
+    FN.LC = 'F.LETTER.OF.CREDIT'
+    F.LC = ''
+    CALL OPF(FN.LC,F.LC)
+    R.LC = ''
+
+    FN.LC.ACCT.BAL = 'F.LC.ACCOUNT.BALANCES'
+    F.LC.ACCT.BAL = ''
+    CALL OPF(FN.LC.ACCT.BAL,F.LC.ACCT.BAL)
+    R.LC.ACCT.BAL = ''
+
+    FN.BD.TAX.COMM = 'F.BD.TAX.COMM'
+    F.BD.TAX.COMM = ''
+    CALL OPF(FN.BD.TAX.COMM,F.BD.TAX.COMM)
+    R.BD.TAX.COMM = ''
+
+    Y.COMM.AMT.TOTAL = '';Y.VAT.TOTAL = ''; Y.SOURCE.TAX.TOTAL = '';
+    Y.APPL.CUSTNO.CHECK = ''
+
+    RETURN
+
+PROCESS:
+
+
+    CALL F.READ(FN.BD.TAX.COMM,'LETTER.OF.CREDIT',R.BD.TAX.COMM,F.BD.TAX.COMM,Y.BD.TAX.COMM.ERR)
+    Y.FT.COMM.CODE = R.BD.TAX.COMM<BD.TC.FT.COMMISSION.CODE>
+
+    Y.LC.CUSTOMER.ID = ENQ.SELECTION<4>
+    SEL.CMD = "SELECT ":FN.LC:" WITH CATEGORY.CODE GE 23305 AND WITH CATEGORY.CODE LE 23345"
+!    SEL.CMD = "SELECT ":FN.LC
+    IF Y.LC.CUSTOMER.ID NE '' THEN
+        SEL.CMD := " AND WITH APPLICANT.CUSTNO EQ '":Y.LC.CUSTOMER.ID:"'"
+        SEL.CMD :=" BY APPLICANT.CUSTNO"
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,ERR.CODE)
+    END ELSE
+        SEL.CMD :=" BY APPLICANT.CUSTNO"
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,ERR.CODE)
+    END
+
+    LOOP
+        REMOVE Y.LC.ID FROM SEL.LIST SETTING POS
+    WHILE Y.LC.ID:POS
+
+        CALL F.READ(FN.LC,Y.LC.ID,R.LC,F.LC,Y.LC.ERR)
+        Y.LC.APPLICANT = R.LC<TF.LC.APPLICANT,1>
+
+        Y.LC.APP.CUSTNO = R.LC<TF.LC.APPLICANT.CUSTNO>
+
+        IF Y.APPL.CUSTNO.CHECK EQ '' THEN
+            Y.APPL.CUSTNO.CHECK = Y.LC.APP.CUSTNO
+            Y.FLAG = '1'
+        END ELSE
+            IF Y.LC.APP.CUSTNO EQ Y.APPL.CUSTNO.CHECK THEN
+                Y.FLAG = '2'
+            END ELSE
+                Y.FLAG = '1'
+                Y.APPL.CUSTNO.CHECK = Y.LC.APP.CUSTNO
+            END
+        END
+
+
+
+        CALL F.READ(FN.LC.ACCT.BAL,Y.LC.ID,R.LC.ACCT.BAL,F.LC.ACCT.BAL,Y.LC.ACCT.BAL.ERR)
+        Y.COMM.CODE.ALL = R.LC.ACCT.BAL<LCAC.CHRG.CODE>
+        IF Y.COMM.CODE.ALL NE '' THEN
+            Y.COMM.CODE.CNT = DCOUNT(Y.COMM.CODE.ALL,@VM)
+            FOR I = 1 TO Y.COMM.CODE.CNT
+
+
+                Y.COMM.AMT = '';Y.SOURCE.TAX = '' ; Y.VAT.AMT = ''
+                Y.COMM.CODE = R.LC.ACCT.BAL<LCAC.CHRG.CODE,I>
+                LOCATE Y.COMM.CODE IN Y.FT.COMM.CODE<1,1> SETTING POS THEN
+
+                    Y.COMM.AMT = R.LC.ACCT.BAL<LCAC.CHRG.ACC.AMT,I>
+                    Y.SOURCE.TAX = Y.COMM.AMT * 0.05
+                    Y.VAT.AMT = Y.COMM.AMT * 0.15
+
+
+                    Y.COMM.AMT.TOTAL + = Y.COMM.AMT
+                    Y.SOURCE.TAX.TOTAL + = Y.SOURCE.TAX
+                    Y.VAT.TOTAL + = Y.VAT.AMT
+
+                END ELSE
+
+                    Y.COMM.AMT = R.LC.ACCT.BAL<LCAC.CHRG.ACC.AMT,I>
+                    Y.SOURCE.TAX = '0'
+                    Y.VAT.AMT = '0'
+
+
+                    Y.COMM.AMT.TOTAL + = Y.COMM.AMT
+                    Y.SOURCE.TAX.TOTAL + = Y.SOURCE.TAX
+                    Y.VAT.TOTAL + = Y.VAT.AMT
+
+                END
+
+
+                IF Y.FLAG EQ '1' AND I EQ '1' THEN
+                    IF Y.OUT EQ '' THEN
+                        Y.OUT = Y.LC.APPLICANT:'*':Y.COMM.CODE:'*':Y.COMM.AMT:'*':Y.VAT.AMT:'*':Y.SOURCE.TAX
+                    END ELSE
+                        Y.OUT :=FM:Y.LC.APPLICANT:'*':Y.COMM.CODE:'*':Y.COMM.AMT:'*':Y.VAT.AMT:'*':Y.SOURCE.TAX
+                    END
+                END ELSE
+                    IF Y.OUT EQ '' THEN
+                        Y.OUT = '':'*':Y.COMM.CODE:'*':Y.COMM.AMT:'*':Y.VAT.AMT:'*':Y.SOURCE.TAX
+                    END ELSE
+                        Y.OUT :=FM:'':'*':Y.COMM.CODE:'*':Y.COMM.AMT:'*':Y.VAT.AMT:'*':Y.SOURCE.TAX
+                    END
+
+                END
+
+            NEXT I
+        END
+
+    REPEAT
+
+    IF Y.OUT NE '' THEN
+        Y.OUT :=FM:'':'*':'':'*':'':'*':'':'*':'':'*':'TOTAL':'*':'*':Y.COMM.AMT.TOTAL:'*':Y.VAT.TOTAL:'*':Y.SOURCE.TAX.TOTAL
+    END ELSE
+        RETURN
+    END
+
+    RETURN

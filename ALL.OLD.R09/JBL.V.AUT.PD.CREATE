@@ -1,0 +1,82 @@
+**************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>-40</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.AUT.PD.CREATE
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This authorisation routine is used to open a new PD.PAYMENY.DUE record once after authorising the PD.CAPTURE record
+* and with the ID as NEXT.ID in PD.CAPTURE file and the local ref field LIMIT.PROD has to be populated from the field LIMIT.PROD in PD.CATPURE.
+
+*-------------------------------------------------------------------------
+*Parameter Description: Not Applicable
+*--------- -----------
+*
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+*Variable name:   Insert file:          Description:
+* TODAY            I_COMMON              Will hold Todays date used for
+*                                        writing in flat file
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:     Description:
+*EB.SET.NEW.TASK            Core          This core routine will invoke the routine
+*                                          or application given in the different window.
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 7/02/2011 -                            New   - Shiva Shankar G
+*                                                 Thesys Technologies
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.PD.CAPTURE
+    $INCLUDE GLOBUS.BP I_F.PD.PAYMENT.DUE
+    $INCLUDE GLOBUS.BP I_PD.COMMON
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*--------------------------------------------------------------------------
+INITIALISE:
+**********
+
+    FN.PD.PAYMENT.DUE = 'F.PD.PAYMENT.DUE'
+    F.PD.PAYMENT.DUE = ''
+    CALL OPF(FN.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE)
+
+    APPLN = 'PD.CAPTURE':FM:'PD.PAYMENT.DUE'
+    FLD.LIST = 'LIMIT.PROD':FM:'LIMIT.PROD'
+    FLD.POS = ''
+
+    CALL MULTI.GET.LOC.REF(APPLN,FLD.LIST,FLD.POS)
+
+    Y.PD.CAP.POS = FLD.POS<1,1>
+    Y.PD.DUE.POS = FLD.POS<2,1>
+
+
+    RETURN
+*--------------------------------------------------------------------------
+PROCESS:
+*-------
+    Y.PD.DUE.ID = R.NEW(PD.CAP.NEXT.PD.ID)
+    Y.PD.CAPTURE.LIMIT = R.NEW(PD.CAP.LOCAL.REF)<1,Y.PD.CAP.POS>
+    CALL F.READ(FN.PD.PAYMENT.DUE,Y.PD.DUE.ID,R.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE,Y.PD.PAYMENT.DUE.ERR)
+    IF R.PD.PAYMENT.DUE THEN
+        R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.PD.DUE.POS> = Y.PD.CAPTURE.LIMIT
+        CALL F.WRITE(FN.PD.PAYMENT.DUE,Y.PD.DUE.ID,R.PD.PAYMENT.DUE)
+    END
+    CALL EB.SET.NEW.TASK('PD.PAYMENT.DUE,BD.PD.ADJUST I':' ':Y.PD.DUE.ID)
+
+    RETURN
+*--------------------------------------------------------------------------
+
+END

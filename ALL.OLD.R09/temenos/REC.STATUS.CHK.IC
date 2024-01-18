@@ -1,0 +1,56 @@
+****************************************************************************************
+*This routine is attachted to FUNDS.TRANSFER,AUTH TELLER,LCY.CASHIN TELLER,LCY.CASHCHQ1*
+*TELLER,BD.LCY.CASHWDL TELLER,IN.CLEAR TELLER,IN.CLEAR.SETTLEMENT                      *
+*TELLER,OUT.CLEAR.SAME.DAY FUNDS.TRANSFER,ACTR.FTHP VERSION as a before auth ROUTINE   *
+*Purpose: to verifie the user is dispo office                                          *
+*Developed By: Mohammad Abu Huraira & Md. Aminul Islam(Datasoft Systems)               *
+*Live Date: 20160925                                                                   *
+****************************************************************************************
+    SUBROUTINE REC.STATUS.CHK.IC
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.IC.ADJUST.ACCRUAL
+    $INSERT GLOBUS.BP I_F.USER
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.OVERRIDE
+    $INSERT GLOBUS.BP I_F.OVERRIDE.CLASS.DETAILS
+    $INSERT JBL.BP I_F.DISPO.PARAM
+
+    IF V$FUNCTION EQ 'A' THEN
+        GOSUB PROCESS
+    END
+    RETURN
+
+PROCESS:
+
+    FN.DP = "F.EB.DISPO.PARAM"
+    F.DP = ""
+    FN.OVRRD = 'F.OVERRIDE'
+    F.OVRRD = ''
+    FN.CLS.DET = 'F.OVERRIDE.CLASS.DETAILS'
+    F.CLS.DET = ''
+    CALL OPF(FN.DP,F.DP)
+    CALL OPF(FN.OVRRD,F.OVRRD)
+    CALL OPF(FN.CLS.DET,F.CLS.DET)
+    CALL F.READ(FN.DP,"SYSTEM",R.DP,F.DP,Y.DP.ERR)
+    Y.ALL.OVERR.ID = R.DP<EB.DIS26.OVERR.ID>
+    Y.OVERRIDE.VAL = R.NEW(V-9)
+    Y.OVRRD.NO = DCOUNT(Y.OVERRIDE.VAL,VM)
+
+!FOR I=1 TO Y.OVRRD.NO
+    Y.OVRRD.DETLS = FIELD(Y.OVERRIDE.VAL,VM,Y.OVRRD.NO)
+    Y.OVRRD.ID = FIELD(Y.OVRRD.DETLS,'}',1)
+    FINDSTR Y.OVRRD.ID IN Y.ALL.OVERR.ID SETTING OVVRD.POS THEN
+        Y.CLASS.ID = FIELD(FIELD(Y.OVRRD.DETLS,'}',4),SM,2)
+        Y.AUTH.CLASS.ID = R.USER<EB.USE.OVERRIDE.CLASS>
+        FINDSTR Y.CLASS.ID IN Y.AUTH.CLASS.ID SETTING POS THEN
+            IF ((APPLICATION EQ 'IC.ADJUST.ACCRUAL') AND (R.NEW(IC.ADJ.RECORD.STATUS) NE 'INAO')) THEN
+                AF = 0
+                E = 'Transaction not Verified'
+                RETURN
+            END
+        END
+    END
+!NEXT
+    RETURN
+END

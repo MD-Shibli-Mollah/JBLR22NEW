@@ -1,0 +1,67 @@
+*-----------------------------------------------------------------------------
+* <Rating>657</Rating>
+*-----------------------------------------------------------------------------
+      SUBROUTINE CATEG.CUS.ACCT
+
+*            Amend checks for ID length to cope with Position Accounts
+**********************************************************************
+$INSERT I_COMMON
+$INSERT I_EQUATE
+$INSERT I_F.ACCOUNT
+$INSERT I_F.CATEGORY
+*************************************************************************
+
+*========================================================================
+      MAT F = "" ; MAT N = "" ; MAT T = "" ; ID.T = ""
+      MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+      ID.CHECKFILE = "" ; ID.CONCATFILE = ""
+*========================================================================
+REM "DEFINE PARAMETERS - SEE 'I_RULES'-DESCRIPTION:
+      ID.F = "CATEGORY" ; ID.N = "5" ; ID.T = ""
+      ID.CONCATFILE = "AR"
+      ID.CHECKFILE = 'CATEGORY':FM:EB.CAT.DESCRIPTION:FM:'L'
+      F(1) = "ACCOUNT.NUMBER" ; N(1) = "19" ; T(1) = "ACC"
+      CHECKFILE(1) = 'ACCOUNT':FM:AC.SHORT.TITLE
+*
+*
+*
+      V = 1                              ; * NUMBER OF FIELDS
+*========================================================================
+      IF LEN(V$FUNCTION) > 1 THEN RETURN
+* RETURN when pgm used to get parameters only
+*------------------------------------------------------------------------
+      CALL MATRIX.UPDATE
+*------------------------------------------------------------------------
+ID.INPUT:
+      CALL RECORDID.INPUT
+      IF MESSAGE = "RET" THEN RETURN
+* return to PGM.SELECTION
+      IF MESSAGE = "NEW FUNCTION" THEN
+*========================================================================
+REM "CHECK FUNCTION:
+         IF V$FUNCTION = "V" THEN
+            E = "EB.RTN.NO.FUNT.APP.11" ; V$FUNCTION = ""
+ID.ERROR:
+            CALL ERR ; GOTO ID.INPUT
+         END
+*========================================================================
+         IF V$FUNCTION = "E" OR V$FUNCTION = "L" THEN
+            CALL FUNCTION.DISPLAY ; V$FUNCTION = ""
+         END
+         GOTO ID.INPUT
+      END
+*========================================================================
+REM "CHECK ID OR CHANGE STANDARD ID:
+*========================================================================
+      CALL RECORD.READ
+      IF MESSAGE = "REPEAT" THEN GOTO ID.INPUT
+      CALL MATRIX.ALTER
+*========================================================================
+REM "SPECIAL CHECKS OR CHANGE FIELDS AFTER READING RECORD(S):
+*========================================================================
+FIELD.DISPLAY.OR.INPUT:
+      CALL TABLE.DISPLAY
+*------------------------------------------------------------------------
+      GOTO ID.INPUT
+*************************************************************************
+   END

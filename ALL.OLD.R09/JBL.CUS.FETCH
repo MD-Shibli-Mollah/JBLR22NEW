@@ -1,0 +1,46 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.CUS.FETCH
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_ENQUIRY.COMMON
+
+    FN.AC='F.ACCOUNT'
+    F.AC=''
+
+    FN.AC.HIS='F.ACCOUNT$HIS'
+    F.AC.HIS=''
+
+    REC.AC =''
+
+    Y.LEG.AC="LEG.AC.OP.DATE"
+    Y.LEN.AC.POS=""
+    CALL GET.LOC.REF("ACCOUNT",Y.LEG.AC,Y.LEN.AC.POS)
+    Y.OPEN.DATE=''
+
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+
+    CALL  F.READ(FN.AC,O.DATA,REC.AC,F.AC,ERR.AC)
+    IF REC.AC THEN
+        Y.OPEN.DATE = REC.AC<AC.LOCAL.REF,Y.LEN.AC.POS>
+        IF Y.OPEN.DATE EQ '' THEN
+            Y.OPEN.DATE = REC.AC<AC.OPENING.DATE>
+        END
+        O.DATA=REC.AC<AC.CUSTOMER>:"*":REC.AC<AC.CATEGORY>:"*":REC.AC<AC.ACCOUNT.TITLE.1>:"*":"ACTIVE":"*":Y.OPEN.DATE
+    END
+
+    ELSE
+        CALL EB.READ.HISTORY.REC(F.AC.HIS,O.DATA,REC.AC,YERROR)
+        Y.OPEN.DATE=REC.AC<AC.LOCAL.REF,Y.LEN.AC.POS>
+        IF Y.OPEN.DATE EQ '' THEN
+            Y.OPEN.DATE = REC.AC<AC.OPENING.DATE>
+        END
+        O.DATA=REC.AC<AC.CUSTOMER>:"*":REC.AC<AC.CATEGORY>:"*":REC.AC<AC.ACCOUNT.TITLE.1>:"*":"CLOSED":"*":Y.OPEN.DATE
+    END
+
+    RETURN
+END

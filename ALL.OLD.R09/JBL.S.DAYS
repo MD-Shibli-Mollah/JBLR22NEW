@@ -1,0 +1,15 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.DAYS
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+
+    Y.ST.DT=FIELD(O.DATA,"*",1)
+    Y.ED.DT=FIELD(O.DATA,"*",2)
+    Y.DAYS="C"
+    CALL CDD("",Y.ST.DT,Y.ED.DT,Y.DAYS)
+    O.DATA=Y.DAYS + 1
+    RETURN
+END

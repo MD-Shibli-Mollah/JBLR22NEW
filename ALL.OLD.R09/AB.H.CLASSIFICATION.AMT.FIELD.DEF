@@ -1,0 +1,66 @@
+*-----------------------------------------------------------------------------
+* <Rating>-82</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE AB.H.CLASSIFICATION.AMT.FIELD.DEF
+*-----------------------------------------------------------------------------
+*
+*-----------------------------------------------------------------------------
+* Modification History :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT       ;* Other Inserts required for Checkfiles, etc.
+    $INSERT I_F.CUSTOMER
+    $INSERT I_F.SEC.ACC.MASTER
+    $INSERT I_F.CATEGORY
+    $INSERT I_F.TRANSACTION
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB DEFINE.FIELDS
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+DEFINE.FIELDS:
+    ID.F = "CON.ID" ; ID.N = "20" ; ID.T = "A"
+*
+    Z=0
+*
+    Z+=1 ; F(Z) = "PROVISION.AMT" ; N(Z) = "19" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "DR.CR.TXN.CODE" ; N(Z) = "4" ; T(Z) = ""
+    CHECKFILE(Z) = "TRANSACTION":FM:AC.TRA.NARRATIVE:FM:"L"
+    Z+=1 ; F(Z) = "PROV.RESV.CATEG" ; N(Z) = "15" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "PROV.EXP.CATEG" ; N(Z) = "5..C" ; T(Z) = "A"
+    CHECKFILE(Z) = "CATEGORY":FM:EB.CAT.SHORT.NAME:FM:"L"
+    Z+=1 ; F(Z) = "PROV.APPLIED" ; N(Z) = "1" ; T(Z)<2> = "N_Y"
+
+    Z+=1 ; F(Z) = "RESERVED3" ; N(Z) = "15" ; T(Z)<3> = "NOINPUT"
+    Z+=1 ; F(Z) = "RESERVED2" ; N(Z) = "15" ; T(Z)<3> = "NOINPUT"
+    Z+=1 ; F(Z) = "RESERVED1" ; N(Z) = "15" ; T(Z)<3> = "NOINPUT"
+
+REM > CHECKFILE(Z) = CHK.ACCOUNT
+*
+    V = Z + 9
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+INITIALISE:
+    MAT F = "" ; MAT N = "" ; MAT T = ""
+    MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+    ID.CHECKFILE = "" ; ID.CONCATFILE = ""
+*
+* Define often used checkfile variables
+*
+    CHK.ACCOUNT = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+    CHK.CUSTOMER = "CUSTOMER":FM:EB.CUS.SHORT.NAME:FM:'.A'
+    CHK.CUSTOMER.SECURITY = "CUSTOMER.SECURITY":FM:0:FM:'':FM:"CUSTOMER":FM:EB.CUS.SHORT.NAME:FM:'..S'
+    CHK.SAM = "SEC.ACC.MASTER":FM:SC.SAM.ACCOUNT.NAME:FM:'..S'
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+END
+
+
+

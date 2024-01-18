@@ -1,0 +1,33 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SP.STOCK.ID.INCR.RTN
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+
+    Y.COM=COMI
+
+    Y.LEN=LEN(Y.COM)
+
+    IF Y.LEN NE 12 THEN
+        E="Please Click New Deal for create new request"
+        CALL STORE.END.ERROR
+    END
+
+    IF LEFT(Y.COM,2) NE "SP" THEN
+        E="Please Click New Deal for create new request"
+        CALL STORE.END.ERROR
+    END
+
+    Y.DATE=TODAY
+    CALL JULDATE(Y.DATE,Y.JULD)
+    Y.DATE=RIGHT(Y.JULD,5)
+    Y.DATE.COM= SUBSTRINGS(Y.COM,3,5)
+
+    IF Y.DATE NE Y.DATE.COM THEN
+        E="Please Click New Deal for create new request"
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+END

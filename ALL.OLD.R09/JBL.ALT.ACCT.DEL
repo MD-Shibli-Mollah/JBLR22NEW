@@ -1,0 +1,110 @@
+*-----------------------------------------------------------------------------
+* <Rating>-31</Rating>
+*-----------------------------------------------------------------------------
+*****************************************************************************
+*PURPOSE: Remove Existing Globus Account From ALTERNATE.ACCOUNT application *
+*DEVELOPED BY: Mohammad Kamran Mallick                                      *
+*ORGANIZATION: Datasoft                                                     *
+*CREATION DATE: 14 July 2019                                                *
+*MODIFIDE BY : Md. Mazba uddin                                              *
+*MODIFIDE PURPOSE : Read ALT.ACCOUNT file & get Account information         *
+*MODIFIDE DATE : 30 OCT 2019                                              *
+*****************************************************************************
+!PROGRAM JBL.ALT.ACCT.DEL
+    SUBROUTINE JBL.ALT.ACCT.DEL
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ALTERNATE.ACCOUNT
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPF
+    GOSUB PROCESS
+    RETURN
+
+*****
+INIT:
+*****
+    FN.ALT.ACCT = 'FBNK.ALTERNATE.ACCOUNT'
+    F.ALT.ACCT = ''
+    FN.ACCT = 'FBNK.ACCOUNT'
+    F.ACCT = ''
+    FN.AC.CLSD = 'FBNK.ACCOUNT.CLOSED'
+    F.AC.CLSD = ''
+    Y.LOOP.BRK = ''
+    RETURN
+
+****
+OPF:
+****
+    CALL OPF(FN.ALT.ACCT,F.ALT.ACCT)
+    CALL OPF(FN.ACCT, F.ACCT)
+    CALL OPF(FN.AC.CLSD,F.AC.CLSD)
+    RETURN
+
+********
+PROCESS:
+********
+    OPEN "MIGRATION/ALT.ACC.DEL" TO F.DATA.FILE ELSE
+        CMD = "CREATE.FILE MIGRATION/ALT.ACC.DEL TYPE=UD"
+        EXECUTE CMD
+        OPEN "MIGRATION/ALT.ACC.DEL" TO F.DATA.FILE ELSE
+            CRT "OPENING OF MIGRATION/ALT.ACC.DEL FAILED"
+        END
+    END
+    Y.LAST.WORK.DAY = TODAY
+    CALL CDT('',Y.LAST.WORK.DAY,'')
+    Y.FILE.NAME = 'ALT.ACCOUNT':'.':Y.LAST.WORK.DAY:'.csv'
+    Y.FILE.DIR = "MIGRATION/ALT.ACC.DEL"
+    Y.WRT.FILE = Y.FILE.DIR:'/':Y.FILE.NAME
+    Y.FILE.NAME = 'AlternateAcct.txt'
+    Y.FILE = Y.FILE.DIR:'/':Y.FILE.NAME
+    OPENSEQ Y.FILE TO TEST.FILE ELSE
+        CREATE TEST.FILE ELSE
+            CRT "Unable to create file"
+            STOP
+        END
+    END
+!DEBUG
+    LOOP
+        READSEQ Y.ALT.AC.ID FROM TEST.FILE ELSE
+            Y.LOOP.BRK = 'STOP'
+        END
+        IF Y.LOOP.BRK EQ 'STOP' THEN
+            BREAK
+        END
+        Y.ALT.ID =Y.ALT.ID:' ':Y.ALT.AC.ID
+    REPEAT
+    SEL.CMD ='SELECT ':FN.ALT.ACCT:' WITH ALTERNATIVE.NUMBER EQ ':Y.ALT.ID
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,Y.ERR)
+    LOOP
+        REMOVE Y.ALT.AC.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ALT.AC.ID:POS
+        CALL F.READ(FN.ALT.ACCT,Y.ALT.AC.ID,R.ALT.ACCT,F.ALT.ACCT,Y.ERR)
+        Y.GLOBUS.ACCT.NO = R.ALT.ACCT<AAC.GLOBUS.ACCT.NUMBER>
+        CALL F.READ(FN.ACCT,Y.GLOBUS.ACCT.NO,R.ACCT,F.ACCT,Y.ERR)
+        Y.CO.CODE = R.ACCT<AC.CO.CODE>
+        CALL F.READ(FN.AC.CLSD,Y.GLOBUS.ACCT.NO,R.AC.CLSD,F.AC.CLSD,Y.CLSD.ERR)
+        IF R.AC.CLSD THEN
+            Y.ACCT.STATUS = 'CLOSED'
+        END ELSE
+            Y.ACCT.STATUS = ''
+        END
+        R.ALT.ACCT<AAC.GLOBUS.ACCT.NUMBER> = ''
+        CALL F.WRITE(FN.ALT.ACCT,Y.ALT.AC.ID,R.ALT.ACCT)
+        CALL JOURNAL.UPDATE("")
+        Y.DATA<-1> = Y.ALT.AC.ID:'*':Y.GLOBUS.ACCT.NO:'*':Y.ACCT.STATUS:'*':Y.CO.CODE
+    REPEAT
+    OPENSEQ Y.WRT.FILE TO ALT.AC.INFO ELSE
+        CREATE ALT.AC.INFO ELSE
+            CRT "Unable to create write file "
+            STOP
+        END
+    END
+    WRITESEQ Y.DATA TO ALT.AC.INFO ELSE
+        CRT "Unable to perform WRITESEQ"
+    END
+    CLOSESEQ ALT.AC.INFO
+    CRT "Successful to write file "
+    RETURN
+END

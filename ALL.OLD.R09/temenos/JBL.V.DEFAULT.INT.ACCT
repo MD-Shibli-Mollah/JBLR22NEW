@@ -1,0 +1,119 @@
+*--------------------------------------------------------------------------------
+* <Rating>-42</Rating>
+*--------------------------------------------------------------------------------
+    SUBROUTINE JBL.V.DEFAULT.INT.ACCT
+*--------------------------------------------------------------------------------
+* Author        : Kiran Ghanathe
+* Description   : Attached as Auto New content & Field Valdiation Routine
+*                 to default the internal A/c No in theDebit/Credit field.
+*
+*--------------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.COMPANY
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.TELLER
+!
+    GOSUB INIT
+    RETURN
+!
+INIT:
+*****
+    FN.COMPANY = "F.COMPANY"
+    F.COMPANY = ''
+    CALL OPF(FN.COMPANY, F.COMPANY)
+
+    ID.COMP = ID.COMPANY
+!
+    FT.POS = '' ; TT.POS = ''
+
+!    CALL GET.LOC.REF("FUNDS.TRANSFER", "TYPE.OF.BOND", FT.POS)
+!    Y.TYPE.OF.SPB = R.NEW(FT.LOCAL.REF)<1,FT.POS>
+    Y.TYPE.OF.SPB = COMI
+
+    IF APPLICATION = "TELLER" THEN
+        CALL GET.LOC.REF("TELLER", "TYPE.OF.BOND", TT.POS)
+        Y.TYPE.OF.SPB = R.NEW(TT.TE.LOCAL.REF)<1,TT.POS>
+    END
+!
+    CALL F.READ(FN.COMPANY, ID.COMP, R.COMP, F.COMPANY, COMP.ERR)
+    IF R.COMP THEN
+        Y.COMP.MNE = R.COMP<EB.COM.MNEMONIC>
+        Y.CO.CODE = R.COMP<EB.COM.CO.CODE>
+    END
+!
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT, F.ACCOUNT)
+!
+    IF APPLICATION = "TELLER" THEN
+        GOSUB GET.APPL.VALUE
+        GOSUB DEFAULT.TT.ACCT.NUM
+    END
+
+    IF APPLICATION = "FUNDS.TRANSFER" THEN
+        GOSUB GET.APPL.VALUE
+        GOSUB DEFAULT.FT.ACCT.NUM
+    END
+    RETURN
+!
+GET.APPL.VALUE:
+*****************
+!
+    IF PGM.VERSION EQ ",JBL.ARMY.PEN.SCHM" THEN
+        AC.NO = "BDT13020":"0001":ID.COMPANY[6,4]
+    END
+    IF PGM.VERSION EQ ",JBL.ARMY.PEN.REIMBURSE.SCHM" THEN
+        AC.NO = "BDT17290":"0001":ID.COMPANY[6,4]
+    END
+    IF PGM.VERSION EQ ",JBL.INT.PAY.SANCHAYA.PATRA" THEN
+        AC.NO = "BDT14973":"0001":ID.COMPANY[6,4]
+    END
+    IF PGM.VERSION EQ ",JBL.PRIN.INT.PAY.SANCHAYA.PATRA" THEN
+        AC.NO = "BDT14973":"0001":ID.COMPANY[6,4]
+    END
+    IF PGM.VERSION EQ ",JBL.SELL.SANCHAYA.PATRA" OR ",JBL.INT.PAY.SANCHAYA.PATRA" OR PGM.VERSION EQ ",JBL.PRIN.INT.PAY.SANCHAYA.PATRA" THEN
+        BEGIN CASE
+        CASE Y.TYPE.OF.SPB = '1'
+            AC.NO = "BDT17268":"0001":ID.COMPANY[6,4]
+        CASE Y.TYPE.OF.SPB = '2'
+            AC.NO = "BDT17312":"0001":ID.COMPANY[6,4]
+        CASE Y.TYPE.OF.SPB = '3'
+            AC.NO = "BDT17313":"0001":ID.COMPANY[6,4]
+        CASE Y.TYPE.OF.SPB = '4'
+            AC.NO = "BDT17314":"0001":ID.COMPANY[6,4]
+        END CASE
+    END
+
+    RETURN
+!
+DEFAULT.TT.ACCT.NUM:
+*********************
+    CALL F.READ(FN.ACCOUNT, AC.NO, R.ACC, F.ACCOUNT, AC.ERR)
+    IF R.ACC THEN
+        IF PGM.VERSION EQ ",JBL.SELL.SANCHAYA.PATRA" THEN
+            R.NEW(TT.TE.ACCOUNT.1) = AC.NO
+            CALL REBUILD.SCREEN
+        END ELSE
+            R.NEW(TT.TE.ACCOUNT.2) = AC.NO
+        END
+    END
+!
+    RETURN
+
+DEFAULT.FT.ACCT.NUM:
+*********************
+    CALL F.READ(FN.ACCOUNT, AC.NO, R.ACC, F.ACCOUNT, AC.ERR)
+    IF R.ACC THEN
+        IF PGM.VERSION NE ",JBL.SELL.SANCHAYA.PATRA" THEN
+            R.NEW(FT.DEBIT.ACCT.NO) = AC.NO
+            CALL REBUILD.SCREEN
+        END ELSE
+            R.NEW(FT.CREDIT.ACCT.NO) = AC.NO
+            CALL REBUILD.SCREEN
+        END
+    END
+!
+    RETURN
+END

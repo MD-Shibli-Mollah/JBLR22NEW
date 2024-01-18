@@ -1,0 +1,13 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.DEF.VALUE.DATE
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.TELLER
+
+    R.NEW(TT.TE.VALUE.DATE.1) = TODAY
+    R.NEW(TT.TE.VALUE.DATE.2) = TODAY
+
+    RETURN
+END

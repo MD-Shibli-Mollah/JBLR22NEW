@@ -1,0 +1,69 @@
+*-----------------------------------------------------------------------------
+* <Rating>-64</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.H.EXPFORM.FIELD.DEF
+*-------------------------------------------------------------------------
+*
+*-------------------------------------------------------------------------
+* Modification History :
+*-------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT       ;* Other Inserts required for Checkfiles, e
+    $INSERT I_F.CUSTOMER
+    $INSERT I_F.SEC.ACC.MASTER
+    $INSERT I_F.PR.H.CURRENCY
+*-------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB DEFINE.FIELDS
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+DEFINE.FIELDS:
+    ID.F = "DRAWINGS.ID" ; ID.N = "22" ; ID.T = "A"
+
+*
+    Z=0
+
+    Z+=1 ; F(Z) = "SECTOR" ; N(Z) = "25" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "EXPORTERS.CCIE.NO" ; N(Z) = "32" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "ADVICE.REF.NO" ; N(Z) = "32" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "XX<EXPORTER.FORM.NO" ; N(Z) = "30" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "XX-AMT.IN.EXP.FORM" ; N(Z) = "16" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "XX-DUP.EXP.SUBMITTED.BB.ON" ; N(Z) = "16" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "XX-TRIP.EXP.SUBMITTED.BB.ON" ; N(Z) = "18" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "XX>PRC.ISSUANCE.STATUS" ; N(Z) = "5" ; T(Z)<2> = "YES_NO"
+
+    Z+=1 ; F(Z) = "DATE.OF.ISSUE" ; N(Z) = "15" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "XX.NAME.AND.ADDRESS" ; N(Z) = "35" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "CUSTOMER.ID" ; N(Z) = "15" ; T(Z) = "CUS"
+    CHECKFILE(Z)=CHK.CUSTOMER
+
+
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > CHECKFILE(Z) = CHK.ACCOUNT
+*
+    V = Z + 9
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+INITIALISE:
+    MAT F = "" ; MAT N = "" ; MAT T = ""
+    MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+    ID.CHECKFILE = "" ; ID.CONCATFILE = ""
+*
+* Define often used checkfile variables
+*
+    CHK.ACCOUNT = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+    CHK.CUSTOMER = "CUSTOMER":FM:EB.CUS.SHORT.NAME:FM:"L"
+    CHK.CUSTOMER.SECURITY = "CUSTOMER.SECURITY":FM:0:FM:'':FM:"CUSTOMER"
+    CHK.SAM = "SEC.ACC.MASTER":FM:SC.SAM.ACCOUNT.NAME:FM:'..S'
+    CHK.CURRENCY = "PR.H.CURRENCY":FM:PR.H.CUR.CURRENCY.NAME
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+END

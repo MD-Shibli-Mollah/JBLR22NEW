@@ -1,0 +1,43 @@
+*-----------------------------------------------------------------------------
+* <Rating>-11</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM READ.TEST
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+*    $INSERT I_F.ACCT.ENT.TODAY
+
+*   DEBUG;
+    FN.AET = "F.ACCT.ENT.TODAY"
+    F.AET = ""
+    CALL OPF(FN.AET,F.AET)
+
+    SEL.CMD = "SELECT ":FN.AET
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',ID.NO,ERR.CODE)
+    LOOP
+        REMOVE Y.REC.ID FROM SEL.LIST SETTING POS
+    WHILE Y.REC.ID:POS
+        CRT " ==============="
+        GOSUB TIME.NOW
+        CRT Y.REC.ID
+        READ REC FROM F.AET, Y.REC.ID ELSE
+            CRT "RECORD NOT FOUND"
+        END
+        GOSUB TIME.NOW
+* CRT "============="
+    REPEAT
+
+    RETURN
+
+TIME.NOW:
+
+    F.SEQ = ''
+    ms = SYSTEM(12)
+    timenow = TIME()
+    MIL.SEC = INT(MOD(ms,1000))
+    MIL.SEC=FMT(MIL.SEC,"R%3")
+    TIME.IN.MIL.SEC = OCONV(timenow,'MTS'):':':MIL.SEC
+    CRT "TIME ": TIME.IN.MIL.SEC
+*    CRT "====="
+    RETURN
+END

@@ -1,0 +1,69 @@
+*-----------------------------------------------------------------------------
+* <Rating>-23</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.LIM.LTR.REGISTER.ID
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This ID routine will generate the ID's for BD.LIM.LTR.REGISTER table
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 04/03/2011 - New - G.Sabari
+*                    Thesys Technologies
+*-------------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.BD.LIM.LTR.REGISTER
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-------------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.BD.LIM.LTR.REGISTER.NAU = 'F.BD.LIM.LTR.REGISTER$NAU'
+    F.BD.LIM.LTR.REGISTER.NAU = ''
+    CALL OPF(FN.BD.LIM.LTR.REGISTER.NAU,F.BD.LIM.LTR.REGISTER.NAU)
+
+    FN.BD.LIM.LTR.REGISTER = 'F.BD.LIM.LTR.REGISTER'
+    F.BD.LIM.LTR.REGISTER = ''
+    CALL OPF(FN.BD.LIM.LTR.REGISTER,F.BD.LIM.LTR.REGISTER)
+
+    RETURN
+*-------------------------------------------------------------------------------
+PROCESS:
+********
+
+    IF V$FUNCTION EQ 'I' THEN
+
+!Checking if the Id is in Exception then open the same id
+
+        CALL F.READ(FN.BD.LIM.LTR.REGISTER.NAU,ID.NEW,R.BD.LIM.LTR.REGISTER.NAU,F.BD.LIM.LTR.REGISTER.NAU,Y.BD.LIM.LTR.REGISTER.NAU.ERR)
+        IF R.BD.LIM.LTR.REGISTER.NAU THEN
+            ID.NEW = ID.NEW
+            RETURN
+        END
+
+!If trying to open the ID present in Live then open the same id.
+
+        CALL F.READ(FN.BD.LIM.LTR.REGISTER,ID.NEW,R.BD.LIM.LTR.REGISTER,F.BD.LIM.LTR.REGISTER,Y.BD.LIM.LTR.REGISTER.ERR)
+        IF R.BD.LIM.LTR.REGISTER THEN
+            ID.NEW = ID.NEW
+            RETURN
+        END
+
+!If not then open the new ID.
+
+        THE.APPLICATION = "LD.LOANS.AND.DEPOSITS"
+        THE.FORMAT.ID = "LD"
+        CALL EB.GET.NEXT.FIN.APPLICATION.ID(THE.APPLICATION, THE.FORMAT.ID, THE.NEXT.ID)
+        ID.NEW = THE.NEXT.ID
+    END
+
+    RETURN
+*-------------------------------------------------------------------------------
+
+END

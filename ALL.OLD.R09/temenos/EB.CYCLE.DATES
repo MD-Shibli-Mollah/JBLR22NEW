@@ -1,0 +1,544 @@
+* Version n dd/mm/yy  GLOBUS Release No. G15.0.04 29/11/04
+*-----------------------------------------------------------------------------
+* <Rating>2041</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE EB.CYCLE.DATES(LEAD.COMPANY)
+*
+* This subroutine will cycle the dates records for ONLINE batch users
+* as soon as the close of business takes place (it can be placed in the
+* batch wherever the suer requires)
+* The existing DATES record is saved as Co-code - COB and the close of
+* business jobs will read this record which is deleted when the start
+* of day section begins
+* The process will also update the CO.BATCH.STATUS field to 'B'
+* for both the company and COB
+*
+* 30/07/03 - EN_10001940
+*            Update SPOOL.BATCH.OUTPUT for each company
+* 27/08/03 - BG_100005037
+*            Updates F.LOCKING with the list of Companies for which COB or TSA is being run
+*
+* 29/09/03 - BG_100005275
+*            Cycle the dates based on the batch holiday, and set up the current day
+*            based on the branch and official holiday fields in the compant record
+*
+* 07-04-04 - CI_10018794
+*          - Incorrect cycling of DATES when today = value set in BRANCH.CLOSED in
+*          - COMPANY. If TODAY = EB.COM.BRANCH.CLOSED, then set CURRENT.DAY = 'CLOSED'
+*          - in DATES record. Also moved assiging of REC.DATES<EB.DAT.CURRENT.DAY>
+*          - outside the LOCATE in SET.DAY.TYPE para.
+* 11/03/05 - EN_10002540
+*            new field last period.end
+*
+* 20/10/06 - CI_10044999
+*            Change to a FIN level job.
+*
+* 02/08/07 - CI_10050654
+*            REF:HD0712306
+*            variable COMPANY.CODE has to be used in place of ID.COMPANY in WRITE.SPOOL.BATCH.OUTPUT
+*
+* 19/09/08 - CI_10057834
+*            WRITE_ERROR (Oracle Error - unique constraint violated) in EB.CYCLE.DATES job when F.LOCKONG
+*            record is written with the Service name and Batch start date as id for two different companies
+*
+* 13/10/08 - BG_100020362
+*            COB hang during EB.CYCLE.DATES processing.READU to be changed to READ for reading COMPANY.
+*
+* 23/03/11 - CI_10072899 / REF: (DEFECT 170703)
+*            updating the Audit fields after running the COB
+*
+*-----------------------------------------------------------------------
+*
+* MODIFICATIONS
+* -------------
+*
+*
+************************************************************************
+*
+*
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.DATES
+    $INSERT I_F.COMPANY
+    $INSERT I_F.SPF
+    $INSERT I_TSA.COMMON
+    $INSERT I_F.TSA.STATUS
+    $INSERT I_F.SPOOL.BATCH.OUTPUT
+    $INSERT I_F.LOCKING       ;* BG_100005037
+    $INSERT I_F.COMPANY.CHECK
+    $INSERT I_EB.CYCLE.DATES.COMMON
+    $INSERT I_F.USER
+*
+*-----------------------------------------------------------------------
+*
+MAIN.PARA:
+*---------
+* Initialise count of date records in cache and status
+*
+    GOSUB READ.COMPANY.CHECK
+
+    LOOP
+        REMOVE COMPANY.CODE FROM COMPANY.LIST SETTING COMPANY.CODE.MARK
+    WHILE COMPANY.CODE : COMPANY.CODE.MARK
+
+        GOSUB PROCESS.COMPANY
+
+    REPEAT
+
+    RETURN
+
+*--------------------------------------------------------------------------
+PROCESS.COMPANY:
+*---------------
+
+    YETEXT = ''
+*
+* Read DATES file record for the company
+*
+    GOSUB READ.DATES
+    IF YETEXT THEN GOSUB FATAL.ERROR
+*
+* Read company file record to get country, region etc
+*
+    GOSUB READ.COMPANY
+    IF YETEXT THEN GOSUB FATAL.ERROR
+*
+* Reset dates now in order
+*
+    GOSUB RESET.DATES
+    IF YETEXT THEN GOSUB FATAL.ERROR
+*
+MAIN.PARA.EXIT:
+*--------------
+* After processing date records for all companies
+* if there are no errors then rewrite updated records
+* onto the file
+* i.e. when there are no errors*
+*
+    GOSUB UPDATE.AUDIT.FIELDS ;*updating the audit fields
+    GOSUB WRITE.DATE.RECORDS
+    GOSUB WRITE.LOCKING.RECORD
+    GOSUB WRITE.SPOOL.BATCH.OUTPUT
+*
+    GOSUB CLEAR.UNAUTH.DATES  ;* Report and clear any unauthorised date records
+*
+    RETURN
+*
+*========================================================================
+*
+RESET.DATES:
+*-----------
+*
+* Initialise parameters for next working day calculations
+*
+    GOSUB INITIALISE.PARAMETERS
+*
+    REC.DATES<EB.DAT.LAST.WORKING.DAY> = REC.DATES<EB.DAT.TODAY>
+    REC.DATES<EB.DAT.TODAY> = REC.DATES<EB.DAT.NEXT.WORKING.DAY>
+    REC.DATES<EB.DAT.LAST.PERIOD.END> = REC.DATES<EB.DAT.PERIOD.END>
+*
+* NOTE:  Above order of update is critical !
+*
+    NEW.DAY = REC.DATES<EB.DAT.NEXT.WORKING.DAY>
+    GOSUB CALC.NEXT.DATE
+    IF YETEXT THEN GOTO RESET.DATES.EXIT
+    REC.DATES<EB.DAT.NEXT.WORKING.DAY> = NEXT.DATE
+*
+    NEW.DAY = REC.DATES<EB.DAT.LOCAL.PAYMENT.DAY>
+    GOSUB CALC.NEXT.DATE
+    IF YETEXT THEN GOTO RESET.DATES.EXIT
+    REC.DATES<EB.DAT.LOCAL.PAYMENT.DAY> = NEXT.DATE
+*
+    NEW.DAY = REC.DATES<EB.DAT.LOCAL.DISPO.DAY>
+    GOSUB CALC.NEXT.DATE
+    IF YETEXT THEN GOTO RESET.DATES.EXIT
+    REC.DATES<EB.DAT.LOCAL.DISPO.DAY> = NEXT.DATE
+*
+    NEW.DAY = REC.DATES<EB.DAT.BACK.VALUE.MINIMUM>
+    GOSUB CALC.NEXT.DATE
+    IF YETEXT THEN GOTO RESET.DATES.EXIT
+    REC.DATES<EB.DAT.BACK.VALUE.MINIMUM> = NEXT.DATE
+*
+    NEW.DAY = REC.DATES<EB.DAT.FORW.VALUE.MINIMUM>
+    GOSUB CALC.NEXT.DATE
+    IF YETEXT THEN GOTO RESET.DATES.EXIT
+    REC.DATES<EB.DAT.FORW.VALUE.MINIMUM> = NEXT.DATE
+*
+    NEW.DAY = REC.DATES<EB.DAT.FORW.VALUE.MAXIMUM>
+    GOSUB CALC.NEXT.DATE
+    IF YETEXT THEN GOTO RESET.DATES.EXIT
+    REC.DATES<EB.DAT.FORW.VALUE.MAXIMUM> = NEXT.DATE
+*
+    JUL.TODAY = ""
+    NEW.DAY = REC.DATES<EB.DAT.TODAY>
+    CALL JULDATE(NEW.DAY,JUL.TODAY)
+    REC.DATES<EB.DAT.JULIAN.DATE> = JUL.TODAY
+*
+* Calculate new period end
+*
+    IF REC.DATES<EB.DAT.TODAY>[5,2] NE REC.DATES<EB.DAT.NEXT.WORKING.DAY>[5,2] THEN
+        LASTDAY = REC.DATES<EB.DAT.TODAY>[1,6]:'32'
+        CALL CDT('',LASTDAY,'-01C')
+        REC.DATES<EB.DAT.PERIOD.END> = LASTDAY
+    END ELSE
+        LASTDAY = REC.DATES<EB.DAT.NEXT.WORKING.DAY>
+        CALL CDT('',LASTDAY,'-01C')
+        REC.DATES<EB.DAT.PERIOD.END> = LASTDAY
+    END
+*
+* set the current day type
+*
+    GOSUB SET.DAY.TYPE
+*************************************************************************
+*************************************************************************
+*
+RESET.DATES.EXIT:
+*----------------
+*
+    IF YETEXT # '' THEN PRINT YETEXT
+    RETURN
+*
+*------------------------------------------------------------------------
+*
+READ.DATES:
+*----------
+*
+    READU REC.DATES FROM F.DATES, COMPANY.CODE ELSE
+*
+        YETEXT = 'RECORD & MISSING FROM &':@FM:COMPANY.CODE:@VM:'F.DATES'
+        CALL TXT( YETEXT )
+        PRINT YETEXT
+*
+    END
+    REC.DATES<EB.DAT.CO.BATCH.STATUS> = "B"       ;* Set to OFFLINE
+    IF REC.DATES<EB.DAT.LAST.PERIOD.END> = "" THEN          ;* Only ever done once
+        GOSUB CALCULATE.LPE
+    END
+    COB.DATES = REC.DATES     ;* Keep a copy of the dates for COB
+    RETURN
+*
+*------------------------------------------------------------------------
+*
+SET.DAY.TYPE:
+*------------
+*
+* CI_10018794s- Reset the branch closed field
+    REC.COMPANY<EB.COM.BRANCH.CLOSED> = SAVE.CLOSED.DATES
+    R.COMPANY(EB.COM.BRANCH.CLOSED) = SAVE.CLOSED.DATES     ;* update the real one
+* CI_10018794e
+* Find out the type of day for this branch
+* CLOSED, branch is closed
+* RESTRICTED, branch is open but it is not an Official working day ( e.g. weekend)
+* NORMAL, branch is open on a Full working day
+*
+*
+* Get the business holiday key componemt for the branch
+*
+    OFFICIAL.HOLIDAY = REC.COMPANY<EB.COM.OFFICIAL.HOLIDAY>
+    BRANCH.HOLIDAY = REC.COMPANY<EB.COM.BRANCH.HOLIDAY>
+    CHECK.DATE = REC.DATES<EB.DAT.TODAY>
+    CURRENT.DAY = "" ; DAY.TYPE = ""
+    LOCATE CHECK.DATE IN REC.COMPANY<EB.COM.BRANCH.CLOSED,1> SETTING POS THEN
+        CURRENT.DAY = "CLOSED"
+    END ELSE
+        BRN.DAY.TYPE = ""
+        CALL AWD(BRANCH.HOLIDAY,CHECK.DATE,BRN.DAY.TYPE)
+        IF BRN.DAY.TYPE = "H" THEN
+            CURRENT.DAY = "CLOSED"
+        END ELSE
+            IF BRN.DAY.TYPE = "W" THEN
+                OFF.DAY.TYPE = ""
+                CALL AWD(OFFICIAL.HOLIDAY,CHECK.DATE,OFF.DAY.TYPE)
+                IF OFF.DAY.TYPE = "H" THEN
+                    CURRENT.DAY = "RESTRICTED"
+                END ELSE
+                    IF OFF.DAY.TYPE = "W" THEN
+                        CURRENT.DAY = "NORMAL"
+                    END
+                END
+            END
+        END
+        IF CURRENT.DAY = "" THEN CURRENT.DAY = "GROUNDHOG"  ;* something very strange
+    END
+    REC.DATES<EB.DAT.CURRENT.DAY> = CURRENT.DAY   ;* CI_10018794s/e
+    RETURN
+*
+*------------------------------------------------------------------------
+*
+READ.COMPANY:
+*------------
+*
+    READ REC.COMPANY FROM F.COMPANY, COMPANY.CODE ELSE      ;*no updates on company can be a simple read
+*
+* read company file to obtain the region and country codes.
+*
+        YETEXT = 'RECORD & MISSING FROM &':@FM:COMPANY.CODE:@VM:'F.COMPANY'
+        CALL TXT( YETEXT )
+        PRINT YETEXT
+*
+    END
+* CI_10018794s
+* we need to clear the branch closed field so that the batch cycling is unaffected
+*
+    SAVE.CLOSED.DATES = REC.COMPANY<EB.COM.BRANCH.CLOSED>
+    REC.COMPANY<EB.COM.BRANCH.CLOSED> = ""
+    R.COMPANY(EB.COM.BRANCH.CLOSED) = ""          ;* change the real one in memory
+* CI_10018794e
+    RETURN
+*
+*------------------------------------------------------------------------
+*
+INITIALISE.PARAMETERS:
+*---------------------
+*
+    COUNTRY = REC.COMPANY< EB.COM.LOCAL.COUNTRY >
+    REGION = REC.COMPANY< EB.COM.LOCAL.REGION >
+*
+    IF REC.COMPANY<EB.COM.BATCH.HOLIDAY> THEN
+        COUNTRY = REC.COMPANY<EB.COM.BATCH.HOLIDAY>[1,2]
+        REGION = REC.COMPANY<EB.COM.BATCH.HOLIDAY>[3,2]
+    END
+    CAL.TYPE = 'S'
+    SIGN = '+'
+    DISPLACEMENT = '001W'     ;* next working day
+    FORWARD = 'F'
+*
+    ACTUAL.DISPLACEMENT = ''
+    RETURN
+*
+*------------------------------------------------------------------------
+*
+CALC.NEXT.DATE:
+*--------------
+*
+    NEXT.DATE = ""
+    CODE = ""
+    CALL WORKING.DAY( CAL.TYPE,NEW.DAY,SIGN,DISPLACEMENT,FORWARD,COUNTRY,REGION,NEXT.DATE,CODE,ACTUAL.DISPLACEMENT )
+*
+    IF CODE = 'ERR' THEN
+*
+        YETEXT = 'ERROR AS RETURNED FROM ROUTINE WORKING DAY IS'
+        CALL TXT( YETEXT )
+        PRINT YETEXT
+        YETEXT = ETEXT
+        PRINT YETEXT
+*
+        YETEXT = "FOR & ( & ) WHEN START DATE = & ":@FM:REC.COMPANY<EB.COM.COMPANY.NAME,LNGG>:@VM:COMPANY.CODE:@VM:NEW.DAY
+        CALL TXT(YETEXT)
+        PRINT YETEXT
+*
+    END ELSE
+*
+        IF NEW.DAY >= NEXT.DATE THEN
+*
+            YETEXT = 'ERROR IN WORKING.DAY SUBROUTINE: TODAY & AND NEXT WORKING DAY & !!':@FM:NEW.DAY:@VM:NEXT.DATE
+            CALL TXT( YETEXT )
+            PRINT YETEXT
+*
+            YETEXT = "FOR & ( & )":@FM:REC.COMPANY<EB.COM.COMPANY.NAME,LNGG>:@VM:COMPANY.CODE
+            CALL TXT(YETEXT)
+            PRINT YETEXT
+*
+        END
+    END
+    RETURN
+*
+*-----------------------------------------------------------------------
+*
+******************UPDATING AUDIT FIELDS*********************************
+*
+UPDATE.AUDIT.FIELDS:
+
+    TIME.STAMP = TIMEDATE()   ;* time date calculation
+    REC.DATES<EB.DAT.CURR.NO> += 1      ;* increasing the curr.no value by 1
+    X = OCONV(DATE(),"D-")
+    X = X[9,2]:X[1,2]:X[4,2]:TIME.STAMP[1,2]:TIME.STAMP[4,2]
+
+    RECORD.STATUS=REC.DATES<EB.DAT.RECORD.STATUS> ;* assigning the status of the record
+    IF R.SPF.SYSTEM<SPF.DATE.TIME.MV> = "YES" THEN          ;* if the field in SPF is set to "YES" then multivaluing the INPUTTER and and DATE.TIME fields
+        INS TNO:"_":OPERATOR:"_A_":RECORD.STATUS BEFORE REC.DATES<EB.DAT.INPUTTER,1>
+        INS X BEFORE REC.DATES<EB.DAT.DATE.TIME,1>
+    END ELSE
+        REC.DATES<EB.DAT.INPUTTER> = TNO:"_":OPERATOR       ;* set the inputter
+        REC.DATES<EB.DAT.DATE.TIME> = X ;* set the date time
+    END
+    REC.DATES<EB.DAT.AUTHORISER> = TNO:"_":OPERATOR         ;* set the authoriser
+    REC.DATES<EB.DAT.CO.CODE> = COMPANY.CODE      ;* set the company code
+    USER.DEPT.CODE = R.USER<EB.USE.DEPARTMENT.CODE>
+    REC.DATES<EB.DAT.DEPT.CODE> = USER.DEPT.CODE  ;* set the department code
+
+    RETURN
+***************************************************************************
+*
+WRITE.DATE.RECORDS:
+*------------------
+*
+    WRITE COB.DATES TO F.DATES, COMPANY.CODE:"-COB"         ;* Update for the eod process
+    WRITE REC.DATES TO F.DATES, COMPANY.CODE
+*
+    RETURN
+*
+*-----------------------------------------------------------------------
+WRITE.LOCKING.RECORD:
+*===================
+** Update LOCKING record with start date of batch
+* do a readu on the locking record and then write to avoid WRITE_ERROR crash
+*
+    TSA.STATUS.REC = ""
+    LOCKING.REC= ''
+    READ TSA.STATUS.REC FROM F.TSA.STATUS, AGENT.NUMBER ELSE TSA.STATUS = ''
+    SERVICE.NAME = TSA.STATUS.REC<TS.TSS.CURRENT.SERVICE>
+    CRT "391: TIME BEFORE READU :":SERVICE.NAME:"  :":OCONV(TIME(), "MTS")
+    READU LOCKING.REC FROM F.LOCKING,SERVICE.NAME ELSE LOCKING.REC = ''         ;* do a readu on the locking record to avoid WRITE_ERROR crash
+    CRT "391: TIME AFTER READU :":SERVICE.NAME:"  :":OCONV(TIME(), "MTS")
+    LOCKING.REC = TODAY
+    LOCKING.REC<2> = OCONV(TIME(),"MTS")
+  *  LOCKING.REC<4> = LOWER(C$COMP.EOD.LIST)       ;*   BG_100005037 Store the other companies
+    CRT "397: TIME BEFORE WRITE :":SERVICE.NAME:"  :":OCONV(TIME(), "MTS")
+    WRITE LOCKING.REC TO F.LOCKING, SERVICE.NAME
+    CRT "397: TIME AFTER WRITE :":SERVICE.NAME:"  :":OCONV(TIME(), "MTS")
+* And write out the BATCH.START.DATE locking record
+*
+    C$BATCH.START.DATE = TODAY
+    R.LOCKING = ''
+    READU R.LOCKING FROM F.LOCKING, "BATCH.START.DATE" ELSE R.LOCKING=''        ;* do a readu on the locking record to avoid WRITE_ERROR crash
+    R.LOCKING<EB.LOK.CONTENT> = TODAY
+  *  R.LOCKING<EB.LOK.REMARK> = C$COMP.EOD.LIST<1>
+    CRT "407: TIME BEFORE WRITE BATCH.START.DATE  :":OCONV(TIME(), "MTS")
+    WRITE R.LOCKING ON F.LOCKING, "BATCH.START.DATE"
+    CRT "407: TIME AFTER WRITE BATCH.START.DATE  :":OCONV(TIME(), "MTS")
+* And now write the Locking BATCH.START.DATE for that company
+    R.LOCKING = ""
+    START.DATE.TIME = TIMEDATE()
+    CRT "413: TIME BEFORE READU BATCH.START.DATE-":COMPANY.CODE:"  :":OCONV(TIME(), "MTS")
+    READU R.LOCKING FROM F.LOCKING, "BATCH.START.DATE-":COMPANY.CODE ELSE R.LOCKING = ''
+    CRT "413: TIME AFTER READU BATCH.START.DATE-":COMPANY.CODE:"  :":OCONV(TIME(), "MTS")
+    R.LOCKING<3> = R.LOCKING<EB.LOK.REMARK>       ;* Store the time ofthe prev start
+    R.LOCKING<EB.LOK.CONTENT> = TODAY
+ *   R.LOCKING<4> = LOWER(C$COMP.EOD.LIST)         ;* Store the other companies we are going to run
+    CRT "413: TIME BEFORE WRITE BATCH.START.DATE-":COMPANY.CODE:"  :":OCONV(TIME(), "MTS")
+    WRITE R.LOCKING TO F.LOCKING, "BATCH.START.DATE-":COMPANY.CODE
+    CRT "413: TIME AFTER WRITE BATCH.START.DATE-":COMPANY.CODE:"  :":OCONV(TIME(), "MTS")
+*
+    RETURN
+*
+*-------------------------------------------------------------------------
+WRITE.SPOOL.BATCH.OUTPUT:
+*========================
+** Write out the Spool Batch Output records now by company as they
+** will be running at different times
+** in a GLOBAL environment. For standard operation there will remain
+** a single record
+*
+    MAX.SBO.ENTRIES = 5       ;* Max number of batch run date/times to retain
+*
+* Ok shuffle the old batch start date & time records down the list
+* before updating record 1 (current batch).
+*
+    FOR BSL = MAX.SBO.ENTRIES TO 2 STEP -1
+        OLD.ID = BSL-1:"-":COMPANY.CODE
+        NEW.ID = BSL:"-":COMPANY.CODE
+        READ R.SPOOL.BATCH.OUTPUT FROM F.SPOOL.BATCH.OUTPUT,OLD.ID ELSE R.SPOOL.BATCH.OUTPUT = ''   ;* Read the old record
+        WRITE R.SPOOL.BATCH.OUTPUT TO F.SPOOL.BATCH.OUTPUT,NEW.ID     ;* Move record down in list
+    NEXT BSL
+*
+* Update record 1 in the F.SPOOL.BATCH.OUTPUT file with the
+* current start date & time of the batch
+*
+    TODAYS.DATE = OCONV(DATE(),'D-')    ;* Todays date mm-dd-yy
+    YYYYMMDD = TODAYS.DATE[7,4]:TODAYS.DATE[1,2]:TODAYS.DATE[4,2]     ;* Date in fmt yyyymmdd
+*
+    CURR.TIME = TIMEDATE()    ;* Time & date hh:mm:ss dd mmm yyyy
+    HHMM = CURR.TIME[1,2]:CURR.TIME[4,2]
+*
+    R.SPOOL.BATCH.OUTPUT = ''
+    R.SPOOL.BATCH.OUTPUT<SBO.BATCH.START.DATE> = YYYYMMDD   ;* Batch start date
+    R.SPOOL.BATCH.OUTPUT<SBO.BATCH.START.TIME> = HHMM       ;* Batch start time
+    R.SPOOL.BATCH.OUTPUT<SBO.BANK.DATE> = TODAY   ;* Store current bank date
+    R.SPOOL.BATCH.OUTPUT<SBO.COMPANY.CODE> = COMPANY.CODE
+*
+    WRITE R.SPOOL.BATCH.OUTPUT TO F.SPOOL.BATCH.OUTPUT, "1-":COMPANY.CODE
+*
+    RETURN
+*
+*------------------------------------------------------------------------
+*
+* Routine to delete and report on any unauthorised dates records.
+*
+CLEAR.UNAUTH.DATES:
+*
+    READ NAU.DATES.REC FROM F.DATES$NAU, COMPANY.CODE THEN
+        CALL EXCEPTION.LOG("S",
+        "EB",
+        "EB.CYCLE.DATES",
+        "DATES",
+        "900",
+        "",
+        "F.DATES",
+        ID.COMPANY,
+        NAU.DATES.REC<EB.DAT.CURR.NO>,
+        "UNAUTHORISED DATES RECORD EXISTS",
+        "")
+*
+    END
+*
+    RETURN
+*
+*-----------------------------------------------------------------------
+* Calculate previous period end date
+* Normally Today -1
+* unless LWD is in previous month then it will be last month end date
+*
+CALCULATE.LPE:
+
+    LWD = REC.DATES<EB.DAT.LAST.WORKING.DAY>
+    LWD.MONTH = LWD[5,2]      ;* Month end of last working day
+    CWD = REC.DATES<EB.DAT.TODAY>
+    CWD.MONTH = CWD[5,2]      ;* this month
+
+    IF LWD.MONTH NE CWD.MONTH THEN
+        LPE = LWD[1,6]:'32'   ;* Set up previous month end
+    END ELSE
+        LPE = CWD   ;* set up yesterday
+    END
+    CALL CDT('',LPE,'-01C')
+
+    REC.DATES<EB.DAT.LAST.PERIOD.END> = LPE
+
+    RETURN
+
+*-----------------------------------------------------------------------
+READ.COMPANY.CHECK:
+*-----------------*
+
+    READ R.COMPANY.CHECK FROM F.COMPANY.CHECK,"FIN.FILE" ELSE
+*
+* read company check file to obtain the a list of books.
+*
+        YETEXT = 'RECORD FILE.FILE MISSING FROM F.COMPANY.CHECK'
+        CALL TXT( YETEXT )
+        PRINT YETEXT
+    END
+
+    COMPANY.LIST = LEAD.COMPANY
+    LOCATE LEAD.COMPANY IN R.COMPANY.CHECK<EB.COC.COMPANY.CODE,1> SETTING POS THEN
+        IF R.COMPANY.CHECK<EB.COC.USING.COM,POS> # '' THEN
+            COMPANY.LIST<-1> = RAISE(R.COMPANY.CHECK<EB.COC.USING.COM,POS>)
+        END
+    END
+
+    RETURN
+*
+*-----------------------------------------------------------------------
+FATAL.ERROR:
+*===========
+*
+    TEXT = YETEXT
+    CALL FATAL.ERROR("EB.CYCLE.DATES")
+    RETURN
+*
+    RETURN
+*
+*-----------------------------------------------------------------------
+*
+END

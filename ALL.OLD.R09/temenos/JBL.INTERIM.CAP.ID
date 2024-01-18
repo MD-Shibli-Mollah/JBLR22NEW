@@ -1,0 +1,22 @@
+    SUBROUTINE JBL.INTERIM.CAP.ID
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+
+    REC.ID = ID.COMPANY:'-':COMI
+    ID.NEW = RIGHT(REC.ID,18)
+
+    IF V$FUNCTION EQ 'I' THEN
+        CAP.DATE = FIELD(ID.NEW,'-',2)
+        IF LEN(CAP.DATE) NE 8 THEN
+            E = "INVALID DATE FORMAT"
+        END
+        ELSE
+            IF CAP.DATE LT TODAY THEN
+                E = "INVALID DATE-":CAP.DATE:" IS LESS THAN TODAY"
+            END
+        END
+    END
+
+    RETURN
+END

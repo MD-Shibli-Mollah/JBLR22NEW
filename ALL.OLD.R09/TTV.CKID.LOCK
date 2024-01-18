@@ -1,0 +1,21 @@
+    SUBROUTINE TTV.CKID.LOCK
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_System
+    $INSERT BP I_F.TT.VAULT
+!DEBUG
+    FN.V = 'F.TT.VAULT$NAU'
+    F.V = ''
+    CALL OPF(FN.V,F.V)
+    CALL F.READ(FN.V,ID.NEW,R.CK,F.V,ERR.CK)
+    Y.DT = '20':R.CK<TTV.DATE.TIME><1,1>[1,6]
+    Y.NDT = DATE() "D4/"
+    Y.NDT = FIELD(Y.NDT,'/',3):FIELD(Y.NDT,'/',1):FIELD(Y.NDT,'/',2)
+    IF Y.DT LT Y.NDT THEN
+        AF = 0
+        ETEXT = 'Back Dated Entry Can not be authorised.'
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    RETURN
+END

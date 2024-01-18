@@ -1,0 +1,82 @@
+*----------------------------------------------------------------
+* <Rating>-3</Rating>
+*CODER NAME : KH. MONWAR HOSSAIN
+*CODE PURPOSE : CATEGORY WISE BALANCE SUMMARY
+*CODE DATE : 25-06-2016
+*----------------------------------------------------------------
+    SUBROUTINE JBL.CAT.BAL(Y.LIST)
+!PROGRAM JBL.CAT.BAL
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.CATEGORY
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    FN.COM = 'F.COMPANY'
+    F.COM = ''
+    FN.CATEGORY = 'F.CATEGORY'
+    F.CATEGORY = ''
+
+    Y.AC.AMT = 0
+    Y.TOT.AC.AMT = 0
+    CNT = 0
+    Y.DES = ''
+    PRINT.TIME = OCONV(TIME(), "MTS")
+
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.COM,F.COM)
+    CALL OPF(FN.CATEGORY,F.CATEGORY)
+!DEBUG
+    LOCATE "CATEGORY" IN ENQ.SELECTION<2,1> SETTING Y.CAT.POS THEN
+        Y.CATEGORY = ENQ.SELECTION<4,Y.CAT.POS>
+    END
+    IF  Y.CATEGORY EQ '' THEN
+        IF ID.COMPANY EQ 'BD0010102' THEN
+            Y.ARRAY = '1001':@FM:'1002':@FM:'1003':@FM:'6001':@FM:'6002':@FM:'6003':@FM:'6004':@FM:'6006':@FM:'6007':@FM:'6012':@FM:'6013':@FM:'6009'
+        END ELSE
+            Y.ARRAY = '1001':@FM:'1002':@FM:'1003':@FM:'6001':@FM:'6002':@FM:'6003':@FM:'6004':@FM:'6006':@FM:'6007':@FM:'6012':@FM:'6013':@FM:'6014':@FM:'6018':@FM:'6019':@FM:'6024':@FM:'6025':@FM:'6009'
+        END
+        Y.ARR.CAT = DCOUNT(Y.ARRAY,@FM)
+
+        FOR M = 1 TO Y.ARR.CAT
+            CNT = 0
+            Y.AC.AMT = 0
+            Y.TOT.AC.AMT = 0
+            Y.DES = ''
+            Y.CATEGORY = FIELD(Y.ARRAY,@FM,M)
+
+            SEL.CMD = 'SELECT ':FN.AC:' WITH CO.CODE EQ ':ID.COMPANY :' AND CATEGORY EQ ': Y.CATEGORY
+            CALL F.READ(FN.CATEGORY,Y.CATEGORY,R.CAT,F.CATEGORY,CAT.ERR)
+            Y.DES = R.CAT<EB.CAT.DESCRIPTION>
+            CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+            LOOP
+                REMOVE Y.REQ.AC FROM SEL.LIST SETTING Y.POS.ID
+            WHILE Y.REQ.AC:Y.POS.ID
+                CALL F.READ(FN.AC,Y.REQ.AC,R.AC,F.AC,ERR.AC)
+                Y.AC.AMT =R.AC<AC.WORKING.BALANCE>
+                Y.TOT.AC.AMT+ = Y.AC.AMT
+                CNT= CNT + 1
+            REPEAT
+            Y.LIST<-1> = Y.CATEGORY :'*': Y.DES :'*': CNT :'*': Y.TOT.AC.AMT :'*': PRINT.TIME
+        NEXT M
+    END ELSE
+
+        SEL.CMD = 'SELECT ':FN.AC:' WITH CO.CODE EQ ':ID.COMPANY :' AND CATEGORY EQ ': Y.CATEGORY
+        CALL F.READ(FN.CATEGORY,Y.CATEGORY,R.CAT,F.CATEGORY,CAT.ERR)
+        Y.DES = R.CAT<EB.CAT.DESCRIPTION>
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+        LOOP
+            REMOVE Y.REQ.AC FROM SEL.LIST SETTING Y.POS.ID
+        WHILE Y.REQ.AC:Y.POS.ID
+            CALL F.READ(FN.AC,Y.REQ.AC,R.AC,F.AC,ERR.AC)
+            Y.AC.AMT =R.AC<AC.WORKING.BALANCE>
+            Y.TOT.AC.AMT+ = Y.AC.AMT
+            CNT= CNT + 1
+        REPEAT
+        Y.LIST<-1> = Y.CATEGORY :'*': Y.DES :'*': CNT :'*': Y.TOT.AC.AMT :'*': PRINT.TIME
+    END
+    RETURN
+END

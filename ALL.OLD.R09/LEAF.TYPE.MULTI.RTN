@@ -1,0 +1,18 @@
+    SUBROUTINE LEAF.TYPE.MULTI.RTN
+!PROGRAM LEAF.TYPE.MULTI.RTN
+*-----
+* Description : Return Multivalue Leaf Type in a column
+* Author      : AVIJIT SAHA
+* Date        : 09.01.2022
+*-----
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    MV.FLD = O.DATA
+    VM.COUNT = DCOUNT(MV.FLD,@VM)
+    O.DATA = MV.FLD<1,VC>
+
+
+    RETURN
+END

@@ -1,0 +1,49 @@
+*-----------------------------------------------------------------------------
+* <Rating>-1</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM ACC.CHK.LOCK
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.STMT.ENTRY
+    $INSERT I_F.CATEG.ENTRY
+*    $INSERT I_F.STMT.PRINTED
+    SPEC.LIST = ''
+    FN.ACCT = 'F.ACCOUNT'
+    FV.ACCT = ''
+    CALL OPF (FN.ACCT,FV.ACCT)
+
+    FN.STMT.PRINT = 'F.STMT.PRINTED'
+    FV.STMT.PRINT = ''
+    CALL OPF(FN.STMT.PRINT,FV.STMT.PRINT)
+
+    LIST.NAME = "ACC.CHECK"
+
+    GETLIST LIST.NAME ELSE
+        NULL
+    END
+
+
+    READLIST SPEC.LIST ELSE
+        SPEC.LIST = ''
+    END
+
+
+    SPEC.DET = ''
+    P.RECORD = ''
+    ERR.ACC = ''
+    LOOP
+        REMOVE SPEC.DET FROM SPEC.LIST SETTING SPEC.POS
+    WHILE SPEC.DET:SPEC.POS
+        ERR.ARR = ''
+
+        CRT "391: TIME BEFOREREAD :":SPEC.DET:" :":OCONV(TIME(), "MTS")
+        CALL F.READU(FN.ACCT, SPEC.DET, P.RECORD, FV.ACCT, "", ERR.ACC)
+
+        CRT "391: TIME AFTERREAD :":SPEC.DET:" :":OCONV(TIME(), "MTS")
+
+    REPEAT
+    RETURN
+
+END 

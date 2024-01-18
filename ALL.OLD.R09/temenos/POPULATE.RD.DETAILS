@@ -1,0 +1,153 @@
+*-----------------------------------------------------------------------------
+* <Rating>594</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE POPULATE.RD.DETAILS
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.AZ.ACCOUNT
+    $INSERT I_F.AZ.PRODUCT.PARAMETER
+
+    FN.APP = 'F.AZ.PRODUCT.PARAMETER'
+    F.APP = ''
+    R.APP = ''
+    CALL OPF(FN.APP,F.APP)
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    R.AC = ''
+    CALL OPF(FN.AC,F.AC)
+
+    Y.VALUE.DATE = ''
+    Y.MATURITY.DATE = ''
+    Y.DURATION = ''
+    Y.PRINCIPAL.AMT = ''
+    Y.TOT.NO.OF.INSTL = ''
+    Y.SCH.TYPE = ''
+    Y.AMOUNT = ''
+    Y.FREQUENCY = ''
+    Y.NUMBER = ''
+    Y.APP = COMI
+    Y.INST.DAY = '10'         ;* Default
+
+    CALL GET.LOC.REF("ACCOUNT","INSTALL.AMOUNT",Y.INST.AMT.POS)
+    CALL GET.LOC.REF("ACCOUNT","NO.OF.INSTAL",Y.NO.OF.INST.POS)
+    CALL GET.LOC.REF("ACCOUNT","RD.VALUE.DATE",Y.RD.VAL.DT.POS)
+    CALL GET.LOC.REF("AZ.PRODUCT.PARAMETER","INSTALMENT.DAY",Y.INST.DAY.POS)
+    CALL F.READ(FN.APP,Y.APP,R.APP,F.APP,APP.ERR)
+    Y.INST.DAY = R.APP<AZ.APP.LOCAL.REF,Y.INST.DAY.POS>
+    IF Y.INST.DAY LT 10 THEN
+        Y.INST.DAY = '0':Y.INST.DAY
+    END
+    CALL F.READ(FN.AC,ID.NEW,R.AC,F.AC,ERR)
+
+    Y.INST.AMT = R.AC<AC.LOCAL.REF,Y.INST.AMT.POS>
+    Y.TOT.NO.OF.INSTL = R.AC<AC.LOCAL.REF,Y.NO.OF.INST.POS>
+    Y.VALUE.DATE = R.AC<AC.LOCAL.REF,Y.RD.VAL.DT.POS>
+
+
+    IF Y.INST.AMT GT 0 THEN
+        IF Y.TOT.NO.OF.INSTL EQ '' THEN
+            Y.APP = COMI
+            CALL F.READ(FN.APP,Y.APP,R.APP,F.APP,APP.ERR)
+            IF R.APP THEN
+                Y.DURATION = R.APP<AZ.APP.MAXIMUM.TERM>
+                Y.DUR.IN.MONTH = ''
+                IF Y.DURATION[LEN(Y.DURATION),1] EQ 'Y' THEN
+                    Y.DUR.IN.MONTH = FIELD(Y.DURATION,'Y',1) * 12
+                    Y.TOT.NO.OF.INSTL = Y.DUR.IN.MONTH
+                END
+                ELSE
+                    Y.DUR.IN.MONTH = FIELD(Y.DURATION,'M',1)
+                    Y.TOT.NO.OF.INSTL =  Y.DUR.IN.MONTH
+                END
+            END
+        END
+        Y.PRINCIPAL.AMT = Y.TOT.NO.OF.INSTL * Y.INST.AMT
+        R.NEW(AZ.PRINCIPAL) = Y.PRINCIPAL.AMT
+        Y.VALUE.DATE = R.NEW(AZ.VALUE.DATE)
+        IF Y.VALUE.DATE EQ ''  THEN
+            Y.VALUE.DATE = TODAY
+        END
+        R.NEW(AZ.VALUE.DATE) = Y.VALUE.DATE
+        Y.COMI.OLD = COMI
+
+        IF Y.TOT.NO.OF.INSTL LT 10 AND LEN(Y.TOT.NO.OF.INSTL) LT 2 THEN
+            Y.TOT.NO.OF.INSTL = '0': Y.TOT.NO.OF.INSTL
+        END
+        IF Y.TOT.NO.OF.INSTL LE 12 THEN
+            COMI = Y.VALUE.DATE :'M' :Y.TOT.NO.OF.INSTL : Y.VALUE.DATE[7,2]
+            CALL CFQ
+        END
+        ELSE
+
+            Y.TEMP = Y.TOT.NO.OF.INSTL / 12
+            Y.TEMP.DATE = Y.VALUE.DATE
+            FOR I = 1 TO Y.TEMP
+                COMI = Y.TEMP.DATE :'M' : 12 : Y.VALUE.DATE[7,2]
+                CALL CFQ
+                Y.TEMP.DATE = FIELD(COMI,'M',1)
+            NEXT I
+        END
+        R.NEW(AZ.MATURITY.DATE) = FIELD(COMI,'M',1)
+        COMI = Y.COMI.OLD
+
+****************Instalment Shedule***************
+        Y.MVAL.CNT = 1
+        IF Y.VALUE.DATE[7,2] LT 10 THEN
+            Y.SCH.TYPE<1,Y.MVAL.CNT> = 'B'
+            Y.AMOUNT<1,Y.MVAL.CNT> = Y.INST.AMT
+            Y.FREQUENCY<1,Y.MVAL.CNT> = Y.VALUE.DATE
+            Y.MONTH = Y.VALUE.DATE[5,2]
+            IF Y.MONTH EQ 12 THEN
+                Y.NEXT.MONTH = '01'
+            END
+            ELSE
+                Y.NEXT.MONTH = Y.MONTH + 1
+                IF Y.NEXT.MONTH LT 10 THEN
+                    Y.NEXT.MONTH = '0':Y.NEXT.MONTH
+                END
+            END
+            Y.MVAL.CNT++
+            Y.SCH.TYPE<1,Y.MVAL.CNT> = 'B'
+            Y.AMOUNT<1,Y.MVAL.CNT> = Y.INST.AMT
+            IF Y.MONTH EQ 12 AND Y.NEXT.MONTH EQ 1 THEN
+
+                Y.FREQUENCY<1,Y.MVAL.CNT> = Y.VALUE.DATE[1,4] + 1 : Y.NEXT.MONTH :Y.INST.DAY:'M01':Y.INST.DAY
+            END
+            ELSE
+                Y.FREQUENCY<1,Y.MVAL.CNT> = Y.VALUE.DATE[1,4] : Y.NEXT.MONTH :Y.INST.DAY:'M01':Y.INST.DAY
+            END
+            Y.NUMBER<1,Y.MVAL.CNT> = Y.TOT.NO.OF.INSTL - 2
+        END
+        ELSE
+            Y.SCH.TYPE<1,Y.MVAL.CNT> = 'B'
+            Y.AMOUNT<1,Y.MVAL.CNT> = Y.INST.AMT
+            Y.FREQUENCY<1,Y.MVAL.CNT> = Y.VALUE.DATE :'M01':Y.INST.DAY
+            Y.NUMBER<1,Y.MVAL.CNT> = Y.TOT.NO.OF.INSTL - 1
+        END
+*******************************************
+*******Interest Schedule***********
+        Y.MVAL.CNT++
+        Y.SCH.TYPE<1,Y.MVAL.CNT> = 'I'
+        Y.LAST.DAY = '31'
+! Y.HOLIDAY.ID = 'BD00' : Y.VALUE.DATE[1,4]
+! Y.MONTH = Y.VALUE.DATE[5,2] + 13
+! CALL F.READ(FN.HOLIDAY,Y.HOLIDAY.ID,R.HOLIDAY,F.HOLIDAY,E.HOLI.ERR)
+!IF R.HOLIDAY THEN
+!   Y.LAST.DAY = LEN(FIELD(R.HOLIDAY<Y.MONTH>,'X',1,1))
+!END
+        Y.FREQUENCY<1,Y.MVAL.CNT> = Y.VALUE.DATE[1,4] :'12' :Y.LAST.DAY :'M1231'
+**********************************************
+        R.NEW(AZ.TYPE.OF.SCHDLE) = Y.SCH.TYPE
+        R.NEW(AZ.AMOUNT) = Y.AMOUNT
+        R.NEW(AZ.FREQUENCY) = Y.FREQUENCY
+        R.NEW(AZ.NUMBER) = Y.NUMBER
+!    CALL REBUILD.SCREEN
+    END
+    ELSE
+        E = 'Instalment amount must be inputted and must be greater then zero'
+        CALL STORE.END.ERROR
+    END
+    RETURN

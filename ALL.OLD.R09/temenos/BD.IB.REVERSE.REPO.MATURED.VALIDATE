@@ -1,0 +1,48 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.IB.REVERSE.REPO.MATURED.VALIDATE
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*-----------------------
+* This routine is to validate the entered Amount and calculate total
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 02/10/2013 New   - Manjunath Suvarna
+*                    Sepit SoftTech Pvt. Ltd.
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE JBL.BP I_F.BD.IB.REVERSE.REPO.MATURED
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.IB.REVERSE.REPO.MAT = 'F.BD.IB.REVERSE.REPO.MATURED'
+    F.IB.REVERSE.REPO.MAT = ''
+
+    CALL OPF(FN.IB.REVERSE.REPO.MAT,F.IB.REVERSE.REPO.MAT)
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+*
+    Y.CNT = DCOUNT(R.NEW(IB.REV.REPO.MAT.AMOUNT),@VM)
+    Y.AMT = R.NEW(IB.REV.REPO.MAT.AMOUNT)
+    FOR I = 1 TO Y.CNT
+        Y.AMOUNT+ = FIELD(Y.AMT,VM,I,1)
+    NEXT I
+    IF Y.AMOUNT THEN
+        R.NEW(IB.REV.REPO.MAT.SUB.TOTAL) = Y.AMOUNT
+    END
+*
+    RETURN
+END

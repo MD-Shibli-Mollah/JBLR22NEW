@@ -1,0 +1,91 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-32</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.RD.BONUS.CALC.LOAD
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine will opens all necessary files and will initialise s the variables
+* required.
+*-------------------------------------------------------------------------
+*Parameter Description -- Not Applicable
+*--------- -----------
+*
+*-------------------------------------------------------------------------
+*Common Variable Description  -- Not Applicable
+*------  ------- -----------
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:            Description:
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 10/02/2011 -                            New   - Leelavathi R
+*                                                 Thesys Technologies
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.AZ.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.DATES
+    $INCLUDE JBL.BP I_F.EB.RD.BONUS
+    $INCLUDE JBL.BP I_JBL.B.RD.BONUS.CALC.COMMON
+*
+    GOSUB INIT
+    GOSUB OPENFILES
+*
+    RETURN
+*--------------------------------------------------------------------------
+INIT:
+*--------------------------------------------------------------------------
+*
+!Initialising all the File variable and user defined variables
+*
+    FN.AZ.ACCOUNT = 'F.AZ.ACCOUNT'
+    F.AZ.ACCOUNT = ''
+*
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+*
+    FN.EB.RD.BONUS= 'F.EB.RD.BONUS'
+    F.EB.RD.BONUS= ''
+*
+    RETURN
+*--------------------------------------------------------------------------
+OPENFILES:
+*--------------------------------------------------------------------------
+! Open Files
+*
+
+    CALL OPF(FN.AZ.ACCOUNT,F.AZ.ACCOUNT)
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    CALL OPF(FN.EB.RD.BONUS,F.EB.RD.BONUS)
+    R.EB.RD.BONUS = '' ; Y.ERR.BONUS = ''
+    CALL F.READ(FN.EB.RD.BONUS,'SYSTEM',R.EB.RD.BONUS,F.EB.RD.BONUS,Y.ERR.BONUS)
+    IF R.EB.RD.BONUS THEN
+        Y.PL.CAT = R.EB.RD.BONUS<JBL.RD.PL.CATEGORY>
+        Y.DR.TXCODE=R.EB.RD.BONUS<JBL.RD.DR.TXN.CODE>
+        Y.CR.TXCODE=R.EB.RD.BONUS<JBL.RD.CR.TXN.CODE>
+        Y.APP.ID = R.EB.RD.BONUS<JBL.RD.APP.ID>
+        Y.APP.INS = R.EB.RD.BONUS<JBL.RD.INST.AMT>
+        Y.APP.BONUS = R.EB.RD.BONUS<JBL.RD.BONUS.AMT>
+    END
+
+    APPL.ARRAY = 'AZ.ACCOUNT'
+    FLD.ARRAY = 'BONUS.CR.DT':VM:'BONUS.CR.AMT'
+    FLD.POS =''
+    CALL MULTI.GET.LOC.REF(APPL.ARRAY,FLD.ARRAY,FLD.POS)
+    Y.BONUS.CR.DT.POS = FLD.POS<1,1>
+    Y.BONUS.CR.AMT.POS  = FLD.POS<1,2>
+
+*
+    RETURN
+*--------------------------------------------------------------------------
+END
+*----------------------------------------------------------------------------

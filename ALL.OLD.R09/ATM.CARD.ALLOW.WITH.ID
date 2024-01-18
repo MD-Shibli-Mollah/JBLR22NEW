@@ -1,0 +1,175 @@
+*-----------------------------------------------------------------------------
+* <Rating>-3</Rating>
+*-----------------------------------------------------------------------------
+* THIS ROUTINE USE FOR BARANCH PERMISSION AND ID CHECK
+* Developed By: Md. Robiul Islam
+*Deploy Date: 12 JAN 2017
+*Modified Date: 07 FEB 2017
+
+    SUBROUTINE ATM.CARD.ALLOW.WITH.ID
+!PROGRAM ATM.CARD.ALLOW.WITH.ID
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.COMPANY.SMS.GROUP
+    $INSERT BP I_F.ATM.CARD.MGT
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    Y.COM=COMI
+
+    Y.ATM.ID=COMI
+    FN.ATM="F.EB.ATM.CARD.MGT"
+    F.ATM=""
+    FN.ATM.NAU="F.EB.ATM.CARD.MGT$NAU"
+    F.ATM.NAU=""
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+
+    CALL OPF(FN.ATM,F.ATM)
+    CALL OPF(FN.ATM.NAU,F.ATM.NAU)
+    CALL OPF(FN.AC,F.AC)
+    CALL F.READ(FN.ATM,Y.ATM.ID,R.ATM.REC,F.ATM,Y.ERR)
+    CALL F.READ(FN.ATM.NAU,Y.ATM.ID,R.ATM.REC.NAU,F.ATM.NAU,Y.ERR)
+    Y.REQUEST="EB.ATM.CARD.MGT":PGM.VERSION
+    IF R.ATM.REC NE "" THEN
+        Y.ACCOUNT=R.ATM.REC<EB.ATM19.ACCT.NO>
+    END ELSE
+        Y.ACCOUNT=R.ATM.REC.NAU<EB.ATM19.ACCT.NO>
+    END
+    CALL F.READ(FN.AC,Y.ACCOUNT,R.ACT.REC,F.AC,Y.ERR)
+    Y.AC.COMPANY=R.ACT.REC<AC.CO.CODE>
+
+    IF ID.COMPANY NE "BD0012001" AND (Y.REQUEST  EQ "EB.ATM.CARD.MGT,UPDATE" OR Y.REQUEST EQ  "EB.ATM.CARD.MGT,CLOSEHO" OR Y.REQUEST EQ  "EB.ATM.CARD.MGT,DENIED" OR Y.REQUEST EQ  "EB.ATM.CARD.MGT,PINHO" OR Y.REQUEST EQ "EB.ATM.CARD.MGT,BATTAG") THEN
+        E="CARD PROCESSING ALLOW ONLY HEAD OFFICE"
+        CALL STORE.END.ERROR
+    END
+    IF Y.AC.COMPANY NE "" THEN
+        IF ID.COMPANY NE Y.AC.COMPANY THEN
+            IF Y.REQUEST  EQ "EB.ATM.CARD.MGT,UPDATE" OR Y.REQUEST EQ "EB.ATM.CARD.MGT,CLOSEHO" OR Y.REQUEST EQ  "EB.ATM.CARD.MGT,DENIED" OR Y.REQUEST EQ "EB.ATM.CARD.MGT,PINHO" OR Y.REQUEST EQ "EB.ATM.CARD.MGT,BATTAG" THEN
+
+            END
+            ELSE
+                E="CARD INPUT GIVEN ONLY OWN BRANCH"
+                CALL STORE.END.ERROR
+            END
+        END
+    END
+
+
+*****************************************ID check*************************************
+    Y.LEN=LEN(Y.COM)
+    IF Y.LEN NE 12 THEN
+        E="Please Click New Deal for create new request"
+        CALL STORE.END.ERROR
+    END
+    IF LEFT(Y.COM,2) NE "CA" THEN
+        E="Please Click New Deal for create new request"
+        CALL STORE.END.ERROR
+    END
+    FOR I=1 TO Y.LEN
+        Y.CHAR=SUBSTRINGS(Y.COM,I,1)
+        IF ISALPHA(Y.CHAR) AND Y.CHAR NE UPCASE(Y.CHAR) THEN
+            E="Please Click New Deal for create new request"
+            CALL STORE.END.ERROR
+            BREAK
+        END
+    NEXT I
+
+    Y.DATE=TODAY
+    CALL JULDATE(Y.DATE,Y.JULD)
+    Y.DATE=RIGHT(Y.JULD,5)
+    Y.DATE.COM= SUBSTRINGS(Y.COM,3,5)
+    IF Y.DATE NE Y.DATE.COM AND Y.REQUEST EQ "EB.ATM.CARD.MGT,ISSUE" AND V$FUNCTION EQ 'I'  THEN
+        IF R.ATM.REC<EB.ATM19.CARD.STATUS> NE "DENIED"  THEN
+            E="Please Click New Deal for create new request"
+            CALL STORE.END.ERROR
+        END
+    END
+    IF ISDIGIT(RIGHT(Y.COM,5)) AND Y.REQUEST EQ "EB.ATM.CARD.MGT,ISSUE" AND V$FUNCTION EQ 'I' THEN
+        E="Please Click New Deal for create new request"
+        CALL STORE.END.ERROR
+    END
+*******************************************************END ID CHECK*****************************************
+****************************************************VERSION check*******************************************
+
+    IF V$FUNCTION EQ 'I' THEN
+        IF Y.REQUEST EQ "EB.ATM.CARD.MGT,ISSUE" AND  R.ATM.REC<EB.ATM19.CARD.STATUS> NE ""  THEN
+            IF R.ATM.REC<EB.ATM19.CARD.STATUS> NE "DENIED"  THEN
+                E="Please Click New Deal for create new request"
+                CALL STORE.END.ERROR
+            END
+        END
+        IF Y.REQUEST EQ "EB.ATM.CARD.MGT,REISSUE" AND R.ATM.REC<EB.ATM19.CARD.STATUS> NE "DONE" THEN
+            IF R.ATM.REC<EB.ATM19.CARD.STATUS> NE "DENIED"  THEN
+                E="Please Click New Deal for create new request"
+                CALL STORE.END.ERROR
+            END
+        END
+        IF Y.REQUEST EQ "EB.ATM.CARD.MGT,PINREQ" AND R.ATM.REC<EB.ATM19.CARD.STATUS> NE "DONE" THEN
+            IF R.ATM.REC<EB.ATM19.CARD.STATUS> NE "DENIED"  THEN
+                E="Please Click New Deal for create new request"
+                CALL STORE.END.ERROR
+            END
+        END
+        IF Y.REQUEST EQ "EB.ATM.CARD.MGT,CLOSE" AND  R.ATM.REC<EB.ATM19.CARD.STATUS> NE "DONE"  THEN
+            IF R.ATM.REC<EB.ATM19.CARD.STATUS> NE "DENIED"  THEN
+                E="Please Click New Deal for create new request"
+                CALL STORE.END.ERROR
+            END
+        END
+        IF Y.REQUEST EQ "EB.ATM.CARD.MGT,UPDATE" AND R.ATM.REC<EB.ATM19.CARD.STATUS> NE "PENDING"  THEN
+            E="Please Click New Deal for create new request"
+            CALL STORE.END.ERROR
+        END
+        IF Y.REQUEST EQ "EB.ATM.CARD.MGT,DENIED" AND R.ATM.REC<EB.ATM19.CARD.STATUS> NE "PENDING"  THEN
+            E="Please Click New Deal for create new request"
+            CALL STORE.END.ERROR
+        END
+        IF Y.REQUEST EQ "EB.ATM.CARD.MGT,CLOSEHO" AND R.ATM.REC<EB.ATM19.CARD.STATUS> NE "PENDING"  THEN
+            E="Please Click New Deal for create new request"
+            CALL STORE.END.ERROR
+        END
+        IF Y.REQUEST EQ "EB.ATM.CARD.MGT,PINHO" AND R.ATM.REC<EB.ATM19.CARD.STATUS> NE "PENDING"  THEN
+            E="Please Click New Deal for create new request"
+            CALL STORE.END.ERROR
+        END
+        IF Y.REQUEST EQ "EB.ATM.CARD.MGT,DELIVERY" AND R.ATM.REC<EB.ATM19.CARD.STATUS> NE "APPROVED"  THEN
+            E="Please Click New Deal for create new request"
+            CALL STORE.END.ERROR
+        END
+        IF Y.REQUEST EQ "EB.ATM.CARD.MGT,CLOSEBR" AND R.ATM.REC<EB.ATM19.CARD.STATUS> NE "APPROVED"  THEN
+            E="Please Click New Deal for create new request"
+            CALL STORE.END.ERROR
+        END
+        IF Y.REQUEST EQ "EB.ATM.CARD.MGT,WAIVE" AND R.ATM.REC<EB.ATM19.CARD.STATUS> NE "DONE" THEN
+            E="Please Click New Deal for create new request"
+            CALL STORE.END.ERROR
+        END
+
+    END
+
+*******************************************************END VERSION CHECK*****************************************
+*******************************************************COMPANY ALLOW*********************************************
+    FN.SMS='F.COMPANY.SMS.GROUP'
+    F.SMS=''
+    Y.ID='ATM.TRANSACTION.COMPANY.ALLOW'
+    CALL OPF(FN.SMS,F.SMS)
+    CALL F.READ(FN.SMS,Y.ID,R.SMS,F.SMS,ERR.SMS)
+    Y.COUNT=DCOUNT(R.SMS,@VM)
+    Y.FLUG=1
+    FOR I=1 TO Y.COUNT
+        CO.CODE=R.SMS<CO.SMS.COMPANY.CODE,I>
+        IF ID.COMPANY EQ CO.CODE THEN
+            Y.FLUG=0
+            BREAK
+        END
+    NEXT I
+    IF Y.FLUG THEN
+        E="Your Branch are not allow to submit ATM Card request"
+        CALL STORE.END.ERROR
+    END
+************************************************************END COMPANY ALLOW*******************************************
+
+    RETURN
+END

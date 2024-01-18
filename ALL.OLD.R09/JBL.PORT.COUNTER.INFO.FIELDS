@@ -1,0 +1,50 @@
+*-----------------------------------------------------------------------------
+* <Rating>-7</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.PORT.COUNTER.INFO.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine
+*
+* @author mortoza@datasoft-bd.com
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* Modification History :
+*
+* 19/10/07 - EN_10003543
+*            New Template changes
+*
+* 14/11/07 - BG_100015736
+*            Exclude routines that are not released
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("PORT.CNT.ID", T24_String)          ;* Define Table id
+*-----------------------------------------------------------------------------
+    CALL Table.addFieldDefinition("Name","20.4","A","")
+    CALL Table.addOptionsField("TYPE","OPEN_CLOSE","","")
+    CALL Table.addOptionsField("COUNTER.GROUP","BOOTH1_BOOTH2_BOOTH3_BOOTH4_BOOTH5","","")
+!    CALL Table.addFieldDefinition("XX.INCLUDE.COMP","9..C","A","")
+!   CALL Field.setCheckFile('COMPANY')
+
+    CALL Table.addField("ATTRIBUTE1","60", "A", "")
+    CALL Table.addField("ATTRIBUTE2", "60", "A", "")
+    CALL Table.addFieldDefinition("XX.INCLUDE.COMP","9..C","A","")
+    CALL Field.setCheckFile('COMPANY')
+    CALL Table.addOverrideField
+
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

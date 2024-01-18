@@ -1,0 +1,14 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.IFDBP.CHG.LIST(ENQ.DATA)
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_ENQUIRY.COMMON
+
+    ENQ.DATA<2,-1> = 'COMMISSION.TYPE'
+    ENQ.DATA<3,-1> = 'EQ'
+    ENQ.DATA<4,-1> = 'LCCOURFOR FXPOSCOULOC EXPSTFOR LCSWCHGMIS ADVTTPAY EXPRCISSUE LCEXBILHCHG'
+
+    RETURN

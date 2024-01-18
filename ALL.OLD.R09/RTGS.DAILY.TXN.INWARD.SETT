@@ -1,0 +1,118 @@
+    SUBROUTINE RTGS.DAILY.TXN.INWARD.SETT(Y.RETURN)
+!PROGRAM RTGS.DAILY.TXN.INWARD.SETT
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.FT = 'F.FUNDS.TRANSFER';               F.FT = ''
+    FN.FT.HIS = 'F.FUNDS.TRANSFER$HIS';       F.FT.HIS = ''
+    FN.ACC = 'F.ACCOUNT';                     F.ACC = ''
+    FN.AC.HIS = 'F.ACCOUNT$HIS';              F.AC.HIS = ''
+    FN.COMPANY = 'F.COMPANY';                 F.COMPANY = ''
+
+    Y.TXN.TYPE = 'ACIS'
+
+
+    LOCATE 'VALUE.DATE' IN ENQ.SELECTION<2,1> SETTING VALUE.DATE.POS THEN
+        Y.VALUE.DATE = ENQ.SELECTION<4,VALUE.DATE.POS>
+    END
+
+    IF NOT(Y.VALUE.DATE) THEN
+        Y.VALUE.DATE = TODAY
+    END
+
+    CALL JULDATE(Y.VALUE.DATE,JULIAN.DATE)
+    Y.FT.ID.LK = 'FT':JULIAN.DATE[3,5]:'...'
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    CALL OPF(FN.ACC,F.ACC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    RETURN
+
+PROCESS:
+    IF Y.VALUE.DATE EQ TODAY THEN
+        IF ID.COMPANY EQ 'BD0012001' THEN
+            SEL.CMD = 'SELECT ':FN.FT:' WITH @ID LIKE ':Y.FT.ID.LK:' AND TRANSACTION.TYPE EQ ':Y.TXN.TYPE
+        END
+        ELSE
+            SEL.CMD = 'SELECT ':FN.FT:' WITH @ID LIKE ':Y.FT.ID.LK:' AND TRANSACTION.TYPE EQ ':Y.TXN.TYPE:' AND CO.CODE EQ ':ID.COMPANY
+        END
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+        LOOP
+            REMOVE Y.FT.ID FROM SEL.LIST SETTING POS
+        WHILE Y.FT.ID:POS
+            CALL F.READ(FN.FT,Y.FT.ID,R.FT.REC,F.FT,Y.ERR)
+
+            IF R.FT.REC EQ '' THEN
+                CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.FT.ID,R.FT.REC,Y.ERR)
+            END
+
+            Y.REC.STATUS = R.FT.REC<FT.RECORD.STATUS>
+
+            IF Y.REC.STATUS NE 'REVE' THEN
+                    Y.VALUE.DATE = R.FT.REC<FT.DEBIT.VALUE.DATE>
+                    Y.TRANS.TYPE = R.FT.REC<FT.TRANSACTION.TYPE>
+                    Y.DEBIT.ACCT.NO = R.FT.REC<FT.DEBIT.ACCT.NO>
+                    Y.DEBIT.CURRENCY = R.FT.REC<FT.DEBIT.CURRENCY>
+                    Y.CREDIT.ACCT.NO = R.FT.REC<FT.CREDIT.ACCT.NO>
+                    Y.CREDIT.AMOUNT = R.FT.REC<FT.LOC.AMT.CREDITED>
+                    Y.INPUTTER = FIELD(R.FT.REC<FT.INPUTTER> ,'_',2,1)
+
+                    Y.RETURN<-1> = Y.FT.ID:'*':Y.VALUE.DATE:'*':Y.TRANS.TYPE:'*':Y.DEBIT.ACCT.NO:'*':Y.DEBIT.CURRENCY:'*':Y.CREDIT.ACCT.NO:'*':Y.CREDIT.AMOUNT:'*':Y.INPUTTER
+!                                     1              2                3                  4                   5                    6                   7                 8
+
+            END
+
+        REPEAT
+    END
+    ELSE
+        IF ID.COMPANY EQ 'BD0012001' THEN
+            SEL.CMD = 'SELECT ':FN.FT.HIS:' WITH @ID LIKE ':Y.FT.ID.LK:' AND TRANSACTION.TYPE EQ ':Y.TXN.TYPE
+        END
+        ELSE
+            SEL.CMD = 'SELECT ':FN.FT.HIS:' WITH @ID LIKE ':Y.FT.ID.LK:' AND TRANSACTION.TYPE EQ ':Y.TXN.TYPE:' AND CO.CODE EQ ':ID.COMPANY
+        END
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+        LOOP
+            REMOVE Y.FT.ID FROM SEL.LIST SETTING POS
+        WHILE Y.FT.ID:POS
+            Y.FT.ID = FIELD(Y.FT.ID,';',1)
+            CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.FT.ID,R.FT.REC,Y.FT.ERR)
+
+            Y.REC.STATUS = R.FT.REC<FT.RECORD.STATUS>
+
+            IF Y.REC.STATUS NE 'REVE' THEN
+
+                FINDSTR Y.FT.ID IN Y.RETURN SETTING REC.POS ELSE
+                    Y.FT.ID.NEW = FIELD(Y.FT.ID,';',1)
+                    Y.VALUE.DATE = R.FT.REC<FT.DEBIT.VALUE.DATE>
+                    Y.TRANS.TYPE = R.FT.REC<FT.TRANSACTION.TYPE>
+                    Y.DEBIT.ACCT.NO = R.FT.REC<FT.DEBIT.ACCT.NO>
+                    Y.DEBIT.CURRENCY = R.FT.REC<FT.DEBIT.CURRENCY>
+                    Y.CREDIT.ACCT.NO = R.FT.REC<FT.CREDIT.ACCT.NO>
+                    Y.CREDIT.AMOUNT = R.FT.REC<FT.LOC.AMT.CREDITED>
+                    Y.INPUTTER = FIELD(R.FT.REC<FT.INPUTTER> ,'_',2,1)
+
+                    Y.RETURN<-1> = Y.FT.ID.NEW:'*':Y.VALUE.DATE:'*':Y.TRANS.TYPE:'*':Y.DEBIT.ACCT.NO:'*':Y.DEBIT.CURRENCY:'*':Y.CREDIT.ACCT.NO:'*':Y.CREDIT.AMOUNT:'*':Y.INPUTTER
+!                                       1              2                3                  4                   5                    6                   7                 8
+                END
+
+            END
+        REPEAT
+    END
+    RETURN
+END

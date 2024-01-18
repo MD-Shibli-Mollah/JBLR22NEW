@@ -1,0 +1,88 @@
+*-----------------------------------------------------------------------------
+* <Rating>250</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.SMS.CHARGE(Y.REC.ID)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_F.CUSTOMER.ACCOUNT
+
+    $INSERT JBL.BP/REPGEN MT.SMS.CHARGE.VARS
+
+    CALL F.READ(FN.CUS,Y.REC.ID,R.CUS,F.CUS,ERR.CODE.CUS)
+    Y.SMS.ALERT = R.CUS<EB.CUS.LOCAL.REF,Y.SMS.ALERT.POS>
+    MOBILE.NO = R.CUS<EB.CUS.SMS.1>
+
+    Y.VALID.ARRAY = '015':@FM:'017':@FM:'013':@FM:'019':@FM:'014':@FM:'018':@FM:'016'
+
+    Y.DEBIT.AMT = ''
+    Y.VAT.AMT = ''
+    Y.WORKING.BALANCE = ''
+    Y.ISVALID = 'N'
+    Y.MOB.LEN = DCOUNT(MOBILE.NO,@VM)
+    FOR Y=1 TO Y.MOB.LEN
+        Y.MOBILE.NO = FIELD(MOBILE.NO,@VM,Y)
+        Y.VALID.OPRT = Y.MOBILE.NO[0,3]
+        LOCATE Y.VALID.OPRT IN Y.VALID.ARRAY SETTING Y.POS THEN
+            IF LEN(Y.MOBILE.NO) EQ 11 THEN
+                Y.ISVALID = 'Y'
+            END
+        END
+    NEXT Y
+
+
+    IF Y.SMS.ALERT EQ 'Y' AND Y.ISVALID EQ 'Y' THEN
+        CALL F.READ(FN.CUS.AC,Y.REC.ID,R.CUS.AC,F.CUS.AC,ERR.CODE)
+        Y.COUNT = DCOUNT(R.CUS.AC,FM)
+        FOR I = 1 TO Y.COUNT
+            Y.CUS.ACCT = FIELD(R.CUS.AC,FM,I)
+            CALL F.READ(FN.ACCT,Y.CUS.ACCT,R.ACCT,F.ACCT,ERR.CODE.ACCT)
+            Y.CATEG = R.ACCT<AC.CATEGORY>
+            Y.POST.REST = R.ACCT<AC.POSTING.RESTRICT>
+            Y.CO.CODE = R.ACCT<AC.CO.CODE>
+            LOCATE Y.POST.REST IN Y.POST.REST.LIST SETTING PR.POS ELSE
+                LOCATE Y.CATEG IN  Y.CATEGORY.LIST SETTING CAT.POS THEN
+                    Y.WORKING.BALANCE = R.ACCT<AC.WORKING.BALANCE>
+                    IF Y.WORKING.BALANCE GT 0 THEN
+                        IF Y.WORKING.BALANCE GE 115 THEN
+                            Y.DEBIT.AMT = 100
+                            Y.VAT.AMT = 15
+                            GOSUB CHARGE.EXC
+                        END ELSE
+                            IF Y.WORKING.BALANCE LT 115 THEN
+                                Y.DEBIT.AMT = DROUND((Y.WORKING.BALANCE * 100 )/115,2)
+                                Y.VAT.AMT = DROUND((Y.WORKING.BALANCE * 15)/115,2)
+                                GOSUB CHARGE.EXC
+                            END
+                        END
+                    END
+                END
+            END
+        NEXT I
+
+    END
+    RETURN
+
+CHARGE.EXC:
+
+    Y.SOURCE = "DM.OFS.SRC"
+    Y.MESSAGE=''
+    Y.MESSAGE="FUNDS.TRANSFER,CHARGE.SMS/I/PROCESS,DMUSER.1//":Y.CO.CODE:",,TRANSACTION.TYPE=ACMS,DEBIT.ACCT.NO=":Y.CUS.ACCT:",CREDIT.ACCT.NO=PL52023,DEBIT.AMOUNT=":Y.DEBIT.AMT:",DEBIT.CURRENCY=BDT,ORDERING.BANK=JBL,DR.ADVICE.REQD.Y.N=N,CR.ADVICE.REQD.Y.N=N,COMMISSION.CODE=DEBIT PLUS CHARGES,COMMISSION.TYPE=HALFYEARVAT,COMMISSION.AMT=BDT ":Y.VAT.AMT
+
+    OPTNS = ''
+    MSG.ID = ''
+    CALL OFS.POST.MESSAGE(Y.MESSAGE, MSG.ID , Y.SOURCE, OPTNS)
+    CALL JOURNAL.UPDATE ('TEST')
+
+    Y.MESSAGE=''
+    Y.DEBIT.AMT = ''
+    Y.VAT.AMT = ''
+    Y.WORKING.BALANCE = ''
+
+    RETURN
+END

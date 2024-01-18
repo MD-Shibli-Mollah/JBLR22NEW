@@ -1,0 +1,23 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VVR.NET.AMT
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.DRAWINGS
+
+    CALL GET.LOC.REF("DRAWINGS","TOTAL.BILL.AMT",Y.BILL.POS)
+    CALL GET.LOC.REF("DRAWINGS","DISC.FEE",Y.RATE.POS)
+    CALL GET.LOC.REF("DRAWINGS","SWIFT.CHARGE.FC",Y.CHRG.POS)
+    CALL GET.LOC.REF("DRAWINGS","NET.AMT.FC",Y.NET.POS)
+
+    Y.AMT=R.NEW(TF.DR.LOCAL.REF)<1,Y.BILL.POS>
+    Y.INT=R.NEW(TF.DR.LOCAL.REF)<1,Y.CHRG.POS>
+    Y.CHRG= COMI
+    Y.INT.AMT=Y.INT + Y.CHRG
+    Y.AMT1=Y.AMT - Y.INT.AMT
+    R.NEW(TF.DR.LOCAL.REF)<1,Y.NET.POS>=Y.AMT1
+    CALL REBUILD.SCREEN
+    RETURN
+END

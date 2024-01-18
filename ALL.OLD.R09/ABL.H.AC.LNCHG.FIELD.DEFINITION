@@ -1,0 +1,84 @@
+*
+*-----------------------------------------------------------------------------
+* <Rating>-103</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.H.AC.LNCHG.FIELD.DEFINITION
+
+*-----------------------------------------------------------------------------
+* Program Description
+*-----------------------------------------------------------------------------
+* Modification History :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CATEGORY      ;* Other Inserts required for Checkfiles, etc.
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.ABL.H.AC.LNCHG
+    $INSERT I_F.COMPANY
+    $INSERT I_F.FT.COMMISSION.TYPE
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+
+    GOSUB DEFINE.FIELDS
+
+    RETURN
+*
+*-----------------------------------------------------------------------------
+DEFINE.FIELDS:
+
+    ID.F = "AC.LN.ID" ; ID.N = "10" ; ID.T = "A"
+*
+    Z=0
+*
+    Z+=1 ; F(Z)  = "XX.INC.CATEG.OTH" ; N(Z) = "5..C" ; T(Z) = ""
+    CHECKFILE(Z) = "CATEGORY":FM:EB.CAT.SHORT.NAME:FM:"L"
+    Z+=1 ; F(Z)  = "XX.INC.CATEG.STF" ; N(Z) = "5..C" ; T(Z) = ""
+    CHECKFILE(Z) = "CATEGORY":FM:EB.CAT.SHORT.NAME:FM:"L"
+
+    Z+=1 ; F(Z)  = "XX.EXCLUDE.ACCT" ; N(Z) = "15..C" ; T(Z) = "A"
+    CHECKFILE(Z) = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+
+    Z+=1 ; F(Z)  = "CHRG.CATEG" ; N(Z) = "5..C" ; T(Z) = ""
+    CHECKFILE(Z) = "CATEGORY":FM:EB.CAT.SHORT.NAME:FM:"L"
+    Z+=1 ; F(Z)  = "VAT.CATEG" ; N(Z) = "5..C" ; T(Z) = ""
+    CHECKFILE(Z) = "CATEGORY":FM:EB.CAT.SHORT.NAME:FM:"L"
+
+    Z+=1 ; F(Z)  = "XX<CHRG.SLAB.FROM" ; N(Z) = "19..C" ; T(Z) = "AMT"
+    Z+=1 ; F(Z)  = "XX-CHRG.SLAB.TO" ; N(Z) = "19..C" ; T(Z) = "AMT"
+    Z+=1 ; F(Z)  = "XX>CHRG.AMT" ; N(Z) = "19..C" ; T(Z) = "AMT"
+
+    Z+=1 ; F(Z)  = "XX<STAFF.CHRG.FROM" ; N(Z) = "19..C" ; T(Z) = "AMT"
+    Z+=1 ; F(Z)  = "XX-STAFF.CHRG.TO" ; N(Z) = "19..C" ; T(Z) = "AMT"
+    Z+=1 ; F(Z)  = "XX>STAFF.CHRG.AMT" ; N(Z) = "19..C" ; T(Z) = "AMT"
+
+    Z+=1 ; F(Z)  = "XX.INCLUDE.COMP" ; N(Z) = "15..C" ; T(Z) = "A"
+    CHECKFILE(Z) = "COMPANY":FM:EB.COM.MNEMONIC:FM:"L"
+    Z+=1 ; F(Z)  = "VAT.PERCENT" ; N(Z) = "6..C" ; T(Z) = "R"
+    Z+=1 ; F(Z)  = "FT.COMM" ; N(Z) = "20..C" ; T(Z) = "A"
+    CHECKFILE(Z) = "FT.COMMISSION.TYPE":FM:FT4.DESCRIPTION:FM:"L"
+    Z+=1 ; F(Z)  = "XX.LOCAL.REF" ; N(Z) = "35" ; T(Z)<3> = "NOINPUT"
+
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+
+REM > CHECKFILE(Z) = CHK.ACCOUNT
+*
+    V = Z + 9
+
+    RETURN
+*
+*-----------------------------------------------------------------------------
+INITIALISE:
+
+    MAT F = "" ; MAT N = "" ; MAT T = ""
+    MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+    ID.CHECKFILE = "" ; ID.CONCATFILE = ""
+*
+* Define often used checkfile variables
+*
+    CHK.ACCOUNT = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+END

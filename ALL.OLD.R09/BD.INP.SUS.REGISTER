@@ -1,0 +1,63 @@
+*-----------------------------------------------------------------------------
+* <Rating>-32</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.INP.SUS.REGISTER
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT BP I_F.EB.BD.SUSPENSE.REGISTER
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*******
+INIT:
+*******
+    FN.ACC = 'F.ACCOUNT'
+    F.ACC = ''
+    FN.SR = 'FBNK.EB.BD.SUSPENSE.REGISTER'
+    F.SR = ''
+    RETURN
+
+**********
+OPENFILES:
+**********
+    CALL OPF(FN.ACC,F.ACC)
+    CALL OPF(FN.SR,F.SR)
+    RETURN
+
+*********
+PROCESS:
+*********
+
+    Y.SUSP.DR.OR.CR = R.NEW(EB.BD.67.RESERVED)
+    Y.SUSPENSE.AMT = R.NEW(EB.BD.67.SUSPENSE.AMOUNT)
+    Y.SUSP.TO.ACCT = R.NEW(EB.BD.67.ADJUST.TO.ACCT)
+
+    IF Y.SUSP.DR.OR.CR EQ 'DEBIT' THEN
+        IF Y.SUSP.TO.ACCT NE 'Y' THEN
+            IF R.NEW(EB.BD.67.PL.CATEGORY) LT 50000 OR R.NEW(EB.BD.67.PL.CATEGORY) GT 69999 THEN
+                AF = EB.BD.67.PL.CATEGORY
+                ETEXT = 'PL.CATEG.MISS'
+                CALL STORE.END.ERROR
+            END
+        END
+        IF Y.SUSPENSE.AMT LT R.NEW(EB.BD.67.REPAY.AMOUNT) OR R.NEW(EB.BD.67.REPAY.AMOUNT) EQ '' OR R.NEW(EB.BD.67.REPAY.AMOUNT) LE 0 THEN
+            AF = EB.BD.67.REPAY.AMOUNT
+            ETEXT = 'Repay amount must be less then suspense'
+            CALL STORE.END.ERROR
+        END
+    END
+    ELSE
+        IF  R.NEW(EB.BD.67.REPAY.AMOUNT) EQ '' OR R.NEW(EB.BD.67.REPAY.AMOUNT) LE 0 THEN
+            AF = EB.BD.67.REPAY.AMOUNT
+            ETEXT = 'Repay amount must be positive'
+            CALL STORE.END.ERROR
+        END
+    END
+    RETURN
+END

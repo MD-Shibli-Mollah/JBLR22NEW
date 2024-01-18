@@ -1,0 +1,75 @@
+*-----------------------------------------------------------------------------
+* <Rating>-32</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.E.NO.AUTH.SIGNATORY(ENQ.DATA)
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine is a build routine for enquiry E.JBL.AUTH.NAME.AND.SIGN
+* used to display an error when the account passed to the enquiry has no
+* auth signatory
+*-------------------------------------------------------------------------
+* Project Name : National Bank Limited(Bangladesh)
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+* ENQ.DATA                      -           Holds the selection details
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+* ENQ.ERROR                     -           Used to display enquiry error
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+* NA
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 16/02/2011 -                            New   - Rashmitha M
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_ENQUIRY.COMMON
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    GOSUB INIT.AND.OPENFILES
+    GOSUB MAIN.PROCESS
+
+    RETURN
+***************************************************************************
+INIT.AND.OPENFILES:
+*******************
+! Initialise variables and open files
+    FN.ACCOUNT='F.ACCOUNT'
+    F.ACCOUNT=''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    R.ACCOUNT=''
+    ACCOUNT.ERR=''
+    ID.POS=''
+    AUTH.SIGN.POS=''
+
+    RETURN
+****************************************************************************
+MAIN.PROCESS:
+**************
+! Main Process
+    LOCATE '@ID' IN ENQ.DATA<2,1> SETTING ID.POS THEN
+        Y.ID.VALUE=ENQ.DATA<4,ID.POS>
+    END ELSE
+        RETURN
+    END
+    CALL F.READ(FN.ACCOUNT,Y.ID.VALUE,R.ACCOUNT,F.ACCOUNT,ACCOUNT.ERR)
+    IF NOT(R.ACCOUNT) THEN
+        ENQ.ERROR=Y.ID.VALUE:" is not a valid account"
+        RETURN
+    END
+    CALL GET.LOC.REF('ACCOUNT','AUTH.SIGNATORY',AUTH.SIGN.POS)
+    Y.AUTH.SIGNATORY=R.ACCOUNT<AC.LOCAL.REF,AUTH.SIGN.POS>
+    IF NOT(Y.AUTH.SIGNATORY) THEN
+        ENQ.ERROR="No authorised signatory available for the applicant account number"
+    END
+
+    RETURN
+***************************************************************************
+END

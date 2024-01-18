@@ -1,0 +1,30 @@
+*-----------------------------------------------------------------------------
+* <Rating>-11</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM JBL.S.ROLL.CHANGE
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.AZ.ACCOUNT
+
+    FN.AZ='F.AZ.ACCOUNT'
+    F.AZ=''
+    REC.AZ=''
+    Y.AZ.ID=''
+    CNT=''
+    CALL OPF(FN.AZ,F.AZ)
+    SEL.CMD="SELECT ":FN.AZ:" WITH ALL.IN.ONE.PRODUCT EQ 'FIXEDDEP3-6M' AND ROLLOVER.DATE GT '20120229' AND ( CO.CODE EQ BD0010004 OR CO.CODE EQ BD0010008 OR CO.CODE EQ BD0010902 OR CO.CODE EQ BD0010232 ) AND ( INTEREST.RATE GT '9' ) AND ( ROLLOVER.INT.RATE EQ 'P02' )"
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REF,ERR)
+    LOOP
+        REMOVE Y.AZ.ID FROM SEL.LIST SETTING Y.POS
+
+    WHILE Y.AZ.ID:Y.POS
+        CALL F.READ(FN.AZ,Y.AZ.ID,REC.AZ,F.AZ,ERR.AZ)
+        REC.AZ<AZ.ROLLOVER.INT.RATE> =''
+        CALL F.WRITE(FN.AZ,Y.AZ.ID,REC.AZ)
+        CALL JOURNAL.UPDATE('')
+        CNT = CNT + 1
+        PRINT"Process....":CNT
+    REPEAT
+
+END

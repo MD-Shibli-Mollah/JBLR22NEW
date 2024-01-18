@@ -1,0 +1,86 @@
+*-----------------------------------------------------------------------------
+* <Rating>-21</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.UPD.SANCHAYA.PATRA.TXN.ID
+*----------------------------------------------------------------------------------------------------------------
+* Author        : Kiran Ghanathe
+* Description   : Attached as Authorisation routine to update the TXN.ID in the table 'JBL.UPD.SANCHAYA.PATRA.TXN.ID'
+*
+*----------------------------------------------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.JBL.UPD.SANCHAYA.PATRA.TXN.ID
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.TELLER
+!
+****DEBUG
+    IF MESSAGE EQ 'VAL' THEN
+        RETURN
+    END
+
+    FN.JUSP = "F.JBL.UPD.SANCHAYA.PATRA.TXN.ID"
+    F.JUSP = ''
+    CALL OPF(FN.JUSP, F.JUSP)
+!
+    IF APPLICATION EQ "FUNDS.TRANSFER" THEN
+        IF PGM.VERSION EQ ",JBL.SELL.SANCHAYA.PATRA" OR PGM.VERSION EQ ",JBL.COMM.SANCHAYA.PATRA" OR PGM.VERSION EQ ",JBL.INT.PAY.SANCHAYA.PATRA" OR PGM.VERSION EQ ",JBL.PRIN.INT.PAY.SANCHAYA.PATRA" THEN
+            Y.APP = "FUNDS.TRANSFER"
+!    Y.FLD = "NATIONAL.ID.NO":VM:"REG.NO":VM:"BOND.TYPE":VM:"START.SCRIPT.NO":VM:"END.SCRIPT.NO":VM:"DENOMINEE.VALUE":VM:"DENOMINATION.NO":VM:"TOTAL.FACE.VAL":VM:"START.COUPON.NO":VM:"END.COUPON.NO":VM:"LESS.INT.AMT":VM:"CUSTOMER.ID":VM:"PPO.NO"
+            Y.FLD = "NATIONAL.ID.NO":VM:"REG.NO":VM:"TOTAL.FACE.VAL":VM:"START.COUPON.NO":VM:"END.COUPON.NO":VM:"LESS.INT.AMT":VM:"PPO.NO"
+            Y.POS = ''
+            CALL MULTI.GET.LOC.REF(Y.APP, Y.FLD, Y.POS)
+            Y.NATION.POS = Y.POS<1,1>
+            Y.REG.POS = Y.POS<1,2>
+            Y.TOT.VAL.POS = Y.POS<1,3>
+            Y.START.COUP.POS = Y.POS<1,4>
+            Y.END.COUP.POS = Y.POS<1,5>
+            Y.LESS.INT.POS = Y.POS<1,6>
+            Y.PPO.POS = Y.POS<1,7>
+!
+            JUSP.REC = ''
+            JUSP.REC<SSP.TXN.ID> = ID.NEW
+            JUSP.REC<SSP.TXN.REF> = R.NEW(FT.TRANSACTION.TYPE)
+            JUSP.REC<SSP.NATIONAL.ID> = R.NEW(FT.LOCAL.REF)<1,Y.NATION.POS>
+            JUSP.REC<SSP.REG.NO> = R.NEW(FT.LOCAL.REF)<1,Y.REG.POS>
+            JUSP.REC<SSP.TOTAL.FACE.VAL> = R.NEW(FT.LOCAL.REF)<1,Y.TOT.VAL.POS>
+            JUSP.REC<SSP.START.COUPON.NO> = R.NEW(FT.LOCAL.REF)<1,Y.START.COUP.POS>
+            JUSP.REC<SSP.END.COUPON.NO> = R.NEW(FT.LOCAL.REF)<1,Y.END.COUP.POS>
+            JUSP.REC<SSP.LESS.INT.AMT> = R.NEW(FT.LOCAL.REF)<1,Y.LESS.INT.POS>
+            JUSP.REC<SSP.PPO.NO> = R.NEW(FT.LOCAL.REF)<1,Y.PPO.POS>
+!
+            WRITE JUSP.REC TO F.JUSP, ID.NEW
+        END
+    END ELSE
+        IF APPLICATION EQ "TELLER" THEN
+            IF PGM.VERSION EQ ",JBL.SELL.SANCHAYA.PATRA" OR PGM.VERSION EQ ",JBL.COMM.SANCHAYA.PATRA" OR PGM.VERSION EQ ",JBL.INT.PAY.SANCHAYA.PATRA" OR PGM.VERSION EQ ",JBL.PRIN.INT.PAY.SANCHAYA.PATRA" THEN
+                Y.APP = '' ; Y.FLD = '' ; Y.TT.POS = ''
+                Y.APP = "TELLER"
+                Y.FLD = "NATIONAL.ID.NO":VM:"REG.NO":VM:"TOTAL.FACE.VAL":VM:"START.COUPON.NO":VM:"END.COUPON.NO":VM:"LESS.INT.AMT":VM:"PPO.NO"
+                Y.POS = ''
+                CALL MULTI.GET.LOC.REF(Y.APP, Y.FLD, Y.TT.POS)
+                Y.NATION.POS = Y.TT.POS<1,1>
+                Y.REG.POS = Y.TT.POS<1,2>
+                Y.TOT.VAL.POS = Y.TT.POS<1,3>
+                Y.START.COUP.POS = Y.TT.POS<1,4>
+                Y.END.COUP.POS = Y.TT.POS<1,5>
+                Y.LESS.INT.POS = Y.TT.POS<1,6>
+                Y.PPO.POS = Y.TT.POS<1,7>
+!
+                JUSP.REC = ''
+                JUSP.REC<SSP.TXN.ID> = ID.NEW
+                JUSP.REC<SSP.TXN.REF> = R.NEW(FT.TRANSACTION.TYPE)
+                JUSP.REC<SSP.NATIONAL.ID> = R.NEW(TT.TE.LOCAL.REF)<1,Y.NATION.POS>
+                JUSP.REC<SSP.REG.NO> = R.NEW(TT.TE.LOCAL.REF)<1,Y.REG.POS>
+                JUSP.REC<SSP.TOTAL.FACE.VAL> = R.NEW(TT.TE.LOCAL.REF)<1,Y.TOT.VAL.POS>
+                JUSP.REC<SSP.START.COUPON.NO> = R.NEW(TT.TE.LOCAL.REF)<1,Y.START.COUP.POS>
+                JUSP.REC<SSP.END.COUPON.NO> = R.NEW(TT.TE.LOCAL.REF)<1,Y.END.COUP.POS>
+                JUSP.REC<SSP.LESS.INT.AMT> = R.NEW(TT.TE.LOCAL.REF)<1,Y.LESS.INT.POS>
+                JUSP.REC<SSP.PPO.NO> = R.NEW(TT.TE.LOCAL.REF)<1,Y.PPO.POS>
+!
+                WRITE JUSP.REC TO F.JUSP, ID.NEW
+            END
+        END
+    END
+!
+    RETURN
+END

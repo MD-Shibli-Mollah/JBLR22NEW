@@ -1,0 +1,49 @@
+*-----------------------------------------------------------------------------
+* <Rating>-41</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.UNCLEARED.AMOUNT
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CHEQUE.COLLECTION
+    $INSERT I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.CC = 'F.CHEQUE.COLLECTION'
+    F.CC = ''
+    Y.ACC.ID = O.DATA
+    Y.REC.ID = ''
+    R.CC.REC = ''
+    CC.ERR = ''
+    Y.AMOUNT = ''
+
+    RETURN
+
+
+OPENFILES:
+    CALL OPF(FN.CC,F.CC)
+    RETURN
+
+PROCESS:
+    SEL.CMD = "SELECT ":FN.CC:" WITH CREDIT.ACC.NO EQ ":Y.ACC.ID:" AND CHQ.STATUS EQ 'DEPOSITED'"
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',CC.REC.NO,CC.RET.CODE)
+
+    LOOP
+        REMOVE Y.REC.ID FROM SEL.LIST SETTING POS
+    WHILE Y.REC.ID:POS
+
+        CALL F.READ(FN.CC,Y.REC.ID,R.CC.REC,F.CC,CC.ERR)
+
+        Y.AMOUNT = Y.AMOUNT+R.CC.REC<CHQ.COL.AMOUNT>
+
+    REPEAT
+    O.DATA = Y.AMOUNT
+
+    RETURN
+
+
+END

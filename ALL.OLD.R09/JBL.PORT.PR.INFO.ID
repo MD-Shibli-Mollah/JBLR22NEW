@@ -1,0 +1,50 @@
+    SUBROUTINE JBL.PORT.PR.INFO.ID
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    Y.COM=COMI
+    COMI=LEFT(Y.COM,2):RIGHT(ID.COMPANY,4):RIGHT(Y.COM,10)
+    Y.COM=COMI
+    Y.REQUEST="JBL.PORT.PAYORDER.INFO":PGM.VERSION
+    Y.LEN=LEN(Y.COM)
+    IF Y.LEN NE 16 THEN
+        E="Please Click New Deal for create new request"
+        CALL STORE.END.ERROR
+    END
+    IF LEFT(Y.COM,2) NE "PA" THEN
+        E="Please Click New Deal for create new request"
+        CALL STORE.END.ERROR
+    END
+    FOR I=1 TO Y.LEN
+        Y.CHAR=SUBSTRINGS(Y.COM,I,1)
+        IF ISALPHA(Y.CHAR) AND Y.CHAR NE UPCASE(Y.CHAR) THEN
+            E="Please Click New Deal for create new request"
+            CALL STORE.END.ERROR
+            BREAK
+        END
+    NEXT I
+
+    Y.DATE=TODAY
+    CALL JULDATE(Y.DATE,Y.JULD)
+    Y.DATE=RIGHT(Y.JULD,5)
+    Y.DATE.COM= SUBSTRINGS(Y.COM,7,5)
+    IF Y.DATE NE Y.DATE.COM AND Y.REQUEST EQ "JBL.PORT.PAYORDER.INFO,ISSUE" AND V$FUNCTION EQ 'I'  THEN
+
+        E="Please Click New Deal for create new request"
+        CALL STORE.END.ERROR
+    END
+    IF Y.DATE NE Y.DATE.COM AND Y.REQUEST EQ "JBL.PORT.PAYORDER.INFO,ISSUE" AND V$FUNCTION EQ 'R'  THEN
+
+        E="Please Click New Deal for create new request"
+        CALL STORE.END.ERROR
+    END
+!IF ISDIGIT(RIGHT(Y.COM,5)) AND Y.REQUEST EQ "JBL.PORT.PAYORDER.INFO,ISSUE" AND V$FUNCTION EQ 'I' THEN
+!E="Please Click New Deal for create new request"
+!CALL STORE.END.ERROR
+!END
+
+    IF RIGHT(LEFT(Y.COM,6),4) NE RIGHT(ID.COMPANY,4) THEN
+
+        E="Please Click New Deal for create new request"
+        CALL STORE.END.ERROR
+    END
+    ID.NEW=Y.COM

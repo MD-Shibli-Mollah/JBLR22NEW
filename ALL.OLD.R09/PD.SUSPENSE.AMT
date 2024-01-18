@@ -1,0 +1,214 @@
+*-----------------------------------------------------------------------------
+* <Rating>109</Rating>
+*-----------------------------------------------------------------------------
+
+******************************************************************************
+*This routine calculates suspense interest, accrued interest, actual         *
+*outstanding of PD accounts of a specific branch.                            *
+*Developed By:Md. Zahid Hasan                                                *
+*Datasoft Systems Bangladesh Ltd.                                            *
+*Status.1:New Development                                                    *
+*Date.1:22/5/2014                                                            *
+******************************************************************************
+
+    SUBROUTINE PD.SUSPENSE.AMT(Y.DATA)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.PD.PAYMENT.DUE
+    $INSERT GLOBUS.BP I_F.PD.BALANCES
+    $INSERT GLOBUS.BP I_F.EB.CONTRACT.BALANCES
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+INIT:
+
+    FN.PD = 'F.PD.PAYMENT.DUE'
+    F.PD = ''
+    SEL.CMD.PD = ''
+    SEL.LIST.PD = ''
+    NO.OF.REC.PD = ''
+    R.PD = ''
+    Y.PD.ID = ''
+
+    FN.PD.BAL = 'F.PD.BALANCES'
+    F.PD.BAL = ''
+    SEL.CMD.PD.BAL = ''
+    SEL.LIST.PD.BAL = ''
+    NO.OF.REC.PD.BAL = ''
+    R.PD.BAL = ''
+    Y.PD.BAL.ID = ''
+    Y.SUSP.AMT = ''
+
+    FN.ECB = 'F.EB.CONTRACT.BALANCES'
+    F.ECB = ''
+
+    Y.TOT.SUSP.AMT = ''
+    Y.PD.BAL = ''
+    Y.PD.TYPE = ''
+    Y.PD.TYPE.AMT = ''
+
+    FN.ACCT = 'F.ACCOUNT'
+    F.ACCT = ''
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.PD,F.PD)
+    CALL OPF(FN.PD.BAL,F.PD.BAL)
+    CALL OPF(FN.ECB,F.ECB)
+    CALL OPF(FN.ACCT,F.ACCT)
+
+    RETURN
+
+PROCESS:
+
+    SEL.CMD.PD = 'SELECT ':FN.PD:' WITH CO.CODE EQ ':ID.COMPANY
+    CALL EB.READLIST(SEL.CMD.PD,SEL.LIST.PD,'',NO.OF.REC.PD,ERR.PD.LIST)
+    LOOP
+        REMOVE Y.PD.ID FROM SEL.LIST.PD SETTING POS1
+    WHILE Y.PD.ID:POS1
+        CALL F.READ(FN.PD,Y.PD.ID,R.PD,F.PD,ERR.PD)
+        Y.REPAY.ACC.LIST<-1> = R.PD<PD.REPAYMENT.ACCT>
+        Y.TOT.ORIG.STLMNT.ACT = DCOUNT(R.PD<PD.ORIG.STLMNT.ACT>,@VM)
+        FOR L = 1 TO Y.TOT.ORIG.STLMNT.ACT
+            Y.ACCT.ID = R.PD<PD.ORIG.STLMNT.ACT,L>
+            IF Y.ACCT.ID[1,3] NE 'BDT' THEN
+                CALL F.READ(FN.ACCT,Y.ACCT.ID,R.ACCT,F.ACCT,ERR.ACCT)
+                Y.SUS.AC.AMT = R.ACCT<AC.ACCR.DR.SUSP>
+                BREAK
+            END
+            ELSE
+                Y.SUS.AC.AMT = 0
+            END
+        NEXT L
+
+        Y.PD.BAL = R.PD<PD.TOTAL.OVERDUE.AMT>
+        Y.PD.TYPE = R.PD<PD.TOT.OVRDUE.TYPE>
+        Y.PD.TYPE.AMT = R.PD<PD.TOT.OD.TYPE.AMT>
+        PD.TYPE.CNT = 1
+        PD.TYPE.NO = DCOUNT(Y.PD.TYPE,@VM)
+        Y.ACTUAL.OUTS = 0
+        Y.MIG.SUSP.AMT = 0
+        Y.ACCR.AMT = 0
+        LOOP
+        WHILE (PD.TYPE.CNT LE PD.TYPE.NO)
+            Y.PD.TYPE.VAL = R.PD<PD.TOT.OVRDUE.TYPE,PD.TYPE.CNT>
+            Y.PD.TYPE.AMT.VAL = R.PD<PD.TOT.OD.TYPE.AMT,PD.TYPE.CNT>
+            IF Y.PD.TYPE.VAL EQ 'CO' THEN
+                Y.MIG.SUSP.AMT = Y.PD.TYPE.AMT.VAL
+            END
+            IF Y.PD.TYPE.VAL EQ 'PE' OR Y.PD.TYPE.VAL EQ 'PS' THEN
+                Y.ACCR.AMT = Y.ACCR.AMT + Y.PD.TYPE.AMT.VAL
+            END
+            PD.TYPE.CNT +=1
+        REPEAT
+
+        GOSUB PD.BALANCE
+
+        Y.ACTUAL.OUTS = Y.PD.BAL - Y.ACCR.AMT
+        Y.DATA<-1> = Y.PD.ID:'*':Y.MIG.SUSP.AMT:'*':Y.SUSP.AMT:'*':Y.SUS.AC.AMT:'*':Y.ACTUAL.OUTS:'*':Y.ACCR.AMT
+    REPEAT
+
+    GOSUB GET.ACC.SUS.AMT
+    GOSUB GET.INT.SUS.BAL
+
+    RETURN
+
+PD.BALANCE:
+
+    Y.CONTRACT.ID = Y.PD.ID
+    R.EB.CONTRACT.BALANCES = ''
+    Y.ERR.ECB = ''
+    Y.OPN.BAL = 0
+    Y.DEBIT.MVMNT = 0
+    Y.CREDIT.MVMNT = 0
+    Y.SUSP.AMT = 0
+
+    CALL F.READ(FN.ECB,Y.CONTRACT.ID,R.EB.CONTRACT.BALANCES,F.ECB,Y.ERR.ECB)
+    IF R.EB.CONTRACT.BALANCES THEN
+        Y.SP.CNT=DCOUNT(R.EB.CONTRACT.BALANCES<ECB.TYPE.SYSDATE>,VM)
+        Y.SP.CTR = 1
+        LOOP
+        WHILE (Y.SP.CTR LE Y.SP.CNT)
+            IF R.EB.CONTRACT.BALANCES<ECB.TYPE.SYSDATE,Y.SP.CTR>[6,2] EQ 'SP' THEN
+                Y.BAL.CNT = DCOUNT(R.EB.CONTRACT.BALANCES<ECB.OPEN.BALANCE,Y.SP.CTR>,@SM)
+                Y.BAL.CTR = 1
+                LOOP
+                    WHILE(Y.BAL.CTR LE Y.BAL.CNT)
+                    Y.OPN.BAL += R.EB.CONTRACT.BALANCES<ECB.OPEN.BALANCE,Y.SP.CTR,Y.BAL.CTR>
+                    Y.BAL.CTR += 1
+                REPEAT
+                Y.DBT.CNT = DCOUNT(R.EB.CONTRACT.BALANCES<ECB.DEBIT.MVMT,Y.SP.CTR>,@SM)
+                Y.DBT.CTR = 1
+                LOOP
+                    WHILE(Y.DBT.CTR LE Y.DBT.CNT)
+                    Y.DEBIT.MVMNT += R.EB.CONTRACT.BALANCES<ECB.DEBIT.MVMT,Y.SP.CTR,Y.DBT.CTR>
+                    Y.DBT.CTR += 1
+                REPEAT
+                Y.CRT.CNT = DCOUNT(R.EB.CONTRACT.BALANCES<ECB.CREDIT.MVMT,Y.SP.CTR>,@SM)
+                Y.CRT.CTR = 1
+                LOOP
+                    WHILE(Y.CRT.CTR LE Y.CRT.CNT)
+                    Y.CREDIT.MVMNT += R.EB.CONTRACT.BALANCES<ECB.CREDIT.MVMT,Y.SP.CTR,Y.CRT.CTR>
+                    Y.CRT.CTR += 1
+                REPEAT
+            END
+            Y.SP.CTR += 1
+        REPEAT
+    END
+
+    Y.SUSP.AMT= Y.OPN.BAL + Y.DEBIT.MVMNT + Y.CREDIT.MVMNT
+
+    RETURN
+
+GET.ACC.SUS.AMT:
+
+    SEL.CMD.ACCT = 'SELECT ':FN.ACCT:' WITH CO.CODE EQ ':ID.COMPANY: ' AND INT.NO.BOOKING EQ SUSPENSE'
+    CALL EB.READLIST(SEL.CMD.ACCT,SEL.CMD.LIST,'',NO.OF.REC,ERR.AC)
+    LOOP
+        REMOVE Y.ACCT.ID FROM SEL.CMD.LIST SETTING POS1
+    WHILE Y.ACCT.ID:POS1
+        LOCATE Y.ACCT.ID IN Y.REPAY.ACC.LIST<1> SETTING POS2 THEN
+        END
+        ELSE
+            CALL F.READ(FN.ACCT,Y.ACCT.ID,R.ACCT,F.ACCT,ERR.ACCT)
+            IF R.ACCT THEN
+                Y.MIG.SUSP.AMT = 0
+                Y.SUSP.AMT = 0
+                Y.ACTUAL.OUTS = 0
+                Y.ACCR.AMT = 0
+                Y.SUS.AC.AMT = R.ACCT<AC.ACCR.DR.SUSP>
+                IF Y.SUS.AC.AMT THEN
+                    Y.DATA<-1> = Y.ACCT.ID:'*':Y.MIG.SUSP.AMT:'*':Y.SUSP.AMT:'*':Y.SUS.AC.AMT:'*':Y.ACTUAL.OUTS:'*':Y.ACCR.AMT
+                END
+            END
+        END
+    REPEAT
+    RETURN
+
+GET.INT.SUS.BAL:
+
+    SEL.CMD.ACCT = 'SELECT ':FN.ACCT:' WITH CO.CODE EQ ':ID.COMPANY: ' AND CATEGORY EQ 17383'
+    CALL EB.READLIST(SEL.CMD.ACCT,SEL.CMD.LIST,'',NO.OF.REC,ERR.AC)
+    LOOP
+        REMOVE Y.ACCT.ID FROM SEL.CMD.LIST SETTING POS
+    WHILE Y.ACCT.ID:POS
+        CALL F.READ(FN.ACCT,Y.ACCT.ID,R.ACCT,F.ACCT,ERR.ACCT)
+        IF R.ACCT THEN
+            Y.MIG.SUSP.AMT = 0
+            Y.SUSP.AMT = 0
+            Y.ACTUAL.OUTS = 0
+            Y.ACCR.AMT = 0
+            Y.SUS.AC.AMT = R.ACCT<AC.WORKING.BALANCE>
+            Y.DATA<-1> = Y.ACCT.ID:'*':Y.MIG.SUSP.AMT:'*':Y.SUSP.AMT:'*':Y.SUS.AC.AMT:'*':Y.ACTUAL.OUTS:'*':Y.ACCR.AMT
+        END
+    REPEAT
+
+    RETURN
+
+END

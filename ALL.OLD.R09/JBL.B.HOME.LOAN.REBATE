@@ -1,0 +1,299 @@
+*-------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>215</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.HOME.LOAN.REBATE(Y.SEL.ID)
+*-------------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This subroutine will create a list file with all the ID's which needs to be
+* processed by the job.
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20110215 - New - Sabari.G
+*                  Thesys Technologies
+*-------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE GLOBUS.BP I_F.PD.PAYMENT.DUE
+    $INCLUDE GLOBUS.BP I_F.STMT.ENTRY
+    $INCLUDE GLOBUS.BP I_F.CATEG.ENTRY
+    $INCLUDE GLOBUS.BP I_F.LMM.SCHEDULES.PAST
+    $INCLUDE GLOBUS.BP I_F.COMPANY
+    $INCLUDE JBL.BP I_JBL.B.HOME.LOAN.REBATE.COMMON
+    $INCLUDE JBL.BP I_F.BD.HME.LOAN.REBATE.PARAM
+    $INCLUDE JBL.BP I_F.BD.L.HME.LOAN.REBATE
+    $INCLUDE GLOBUS.BP I_BATCH.FILES
+*-------------------------------------------------------------------------------
+
+    GOSUB PROCESS
+    RETURN
+*-------------------------------------------------------------------------------
+PROCESS:
+********
+
+    CALL F.READ(FN.LD.LOANS.AND.DEPOSITS,Y.SEL.ID,R.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS,Y.LD.ERR)
+    IF Y.LD.ERR THEN RETURN
+
+    Y.LD.ID = Y.SEL.ID
+    Y.LD.AMOUNT = R.LD.LOANS.AND.DEPOSITS<LD.AMOUNT>
+
+    IF Y.LD.AMOUNT LE 0 THEN RETURN
+
+    Y.LD.CCY = R.LD.LOANS.AND.DEPOSITS<LD.CURRENCY>
+    INT.ACT.ID = LCCY:Y.CR.CATEG:'0001'
+    IF C$MULTI.BOOK THEN
+        INT.ACT.ID := R.COMPANY(EB.COM.SUB.DIVISION.CODE)
+    END
+
+    Y.OVER.STATUS = R.LD.LOANS.AND.DEPOSITS<LD.OVERDUE.STATUS>
+
+    IF Y.OVER.STATUS EQ 'CUR' THEN
+        GOSUB PROCESS.PD.BALANCES.HIST
+    END ELSE
+        IF (Y.OVER.STATUS NE 'CUR' OR Y.OVER.STATUS EQ '') THEN
+            GOSUB PROCESS.PD.PAYMENT.DUE
+        END
+    END
+
+    RETURN
+*-------------------------------------------------------------------------------
+PROCESS.PD.BALANCES.HIST:
+*************************
+
+    Y.PD.HIST = ''
+    Y.SEL.PD.BAL.HIST.CMD = 'SELECT FN.PD.BALANCES.HIST':' WITH @ID LIKE ...':Y.SEL.ID:'...'
+    CALL EB.READLIST(Y.SEL.PD.BAL.CMD,Y.PD.BAL.LIST,'',NO.OF.PD.BAL.REC,Y.PD.BAL.ERR)
+    LOOP
+        REMOVE Y.PD.BAL.HIST.ID FROM Y.PD.BAL.LIST SETTING Y.POS2
+    WHILE Y.PD.BAL.HIST.ID:Y.POS2
+        Y.PD.BAL.DATE = FIELD(Y.PD.BAL.HIST.ID,'-',2)
+        IF NOT((Y.PD.BAL.DATE GE Y.START.DATE) AND (Y.PD.BAL.DATE LE Y.END.DATE)) THEN
+            Y.PD.HIST = 'Y'
+        END
+    REPEAT
+
+    IF Y.PD.HIST EQ 'Y' THEN
+        GOSUB CHK.FIRST.REP.DATE
+    END
+
+    RETURN
+*-------------------------------------------------------------------------------
+PROCESS.PD.PAYMENT.DUE:
+***********************
+
+    Y.PD.LIVE = ''
+    Y.SET.FLAG = ''
+    Y.PD.ID = 'PD':Y.LD.ID
+    CALL F.READ(FN.PD.PAYMENT.DUE,Y.PD.ID,R.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE,Y.PD.ERR)
+    IF R.PD.PAYMENT.DUE THEN
+        Y.DTE.DUE.CNT = DCOUNT(R.PD.PAYMENT.DUE<PD.PAYMENT.DTE.DUE>,VM)
+        Y.CNT = 1
+        LOOP
+        WHILE Y.CNT LE Y.DTE.DUE.CNT
+            Y.DATE = R.PD.PAYMENT.DUE<PD.PAYMENT.DTE.DUE,Y.CNT>
+            IF NOT((Y.DATE GE Y.START.DATE) AND (Y.DATE LE Y.END.DATE)) THEN
+                Y.PD.LIVE = 'Y'
+            END ELSE
+                RETURN
+            END
+            Y.CNT += 1
+        REPEAT
+        IF Y.PD.LIVE EQ 'Y' THEN
+            GOSUB CHK.FIRST.REP.DATE
+        END
+    END
+
+    RETURN
+*-------------------------------------------------------------------------------
+CHK.FIRST.REP.DATE:
+*******************
+
+    Y.FIRST.REP.DATE = R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF><1,Y.FIRST.REP.DATE.POS>
+
+    IF (Y.FIRST.REP.DATE GE Y.START.DATE)AND(Y.FIRST.REP.DATE LE Y.END.DATE) THEN
+        GOSUB PROCESS.REBATE
+    END
+
+    RETURN
+*-------------------------------------------------------------------------------
+PROCESS.REBATE:
+***************
+
+    Y.LMM.SCH.ID  = Y.LD.ID
+
+    GOSUB PROCESS.LMM.SCH.PAST
+
+    Y.REBATE.AMT = (Y.RATE*Y.INT.REC)/100
+
+! Accounting Raised
+
+    IF Y.REBATE.AMT THEN
+        GOSUB RAISE.ENTRIES
+
+! Concat Table Updated
+
+        Y.ID = TODAY:"-":ID.COMPANY:"-":SESSION.NO
+        CALL F.READ(FN.BD.L.HME.LOAN.REBATE,Y.ID,R.BD.L.HME.LOAN.REBATE,F.BD.L.HME.LOAN.REBATE,Y.BD.L.HME.LOAN.REBATE.ERR)
+        IF R.BD.L.HME.LOAN.REBATE THEN
+            Y.CNT = DCOUNT(R.BD.L.HME.LOAN.REBATE<BD.LOAN.ID>,VM)
+            Y.CNT += 1
+            R.BD.L.HME.LOAN.REBATE<BD.LOAN.ID,Y.CNT> = Y.LD.ID
+            R.BD.L.HME.LOAN.REBATE<BD.INTEREST.AMOUNT,Y.CNT> = Y.INT.REC
+            GOSUB CURRENCY.CONV
+            R.BD.L.HME.LOAN.REBATE<BD.AMT.TO.REBATE,Y.CNT> = Y.CONV.REBATE.AMT
+            R.BD.L.HME.LOAN.REBATE<BD.AMT.TO.REB.LCY,Y.CNT> = Y.REB.AMT.LCY
+            CALL F.WRITE(FN.BD.L.HME.LOAN.REBATE,Y.ID,R.BD.L.HME.LOAN.REBATE)
+        END ELSE
+            R.BD.L.HME.LOAN.REBATE<BD.LOAN.ID> = Y.LD.ID
+            R.BD.L.HME.LOAN.REBATE<BD.INTEREST.AMOUNT> = Y.INT.REC
+            GOSUB CURRENCY.CONV
+            R.BD.L.HME.LOAN.REBATE<BD.AMT.TO.REBATE> = Y.CONV.REBATE.AMT
+            R.BD.L.HME.LOAN.REBATE<BD.AMT.TO.REB.LCY> = Y.REB.AMT.LCY
+            CALL F.WRITE(FN.BD.L.HME.LOAN.REBATE,Y.ID,R.BD.L.HME.LOAN.REBATE)
+        END
+    END
+
+    RETURN
+*-------------------------------------------------------------------------------
+CURRENCY.CONV:
+**************
+
+    IF Y.LD.CCY NE LCCY THEN
+        Y.CCY1 = Y.LD.CCY
+        Y.AMT1 = Y.REBATE.AMT
+        Y.CONV.CCY = LCCY
+        Y.CONV.AMT = ''
+        CALL EB.CURR.CONV(Y.CCY,Y.AMT1,Y.CONV.CCY,Y.CONV.AMT)
+        Y.CONV.REBATE.AMT = Y.REBATE.AMT
+        Y.REB.AMT.LCY = Y.CONV.AMT
+    END ELSE
+
+! format
+
+        Y.AMT2 = Y.REBATE.AMT
+        Y.CCY2 = Y.LD.CCY
+        Y.CAL = ''
+        CALL EB.ROUND.AMOUNT(Y.CCY2,Y.AMT2,Y.CAL,'')
+        Y.CONV.REBATE.AMT = Y.AMT2
+        Y.REB.AMT.LCY = Y.AMT2
+    END
+
+    RETURN
+*-------------------------------------------------------------------------------
+PROCESS.LMM.SCH.PAST:
+*********************
+
+! Interest Amount fetched
+
+    Y.INT.REC = ''
+    Y.LSP.CMD = 'SELECT ':FN.LMM.SCHEDULES.PAST:' LIKE ':Y.LMM.SCH.ID:'...'
+    CALL EB.READLIST(Y.LSP.CMD,Y.LSP.LIST,'',NO.OF.REC,'')
+    LOOP
+        REMOVE Y.LSP.ID FROM Y.LSP.LIST SETTING Y.LSP.POS
+    WHILE Y.LSP.ID:Y.LSP.POS
+        Y.JDATE = Y.LSP.ID[13,7]
+        Y.GDATE = ''
+
+        CALL JULDATE(Y.GDATE,Y.JDATE)
+        IF Y.GDATE GE Y.START.DATE AND Y.GDATE LE Y.END.DATE THEN
+            CALL F.READ(FN.LMM.SCHEDULES.PAST,Y.LSP.ID,R.LMM.SCHEDULES.PAST,F.LMM.SCHEDULES.PAST,Y.LSP.ERR)
+            IF R.LMM.SCHEDULES.PAST THEN
+                Y.INT.REC.CNT = DCOUNT(R.LMM.SCHEDULES.PAST<LD28.INT.RECEIVED>,VM)
+                Y.INT.CNT = 1
+                LOOP
+                WHILE Y.INT.CNT LE Y.INT.REC.CNT
+                    IF Y.INT.REC THEN
+                        Y.INT.REC += R.LMM.SCHEDULES.PAST<LD28.INT.RECEIVED,Y.INT.CNT>
+                    END ELSE
+                        Y.INT.REC = R.LMM.SCHEDULES.PAST<LD28.INT.RECEIVED,Y.INT.CNT>
+                    END
+                    Y.INT.CNT += 1
+                REPEAT
+            END
+        END
+
+    REPEAT
+
+    RETURN
+*-------------------------------------------------------------------------
+RAISE.ENTRIES:
+**************
+
+    FINAL.ENTRY.REC = ''
+    Y.FCY.REBATE.AMT = ''
+    Y.LCY.REBATE.AMT = Y.REBATE.AMT
+    IF Y.LD.CCY NE LCCY THEN
+        YCCY.FROM = Y.LD.CCY
+        Y.FCY.REBATE.AMT = Y.REBATE.AMT
+        YCCY.TO = LCCY
+        Y.LCY.REBATE.AMT = ''
+        CALL EB.CURR.CONV(YCCY.FROM,Y.FCY.REBATE.AMT,YCCY.TO,Y.LCY.REBATE.AMT)
+    END
+    GOSUB GET.STMT.DETAILS
+    GOSUB GET.CATEG.DETAILS
+
+    CALL EB.ACCOUNTING('LD','SAO',FINAL.ENTRY.REC,'')
+
+    RETURN
+*-------------------------------------------------------------------------
+GET.STMT.DETAILS:
+****************
+
+    STMT.ENTRY.REC = ''
+    STMT.ENTRY.REC<AC.STE.ACCOUNT.NUMBER>    = INT.ACT.ID
+    STMT.ENTRY.REC<AC.STE.AMOUNT.LCY>        = Y.LCY.REBATE.AMT
+    STMT.ENTRY.REC<AC.STE.TRANSACTION.CODE>  = Y.CR.TXN.CODE
+    STMT.ENTRY.REC<AC.STE.CUSTOMER.ID>       = R.LD.LOANS.AND.DEPOSITS<LD.CUSTOMER.ID>
+    STMT.ENTRY.REC<AC.STE.ACCOUNT.OFFICER>   = R.LD.LOANS.AND.DEPOSITS<LD.MIS.ACCT.OFFICER>
+    STMT.ENTRY.REC<AC.STE.PRODUCT.CATEGORY>  = R.LD.LOANS.AND.DEPOSITS<LD.CATEGORY>
+    STMT.ENTRY.REC<AC.STE.VALUE.DATE>        = TODAY
+    STMT.ENTRY.REC<AC.STE.CURRENCY>          = LCCY
+    STMT.ENTRY.REC<AC.STE.NARRATIVE>         = "Rebate on interest"
+    STMT.ENTRY.REC<AC.STE.POSITION.TYPE>     = R.LD.LOANS.AND.DEPOSITS<LD.POSITION.TYPE>
+    STMT.ENTRY.REC<AC.STE.OUR.REFERENCE>     = ID.NEW
+    STMT.ENTRY.REC<AC.STE.CURRENCY.MARKET>   = R.LD.LOANS.AND.DEPOSITS<LD.CURRENCY.MARKET>
+    STMT.ENTRY.REC<AC.STE.DEPARTMENT.CODE>   = R.LD.LOANS.AND.DEPOSITS<LD.DEPT.CODE>
+    STMT.ENTRY.REC<AC.STE.TRANS.REFERENCE>   = Y.LD.ID
+    STMT.ENTRY.REC<AC.STE.SYSTEM.ID>         = 'LD'
+    STMT.ENTRY.REC<AC.STE.BOOKING.DATE>      = TODAY
+    STMT.ENTRY.REC<AC.STE.COMPANY.CODE>      = ID.COMPANY
+    IF FINAL.ENTRY.REC THEN
+        FINAL.ENTRY.REC := FM:LOWER(STMT.ENTRY.REC)
+    END ELSE
+        FINAL.ENTRY.REC = LOWER(STMT.ENTRY.REC)
+    END
+
+    RETURN
+*------------------------------------------------------------------------------
+GET.CATEG.DETAILS:
+*****************
+
+    CATEG.ENTRY.REC = ''
+    CATEG.ENTRY.REC<AC.CAT.AMOUNT.LCY>       = -1 * Y.LCY.REBATE.AMT
+    CATEG.ENTRY.REC<AC.CAT.TRANSACTION.CODE> = Y.DT.TXN.CODE
+    CATEG.ENTRY.REC<AC.CAT.PL.CATEGORY>      = Y.DT.CATEG
+    CATEG.ENTRY.REC<AC.CAT.CUSTOMER.ID>      = R.LD.LOANS.AND.DEPOSITS<LD.CUSTOMER.ID>
+    CATEG.ENTRY.REC<AC.CAT.ACCOUNT.OFFICER>  = R.LD.LOANS.AND.DEPOSITS<LD.MIS.ACCT.OFFICER>
+    CATEG.ENTRY.REC<AC.CAT.PRODUCT.CATEGORY> = R.LD.LOANS.AND.DEPOSITS<LD.CATEGORY>
+    CATEG.ENTRY.REC<AC.CAT.VALUE.DATE>       = TODAY
+    CATEG.ENTRY.REC<AC.CAT.CURRENCY>         = LCCY
+    CATEG.ENTRY.REC<AC.CAT.POSITION.TYPE>    = R.LD.LOANS.AND.DEPOSITS<LD.POSITION.TYPE>
+    CATEG.ENTRY.REC<AC.CAT.OUR.REFERENCE>    = ID.NEW
+    CATEG.ENTRY.REC<AC.CAT.CURRENCY.MARKET>  = R.LD.LOANS.AND.DEPOSITS<LD.CURRENCY.MARKET>
+    CATEG.ENTRY.REC<AC.CAT.DEPARTMENT.CODE>  = R.LD.LOANS.AND.DEPOSITS<LD.DEPT.CODE>
+    CATEG.ENTRY.REC<AC.CAT.TRANS.REFERENCE>  = Y.LD.ID
+    CATEG.ENTRY.REC<AC.CAT.SYSTEM.ID>        = 'LD'
+    CATEG.ENTRY.REC<AC.CAT.BOOKING.DATE>     = TODAY
+    CATEG.ENTRY.REC<AC.CAT.COMPANY.CODE>     = ID.COMPANY
+
+    IF FINAL.ENTRY.REC THEN
+        FINAL.ENTRY.REC := FM: LOWER(CATEG.ENTRY.REC)
+    END ELSE
+        FINAL.ENTRY.REC =  LOWER(CATEG.ENTRY.REC)
+    END
+
+    RETURN
+END

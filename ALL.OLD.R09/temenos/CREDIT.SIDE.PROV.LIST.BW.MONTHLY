@@ -1,0 +1,116 @@
+****************************************************************************************
+*This routine  return branch wise monthly crebit interest provision data into          *
+*PROVISION.DIR.MONTHLY directory                                                       *
+*Developed By: Md. Aminul Islam(Datasoft Systems)                                      *
+*Date:23/12/2014                                                                       *
+****************************************************************************************
+    PROGRAM CREDIT.SIDE.PROV.LIST.BW.MONTHLY
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_F.ACCR.ACCT.CR
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    GOSUB WRITE.TO.FILE
+
+*------
+INIT:
+*------
+    PRINT 'ENTER BRANCH CODE'
+    INPUT Y.CO.CODE
+    PRINT 'ENTER PROVISION DATE'
+    INPUT Y.PROVISION.DATE
+    OPEN "PROVISION.DIR.MONTHLY" TO F.PROVISION.DIR.MONTHLY ELSE
+        CMD = "CREATE.FILE PROVISION.DIR.MONTHLY TYPE=UD"
+        EXECUTE CMD
+        OPEN "PROVISION.DIR" TO F.PROVISION.DIR.MPNTHLY ELSE
+            CRT "OPENING OF PROVISION.DIR.MONTHLY FAILED"
+        END
+    END
+
+    Y.FILE.NAME = 'CREDIT.PROVISION.LIST.':Y.CO.CODE:'.':Y.PROVISION.DATE:'.csv'
+    Y.FILE.DIR = 'PROVISION.DIR.MONTHLY'
+    Y.FILE.PATH = Y.FILE.DIR:'/':Y.FILE.NAME
+
+    FN.ACCR.ACCT.CR = 'F.ACCR.ACCT.CR'
+    F.ACCR.ACCT.CR = ''
+
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = 'ACCOUNT'
+
+    Y.DATA = 'ACCOUNT.NO~LEGECY.AC.NO~CATEGORY~CR.INT.DATE~CR.INT.RATE~CR.INT.AMT~TOTAL.INTEREST~BRANCH.CODE'
+    RETURN
+
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.ACCR.ACCT.CR,F.ACCR.ACCT.CR)
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    RETURN
+
+*-------
+PROCESS:
+*-------
+!DEBUG
+    SEL.CMD = 'SELECT ':FN.ACCOUNT:' WITH CO.CODE EQ ':Y.CO.CODE
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+    FOR I = 1 TO NO.OF.REC
+        Y.ACCR.ID = FIELD(SEL.LIST,@FM,I)
+
+        CALL F.READ(FN.ACCOUNT, Y.ACCR.ID, R.ACCOUNT, F.ACCOUNT , Y.ACCOUNT.ERR)
+        IF R.ACCOUNT THEN
+            CALL F.READ(FN.ACCR.ACCT.CR, Y.ACCR.ID , R.ACCR, F.ACCR.ACCT.CR , Y.ACCR.ERR)
+            IF R.ACCR THEN
+                Y.TOTAL.INTEREST = R.ACCR<IC.ACRCR.TOTAL.INTEREST>
+                Y.CR.INT.DATE.TOT = DCOUNT(R.ACCR<IC.ACRCR.CR.INT.DATE>,@VM)
+                FOR L = 1 TO Y.CR.INT.DATE.TOT
+                    Y.CR.INT.DATE = R.ACCR<IC.ACRCR.CR.INT.DATE,L>
+                    IF Y.CR.INT.DATE EQ Y.PROVISION.DATE THEN
+                        Y.COMPANY = R.ACCOUNT<AC.CO.CODE>
+                        Y.ALT.ACCT.ID = R.ACCOUNT<AC.ALT.ACCT.ID>
+                        Y.CATEGORY = R.ACCOUNT<AC.CATEGORY>
+                        Y.CR.INT.RATE = R.ACCR<IC.ACRCR.CR.INT.RATE,L>
+                        Y.TOTAL.INTEREST = R.ACCR<IC.ACRCR.TOTAL.INTEREST>
+                        Y.CR.INT.AMT = R.ACCR<IC.ACRCR.CR.INT.AMT,L>
+                        IF Y.CR.INT.RATE NE 0 THEN
+                            Y.DATA<-1> = Y.ACCR.ID:'~':Y.ALT.ACCT.ID:'~':Y.CATEGORY:'~':Y.CR.INT.DATE:'~':Y.CR.INT.RATE:'~':Y.CR.INT.AMT:'~':Y.TOTAL.INTEREST:'~':Y.COMPANY
+                        END
+                    END
+                NEXT L
+            END
+        END
+        Y.PROGRESS = MOD(I,5000)
+        IF Y.PROGRESS EQ 0 THEN
+            Y.PERCENT = I*100/NO.OF.REC
+            PRINT DROUND(Y.PERCENT,0):'% IS DONE.'
+        END
+    NEXT I
+    IF NO.OF.REC NE 0 THEN
+        PRINT '100% IS DONE.'
+    END
+    ELSE
+        PRINT 'NO RECORD FOUND.'
+    END
+    RETURN
+*-------------
+WRITE.TO.FILE:
+*-------------
+    IF NOT(Y.FILE.NAME) THEN
+        CRT "No file name found to write CREDIT PROVISION data"
+    END
+    ELSE
+        WRITE Y.DATA TO F.PROVISION.DIR.MONTHLY,Y.FILE.NAME
+    END
+    IF DCOUNT(Y.DATA,@FM) EQ 1 THEN
+        PRINT 'NO PROVISIONIG DATA IS FOUND.'
+    END
+    ELSE
+        PRINT (DCOUNT(Y.DATA,@FM) -1):' PROVISIONIG DATA IS FOUND.'
+    END
+!RETURN
+END

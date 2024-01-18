@@ -1,0 +1,65 @@
+*-----------------------------------------------------------------------------
+* <Rating>-13</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.EXCISE.DUTY.PDREPAY.SELECT
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine is used to make a select on all the matured/ preclosed PDs
+*-------------------------------------------------------------------------
+* Project Name : Janata Bank
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*  NA
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+* TODAY                     -                     Holds today's date
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+* EB.READLIST               CORE           To read a set of records from a
+*                                          file
+*
+* BATCH.BUILD.LIST          CORE           Writes the list of ids into the
+*                                          LIST file
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 03/05/2011 - New   - Chethana
+*                      Thesys Technologies
+
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE JBL.BP I_JBL.B.EXCISE.DUTY.PDREPAY.COMMON
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE GLOBUS.BP I_BATCH.FILES
+    $INCLUDE GLOBUS.BP I_F.DATES
+
+* EB.BD.EXCISE.DUTY.PD contain early matured PD records and concat the
+* PD records to calcute the excise duty
+    SEL.LIST=''
+    SEL.ERR=''
+    NO.OF.RECS=''
+
+    SEL.CMD = 'SELECT ':FN.EB.BD.EXCISE.DUTY.PD
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,SEL.ERR)
+
+* Select PD.REPAYMENT with @ID like today
+    SEL.CMD1 = ''
+    SEL.LIST1 = ''
+
+    NO.OF.REC1 = ''
+    SEL.ERR1 = ''
+*
+    SEL.CMD1 = 'SELECT ':FN.PD.REPAYMENT
+    SEL.CMD1 := ' WITH @ID LIKE PD...':TODAY:'...'
+    CALL EB.READLIST(SEL.CMD1,SEL.LIST1,'',NO.OF.REC1,SEL.ERR1)
+    SEL.LIST1 = SEL.LIST:@FM:SEL.LIST1
+*
+    CALL BATCH.BUILD.LIST('',SEL.LIST1)
+    RETURN
+END

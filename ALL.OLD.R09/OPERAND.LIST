@@ -1,0 +1,23 @@
+*To provide the Operand list as well as human understandable*
+*Use this enquiry in the any report generation and enquiry selection operator*
+*Developed By: Md. Zakir Hossain (JBL)*
+*Deploy Date: 12 JULY 2016*
+
+    SUBROUTINE OPERAND.LIST(Y.ARR)
+    Y.ARR<-1>="EQ*equals"
+    Y.ARR<-1>="LK*matches"
+    Y.ARR<-1>="NE*not equal to"
+    Y.ARR<-1>="GT*greater than"
+    Y.ARR<-1>="GE*greater than or equals"
+    Y.ARR<-1>="LT*less than"
+    Y.ARR<-1>="LE*less than or equals"
+    Y.ARR<-1>="RG*between"
+    Y.ARR<-1>="NR*not between"
+    Y.ARR<-1>="CT*contains"
+    Y.ARR<-1>="NC*not containing"
+    Y.ARR<-1>="BW*begins with"
+    Y.ARR<-1>="EW*ends with"
+    Y.ARR<-1>="DNBW*does not begin with"
+    Y.ARR<-1>="DNEW*does not end with"
+    RETURN
+END

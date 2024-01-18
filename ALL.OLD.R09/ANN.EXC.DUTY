@@ -1,0 +1,159 @@
+*-----------------------------------------------------------------------------
+* <Rating>-35</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ANN.EXC.DUTY(Y.RETURN)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.ABL.H.ED
+    $INSERT I_F.AB.H.ED.SLAB.PARAM
+    $INSERT I_F.ACCOUNT.CLASS
+    $INSERT I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    FN.AC.HIS='F.ACCOUNT$HIS'
+    F.AC.HIS=''
+    FN.ED = 'F.ABL.H.ED'
+    F.ED = ''
+    FN.ED.SLAB = 'F.AB.H.ED.SLAB.PARAM'
+    F.ED.SLAB = ''
+    FN.AC.CLASS = 'F.ACCOUNT.CLASS'
+    F.AC.CLASS = ''
+
+    LOCATE "YEAR.MONTH" IN ENQ.SELECTION<2,1> SETTING YEAR.MONTH.POS THEN
+        Y.YEAR.MONTH = ENQ.SELECTION<4,YEAR.MONTH.POS>
+    END
+    LOCATE "EXCISE.DUTY.RATE" IN ENQ.SELECTION<2,1> SETTING EXDT.RATE.POS THEN
+        EXDT.RATE.VAL = ENQ.SELECTION<4,EXDT.RATE.POS>
+    END
+
+    Y.CATEG.LIST = ''
+    Y.CD.LIST = ''
+    Y.SB.LIST = ''
+    Y.STD.LIST = ''
+    Y.LOAN.LIST = ''
+    Y.CLASS.COUNT = 1
+    Y.ACCT.ID = ''
+    Y.EXDTY.SLAB.COUNT = ''
+    Y.CURR.AC.NO = '0'
+    Y.SAVING.AC.NO = '0'
+    Y.FDR.AC.NO = '0'
+    Y.LOAN.AC.NO = '0'
+    Y.EXDT.RATE = '0'
+    Y.EXDT.RATE.LIST = ''
+    Y.PABLE.EDTY = '0'
+    Y.AMT.FROM = '0'
+    Y.AMT.TO = '0'
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.AC.CLASS,F.AC.CLASS)
+    CALL OPF(FN.ED,F.ED)
+    CALL OPF(FN.ED.SLAB,F.ED.SLAB)
+    RETURN
+
+PROCESS:
+
+**************************************
+!CREATE ARRAY FOR ALL EXCISE DUTY SLAB
+**************************************
+    CALL F.READ(FN.ED.SLAB,"SYSTEM",R.SLAB.REC,F.ED.SLAB,ERR.AC)
+    Y.EXDTY.SLAB.COUNT = DCOUNT(R.SLAB.REC<3>,@VM)
+    FOR I = 1 TO Y.EXDTY.SLAB.COUNT
+        IF R.SLAB.REC<3,I> NE 0 AND (EXDT.RATE.VAL EQ "" OR EXDT.RATE.VAL EQ "NULL" OR EXDT.RATE.VAL EQ "ALL" OR EXDT.RATE.VAL EQ R.SLAB.REC<3,I>) THEN
+            Y.AMT.FROM = R.SLAB.REC<1,I>
+            Y.EXDT.RATE = R.SLAB.REC<3,I>
+            IF I = Y.EXDTY.SLAB.COUNT THEN
+                Y.AMT.TO = 0
+            END ELSE
+                Y.AMT.TO = R.SLAB.REC<2,I>
+            END
+            Y.RETURN<-1>=Y.EXDT.RATE:@VM:Y.CURR.AC.NO:@VM:Y.SAVING.AC.NO:@VM:Y.FDR.AC.NO:@VM:Y.LOAN.AC.NO:@VM:Y.PABLE.EDTY:@VM:Y.AMT.FROM:@VM:Y.AMT.TO:@VM:I
+            Y.EXDT.RATE.LIST<-1> = Y.EXDT.RATE
+        END
+    NEXT
+
+***************************************************************************
+!ACCOUNT CLASS RECORD ID 'U-EXCISECD' 'U-EXCISESB''U-EXCISESFD''U-EXCISELND'
+!READ ABOVE ACCOUNT.CLASS ID TO FIND ALL CATEGORY
+***************************************************************************
+
+    Y.AC.CLASS.LIST = 'U-EXCISECD':"*":'U-EXCISESB':"*":'U-EXCISESFD':"*":'U-EXCISELND'
+    LOOP
+    UNTIL Y.CLASS.COUNT > DCOUNT(Y.AC.CLASS.LIST,"*")
+        CALL F.READ(FN.AC.CLASS,FIELD(Y.AC.CLASS.LIST,'*',Y.CLASS.COUNT,1),R.AC.CLASS.REC,F.AC.CLASS,Y.ERR)
+        Y.CATEG.COUNT = DCOUNT(R.AC.CLASS.REC<3>,@VM)
+        FOR I = 1 TO Y.CATEG.COUNT
+            INS R.AC.CLASS.REC<3,I> BEFORE Y.CATEG.LIST<0,0,0>
+
+            BEGIN CASE
+            CASE FIELD(Y.AC.CLASS.LIST,'*',Y.CLASS.COUNT,1) EQ 'U-EXCISECD'
+                Y.CD.LIST<-1> = R.AC.CLASS.REC<3,I>
+            CASE FIELD(Y.AC.CLASS.LIST,'*',Y.CLASS.COUNT,1) EQ 'U-EXCISESB'
+                Y.SB.LIST<-1> = R.AC.CLASS.REC<3,I>
+            CASE FIELD(Y.AC.CLASS.LIST,'*',Y.CLASS.COUNT,1) EQ 'U-EXCISESFD'
+                Y.STD.LIST<-1> = R.AC.CLASS.REC<3,I>
+            CASE FIELD(Y.AC.CLASS.LIST,'*',Y.CLASS.COUNT,1) EQ 'U-EXCISELND'
+                Y.LOAN.LIST<-1> = R.AC.CLASS.REC<3,I>
+            END CASE
+        NEXT
+        Y.CLASS.COUNT = Y.CLASS.COUNT + 1
+    REPEAT
+    CONVERT FM TO " " IN Y.CATEG.LIST
+
+***********************************
+!Read Account from 'ABL.H.ED' File
+***********************************
+    SEL.CMD.AC = "SELECT ":FN.ED:" WITH YR.MNTH EQ ":Y.YEAR.MONTH:" AND CO.CODE EQ ":ID.COMPANY:" AND PRODCATEG EQ ":Y.CATEG.LIST
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.AC,'',AC.REC.NO,AC.RET.CODE)
+
+    LOOP
+        REMOVE Y.EDT.REC.ID FROM SEL.LIST.AC SETTING POS
+    WHILE Y.EDT.REC.ID:POS
+
+        Y.ACCT.ID = FIELD(Y.EDT.REC.ID,'.',1,1)
+        CALL F.READ(FN.AC,Y.ACCT.ID,REC.AC,F.AC,ERR.AC)
+        IF REC.AC EQ "" THEN
+            Y.ACCT.ID = Y.ACCT.ID:";1"
+            CALL F.READ(FN.AC.HIS,Y.ACCT.ID,REC.AC,F.AC.HIS,ERR.AC.HIS)
+        END
+        Y.CATEGORY = REC.AC<AC.CATEGORY>
+
+        CALL F.READ(FN.ED,Y.EDT.REC.ID,EXDT.REC,F.ED,ERR.AC)
+        Y.EXDT.RATE = EXDT.REC<4>
+
+        LOCATE Y.EXDT.RATE IN Y.EXDT.RATE.LIST SETTING EXDT.RATE.POS THEN
+
+            LOCATE Y.CATEGORY IN Y.CD.LIST SETTING Y.CD.CATEG.POS THEN
+                Y.RETURN<EXDT.RATE.POS,2>+= 1
+                Y.RETURN<EXDT.RATE.POS,6>+= EXDT.REC<6>
+            END
+            LOCATE Y.CATEGORY IN Y.SB.LIST  SETTING Y.SB.CATEG.POS THEN
+                Y.RETURN<EXDT.RATE.POS,3>+= 1
+                Y.RETURN<EXDT.RATE.POS,6>+= EXDT.REC<6>
+            END
+            LOCATE Y.CATEGORY IN Y.STD.LIST SETTING Y.STD.CATEG.POS THEN
+                Y.RETURN<EXDT.RATE.POS,4>+= 1
+                Y.RETURN<EXDT.RATE.POS,6>+= EXDT.REC<6>
+            END
+            LOCATE Y.CATEGORY IN Y.LOAN.LIST SETTING Y.LOAN.CATEG.POS THEN
+                Y.RETURN<EXDT.RATE.POS,5>+= 1
+                Y.RETURN<EXDT.RATE.POS,6>+= EXDT.REC<6>
+            END
+        END
+    REPEAT
+
+    CONVERT VM TO "*" IN Y.RETURN
+    RETURN
+END

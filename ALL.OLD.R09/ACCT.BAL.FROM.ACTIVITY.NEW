@@ -1,0 +1,140 @@
+*-----------------------------------------------------------------------------
+* <Rating>2140</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ACCT.BAL.FROM.ACTIVITY.NEW
+
+* This routine will rebuild account balance fields 23 - 27
+* Relies on last ACCT.ACTIVITY & DATES.EXPOSURE
+* Make sure there are no Unauthorised transactions for account before rebuild
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.STMT.ENTRY
+    $INSERT I_F.DATES
+
+    EXECUTE "COMO ON ACCT.BAL.FROM.ACTIVITY"
+
+    GOSUB INITIALISE
+    SEL.CMD = "SELECT ":FN.ACCOUNT
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,ACCT.ERR)
+    LOOP
+        REMOVE ACC.ID FROM SEL.LIST SETTING POS
+    WHILE ACC.ID:POS
+        IF ACC.ID EQ "13196" THEN DEBUG
+        GOSUB PROCESS
+NEXT.ACC: REPEAT
+    EXECUTE "COMO OFF ACCT.BAL.FROM.ACTIVITY"
+
+    RETURN
+
+************
+INITIALISE:
+************
+
+    FN.ACCOUNT="F.ACCOUNT"
+    FV.ACCOUNT=""
+    CALL OPF(FN.ACCOUNT,FV.ACCOUNT)
+
+    FN.STMT.ENTRY="F.STMT.ENTRY"
+    FV.STMT.ENTRY=""
+    CALL OPF(FN.STMT.ENTRY,FV.STMT.ENTRY)
+
+    FN.DATE.EXPOSURE="F.DATE.EXPOSURE"
+    FV.DATE.EXPOSURE=""
+    CALL OPF(FN.DATE.EXPOSURE,FV.DATE.EXPOSURE)
+
+    BALANCE.DATE1=""; BALANCE.DATE2=""; YBALANCE1=""; YBALANCE2=""; R.ACCT=""
+    CR.MVMT1=""; CR.MVMT2=""; DR.MVMT1=""; DR.MVMT2=""; ERR1=""; ERR2=""
+    OPN.ACT.BAL=""; OPN.CLR.BAL=""; ONL.ACT.BAL=""; ONL.CLR.BAL=""; WORK.BAL=""
+    CURR.OPN.ACT.BAL=""; CURR.OPN.CLR.BAL=""; CURR.ONL.ACT.BAL=""; CURR.ONL.CLR.BAL=""; CURR.WORK.BAL=""
+
+
+    RETURN
+
+*********
+PROCESS:
+*********
+    R.ACCT=''
+    READ R.ACCT FROM FV.ACCOUNT, ACC.ID ELSE
+        PRINT "Account ":ACC.ID:" does not exist, cannot rebuild balance"
+        GOTO NEXT.ACC
+    END
+
+    READU R.ACCT FROM FV.ACCOUNT, ACC.ID THEN
+
+***** Obtain open and online balance from ACCT.ACTIVITY using core routine *****
+
+        BALANCE.DATE1 = R.DATES(EB.DAT.TODAY)
+        BALANCE.DATE2 = R.DATES(EB.DAT.LAST.WORKING.DAY)
+
+        CALL EB.GET.ACCT.BALANCE(ACC.ID, R.ACCT,"BOOKING",BALANCE.DATE1,"",YBALANCE1,CR.MVMT1,DR.MVMT1,ERR1)  ;* Get online actual balance
+
+        CALL EB.GET.ACCT.BALANCE(ACC.ID, R.ACCT,"BOOKING",BALANCE.DATE2,"",YBALANCE2,CR.MVMT2,DR.MVMT2,ERR2)  ;* Get open actual balance
+
+        OPN.ACT.BAL = YBALANCE2
+        OPN.CLR.BAL = YBALANCE2
+        ONL.ACT.BAL = YBALANCE1
+        ONL.CLR.BAL = YBALANCE1
+        WORK.BAL = YBALANCE1
+
+***** Build cleared balance based on DATES.EXPOSURE *****
+
+        EXP.CNT=""; J=""
+        IF R.ACCT<AC.NEXT.EXP.DATE> NE "" THEN
+            EXP.CNT = DCOUNT(R.ACCT<AC.EXPOSURE.DATES>,@VM)
+            FOR J = 1 TO EXP.CNT
+                I=""; CNT=""; EXP.DATE=""; EXP.ID=""
+                R.EXPOSURE=""
+                EXP.DATE = R.ACCT<AC.EXPOSURE.DATES,J>
+                EXP.ID = ACC.ID:"-":EXP.DATE
+                READ R.EXPOSURE FROM FV.DATE.EXPOSURE, EXP.ID ELSE R.EXPOSURE=""
+                CNT = DCOUNT(R.EXPOSURE,@FM)
+                FOR I = 1 TO CNT
+                    R.ENTRY=""
+                    READ R.ENTRY FROM FV.STMT.ENTRY, R.EXPOSURE<I> ELSE R.ENTRY=""
+                    IF R.ENTRY<AC.STE.AMOUNT.FCY> THEN
+                        IF R.ENTRY<AC.STE.BOOKING.DATE> NE TODAY THEN OPN.CLR.BAL -= R.ENTRY<AC.STE.AMOUNT.FCY>
+                        ONL.CLR.BAL -= R.ENTRY<AC.STE.AMOUNT.FCY>
+                        WORK.BAL -= R.ENTRY<AC.STE.AMOUNT.FCY>
+                        PRINT "OPN.CLR.BAL: ":OPN.CLR.BAL:"**":"ONL.CLR.BAL: ":ONL.CLR.BAL:"**":"WORK.BAL: ":WORK.BAL
+                    END ELSE
+                        IF R.ENTRY<AC.STE.BOOKING.DATE> NE TODAY THEN OPN.CLR.BAL -= R.ENTRY<AC.STE.AMOUNT.LCY>
+                        ONL.CLR.BAL -= R.ENTRY<AC.STE.AMOUNT.LCY>
+                        WORK.BAL -= R.ENTRY<AC.STE.AMOUNT.LCY>
+                    END
+                NEXT I
+            NEXT J
+        END
+
+        CURR.OPN.ACT.BAL = R.ACCT<AC.OPEN.ACTUAL.BAL>
+        CURR.OPN.CLR.BAL = R.ACCT<AC.OPEN.CLEARED.BAL>
+        CURR.ONL.ACT.BAL = R.ACCT<AC.ONLINE.ACTUAL.BAL>
+        CURR.ONL.CLR.BAL = R.ACCT<AC.ONLINE.CLEARED.BAL>
+        CURR.WORK.BAL = R.ACCT<AC.WORKING.BALANCE>
+
+    END
+
+    IF CURR.OPN.ACT.BAL EQ "" THEN CURR.OPN.ACT.BAL = 0
+    IF CURR.OPN.CLR.BAL EQ "" THEN CURR.OPN.CLR.BAL = 0
+    IF CURR.ONL.ACT.BAL EQ "" THEN CURR.ONL.ACT.BAL = 0
+    IF CURR.ONL.CLR.BAL EQ "" THEN CURR.ONL.CLR.BAL = 0
+    IF CURR.WORK.BAL EQ "" THEN CURR.WORK.BAL = 0
+
+    IF OPN.ACT.BAL EQ "" THEN OPN.ACT.BAL = 0
+    IF OPN.CLR.BAL EQ "" THEN OPN.CLR.BAL = 0
+    IF ONL.ACT.BAL EQ "" THEN ONL.ACT.BAL = 0
+    IF ONL.CLR.BAL EQ "" THEN ONL.CLR.BAL = 0
+    IF WORK.BAL EQ "" THEN WORK.BAL = 0
+
+    IF (CURR.OPN.ACT.BAL NE OPN.ACT.BAL) OR (CURR.OPN.CLR.BAL NE OPN.CLR.BAL) OR (CURR.ONL.ACT.BAL NE ONL.ACT.BAL) OR (CURR.ONL.CLR.BAL NE ONL.CLR.BAL) OR (CURR.WORK.BAL NE WORK.BAL) THEN
+        PRINT "ACCOUNT: ":ACC.ID:"**":"OPN.ACT.BAL: ":CURR.OPN.ACT.BAL:"**":"OPN.CLR.BAL: ":CURR.OPN.CLR.BAL:"**":"ONL.ACT.BAL: ":CURR.ONL.ACT.BAL:"**":"ONL.CLR.BAL: ":CURR.ONL.CLR.BAL:"**":"WORK.BAL: ":CURR.WORK.BAL
+        PROB.ACCTS<-1> = ACC.ID
+    END
+
+    IF PROB.ACCTS THEN
+        WRITELIST PROB.ACCTS TO "PROB.ACC"
+    END
+
+    RETURN
+END

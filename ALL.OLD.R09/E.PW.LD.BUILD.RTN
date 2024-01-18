@@ -1,0 +1,28 @@
+*-----------------------------------------------------------------------------
+* <Rating>-10</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE E.PW.LD.BUILD.RTN(ENQ.DATA)
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.PW.PARTICIPANT
+
+*************************************************************************
+
+
+    FN.PW.PARTICIPANT = "F.PW.PARTICIPANT"
+    F.PW.PARTICIPANT = ""; Y.OWNER = ""
+    CALL OPF(FN.PW.PARTICIPANT,F.PW.PARTICIPANT)
+
+
+    Y.USER = OPERATOR
+
+    SEL.CMD = "SELECT ":FN.PW.PARTICIPANT:" WITH USER EQ '":Y.USER:"'"
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.SEL,SEL.ERR)
+SEL.LIST = CHANGE(SEL.LIST,@FM,' ')
+    ENQ.DATA<2,1> = "OWNER"
+    ENQ.DATA<3,1> = "EQ"
+    ENQ.DATA<4,1> = SEL.LIST
+
+    RETURN

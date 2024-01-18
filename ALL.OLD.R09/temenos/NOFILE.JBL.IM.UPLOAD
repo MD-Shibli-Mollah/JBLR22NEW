@@ -1,0 +1,88 @@
+*-----------------------------------------------------------------------------
+* <Rating>-61</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE NOFILE.JBL.IM.UPLOAD(Y.ARRAY)
+#INCLUDE I_COMMON
+#INCLUDE I_EQUATE
+#INCLUDE I_ENQUIRY.COMMON
+#INCLUDE I_F.ACCOUNT
+#INCLUDE GLOBUS.BP I_F.IM.DOCUMENT.UPLOAD
+#INCLUDE GLOBUS.BP I_F.IM.DOCUMENT.IMAGE
+
+    GOSUB INIT
+    GOSUB GET.DATA
+    GOSUB PROCESS
+**************************************************************************
+INIT:
+**************************************************************************
+
+    Y.ID.COM = ID.COMPANY
+    FN.IM.UPLOAD  = "F.IM.DOCUMENT.UPLOAD" ; F.IM.DOCUMENT.UPLOAD = ""
+    CALL OPF(FN.IM.UPLOAD,F.IM.DOCUMENT.UPLOAD)
+
+    FN.ACCOUNT = "F.ACCOUNT" ; F.ACCOUNT = ""
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    FN.ACCOUNTHIS = "F.ACCOUNT$HIS" ; F.ACCOUNTHIS = ""
+    CALL OPF(FN.ACCOUNTHIS,F.ACCOUNTHIS)
+
+    FN.IM.DOCUMENT.IMAGE = "F.IM.DOCUMENT.IMAGE" ; F.IM.DOCUMENT.IMAGE = ""
+    CALL OPF(FN.IM.DOCUMENT.IMAGE,F.IM.DOCUMENT.IMAGE)
+    RETURN
+**************************************************************************
+GET.DATA:
+**************************************************************************
+
+    LOCATE "DATE.FROM" IN D.FIELDS<1> SETTING Y.DATE.FRM.POS THEN
+        Y.DATE.FROM = D.RANGE.AND.VALUE<Y.DATE.FRM.POS>
+    END
+
+    LOCATE "DATE.TO" IN D.FIELDS<1> SETTING Y.DATE.FRM.POS THEN
+        Y.DATE.TO = D.RANGE.AND.VALUE<Y.DATE.FRM.POS>
+    END
+
+    RETURN
+**************************************************************************
+PROCESS:
+**************************************************************************
+    SEL = "SELECT ":FN.IM.UPLOAD: " WITH CURR.NO GT " :"'1'"
+    CALL EB.READLIST(SEL,SEL.LIST,'',SEL.CNT,Y.RETURN.CODE)
+
+    LOOP
+        REMOVE Y.IM.ID FROM SEL.LIST SETTING IM.POS
+    WHILE Y.IM.ID:IM.POS
+        CALL F.READ(FN.IM.UPLOAD,Y.IM.ID,R.IM.REC,F.IM.DOCUMENT.UPLOAD,Y.ERR1)
+
+        Y.CO.CODE = R.IM.REC<8>
+        Y.DATE.TIME = R.IM.REC<6>
+        Y.DATE = Y.DATE.TIME[1,6]
+
+        Y.DATE = OCONV(ICONV(Y.DATE[1,6],"D2/"),'D4Y'):Y.DATE[3,4]
+
+        IF Y.DATE GE Y.DATE.FROM AND Y.DATE LE Y.DATE.TO AND Y.ID.COM EQ Y.CO.CODE THEN
+
+            Y.UPLOAD.ID = R.IM.REC<IM.UP.UPLOAD.ID>
+            CALL F.READ(FN.IM.DOCUMENT.IMAGE,Y.UPLOAD.ID,R.IM.IMAGE.REC,F.IM.DOCUMENT.IMAGE,Y.ERR2)
+            Y.IM.IMG.REF = R.IM.IMAGE.REC<IM.DOC.IMAGE.REFERENCE>
+            CALL F.READ(FN.ACCOUNT,Y.IM.IMG.REF,R.ACT.REC,F.ACCOUNT,Y.ERR4)
+            IF R.ACT.REC EQ '' THEN
+                Y.IM.IMG.REFHIS = Y.IM.IMG.REF:";1"
+                CALL F.READ(FN.ACCOUNTHIS,Y.IM.IMG.REFHIS,R.ACT.RECHIS,F.ACCOUNTHIS,Y.ERR4)
+                Y.ACCOUNT.TITLE = R.ACT.RECHIS<AC.ACCOUNT.TITLE.1>
+            END ELSE
+                Y.ACCOUNT.TITLE = R.ACT.REC<AC.ACCOUNT.TITLE.1>
+            END
+            Y.APPROVED = R.IM.REC<7>
+            Y.AUTHORISER = FIELD(Y.APPROVED,'_',2)
+            Y.IMAGE = R.IM.IMAGE.REC<IM.DOC.IMAGE>
+            GOSUB UPDATE
+        END
+
+    REPEAT
+    RETURN
+**************************************************************************
+UPDATE:
+**************************************************************************
+    Y.ARRAY<-1> = Y.IM.IMG.REF:"*":Y.DATE:"*":Y.ACCOUNT.TITLE:"*":Y.AUTHORISER:"*":Y.IMAGE
+    RETURN
+END

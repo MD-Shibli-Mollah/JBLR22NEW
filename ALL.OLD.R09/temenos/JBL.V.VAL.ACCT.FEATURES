@@ -1,0 +1,114 @@
+*--------------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-71</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VAL.ACCT.FEATURES
+*--------------------------------------------------------------------------------------
+* This validation routine is to populate account features in Add.features field
+* by fetching the values defined in respective account records.
+* This routine is attached to TELLER & FUNDS.TRANSFER versions.
+*--------------------------------------------------------------------------------------
+* Parameter Description
+*--------- -----------
+* NA
+*--------------------------------------------------------------------------------------
+* Common Variable Description
+* ------  ------- -----------
+* Variable name:   Insert file:          Description:
+* R.NEW            I_COMMON              Contains the currently opened record details
+*-------------------------------------------------------------------------
+* Called Subroutines:
+* ------ -----  -------
+* MULTI.GET.LOC.REF - To get the position of the local ref fields.
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 01/02/2011 -          New - R Veena
+*                             Thesys Technologies
+**************************************************************************
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+*
+    GOSUB INIT
+    GOSUB PROCESS
+    RETURN
+*--------------------------------------------------------------------------
+INIT:
+*---
+* Initialization of the necessary variables.
+*
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    R.ACCOUNT = ''
+*
+    FN.TELLER = 'F.TELLER'
+    F.TELLER = ''
+    CALL OPF(FN.TELLER,F.TELLER)
+    R.TELLER = ''
+*
+    FN.FUNDS.TRANSFER = 'F.FUNDS.TRANSFER'
+    F.FUNDS.TRANSFER = ''
+    CALL OPF(FN.FUNDS.TRANSFER,F.FUNDS.TRANSFER)
+    R.FUNDS.TRANSFER = ''
+*
+    Y.APPL = 'ACCOUNT':FM:'TELLER':FM:'FUNDS.TRANSFER'
+    Y.FIELDS = "ADD.FEATURES":FM:"ADD.FEATURES":FM:"ADD.FEATURES"
+    Y.POS = ''
+    CALL MULTI.GET.LOC.REF(Y.APPL,Y.FIELDS,Y.POS)
+    Y.AC.LOC.POS = Y.POS<1,1>
+    Y.TT.LOC.POS = Y.POS<2,1>
+    Y.FT.LOC.POS = Y.POS<3,1>
+    Y.AC.LOC.VAL = ''
+    Y.TT.LOC.VAL = ''
+    Y.FT.LOC.VAL = ''
+*
+    RETURN
+*---------------------------------------------------------------------------
+PROCESS:
+*------
+    BEGIN CASE
+    CASE APPLICATION EQ 'TELLER'
+        GOSUB READ.ACCT.DETS
+        GOSUB POPULATE.TT.FEATURES
+    CASE APPLICATION EQ 'FUNDS.TRANSFER'
+        GOSUB READ.ACCT.DETS
+        GOSUB POPULATE.FT.FEATURES
+    END CASE
+*
+    RETURN
+*---------------------------------------------------------------------------
+READ.ACCT.DETS:
+*-------------
+    CALL F.READ(FN.ACCOUNT,COMI,R.ACCOUNT,F.ACCOUNT,Y.AC.ERR)
+    IF R.ACCOUNT THEN
+        Y.AC.LOC.VAL = R.ACCOUNT<AC.LOCAL.REF><1,Y.AC.LOC.POS>
+    END
+    RETURN
+*----------------------------------------------------------------------------
+POPULATE.TT.FEATURES:
+*-------------------
+    Y.LOCAL.VAL = R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.LOC.POS>
+    Y.CNT = DCOUNT(Y.LOCAL.VAL,SM)
+    IF Y.CNT GE 1 THEN
+        DEL R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.LOC.POS>
+    END
+    R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.LOC.POS> = Y.AC.LOC.VAL
+*
+    RETURN
+*---------------------------------------------------------------------------
+POPULATE.FT.FEATURES:
+*-------------------
+    Y.LOCAL.VAL = R.NEW(FT.LOCAL.REF)<1,Y.FT.LOC.POS>
+    Y.LOC.CNT = DCOUNT(Y.LOCAL.VAL,SM)
+    IF Y.LOC.CNT GE 1 THEN
+        DEL R.NEW(FT.LOCAL.REF)<1,Y.FT.LOC.POS>
+    END
+    R.NEW(FT.LOCAL.REF)<1,Y.FT.LOC.POS> = Y.AC.LOC.VAL
+
+    RETURN
+*---------------------------------------------------------------------------
+END

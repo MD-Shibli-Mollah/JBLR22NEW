@@ -1,0 +1,96 @@
+!PROGRAM RTGS.IN.TXN.LOAD
+    SUBROUTINE RTGS.IN.TXN.LOAD
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.ALTERNATE.ACCOUNT
+    $INSERT JBL.BP I_F.BD.RTGS.PARAM
+    $INSERT JBL.BP I_F.BD.BANK.ROUTING.LIST
+    $INSERT JBL.BP I_F.BD.RTGS.CONS.INFO
+    $INSERT BP I_F.BD.RTGS.INW.SERIAL.NUM         ;!ADD NEW
+    $INSERT JBL.BP I_F.RTGS.IN.TXN.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    RETURN
+
+INIT:
+
+    FN.ACC = 'F.ACCOUNT';                          F.ACC = ''
+    FN.FT = 'F.FUNDS.TRANSFER';                    F.FT = ''
+    FN.ALT.ACCT = 'F.ALTERNATE.ACCOUNT';           F.ALT.ACCT = ''
+    FN.RTGS.PARAM = 'F.EB.BD.RTGS.PARAM';          F.RTGS.PARAM = ''
+    FN.RL = 'F.EB.BD.BANK.ROUTING.LIST';           F.RL = ''
+    FN.CONS = 'F.EB.BD.RTGS.CONS.INFO';            F.CONS = ''
+!FN.RTGS.INW.SLN = 'F.EB.BD.RTGS.INW.SERIAL.NUM'; F.RTGS.INW.SLN = ''        ;!ADD NEW
+!Y.CCY = 'BDT'
+
+    CALL OPF(FN.RTGS.PARAM,F.RTGS.PARAM)
+    CALL F.READ(FN.RTGS.PARAM,'SYSTEM',REC.RTGS.PARAM,F.RTGS.PARAM,ERR.RTGS.PARAM)
+
+*assigning Inward & Copy Directory for Inward Packs008 Message
+    FROM.DIR = REC.RTGS.PARAM<EB.BD.29.ROOT.DIR>:'/':REC.RTGS.PARAM<EB.BD.29.INW.SUB.DIR>:'/IP8'
+    TO.DIR = REC.RTGS.PARAM<EB.BD.29.ROOT.DIR>:'/INW.CPY.FILES'
+
+*Assigning Log File Name & Directory Path for Inward Pacs008 Message
+    Y.IN.TXN.LOG.DIR = REC.RTGS.PARAM<EB.BD.29.ROOT.DIR>:'/RTGS.TXN.LOG/':TODAY
+    OPEN Y.IN.TXN.LOG.DIR TO F.IN.TXN.LOG.DIR ELSE
+        CMD = 'CREATE.FILE DATA ':Y.IN.TXN.LOG.DIR:' TYPE=UD'
+        EXECUTE CMD
+        CMD = 'DELETE ':Y.IN.TXN.LOG.DIR:' .jbase_header'
+        EXECUTE CMD
+        OPEN Y.IN.TXN.LOG.DIR TO F.IN.TXN.LOG.DIR ELSE STOP
+    END
+
+*Assigning Outward File Name & Directory for Pacs004 message
+!Y.OUTW.DIR = REC.RTGS.PARAM<EB.BD.29.ROOT.DIR>:'/':REC.RTGS.PARAM<EB.BD.29.OUTW.SUB.DIR>
+    Y.OUTW.DIR = 'RTGS/RTGS.OUTWARD'
+
+*Directory Creation for Outward Pacs004 Backup
+    Y.OUT.BACKUP.DIR = 'RTGS.BAK/RTGS.OUTWARD/':TODAY
+    OPEN Y.OUT.BACKUP.DIR TO F.BACKUP.DIR ELSE
+        CMD = 'CREATE.FILE DATA ':Y.OUT.BACKUP.DIR:' TYPE=UD'
+        EXECUTE CMD
+        CMD = 'DELETE ':Y.OUT.BACKUP.DIR:' .jbase_header'
+        EXECUTE CMD
+        OPEN Y.OUT.BACKUP.DIR TO F.BACKUP.DIR ELSE STOP
+    END
+
+*Directory Creation for Inward Pacs008 Backup
+    Y.IN.BACKUP.DIR = 'RTGS.BAK/RTGS.INWARD/':TODAY
+    OPEN Y.IN.BACKUP.DIR TO F.IN.BACKUP.DIR ELSE
+        CMD = 'CREATE.FILE DATA ':Y.IN.BACKUP.DIR:' TYPE=UD'
+        EXECUTE CMD
+        CMD = 'DELETE ':Y.IN.BACKUP.DIR:' .jbase_header'
+        EXECUTE CMD
+        OPEN Y.IN.BACKUP.DIR TO F.IN.BACKUP.DIR ELSE STOP
+    END
+
+*Assigning Aprroved Inward Pacs008 File Name
+!Y.APPR.INWPACS008.FN = 'ApprIwrdPacs008D':TODAY:'.csv'
+!Y.APPR.INWPACS008.PATH = Y.OUTW.DIR:'/':Y.APPR.INWPACS008.FN
+
+    Y.WRITE.HEADER = 'InwardID,FrBICFI,ToBICFI,BizMsgIdr,MsgDefIdr,BizSvc,CreDt,MsgId,CreDtTm,BtchBookg,BtchBookgID,TtlIntrBkSttlmAmt,NbOfTxs,OrgnlMsgId,OrgnlMsgNmId,OrgnlCreDtTm,RtrRsnOrgtrNm,RtrRsnCd,RtrRsnPrtry,RtrRsnAddtlInf,RtrId,OrgnlInstrId,OrgnlEndToEndId,OrgnlTxId,RtrdIntrBkSttlmCcy,RtrdIntrBkSttlmAmt,TxInfIntrBkSttlmDt,ChrgBr,ChrgsInfBICFI,ChrgsInfNm,ChrgsInfBranchId,InstgAgtBICFI,InstdAgtBICFI,TxRefIntrBkSttlmCcy,TxRefIntrBkSttlmAmt,TxRefIntrBkSttlmDt,SvcLvlPrtry,LclInstrmPrtry,CtgyPurpPrtry,PmtMtd,RmtInfUstrd,DbtrNm,DbtrNmPstlAdr,DbtrNmStrtNm,DbtrNmTwnNm,DbtrNmCtry,DbtrNmAdrLine,DbtrAcctId,DbtrAcctTpPrtry,DbtrAgtBICFINm,DbtrAgtBICFI,DbtrAgtBranchId,DbtrAgtAcctId,DbtrAgtAcctPrtry,CdtrAgtBICFI,CdtrAgtNm,CdtrAgtBranchId,CdtrAgtAcctId,CdtrAgtAcctTpPrtry,CdtrNm,CdtrAdrLine,CdtrAcctId,CdtrAcctTpPrtry'
+    Y.APPR.HEADER = 'ApprIwrdID,BizMsgIdr,MsgID,Status'
+
+    RETURN
+
+OPENFILES:
+
+!OPENSEQ Y.INWPACS008.TXN.LOG.PATH TO F.FILE.INWPACS008.TXN.LOG THEN NULL
+    OPEN FROM.DIR TO F.FROM.DIR ELSE STOP
+    OPEN Y.IN.TXN.LOG.DIR TO F.IN.TXN.LOG.DIR ELSE STOP
+    OPEN Y.IN.BACKUP.DIR TO F.IN.BACKUP.DIR ELSE STOP
+
+    CALL OPF (FN.ACC,F.ACC)
+    CALL OPF (FN.FT,F.FT)
+    CALL OPF (FN.ALT.ACCT,F.ALT.ACCT)
+    CALL OPF(FN.RL,F.RL)
+    CALL OPF(FN.CONS,F.CONS)
+!CALL OPF(FN.RTGS.INW.SLN,F.RTGS.INW.SLN)      ;!ADD NEW
+    RETURN
+
+END

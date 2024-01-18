@@ -1,0 +1,62 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.RD.DFLTR.STATUS
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+
+    IF V$FUNCTION EQ 'D' OR V$FUNCTION EQ 'I' THEN
+        GOSUB INIT
+        GOSUB OPENFILE
+        GOSUB PROCESS
+    END ELSE
+        RETURN
+    END
+    RETURN
+*******
+INIT:
+*******
+    FN.ACCT = 'FBNK.ACCOUNT'
+    F.ACCT = ''
+    FN.FT = 'FBNK.FUNDS.TRANSFER'
+    F.FT = ''
+    RETURN
+
+************
+OPENFILE:
+************
+    CALL OPF(FN.ACCT,F.ACCT)
+    CALL OPF(FN.FT,F.FT)
+    RETURN
+
+*********
+PROCESS:
+*********
+    Y.ID = ID.NEW
+    FT.INPUT = R.NEW(FT.INPUTTER)
+    FT.RCD.STATUS = R.NEW(FT.RECORD.STATUS)
+
+    IF FT.INPUT EQ 'AZ.PROCESS.P.SCH' AND FT.RCD.STATUS ='IHLD' THEN
+        FT.DATETIME = LEFT(R.NEW(FT.DEBIT.VALUE.DATE),8)
+        FT.DATETIME.1 = LEFT(R.NEW(FT.DATE.TIME),8)
+        FT.CR.ACCT = R.NEW(FT.CREDIT.ACCT.NO)
+        CALL F.READ(FN.ACCT,FT.CR.ACCT,R.ACCT,F.ACCT,Y.AC.ERR)
+        CALL GET.LOC.REF('ACCOUNT','IN.FAIL.MARKER',Y.IN.FAIL.POS)
+        CALL GET.LOC.REF('ACCOUNT','INST.MISS.DT',Y.MISS.DT.POS)
+        Y.IN.FAIL = R.ACCT<AC.LOCAL.REF,Y.IN.FAIL.POS>
+
+        IF Y.IN.FAIL EQ '' THEN
+            R.ACCT<AC.LOCAL.REF,Y.IN.FAIL.POS> = 'Yes'
+            R.ACCT<AC.LOCAL.REF,Y.MISS.DT.POS> = FT.DATETIME
+            CALL F.WRITE(FN.ACCT,FT.CR.ACCT,R.ACCT)
+        END ELSE
+            Y.INS.MISS.DT = R.ACCT<AC.LOCAL.REF,Y.MISS.DT.POS>
+            R.ACCT<AC.LOCAL.REF,Y.MISS.DT.POS> = Y.INS.MISS.DT:SM:FT.DATETIME
+            CALL F.WRITE(FN.ACCT,FT.CR.ACCT,R.ACCT)
+        END
+    END
+    RETURN
+END

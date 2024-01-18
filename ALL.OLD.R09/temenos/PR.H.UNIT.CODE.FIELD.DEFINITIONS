@@ -1,0 +1,62 @@
+*-----------------------------------------------------------------------------
+* <Rating>-73</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.H.UNIT.CODE.FIELD.DEFINITIONS
+*-------------------------------------------------------------------------
+*
+*-------------------------------------------------------------------------
+* Modification History :
+*-------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT       ;* Other Inserts required for Checkfiles, e
+    $INSERT I_F.CUSTOMER
+    $INSERT I_F.SEC.ACC.MASTER
+*-------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB DEFINE.FIELDS
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+DEFINE.FIELDS:
+    ID.F = "UNIT.CODE" ; ID.N = "3" ; ID.T = "A"
+*
+    Z=0
+    Z+=1 ; F(Z) = "ABBREVIATION" ; N(Z) = "10" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "UNIT.NAME" ; N(Z) = "32" ; T(Z) = "A"
+
+REM > Z+=1 ; F(Z) = "CUSTOMER.NO" ; N(Z) = "10" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > CHECKFILE(Z) = CHK.ACCOUNT
+*
+    V = Z + 9
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+INITIALISE:
+    MAT F = "" ; MAT N = "" ; MAT T = ""
+    MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+    ID.CHECKFILE = "" ; ID.CONCATFILE = ""
+*
+* Define often used checkfile variables
+*
+    CHK.ACCOUNT = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+    CHK.CUSTOMER = "CUSTOMER":FM:EB.CUS.SHORT.NAME:FM:'.A'
+    CHK.CUSTOMER.SECURITY = "CUSTOMER.SECURITY":FM:0:FM:'':FM:"CUSTOMER"
+    CHK.SAM = "SEC.ACC.MASTER":FM:SC.SAM.ACCOUNT.NAME:FM:'..S'
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+END

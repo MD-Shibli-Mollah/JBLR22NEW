@@ -1,0 +1,788 @@
+*-----------------------------------------------------------------------------
+* <Rating>5931</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE CASH.BOOK2.1(Y.RETURN)
+!PROGRAM CASH.BOOK2.1
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.RE.CONSOL.SPEC.ENTRY
+    $INSERT GLOBUS.BP I_F.CATEG.ENTRY
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT BP I_F.JBL.CASH.BOOK
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.AC.ENT = "F.ACCT.ENT.TODAY"
+    F.AC.ENT = ""
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+    FN.AC.HIS = "F.ACCOUNT$HIS"
+    F.AC.HIS = ""
+    FN.AC.CL = "F.ACCOUNT.CLOSED"
+    F.AC.CL = ""
+    FN.STMT.ENT = "F.STMT.ENTRY"
+    F.STMT.ENT = ""
+    FN.CAT.ENT.TODAY = "F.CATEG.ENT.TODAY"
+    F.CAT.ENT.TODAY = ""
+    FN.CAT.ENTRY = "F.CATEG.ENTRY"
+    F.CAT.ENTRY = ""
+    FN.SPEC.ENT.TODAY = "F.RE.SPEC.ENT.TODAY"
+    F.SPEC.ENT.TODAY = ""
+    FN.CONSOL.SPEC.ENTRY = "F.RE.CONSOL.SPEC.ENTRY"
+    F.CONSOL.SPEC.ENTRY = ""
+    FN.CUS = 'F.CUSTOMER'
+    F.CUS = ''
+    FN.TT = "F.TELLER"
+    F.TT = ""
+    FN.TT.HIS = "F.TELLER$HIS"
+    F.TT.HIS = ""
+    FN.FT = "F.FUNDS.TRANSFER"
+    F.FT = ""
+    FN.CASH = 'F.EB.JBL.CASH.BOOK'
+    F.CASH = ''
+    FN.CIA = 'F.CATEG.INT.ACCT'
+    F.CIA = ''
+
+**************************************************************************
+!TRANSACTION CODE FOR CASH
+    Y.CASH.TR.CODE = 4:@FM:5:@FM:6:@FM:9:@FM:10:@FM:14:@FM:15:@FM:18:@FM:32:@FM:33:@FM:109:@FM:110:@FM:111:@FM:112:@FM:113:@FM:114:@FM:151:@FM:152:@FM:153:@FM:154:@FM:155:@FM:156:@FM:157:@FM:22
+**************************************************************************
+!TRANSACTION CODE FOR CLEARING
+    Y.CLEAR.TR.CODE = 28:@FM:29:@FM:30:@FM:34:@FM:41:@FM:42:@FM:43:@FM:44:@FM:45:@FM:46:@FM:49:@FM:92:@FM:93:@FM:95
+****************************************************************
+!TRANSACTION CODE FOR CLEARING WHICH WILL READ FROM STMT.ENTRY---134,135,136
+    Y.STMT.CLEAR.TR.CODE = 134:@FM:135:@FM:136
+**************************************************************************
+
+    GL.CODE1 = ""; GL.CODE2 = ""
+    CASH.DBT = "";CASH.DBT.COUNT = "";CASH.CRDT = "";CASH.CRDT.COUNT = ""
+    CLEAR.DBT = "";CLEAR.DBT.COUNT = "";CLEAR.CRDT = "";CLEAR.CRDT.COUNT = ""
+    TRANSFER.DBT = "";TRANSFER.DBT.COUNT = "";TRANSFER.CRDT = "";TRANSFER.CRDT.COUNT = ""
+
+    T.CASH.DBT = "";T.CASH.DBT.COUNT = "";T.CASH.CRDT = "";T.CASH.CRDT.COUNT = ""
+    T.CLEAR.DBT = "";T.CLEAR.DBT.COUNT = "";T.CLEAR.CRDT = "";T.CLEAR.CRDT.COUNT = ""
+    T.TRANSFER.DBT = "";T.TRANSFER.DBT.COUNT = "";T.TRANSFER.CRDT = "";T.TRANSFER.CRDT.COUNT = ""
+    T.DBT.AMT = "";T.DBT.COUNT = "";T.CRDT.AMT = "";T.CRDT.COUNT = ""
+
+    I.CASH.DBT = "";I.CASH.DBT.COUNT = "";I.CLEAR.DBT = "";I.CLEAR.DBT.COUNT = "";I.TRANSFER.DBT = "";I.TRANSFER.DBT.COUNT = ""
+    I.CASH.CRDT = "";I.CASH.CRDT.COUNT = "";I.CLEAR.CRDT = "";I.CLEAR.CRDT.COUNT = "";I.TRANSFER.CRDT = "";I.TRANSFER.CRDT.COUNT = ""
+    E.CASH.DBT = "";E.CASH.DBT.COUNT = "";E.CLEAR.DBT = "";E.CLEAR.DBT.COUNT = "";E.TRANSFER.DBT = "";E.TRANSFER.DBT.COUNT = ""
+    E.CASH.CRDT = "";E.CASH.CRDT.COUNT = "";E.CLEAR.CRDT = "";E.CLEAR.CRDT.COUNT = "";E.TRANSFER.CRDT = "";E.TRANSFER.CRDT.COUNT = ""
+
+    IP.CASH.DBT = "";IP.CASH.DBT.COUNT = "";IP.CLEAR.DBT = "";IP.CLEAR.DBT.COUNT = "";IP.TRANSFER.DBT = "";IP.TRANSFER.DBT.COUNT = ""
+    IP.CASH.CRDT = "";IP.CASH.CRDT.COUNT = "";IP.CLEAR.CRDT = "";IP.CLEAR.CRDT.COUNT = "";IP.TRANSFER.CRDT = "";IP.TRANSFER.CRDT.COUNT = ""
+    TIP.DBT.AMT = "";TIP.DBT.COUNT = "";TIP.CRDT.AMT = "";TIP.CRDT.COUNT = "";Y.IP.GLCODE = "1210502000";Y.IP.DESC = "INTEREST PAYABLE"
+
+    IR.CASH.DBT = "";IR.CASH.DBT.COUNT = "";IR.CLEAR.DBT = "";IR.CLEAR.DBT.COUNT = "";IR.TRANSFER.DBT = "";IR.TRANSFER.DBT.COUNT = ""
+    IR.CASH.CRDT = "";IR.CASH.CRDT.COUNT = "";IR.CLEAR.CRDT = "";IR.CLEAR.CRDT.COUNT = "";IR.TRANSFER.CRDT = "";IR.TRANSFER.CRDT.COUNT = ""
+    TIR.DBT.AMT = "";TIR.DBT.COUNT = "";TIR.CRDT.AMT = "";TIR.CRDT.COUNT = "";Y.IR.GLCODE = "1220502000";Y.IR.DESC = "INTEREST RECEIVABLE"
+
+    LEGACY.GL.CODE.POS = ""
+    Y.CATEGORY = ""
+    DR.RECORD.VALUE = ""
+    CR.RECORD.VALUE = ""
+    Y.AMT.LCY = ""
+    Y.SYS.ID = ""
+    Y.CO.CODE = ""
+    Y.REC.STATUS = ""
+    Y.TRANS.REF = ""
+    Y.TRANS.CODE = ""
+    Y.DET.TR.CODE = ""
+    Y.SIGN = ""
+    Y.ENTRY.COUNT = ""
+    Y.STMT.ENT.ID = ""
+    Y.DEBIT = "DEBIT"
+    Y.CREDIT = "CREDIT"
+    Y.INC = "INCOME"
+    Y.EXP = "EXPENSE"
+    T.OPEN.AMT = ""
+    T.CLOSING.AMT = ""
+    Y.FALSE =  ""
+    Y.DEBIT.DATA = ""
+    Y.CREDIT.DATA = ""
+    Y.POS = ""
+    Y.RETURN = ''
+    Y.CURRENCY = ''
+    Y.LIMIT = ''
+    Y.CUSTOMER = ''
+    Y.AC.ID = ''
+    Y.GL.ACCT.LIST = ''
+    Y.TOT.REC.CNT = ''
+    Y.SECTOR = ''
+    Y.CB1 = ''
+    Y.CB2 = ''
+    Y.CB3 = ''
+    Y.LIMIT.PROD = "LIMIT.PROD"
+    Y.LIMIT.PROD.POS = ''
+    Y.GL.DESC1 = ''
+    Y.GL.DESC2 = ''
+    Y.INCOME.GLCODE = '1230000000'
+    Y.EXPEND.GLCODE = '1240000000'
+    Y.INCOME.DESC = 'INCOME ACCOUNT'
+    Y.EXPEND.DESC = 'EXPENDITURE ACCOUNT'
+    Y.STMT.TRANS.CODE = ""
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.AC.ENT,F.AC.ENT)
+    CALL OPF(FN.STMT.ENT,F.STMT.ENT)
+    CALL OPF(FN.CAT.ENT.TODAY,F.CAT.ENT.TODAY)
+    CALL OPF(FN.CAT.ENTRY,F.CAT.ENTRY)
+    CALL OPF(FN.SPEC.ENT.TODAY,F.SPEC.ENT.TODAY)
+    CALL OPF(FN.CONSOL.SPEC.ENTRY,F.CONSOL.SPEC.ENTRY)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.AC.CL,F.AC.CL)
+    CALL OPF(FN.CUS,F.CUS)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.TT.HIS,F.TT.HIS)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.CASH,F.CASH)
+    CALL OPF(FN.CIA,F.CIA)
+    CALL GET.LOC.REF("ACCOUNT",Y.LIMIT.PROD,Y.LIMIT.PROD.POS)
+    RETURN
+
+PROCESS:
+
+*************************************************
+!TO CALCULATE OPENING AND CLOSING BALANCE FROM LIVE
+*************************************************
+!SEL.CMD.AC = "SELECT ":FN.AC:" WITH CO.CODE EQ ":ID.COMPANY:" AND CATEGORY EQ '10001' '10011' '13501' '13502'"
+!CALL EB.READLIST(SEL.CMD.AC,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+!LOOP
+!REMOVE Y.ID FROM SEL.LIST SETTING POS
+!WHILE Y.ID:POS
+!CALL F.READ(FN.AC,Y.ID,R.AC.REC,F.AC,Y.ERR)
+!T.OPEN.AMT = T.OPEN.AMT + R.AC.REC<AC.OPEN.ACTUAL.BAL>
+!T.CLOSING.AMT = T.CLOSING.AMT + R.AC.REC<AC.WORKING.BALANCE>
+!REPEAT
+
+    Y.CASH.CATEG.LIST = '10001':@FM:'10011':@FM:'13501':@FM:'13502'
+    Y.CATEG.CNT = DCOUNT(Y.CASH.CATEG.LIST,@FM)
+    FOR I= 1 TO Y.CATEG.CNT
+        Y.CATEG=Y.CASH.CATEG.LIST<I>
+        CALL F.READ(FN.CIA,Y.CATEG,R.CIA.REC,F.CIA,Y.CIA.ERR)
+        Y.TOT.AC=DCOUNT(R.CIA.REC,@FM)
+        FOR J= 1 TO Y.TOT.AC
+            Y.AC = R.CIA.REC<J>
+            CALL F.READ(FN.AC,Y.AC,R.AC.REC,F.AC,Y.AC.ERR)
+            IF R.AC.REC AND R.AC.REC<AC.CO.CODE> EQ ID.COMPANY THEN
+                T.OPEN.AMT = T.OPEN.AMT + R.AC.REC<AC.OPEN.ACTUAL.BAL>
+                T.CLOSING.AMT = T.CLOSING.AMT + R.AC.REC<AC.WORKING.BALANCE>
+            END
+        NEXT
+    NEXT
+
+*******************************************************************
+!TO CALCULATE OPENING AND CLOSING BALANCE FROM TODAYS CLOSED ACCOUNT
+*******************************************************************
+
+    SEL.CMD.AC.CL = "SELECT ":FN.AC.CL:" WITH ACCT.CLOSE.DATE EQ ":TODAY
+    CALL EB.READLIST(SEL.CMD.AC.CL,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+        CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.ID,R.AC.REC,Y.ERR)
+        IF R.AC.REC<AC.CO.CODE> EQ ID.COMPANY THEN
+            HIS.REC.CATEG = R.AC.REC<AC.CATEGORY>
+            IF HIS.REC.CATEG EQ '10001' OR HIS.REC.CATEG EQ '10011' OR HIS.REC.CATEG EQ '13501' OR HIS.REC.CATEG EQ '13502' THEN
+                T.OPEN.AMT = T.OPEN.AMT + R.AC.REC<AC.OPEN.ACTUAL.BAL>
+                T.CLOSING.AMT = T.CLOSING.AMT + R.AC.REC<AC.WORKING.BALANCE>
+            END
+        END
+    REPEAT
+
+*****************************************************************************************
+!READ ACCT.ENT.TODAY FOR TODAYS TRANSACTION
+*****************************************************************************************
+!CATEGORY '15910' USE WITH INTERNAL ACCOUNT FOR FORWARS ENTRY SHOULD NOT BE TAKEN
+*****************************************************************************************
+
+!SEL.CMD = "SELECT ":FN.AC.ENT:" WITH CO.CODE EQ ":ID.COMPANY:" AND PRODCATEG NE '' AND PRODCATEG NE '10001' AND PRODCATEG NE '10011' AND PRODCATEG NE '15910' BY GLCODE1 BY GLCODE2 BY GLCODE3"
+    SEL.CMD = "SELECT ":FN.AC.ENT
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+        CALL F.READ(FN.AC,Y.ID,R.AC.REC,F.AC,Y.ERR)
+        IF R.AC.REC EQ '' THEN
+            CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.ID,R.AC.REC,Y.ERR)
+**** Added By Aminul for close account Issue *****
+            Y.ID = FIELD(Y.ID,';',1)
+**************************************************
+        END
+        Y.CATEGORY = R.AC.REC<AC.CATEGORY>
+**** Added By Aminul to omit transact of category 14032&14999 ******
+        IF (Y.CATEGORY EQ '14032') OR (Y.CATEGORY EQ '14999') THEN
+            CONTINUE
+        END
+********************************************************************
+        BEGIN CASE
+        CASE R.AC.REC<AC.CO.CODE> EQ ID.COMPANY AND Y.CATEGORY NE '' AND Y.CATEGORY NE '10001' AND Y.CATEGORY NE '10011' AND Y.CATEGORY NE '15910'
+            Y.CURRENCY = R.AC.REC<AC.CURRENCY>
+            Y.LIMIT = R.AC.REC<AC.LOCAL.REF,Y.LIMIT.PROD.POS>
+            Y.CUSTOMER = R.AC.REC<AC.CUSTOMER>
+            CALL F.READ(FN.CUS,Y.CUSTOMER,R.CUS.REC,F.CUS,Y.ERR)
+            Y.SECTOR = R.CUS.REC<EB.CUS.SECTOR>
+            Y.CB1 = Y.CATEGORY : "." : Y.CURRENCY : "." : Y.LIMIT
+            Y.CB2 = Y.CATEGORY : "." : Y.CURRENCY : "." : Y.SECTOR
+            Y.CB3 = Y.CATEGORY : "." : Y.CURRENCY
+
+            CALL F.READ(FN.CASH,Y.CB1,R.CASH.BOOK,F.CASH,Y.ERR)
+            IF R.CASH.BOOK EQ '' THEN
+                CALL F.READ(FN.CASH,Y.CB2,R.CASH.BOOK,F.CASH,Y.ERR)
+            END
+            IF R.CASH.BOOK EQ '' THEN
+                CALL F.READ(FN.CASH,Y.CB3,R.CASH.BOOK,F.CASH,Y.ERR)
+            END
+            Y.GL.ACCT.LIST<-1>= R.CASH.BOOK<EB.JBL40.GL.CODE>:"*":R.CASH.BOOK<EB.JBL40.DESC>:"*":Y.ID
+        END CASE
+    REPEAT
+
+    Y.GL.ACCT.LIST = SORT(Y.GL.ACCT.LIST)
+    Y.TOT.REC.CNT = DCOUNT(Y.GL.ACCT.LIST,@FM)
+
+    FOR I = 1 TO Y.TOT.REC.CNT
+        IF GL.CODE1 = "" AND GL.CODE2 = "" THEN
+            GL.CODE1 = FIELD(Y.GL.ACCT.LIST<I>,"*",1)
+            GL.CODE2 = FIELD(Y.GL.ACCT.LIST<I>,"*",1)
+            Y.GL.DESC1 = FIELD(Y.GL.ACCT.LIST<I>,"*",2)
+            Y.GL.DESC2 = FIELD(Y.GL.ACCT.LIST<I>,"*",2)
+        END ELSE
+            GL.CODE1 = FIELD(Y.GL.ACCT.LIST<I>,"*",1)
+            Y.GL.DESC1 = FIELD(Y.GL.ACCT.LIST<I>,"*",2)
+
+            CASH.DBT = "";CASH.DBT.COUNT = "";CASH.CRDT = "";CASH.CRDT.COUNT = ""
+            CLEAR.DBT = "";CLEAR.DBT.COUNT = "";CLEAR.CRDT = "";CLEAR.CRDT.COUNT = ""
+            TRANSFER.DBT = "";TRANSFER.DBT.COUNT = "";TRANSFER.CRDT = "";TRANSFER.CRDT.COUNT = ""
+        END
+
+        DR.RECORD.VALUE = ""
+        CR.RECORD.VALUE = ""
+        Y.ENTRY.COUNT = DCOUNT(R.REC,@FM)
+        Y.AC.ID = FIELD(Y.GL.ACCT.LIST<I>,"*",3)
+        CALL F.READ(FN.AC.ENT,Y.AC.ID,R.REC,F.AC.ENT,Y.ERR)
+        Y.ENTRY.COUNT = DCOUNT(R.REC,@FM)
+
+        FOR J = 1 TO Y.ENTRY.COUNT
+            Y.STMT.ENT.ID = R.REC<J>
+            CALL F.READ(FN.STMT.ENT,Y.STMT.ENT.ID,R.STMT.ENT.REC,F.STMT.ENT,Y.ERR)
+            Y.STMT.TRANS.CODE = R.STMT.ENT.REC<AC.STE.TRANSACTION.CODE>
+            Y.AMT.LCY = R.STMT.ENT.REC<AC.STE.AMOUNT.LCY>
+            Y.CO.CODE = R.STMT.ENT.REC<AC.STE.COMPANY.CODE>
+            Y.REC.STATUS = R.STMT.ENT.REC<AC.STE.RECORD.STATUS>
+            Y.TRANS.REF = R.STMT.ENT.REC<AC.STE.TRANS.REFERENCE>
+            IF DCOUNT(Y.TRANS.REF,"\") EQ '2' THEN
+                Y.TRANS.REF = FIELD(Y.TRANS.REF,"\",1,1)
+            END
+            Y.SYS.ID = SUBSTRINGS(Y.TRANS.REF,1,2)
+            Y.DET.TR.CODE = R.STMT.ENT.REC<AC.STE.TRANSACTION.CODE>
+            IF Y.AMT.LCY LT 0 THEN
+                Y.SIGN = "CRDT"
+            END ELSE
+                Y.SIGN = "DBT"
+            END
+
+            IF Y.SIGN EQ "DBT" AND Y.CO.CODE EQ ID.COMPANY AND Y.REC.STATUS EQ "" AND (Y.DET.TR.CODE NE '130' OR Y.DET.TR.CODE NE '131') THEN
+                DR.RECORD.VALUE = "YES"
+
+                BEGIN CASE
+
+                CASE Y.SYS.ID EQ "TT"
+                    CALL F.READ(FN.TT,Y.TRANS.REF,R.TT.REC,F.TT,Y.ERR)
+                    IF R.TT.REC EQ '' THEN
+                        CALL F.READ(FN.TT.HIS,Y.TRANS.REF:";1",R.TT.REC,F.TT.HIS,Y.ERR)
+                    END
+                    Y.TRANS.CODE = R.TT.REC<TT.TE.TRANSACTION.CODE>
+
+                    LOCATE  Y.TRANS.CODE IN Y.CASH.TR.CODE SETTING Y.POS THEN
+                        CASH.DBT = CASH.DBT + Y.AMT.LCY
+                        CASH.DBT.COUNT = CASH.DBT.COUNT + 1
+                    END
+
+                    LOCATE  Y.TRANS.CODE IN Y.CLEAR.TR.CODE SETTING Y.POS THEN
+                        CLEAR.DBT = CLEAR.DBT + Y.AMT.LCY
+                        CLEAR.DBT.COUNT = CLEAR.DBT.COUNT + 1
+                    END
+
+                    IF CASH.DBT NE "" OR CLEAR.DBT NE "" OR TRANSFER.DBT NE "" THEN
+                        DR.RECORD.VALUE = "YES"
+                    END ELSE
+                        DR.RECORD.VALUE = ""
+                    END
+
+                CASE Y.SYS.ID EQ "CC"
+                    CLEAR.DBT = CLEAR.DBT + Y.AMT.LCY
+                    CLEAR.DBT.COUNT = CLEAR.DBT.COUNT + 1
+
+                    IF CASH.DBT NE "" OR CLEAR.DBT NE "" OR TRANSFER.DBT NE "" THEN
+                        DR.RECORD.VALUE = "YES"
+                    END ELSE
+                        DR.RECORD.VALUE = ""
+                    END
+
+                CASE 1
+
+                    LOCATE Y.STMT.TRANS.CODE IN Y.STMT.CLEAR.TR.CODE SETTING Y.POS THEN
+                        CLEAR.DBT = CLEAR.DBT + Y.AMT.LCY
+                        CLEAR.DBT.COUNT = CLEAR.DBT.COUNT + 1
+                    END
+                    ELSE
+                        TRANSFER.DBT = TRANSFER.DBT + Y.AMT.LCY
+                        TRANSFER.DBT.COUNT = TRANSFER.DBT.COUNT + 1
+                    END
+
+                    IF CASH.DBT NE "" OR CLEAR.DBT NE "" OR TRANSFER.DBT NE "" THEN
+                        DR.RECORD.VALUE = "YES"
+                    END ELSE
+                        DR.RECORD.VALUE = ""
+                    END
+                END CASE
+
+            END ELSE
+                IF Y.SIGN EQ "CRDT" AND Y.CO.CODE EQ ID.COMPANY AND Y.REC.STATUS EQ "" AND (Y.DET.TR.CODE NE '130' OR Y.DET.TR.CODE NE '131') THEN
+                    CR.RECORD.VALUE = "YES"
+
+                    BEGIN CASE
+
+                    CASE Y.SYS.ID EQ "TT"
+                        CALL F.READ(FN.TT,Y.TRANS.REF,R.TT.REC,F.TT,Y.ERR)
+                        IF R.TT.REC EQ '' THEN
+                            CALL F.READ(FN.TT.HIS,Y.TRANS.REF:";1",R.TT.REC,F.TT.HIS,Y.ERR)
+                        END
+                        Y.TRANS.CODE = R.TT.REC<TT.TE.TRANSACTION.CODE>
+
+                        LOCATE  Y.TRANS.CODE IN Y.CASH.TR.CODE SETTING Y.POS THEN
+                            CASH.CRDT = CASH.CRDT + ABS(Y.AMT.LCY)
+                            CASH.CRDT.COUNT = CASH.CRDT.COUNT + 1
+                        END
+
+                        LOCATE  Y.TRANS.CODE IN Y.CLEAR.TR.CODE SETTING Y.POS THEN
+                            CLEAR.CRDT = CLEAR.CRDT + ABS(Y.AMT.LCY)
+                            CLEAR.CRDT.COUNT = CLEAR.CRDT.COUNT + 1
+                        END
+
+                        IF CASH.CRDT NE "" OR CLEAR.CRDT NE "" OR TRANSFER.CRDT NE "" THEN
+                            CR.RECORD.VALUE = "YES"
+                        END ELSE
+                            CR.RECORD.VALUE = ""
+                        END
+
+                    CASE Y.SYS.ID EQ "CC"
+                        CLEAR.CRDT = CLEAR.CRDT + ABS(Y.AMT.LCY)
+                        CLEAR.CRDT.COUNT = CLEAR.CRDT.COUNT + 1
+
+                        IF CASH.CRDT NE "" OR CLEAR.CRDT NE "" OR TRANSFER.CRDT NE "" THEN
+                            CR.RECORD.VALUE = "YES"
+                        END ELSE
+                            CR.RECORD.VALUE = ""
+                        END
+
+                    CASE 1
+
+                        LOCATE Y.STMT.TRANS.CODE IN Y.STMT.CLEAR.TR.CODE SETTING Y.POS THEN
+                            CLEAR.CRDT = CLEAR.CRDT + ABS(Y.AMT.LCY)
+                            CLEAR.CRDT.COUNT = CLEAR.CRDT.COUNT + 1
+                        END
+                        ELSE
+                            TRANSFER.CRDT = TRANSFER.CRDT + ABS(Y.AMT.LCY)
+                            TRANSFER.CRDT.COUNT = TRANSFER.CRDT.COUNT + 1
+                        END
+
+                        IF CASH.CRDT NE "" OR CLEAR.CRDT NE "" OR TRANSFER.CRDT NE "" THEN
+                            CR.RECORD.VALUE = "YES"
+                        END ELSE
+                            CR.RECORD.VALUE = ""
+                        END
+                    END CASE
+                END
+            END
+        NEXT
+
+!----------------------------------
+        IF GL.CODE1 EQ GL.CODE2 AND (DR.RECORD.VALUE EQ "YES" OR CR.RECORD.VALUE EQ "YES") THEN
+            T.CASH.DBT = T.CASH.DBT + CASH.DBT
+            T.CASH.DBT.COUNT = T.CASH.DBT.COUNT + CASH.DBT.COUNT
+            T.CASH.CRDT = T.CASH.CRDT + CASH.CRDT
+            T.CASH.CRDT.COUNT = T.CASH.CRDT.COUNT + CASH.CRDT.COUNT
+
+            T.CLEAR.DBT = T.CLEAR.DBT + CLEAR.DBT
+            T.CLEAR.DBT.COUNT = T.CLEAR.DBT.COUNT + CLEAR.DBT.COUNT
+            T.CLEAR.CRDT = T.CLEAR.CRDT + CLEAR.CRDT
+            T.CLEAR.CRDT.COUNT = T.CLEAR.CRDT.COUNT + CLEAR.CRDT.COUNT
+
+            T.TRANSFER.DBT = T.TRANSFER.DBT + TRANSFER.DBT
+            T.TRANSFER.DBT.COUNT = T.TRANSFER.DBT.COUNT + TRANSFER.DBT.COUNT
+            T.TRANSFER.CRDT = T.TRANSFER.CRDT + TRANSFER.CRDT
+            T.TRANSFER.CRDT.COUNT = T.TRANSFER.CRDT.COUNT + TRANSFER.CRDT.COUNT
+
+            T.DBT.AMT = T.CASH.DBT + T.CLEAR.DBT + T.TRANSFER.DBT
+            T.DBT.COUNT = T.CASH.DBT.COUNT + T.CLEAR.DBT.COUNT + T.TRANSFER.DBT.COUNT
+            T.CRDT.AMT = T.CASH.CRDT + T.CLEAR.CRDT + T.TRANSFER.CRDT
+            T.CRDT.COUNT = T.CASH.CRDT.COUNT + T.CLEAR.CRDT.COUNT + T.TRANSFER.CRDT.COUNT
+
+        END ELSE
+
+            IF DR.RECORD.VALUE EQ "YES" OR CR.RECORD.VALUE EQ "YES" THEN
+                IF T.DBT.AMT NE 0 OR T.CRDT.AMT NE 0 THEN
+                    Y.RETURN<-1> = T.CASH.DBT:"*":T.CASH.DBT.COUNT:"*":T.CLEAR.DBT:"*":T.CLEAR.DBT.COUNT:"*":T.TRANSFER.DBT:"*":T.TRANSFER.DBT.COUNT:"*":T.DBT.AMT:"*":T.DBT.COUNT:"*":GL.CODE2:"*":Y.GL.DESC2:"*":T.CASH.CRDT:"*":T.CASH.CRDT.COUNT:"*":T.CLEAR.CRDT:"*":T.CLEAR.CRDT.COUNT:"*":T.TRANSFER.CRDT:"*":T.TRANSFER.CRDT.COUNT:"*":T.CRDT.AMT:"*":T.CRDT.COUNT:"*":ABS(T.OPEN.AMT):"*":ABS(T.CLOSING.AMT)
+                END
+
+                T.CASH.DBT = "";T.CASH.DBT.COUNT = "";T.CASH.CRDT = "";T.CASH.CRDT.COUNT = ""
+                T.CLEAR.DBT = "";T.CLEAR.DBT.COUNT = "";T.CLEAR.CRDT = "";T.CLEAR.CRDT.COUNT = ""
+                T.TRANSFER.DBT = "";T.TRANSFER.DBT.COUNT = "";T.TRANSFER.CRDT = "";T.TRANSFER.CRDT.COUNT = ""
+                T.DBT.AMT = "";T.DBT.COUNT = "";T.CRDT.AMT = "";T.CRDT.COUNT = ""
+                GL.CODE2 = GL.CODE1
+                Y.GL.DESC2 = Y.GL.DESC1
+!----------------------------------
+                T.CASH.DBT = T.CASH.DBT + CASH.DBT
+                T.CASH.DBT.COUNT = T.CASH.DBT.COUNT + CASH.DBT.COUNT
+                T.CASH.CRDT = T.CASH.CRDT + CASH.CRDT
+                T.CASH.CRDT.COUNT = T.CASH.CRDT.COUNT + CASH.CRDT.COUNT
+
+                T.CLEAR.DBT = T.CLEAR.DBT + CLEAR.DBT
+                T.CLEAR.DBT.COUNT = T.CLEAR.DBT.COUNT + CLEAR.DBT.COUNT
+                T.CLEAR.CRDT = T.CLEAR.CRDT + CLEAR.CRDT
+                T.CLEAR.CRDT.COUNT = T.CLEAR.CRDT.COUNT + CLEAR.CRDT.COUNT
+
+                T.TRANSFER.DBT = T.TRANSFER.DBT + TRANSFER.DBT
+                T.TRANSFER.DBT.COUNT = T.TRANSFER.DBT.COUNT + TRANSFER.DBT.COUNT
+                T.TRANSFER.CRDT = T.TRANSFER.CRDT + TRANSFER.CRDT
+                T.TRANSFER.CRDT.COUNT = T.TRANSFER.CRDT.COUNT + TRANSFER.CRDT.COUNT
+
+                T.DBT.AMT = T.CASH.DBT + T.CLEAR.DBT + T.TRANSFER.DBT
+                T.DBT.COUNT = T.CASH.DBT.COUNT + T.CLEAR.DBT.COUNT + T.TRANSFER.DBT.COUNT
+                T.CRDT.AMT = T.CASH.CRDT + T.CLEAR.CRDT + T.TRANSFER.CRDT
+                T.CRDT.COUNT = T.CASH.CRDT.COUNT + T.CLEAR.CRDT.COUNT + T.TRANSFER.CRDT.COUNT
+            END
+        END
+    NEXT
+
+    IF T.DBT.AMT NE 0 OR T.CRDT.AMT NE 0 THEN
+        Y.RETURN<-1> = T.CASH.DBT:"*":T.CASH.DBT.COUNT:"*":T.CLEAR.DBT:"*":T.CLEAR.DBT.COUNT:"*":T.TRANSFER.DBT:"*":T.TRANSFER.DBT.COUNT:"*":T.DBT.AMT:"*":T.DBT.COUNT:"*":GL.CODE2:"*":Y.GL.DESC2:"*":T.CASH.CRDT:"*":T.CASH.CRDT.COUNT:"*":T.CLEAR.CRDT:"*":T.CLEAR.CRDT.COUNT:"*":T.TRANSFER.CRDT:"*":T.TRANSFER.CRDT.COUNT:"*":T.CRDT.AMT:"*":T.CRDT.COUNT:"*":ABS(T.OPEN.AMT):"*":ABS(T.CLOSING.AMT)
+    END
+
+***************************************************
+!END OF ACCT.ENT.TODAY
+***************************************************
+
+***************************************************
+!START OF CATEG.ENT.TODAY
+***************************************************
+
+    SEL.CMD.CATEG = "SELECT ":FN.CAT.ENT.TODAY
+    CALL EB.READLIST(SEL.CMD.CATEG,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.CATEG.ID FROM SEL.LIST SETTING POS
+    WHILE Y.CATEG.ID:POS
+        CALL F.READ(FN.CAT.ENT.TODAY,Y.CATEG.ID,R.CAT.TOD.REC,F.CAT.ENT.TODAY,Y.ERR)
+
+        Y.CATEGORY = FIELD(Y.CATEG.ID,"-",1,1)
+        REC.COUNT = DCOUNT(R.CAT.TOD.REC,@FM)
+
+        BEGIN CASE
+
+**************************
+!INCOME
+**************************
+
+        CASE (Y.CATEGORY GE '51000' AND Y.CATEGORY LE '59999')
+            FOR I = 1 TO REC.COUNT
+                Y.CAT.ENT.ID = R.CAT.TOD.REC<I>
+                CALL F.READ(FN.CAT.ENTRY,Y.CAT.ENT.ID,R.CAT.ENT.REC,F.CAT.ENTRY,Y.ERR)
+                Y.AMT.LCY = R.CAT.ENT.REC<AC.CAT.AMOUNT.LCY>
+                Y.CO.CODE = R.CAT.ENT.REC<AC.CAT.COMPANY.CODE>
+                Y.REC.STATUS = R.CAT.ENT.REC<AC.CAT.RECORD.STATUS>
+                Y.TRANS.REF = R.CAT.ENT.REC<AC.CAT.TRANS.REFERENCE>
+                Y.SYS.ID = SUBSTRINGS(Y.TRANS.REF,1,2)
+                IF Y.AMT.LCY LT 0 THEN
+                    Y.SIGN = "CRDT"
+                END ELSE
+                    Y.SIGN = "DBT"
+                END
+
+                IF Y.SIGN EQ "DBT" AND Y.CO.CODE EQ ID.COMPANY AND Y.REC.STATUS EQ "" THEN
+
+                    BEGIN CASE
+                    CASE Y.SYS.ID EQ "TT"
+                        CALL F.READ(FN.TT,Y.TRANS.REF,R.TT.REC,F.TT,Y.ERR)
+                        IF R.TT.REC EQ '' THEN
+                            CALL F.READ(FN.TT.HIS,Y.TRANS.REF:";1",R.TT.REC,F.TT.HIS,Y.ERR)
+                        END
+                        Y.TRANS.CODE = R.TT.REC<TT.TE.TRANSACTION.CODE>
+
+                        LOCATE  Y.TRANS.CODE IN Y.CASH.TR.CODE SETTING Y.POS THEN
+                            I.CASH.DBT = I.CASH.DBT + Y.AMT.LCY
+                            I.CASH.DBT.COUNT = I.CASH.DBT.COUNT + 1
+                        END
+
+                        LOCATE  Y.TRANS.CODE IN Y.CLEAR.TR.CODE SETTING Y.POS THEN
+                            I.CLEAR.DBT = I.CLEAR.DBT + Y.AMT.LCY
+                            I.CLEAR.DBT.COUNT = I.CLEAR.DBT.COUNT + 1
+                        END
+
+                    CASE Y.SYS.ID EQ "CC"
+                        I.CLEAR.DBT = I.CLEAR.DBT + Y.AMT.LCY
+                        I.CLEAR.DBT.COUNT = I.CLEAR.DBT.COUNT + 1
+
+                    CASE 1
+                        I.TRANSFER.DBT = I.TRANSFER.DBT + Y.AMT.LCY
+                        I.TRANSFER.DBT.COUNT = I.TRANSFER.DBT.COUNT + 1
+                    END CASE
+
+                END ELSE
+
+                    IF Y.SIGN EQ "CRDT" AND Y.CO.CODE EQ ID.COMPANY AND Y.REC.STATUS EQ "" THEN
+
+                        BEGIN CASE
+                        CASE Y.SYS.ID EQ "TT"
+                            CALL F.READ(FN.TT,Y.TRANS.REF,R.TT.REC,F.TT,Y.ERR)
+                            IF R.TT.REC EQ '' THEN
+                                CALL F.READ(FN.TT.HIS,Y.TRANS.REF:";1",R.TT.REC,F.TT.HIS,Y.ERR)
+                            END
+                            Y.TRANS.CODE = R.TT.REC<TT.TE.TRANSACTION.CODE>
+
+                            LOCATE  Y.TRANS.CODE IN Y.CASH.TR.CODE SETTING Y.POS THEN
+                                I.CASH.CRDT = I.CASH.CRDT + ABS(Y.AMT.LCY)
+                                I.CASH.CRDT.COUNT = I.CASH.CRDT.COUNT + 1
+                            END
+
+                            LOCATE Y.TRANS.CODE IN Y.CLEAR.TR.CODE SETTING Y.POS THEN
+                                I.CLEAR.CRDT = I.CLEAR.CRDT + ABS(Y.AMT.LCY)
+                                I.CLEAR.CRDT.COUNT = I.CLEAR.CRDT.COUNT + 1
+                            END
+
+                        CASE Y.SYS.ID EQ "CC"
+                            I.CLEAR.CRDT = I.CLEAR.CRDT + ABS(Y.AMT.LCY)
+                            I.CLEAR.CRDT.COUNT = I.CLEAR.CRDT.COUNT + 1
+
+                        CASE 1
+                            I.TRANSFER.CRDT = I.TRANSFER.CRDT + ABS(Y.AMT.LCY)
+                            I.TRANSFER.CRDT.COUNT = I.TRANSFER.CRDT.COUNT + 1
+                        END CASE
+                    END
+                END
+            NEXT
+
+*****************
+!EXPENDITURE
+*****************
+
+        CASE (Y.CATEGORY GE '50000' AND Y.CATEGORY LE '50999') OR (Y.CATEGORY GE '60000' AND Y.CATEGORY LE '69999')
+            FOR I = 1 TO REC.COUNT
+                Y.CAT.ENT.ID = R.CAT.TOD.REC<I>
+                CALL F.READ(FN.CAT.ENTRY,Y.CAT.ENT.ID,R.CAT.ENT.REC,F.CAT.ENTRY,Y.ERR)
+                Y.AMT.LCY = R.CAT.ENT.REC<AC.CAT.AMOUNT.LCY>
+                Y.CO.CODE = R.CAT.ENT.REC<AC.CAT.COMPANY.CODE>
+                Y.REC.STATUS = R.CAT.ENT.REC<AC.CAT.RECORD.STATUS>
+                Y.TRANS.REF = R.CAT.ENT.REC<AC.CAT.TRANS.REFERENCE>
+                Y.SYS.ID = SUBSTRINGS(Y.TRANS.REF,1,2)
+                IF Y.AMT.LCY LT 0 THEN
+                    Y.SIGN = "CRDT"
+                END ELSE
+                    Y.SIGN = "DBT"
+                END
+                IF Y.SIGN EQ "DBT" AND Y.CO.CODE EQ ID.COMPANY AND Y.REC.STATUS EQ "" THEN
+
+                    BEGIN CASE
+                    CASE Y.SYS.ID EQ "TT"
+                        CALL F.READ(FN.TT,Y.TRANS.REF,R.TT.REC,F.TT,Y.ERR)
+                        IF R.TT.REC EQ '' THEN
+                            CALL F.READ(FN.TT.HIS,Y.TRANS.REF:";1",R.TT.REC,F.TT.HIS,Y.ERR)
+                        END
+                        Y.TRANS.CODE = R.TT.REC<TT.TE.TRANSACTION.CODE>
+
+                        LOCATE  Y.TRANS.CODE IN Y.CASH.TR.CODE SETTING Y.POS THEN
+                            E.CASH.DBT = E.CASH.DBT + Y.AMT.LCY
+                            E.CASH.DBT.COUNT = E.CASH.DBT.COUNT + 1
+                        END
+
+                        LOCATE Y.TRANS.CODE IN Y.CLEAR.TR.CODE SETTING Y.POS THEN
+                            E.CLEAR.DBT = E.CLEAR.DBT + Y.AMT.LCY
+                            E.CLEAR.DBT.COUNT = E.CLEAR.DBT.COUNT + 1
+                        END
+
+                    CASE Y.SYS.ID EQ "CC"
+                        E.CLEAR.DBT = E.CLEAR.DBT + Y.AMT.LCY
+                        E.CLEAR.DBT.COUNT = E.CLEAR.DBT.COUNT + 1
+
+                    CASE 1
+                        E.TRANSFER.DBT = E.TRANSFER.DBT + Y.AMT.LCY
+                        E.TRANSFER.DBT.COUNT = E.TRANSFER.DBT.COUNT + 1
+                    END CASE
+
+                END ELSE
+                    IF Y.SIGN EQ "CRDT" AND Y.CO.CODE EQ ID.COMPANY AND Y.REC.STATUS EQ "" THEN
+
+                        BEGIN CASE
+                        CASE Y.SYS.ID EQ "TT"
+                            CALL F.READ(FN.TT,Y.TRANS.REF,R.TT.REC,F.TT,Y.ERR)
+                            IF R.TT.REC EQ '' THEN
+                                CALL F.READ(FN.TT.HIS,Y.TRANS.REF:";1",R.TT.REC,F.TT.HIS,Y.ERR)
+                            END
+                            Y.TRANS.CODE = R.TT.REC<TT.TE.TRANSACTION.CODE>
+
+                            LOCATE  Y.TRANS.CODE IN Y.CASH.TR.CODE SETTING Y.POS THEN
+                                E.CASH.CRDT = E.CASH.CRDT + ABS(Y.AMT.LCY)
+                                E.CASH.CRDT.COUNT = E.CASH.CRDT.COUNT + 1
+                            END
+
+                            LOCATE Y.TRANS.CODE IN Y.CLEAR.TR.CODE SETTING Y.POS THEN
+                                E.CLEAR.CRDT = E.CLEAR.CRDT + ABS(Y.AMT.LCY)
+                                E.CLEAR.CRDT.COUNT = E.CLEAR.CRDT.COUNT + 1
+                            END
+
+                        CASE Y.SYS.ID EQ "CC"
+                            E.CLEAR.CRDT = E.CLEAR.CRDT + ABS(Y.AMT.LCY)
+                            E.CLEAR.CRDT.COUNT = E.CLEAR.CRDT.COUNT + 1
+
+                        CASE 1
+                            E.TRANSFER.CRDT = E.TRANSFER.CRDT + ABS(Y.AMT.LCY)
+                            E.TRANSFER.CRDT.COUNT = E.TRANSFER.CRDT.COUNT + 1
+
+                        END CASE
+                    END
+                END
+            NEXT
+        END CASE
+    REPEAT
+!----------------------------------
+
+    TI.DBT.AMT = I.CASH.DBT + I.CLEAR.DBT + I.TRANSFER.DBT
+    TI.DBT.COUNT = I.CASH.DBT.COUNT + I.CLEAR.DBT.COUNT + I.TRANSFER.DBT.COUNT
+    TI.CRDT.AMT = I.CASH.CRDT + I.CLEAR.CRDT + I.TRANSFER.CRDT
+    TI.CRDT.COUNT = I.CASH.CRDT.COUNT + I.CLEAR.CRDT.COUNT + I.TRANSFER.CRDT.COUNT
+    TE.DBT.AMT = E.CASH.DBT + E.CLEAR.DBT + E.TRANSFER.DBT
+    TE.DBT.COUNT = E.CASH.DBT.COUNT + E.CLEAR.DBT.COUNT + E.TRANSFER.DBT.COUNT
+    TE.CRDT.AMT = E.CASH.CRDT + E.CLEAR.CRDT + E.TRANSFER.CRDT
+    TE.CRDT.COUNT = E.CASH.CRDT.COUNT + E.CLEAR.CRDT.COUNT + E.TRANSFER.CRDT.COUNT
+
+    IF TI.DBT.AMT NE 0 OR TI.CRDT.AMT NE 0 THEN
+        Y.RETURN<-1> = I.CASH.DBT:"*":I.CASH.DBT.COUNT:"*":I.CLEAR.DBT:"*":I.CLEAR.DBT.COUNT:"*":I.TRANSFER.DBT:"*":I.TRANSFER.DBT.COUNT:"*":TI.DBT.AMT:"*":TI.DBT.COUNT:"*":Y.INCOME.GLCODE:"*":Y.INCOME.DESC:"*":I.CASH.CRDT:"*":I.CASH.CRDT.COUNT:"*":I.CLEAR.CRDT:"*":I.CLEAR.CRDT.COUNT:"*":I.TRANSFER.CRDT:"*":I.TRANSFER.CRDT.COUNT:"*":TI.CRDT.AMT:"*":TI.CRDT.COUNT:"*":ABS(T.OPEN.AMT):"*":ABS(T.CLOSING.AMT)
+    END
+    IF TE.DBT.AMT NE 0 OR TE.CRDT.AMT NE 0 THEN
+        Y.RETURN<-1> = E.CASH.DBT:"*":E.CASH.DBT.COUNT:"*":E.CLEAR.DBT:"*":E.CLEAR.DBT.COUNT:"*":E.TRANSFER.DBT:"*":E.TRANSFER.DBT.COUNT:"*":TE.DBT.AMT:"*":TE.DBT.COUNT:"*":Y.EXPEND.GLCODE:"*":Y.EXPEND.DESC:"*":E.CASH.CRDT:"*":E.CASH.CRDT.COUNT:"*":E.CLEAR.CRDT:"*":E.CLEAR.CRDT.COUNT:"*":E.TRANSFER.CRDT:"*":E.TRANSFER.CRDT.COUNT:"*":TE.CRDT.AMT:"*":TE.CRDT.COUNT:"*":ABS(T.OPEN.AMT):"*":ABS(T.CLOSING.AMT)
+    END
+
+************************
+!END OF CATEG.ENT.TODAY
+************************
+
+***************************************************
+!START OF RE.SPEC.ENT.TODAY
+***************************************************
+    SEL.CMD.SPEC = "SELECT ":FN.SPEC.ENT.TODAY:" WITH @ID LIKE ...":ID.COMPANY:"..."
+    CALL EB.READLIST(SEL.CMD.SPEC,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.SPEC.ENT.ID FROM SEL.LIST SETTING POS
+    WHILE Y.SPEC.ENT.ID:POS
+        CALL F.READ(FN.SPEC.ENT.TODAY,Y.SPEC.ENT.ID,R.SPEC.ENT.REC,F.SPEC.ENT.TODAY,Y.ERR)
+
+        Y.CATEGORY = FIELD(Y.SPEC.ENT.ID,".",18,1)
+        REC.COUNT = DCOUNT(R.SPEC.ENT.REC,@FM)
+
+        BEGIN CASE
+
+**************************
+!INTEREST PAYABLE
+**************************
+
+        CASE (Y.CATEGORY GE '50000' AND Y.CATEGORY LE '50999')
+            FOR I = 1 TO REC.COUNT
+                Y.CONSOL.SPEC.ENTRY.ID = R.SPEC.ENT.REC<I>
+                CALL F.READ(FN.CONSOL.SPEC.ENTRY,Y.CONSOL.SPEC.ENTRY.ID,R.CONSOL.SPEC.ENTRY,F.CONSOL.SPEC.ENTRY,Y.ERR)
+                Y.AMT.LCY = R.CONSOL.SPEC.ENTRY<RE.CSE.AMOUNT.LCY>
+                Y.CO.CODE = R.CONSOL.SPEC.ENTRY<RE.CSE.COMPANY.CODE>
+                Y.REC.STATUS = R.CONSOL.SPEC.ENTRY<RE.CSE.RECORD.STATUS>
+                Y.TRANS.REF = R.CONSOL.SPEC.ENTRY<RE.CSE.TRANS.REFERENCE>
+                Y.SYS.ID = SUBSTRINGS(Y.TRANS.REF,1,2)
+                IF Y.AMT.LCY LT 0 THEN
+                    Y.SIGN = "CRDT"
+                END ELSE
+                    Y.SIGN = "DBT"
+                END
+
+                IF Y.SIGN EQ "DBT" AND Y.CO.CODE EQ ID.COMPANY AND Y.REC.STATUS EQ "" THEN
+
+                    IP.TRANSFER.DBT = IP.TRANSFER.DBT + Y.AMT.LCY
+                    IP.TRANSFER.DBT.COUNT = IP.TRANSFER.DBT.COUNT + 1
+
+                END ELSE
+                    IF Y.SIGN EQ "CRDT" AND Y.CO.CODE EQ ID.COMPANY AND Y.REC.STATUS EQ "" THEN
+
+                        IP.TRANSFER.CRDT = IP.TRANSFER.CRDT + ABS(Y.AMT.LCY)
+                        IP.TRANSFER.CRDT.COUNT = IP.TRANSFER.CRDT.COUNT + 1
+                    END
+                END
+            NEXT
+
+***********************
+!INTEREST RECEIVABLE
+***********************
+
+        CASE (Y.CATEGORY GE '51000' AND Y.CATEGORY LE '51999')
+            FOR I = 1 TO REC.COUNT
+                Y.CONSOL.SPEC.ENTRY.ID = R.SPEC.ENT.REC<I>
+                CALL F.READ(FN.CONSOL.SPEC.ENTRY,Y.CONSOL.SPEC.ENTRY.ID,R.CONSOL.SPEC.ENTRY,F.CONSOL.SPEC.ENTRY,Y.ERR)
+                Y.AMT.LCY = R.CONSOL.SPEC.ENTRY<RE.CSE.AMOUNT.LCY>
+                Y.CO.CODE = R.CONSOL.SPEC.ENTRY<RE.CSE.COMPANY.CODE>
+                Y.REC.STATUS = R.CONSOL.SPEC.ENTRY<RE.CSE.RECORD.STATUS>
+                Y.TRANS.REF = R.CONSOL.SPEC.ENTRY<RE.CSE.TRANS.REFERENCE>
+                Y.SYS.ID = SUBSTRINGS(Y.TRANS.REF,1,2)
+                IF Y.AMT.LCY LT 0 THEN
+                    Y.SIGN = "CRDT"
+                END ELSE
+                    Y.SIGN = "DBT"
+                END
+
+                IF Y.SIGN EQ "DBT" AND Y.CO.CODE EQ ID.COMPANY AND Y.REC.STATUS EQ "" THEN
+
+                    IR.TRANSFER.DBT = IR.TRANSFER.DBT + Y.AMT.LCY
+                    IR.TRANSFER.DBT.COUNT = IR.TRANSFER.DBT.COUNT + 1
+
+                END ELSE
+                    IF Y.SIGN EQ "CRDT" AND Y.CO.CODE EQ ID.COMPANY AND Y.REC.STATUS EQ "" THEN
+
+                        IR.TRANSFER.CRDT = IR.TRANSFER.CRDT + ABS(Y.AMT.LCY)
+                        IR.TRANSFER.CRDT.COUNT = IR.TRANSFER.CRDT.COUNT + 1
+
+                    END
+                END
+            NEXT
+
+        END CASE
+    REPEAT
+
+!----------------------------------
+    TIP.DBT.AMT = IP.CASH.DBT + IP.CLEAR.DBT + IP.TRANSFER.DBT
+    TIP.DBT.COUNT = IP.CASH.DBT.COUNT + IP.CLEAR.DBT.COUNT + IP.TRANSFER.DBT.COUNT
+    TIP.CRDT.AMT = IP.CASH.CRDT + IP.CLEAR.CRDT + IP.TRANSFER.CRDT
+    TIP.CRDT.COUNT = IP.CASH.CRDT.COUNT + IP.CLEAR.CRDT.COUNT + IP.TRANSFER.CRDT.COUNT
+    TIR.DBT.AMT = IR.CASH.DBT + IR.CLEAR.DBT + IR.TRANSFER.DBT
+    TIR.DBT.COUNT = IR.CASH.DBT.COUNT + IR.CLEAR.DBT.COUNT + IR.TRANSFER.DBT.COUNT
+    TIR.CRDT.AMT = IR.CASH.CRDT + IR.CLEAR.CRDT + IR.TRANSFER.CRDT
+    TIR.CRDT.COUNT = IR.CASH.CRDT.COUNT + IR.CLEAR.CRDT.COUNT + IR.TRANSFER.CRDT.COUNT
+
+    IF TIP.DBT.AMT NE 0 OR TIP.CRDT.AMT NE 0 THEN
+        Y.RETURN<-1> = IP.CASH.DBT:"*":IP.CASH.DBT.COUNT:"*":IP.CLEAR.DBT:"*":IP.CLEAR.DBT.COUNT:"*":IP.TRANSFER.DBT:"*":IP.TRANSFER.DBT.COUNT:"*":TIP.DBT.AMT:"*":TIP.DBT.COUNT:"*":Y.IP.GLCODE:"*":Y.IP.DESC:"*":IP.CASH.CRDT:"*":IP.CASH.CRDT.COUNT:"*":IP.CLEAR.CRDT:"*":IP.CLEAR.CRDT.COUNT:"*":IP.TRANSFER.CRDT:"*":IP.TRANSFER.CRDT.COUNT:"*":TIP.CRDT.AMT:"*":TIP.CRDT.COUNT:"*":ABS(T.OPEN.AMT):"*":ABS(T.CLOSING.AMT)
+    END
+    IF TIR.DBT.AMT NE 0 OR TIR.CRDT.AMT NE 0 THEN
+        Y.RETURN<-1> = IR.CASH.DBT:"*":IR.CASH.DBT.COUNT:"*":IR.CLEAR.DBT:"*":IR.CLEAR.DBT.COUNT:"*":IR.TRANSFER.DBT:"*":IR.TRANSFER.DBT.COUNT:"*":TIR.DBT.AMT:"*":TIR.DBT.COUNT:"*":Y.IR.GLCODE:"*":Y.IR.DESC:"*":IR.CASH.CRDT:"*":IR.CASH.CRDT.COUNT:"*":IR.CLEAR.CRDT:"*":IR.CLEAR.CRDT.COUNT:"*":IR.TRANSFER.CRDT:"*":IR.TRANSFER.CRDT.COUNT:"*":TIR.CRDT.AMT:"*":TIR.CRDT.COUNT:"*":ABS(T.OPEN.AMT):"*":ABS(T.CLOSING.AMT)
+    END
+
+************************
+!END OF RE.SPEC.ENT.TODAY
+************************
+
+    RETURN
+END

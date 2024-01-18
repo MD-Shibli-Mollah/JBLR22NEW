@@ -1,0 +1,25 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.LOAN.MAT.VALID
+    $INSERT GLOBUS.BP  I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+    IF COMI LT TODAY THEN
+        ETEXT="Maturity Date must be GE today"
+        CALL STORE.END.ERROR
+    END
+    RETURN
+
+*---------------------------------------------------------------------------------
+
+END

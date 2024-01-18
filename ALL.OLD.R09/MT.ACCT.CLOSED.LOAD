@@ -1,0 +1,44 @@
+*-----------------------------------------------------------------------------
+* <Rating>100</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.ACCT.CLOSED.LOAD
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+!    $INSERT GLOBUS.BP I_F.ACCOUNT.CLOSED
+
+
+    $INSERT JBL.BP/REPGEN MT.ACCT.CLOSED.VARS
+
+    FN.ACCT = 'FBNK.ACCOUNT.CLOSED'
+    F.ACCT = ''
+    FN.ACCT.HIS = 'FBNK.ACCOUNT$HIS'
+    F.ACCT.HIS = ''
+
+    CALL OPF(FN.ACCT,F.ACCT)
+    CALL OPF(FN.ACCT.HIS,F.ACCT.HIS)
+
+!-------Check Directory----------
+!OPEN "RPT.DATA.DIR" TO F.RPT.DATA.DIR
+!ELSE
+!    CMD = "CREATE.FILE RPT.DATA.DIR TYPE=UD"
+!    EXECUTE CMD
+!    OPEN "RPT.DATA.DIR" TO F.RPT.DATA.DIR
+!    ELSE
+!        CRT "OPENING OF RPT.DATA.DIR FAILED"
+!    END
+!END
+!-------------------------------
+
+
+    Y.FILE.DIR = 'rptdata'
+
+    Y.FILE.NAME.ACCT = 'MT.ALL.CLOSED.ACCOUNT.':TODAY:'.':SESSION.NO:'.csv'
+    OPENSEQ Y.FILE.DIR,Y.FILE.NAME.ACCT TO F.RPT.DATA.DIR ELSE NULL
+
+    RETURN
+END

@@ -1,0 +1,36 @@
+    SUBROUTINE RD.BLOCK.FRWD.DATE
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.AZ.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*****
+INIT:
+*****
+    Y.VAL.DATE = COMI
+    FN.AZ.ACCOUNT = 'FBNK.AZ.ACCOUNT'
+    F.AZ.ACCOUNT = ''
+    RETURN
+
+***********
+OPENFILES:
+***********
+    CALL OPF(FN.AZ.ACCOUNT,F.AZ.ACCOUNT)
+    RETURN
+
+********
+PROCESS:
+********
+    Y.TODAY = TODAY
+    IF Y.VAL.DATE GT Y.TODAY THEN
+        AF = AZ.VALUE.DATE
+        ETEXT = 'Date Not Greater Than Today'
+        CALL STORE.END.ERROR
+    END
+    RETURN
+END

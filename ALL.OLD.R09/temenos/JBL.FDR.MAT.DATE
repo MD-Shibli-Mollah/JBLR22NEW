@@ -1,0 +1,192 @@
+*-----------------------------------------------------------------------------
+* <Rating>-39</Rating>
+
+*DEVELOPED BY: KAMRAN MALLICK
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.FDR.MAT.DATE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.AZ.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+******
+INIT:
+******
+    FN.AZ.ACCT = 'FBNK.AZ.ACCOUNT'
+    F.AZ.ACCT = ''
+    RETURN
+
+**********
+OPENFILES:
+**********
+    CALL OPF(FN.AZ.ACCT,F.AZ.ACCT)
+    RETURN
+
+********
+PROCESS:
+********
+    Y.START.DATE = COMI
+    Y.VAL.DT = Y.START.DATE[7,2]
+    Y.TODAY = TODAY
+    Y.BACK.DATE = ''
+!CALL CDD ('', Y.START.DATE, Y.TODAY, Y.BACK.DATE)
+**************************UPDATE BY KAMRAN****************
+!CALL EB.NO.OF.MONTHS(Y.START.DATE,Y.TODAY,Y.BACK.DATE)
+*******************************END************************
+
+********************BLOCK FOR ADVANCE DATE*******************
+    IF Y.START.DATE GT Y.TODAY THEN
+        AF = AZ.VALUE.DATE
+        ETEXT = 'Date Not Greater Than Today'
+        CALL STORE.END.ERROR
+    END
+***************************END********************************
+**********************BLOCK PREVIOUS DATE MORE THAN 1 MONTH(21080918)********************
+!IF Y.BACK.DATE GT 0 THEN
+!AF = AZ.VALUE.DATE
+!ETEXT = 'Previous Date Geater Than 1 Month'
+!CALL STORE.END.ERROR
+!END
+***************************************END************************************************
+    IF Y.START.DATE NE '' THEN
+        BEGIN CASE
+        CASE R.NEW(AZ.ALL.IN.ONE.PRODUCT) EQ 'FIXEDDEP1-2Y'
+************************UPDATE BY KAMRAN 20180802 (SOLVING MATURITY DATE) ************************
+            Y.NW.YR = Y.START.DATE[1,4] + 1
+            Y.NW.MNTH = Y.START.DATE[5,4]
+            Y.NEW.DATE = Y.NW.YR:Y.NW.MNTH
+!CALL CDT('', Y.START.DATE, '365C')
+!Y.START.DATE = Y.START.DATE[1,6]:Y.VAL.DT
+            Y.START.DATE = Y.NEW.DATE[1,6]:Y.VAL.DT
+****************************************END*******************************************************
+!------------------------ Added by Md. Golam Rased ---------------------------------
+            Y.DATE = Y.START.DATE
+            Y.TEMP.VAR = Y.DATE
+            Y.MONTH = SUBSTRINGS(Y.DATE,5,2) + 1
+            IF LEN(Y.MONTH) LT 2 THEN
+                Y.MONTH = '0':Y.MONTH
+            END
+            IF Y.MONTH GT 12 THEN
+                Y.DATE = SUBSTRINGS(Y.DATE,1,4) + 1 :'': '01' :'01'
+            END
+            ELSE
+                Y.DATE = SUBSTRINGS(Y.DATE,1,4):'':Y.MONTH:'01'
+            END
+            CALL CDT('',Y.DATE,'-1C')
+            IF SUBSTRINGS(Y.TEMP.VAR,7,2) GT SUBSTRINGS(Y.DATE,7,2) THEN
+                R.NEW(AZ.MATURITY.DATE) = Y.DATE
+            END
+            ELSE
+                R.NEW(AZ.MATURITY.DATE) =  Y.TEMP.VAR
+            END
+!-----------------------------------------------------------------------------
+!R.NEW(AZ.MATURITY.DATE) = Y.START.DATE
+
+        CASE R.NEW(AZ.ALL.IN.ONE.PRODUCT) EQ 'FIXEDDEP2-3Y'
+************************UPDATE BY KAMRAN 20180802 (SOLVING MATURITY DATE) ************************
+            Y.NW.YR = Y.START.DATE[1,4] + 2
+            Y.NW.MNTH = Y.START.DATE[5,4]
+            Y.NEW.DATE = Y.NW.YR:Y.NW.MNTH
+!CALL CDT('', Y.START.DATE, '730C')
+!Y.START.DATE = Y.START.DATE[1,6]:Y.VAL.DT
+            Y.START.DATE = Y.NEW.DATE[1,6]:Y.VAL.DT
+*************************************END**********************************************************
+!----------------Added by Md. Golam Rased---------------------------
+            Y.DATE = Y.START.DATE
+            Y.TEMP.VAR = Y.DATE
+            Y.MONTH = SUBSTRINGS(Y.DATE,5,2) + 1
+            IF LEN(Y.MONTH) LT 2 THEN
+                Y.MONTH = '0':Y.MONTH
+            END
+            IF Y.MONTH GT 12 THEN
+                Y.DATE = SUBSTRINGS(Y.DATE,1,4) + 1 :'': '01' :'01'
+            END
+            ELSE
+                Y.DATE = SUBSTRINGS(Y.DATE,1,4):'':Y.MONTH:'01'
+            END
+            CALL CDT('',Y.DATE,'-1C')
+            IF SUBSTRINGS(Y.TEMP.VAR,7,2) GT SUBSTRINGS(Y.DATE,7,2) THEN
+                R.NEW(AZ.MATURITY.DATE) = Y.DATE
+            END
+            ELSE
+                R.NEW(AZ.MATURITY.DATE) =  Y.TEMP.VAR
+            END
+!-----------------------------------------------
+!R.NEW(AZ.MATURITY.DATE) = Y.START.DATE
+
+        CASE R.NEW(AZ.ALL.IN.ONE.PRODUCT) EQ 'FIXEDDEP3-6M'
+!CALL CDT('', Y.START.DATE, '92C')
+!Y.START.DATE = Y.START.DATE[1,6]:Y.VAL.DT
+!R.NEW(AZ.MATURITY.DATE) = Y.START.DATE
+!------------------------Added by Md. Golam Rased-----------------------------------------
+            Y.MONTH = SUBSTRINGS(Y.START.DATE,5,2) + 3
+            IF LEN(Y.MONTH) LT 2 THEN
+                Y.MONTH = '0':Y.MONTH
+            END
+            IF Y.MONTH GT 12 THEN
+                Y.DATE = SUBSTRINGS(Y.START.DATE,1,4) + 1 : '0' : Y.MONTH - 12 : SUBSTRINGS(Y.START.DATE,7,2)
+            END
+            ELSE
+                Y.DATE = SUBSTRINGS(Y.START.DATE,1,4) : '' : Y.MONTH : SUBSTRINGS(Y.START.DATE,7,2)
+            END
+            Y.TEMP.VAR = Y.DATE
+            Y.MONTH = SUBSTRINGS(Y.DATE,5,2) + 1
+            IF LEN(Y.MONTH) LT 2 THEN
+                Y.MONTH = '0':Y.MONTH
+            END
+            IF Y.MONTH GT 12 THEN
+                Y.DATE = SUBSTRINGS(Y.DATE,1,4) + 1 :'': '01' :'01'
+            END
+            ELSE
+                Y.DATE = SUBSTRINGS(Y.DATE,1,4):'':Y.MONTH:'01'
+            END
+            CALL CDT('',Y.DATE,'-1C')
+            IF SUBSTRINGS(Y.TEMP.VAR,7,2) GT SUBSTRINGS(Y.DATE,7,2) THEN
+                R.NEW(AZ.MATURITY.DATE) = Y.DATE
+            END
+            ELSE
+                R.NEW(AZ.MATURITY.DATE) =  Y.TEMP.VAR
+            END
+!---------------------------------------------------------------------------------
+
+        CASE R.NEW(AZ.ALL.IN.ONE.PRODUCT) EQ 'FIXEDDEP6-12M'
+!CALL CDT('', Y.START.DATE, '184C')
+!Y.START.DATE = Y.START.DATE[1,6]:Y.VAL.DT
+!R.NEW(AZ.MATURITY.DATE) = Y.START.DATE
+!-------------------------------Added by Md. Golam Rased--------------
+            Y.MONTH = SUBSTRINGS(Y.START.DATE,5,2) + 6
+            IF LEN(Y.MONTH) LT 2 THEN
+                Y.MONTH = '0':Y.MONTH
+            END
+            IF Y.MONTH GT 12 THEN
+                Y.DATE = SUBSTRINGS(Y.START.DATE,1,4) + 1 : '0' : Y.MONTH - 12 : SUBSTRINGS(Y.START.DATE,7,2)
+            END
+            ELSE
+                Y.DATE = SUBSTRINGS(Y.START.DATE,1,4) : '' : Y.MONTH : SUBSTRINGS(Y.START.DATE,7,2)
+            END
+            Y.TEMP.VAR = Y.DATE
+            Y.MONTH = SUBSTRINGS(Y.DATE,5,2) + 1
+            IF LEN(Y.MONTH) LT 2 THEN
+                Y.MONTH = '0':Y.MONTH
+            END
+            IF Y.MONTH GT 12 THEN
+                Y.DATE = SUBSTRINGS(Y.DATE,1,4) + 1 :'': '01' :'01'
+            END
+            ELSE
+                Y.DATE = SUBSTRINGS(Y.DATE,1,4):'':Y.MONTH:'01'
+            END
+            CALL CDT('',Y.DATE,'-1C')
+            IF SUBSTRINGS(Y.TEMP.VAR,7,2) GT SUBSTRINGS(Y.DATE,7,2) THEN
+                R.NEW(AZ.MATURITY.DATE) = Y.DATE
+            END
+            ELSE
+                R.NEW(AZ.MATURITY.DATE) = Y.TEMP.VAR
+            END
+!-------------------------------
+        END CASE
+    END
+    RETURN

@@ -1,0 +1,100 @@
+*-----------------------------------------------------------------------------
+* <Rating>-43</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE UPDATE.ECB
+*---------------------------------------------------------------------------------*
+* Routine to be provided along with CET.RAISE to update EB.CONTRACT.BALANCES      *
+* This will use same &SAVEDLISTS& record CET.LIST used by CET.RAISE               *
+* Record "CET.LIST" to be created in &SAVEDLISTS& with content as                 *
+
+*---------------------------------------------------------------------------------*
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.EB.CONTRACT.BALANCES
+
+
+    EXECUTE 'COMO ON UPDATE.ECB_':TIMEDATE()
+    GOSUB INITIALISE
+    GOSUB PROCESS
+    EXECUTE 'COMO OFF'
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INITIALISE:
+*-----------------------------------------------------------------------------
+
+    FN.ECB = 'F.EB.CONTRACT.BALANCES'
+    F.ECB = ''
+    CALL OPF(FN.ECB,F.ECB)
+
+    FN.SL.FILE = '&SAVEDLISTS&'
+    F.SL.FILE = ''
+    CALL OPF(FN.SL.FILE,F.SL.FILE)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+
+    FN.SAVE = "&SAVEDLISTS&"
+    F.SAVE = ""
+    CALL OPF(FN.SAVE,F.SAVE)
+    ERR.SAVE = ''
+    Y.SEL.ID = 'CET.LIST'
+    CALL F.READ(FN.SAVE,Y.SEL.ID,SEL.LIST,F.SAVE,ERR.SAVE)
+
+    IF ERR.SAVE THEN
+
+        CRT "CET.LIST file dosen't exist in Savedlists "
+    END
+
+    LOOP
+        REMOVE CAL.DET FROM SEL.LIST SETTING Y.POS
+    WHILE CAL.DET:Y.POS
+        Y.DEL.STR = ''
+        Y.DEL.STR = "*"
+        CON.ID = FIELD(CAL.DET,Y.DEL.STR,4)
+        IF NOT(CON.ID) THEN
+            CONTINUE
+        END
+        Y.DEL.DOT = ''
+        Y.DEL.DOT = '.'
+        MISM.KEY = FIELD(CAL.DET,Y.DEL.STR,1)
+        CAL.COUNT = COUNT(MISM.KEY,Y.DEL.DOT)
+        Y.MIS.KEY = FIELD(MISM.KEY,Y.DEL.DOT,CAL.COUNT+1,99)
+        ASST.TYPE = Y.MIS.KEY
+        MISM.CCY = FIELD(MISM.KEY,Y.DEL.DOT,4)
+        MISM.MKT = FIELD(MISM.KEY,Y.DEL.DOT,2)
+        AMT = FIELD(CAL.DET,Y.DEL.STR,3)
+        GOSUB CORR.ECB
+    REPEAT
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CORR.ECB:
+*-----------------------------------------------------------------------------
+
+    R.ECB = ''
+    POS = ''
+        CALL F.READ(FN.ECB,CON.ID,R.ECB,F.ECB,ECB.ERR)
+    ECB.ERR = ''
+    IF R.ECB THEN
+        CON.CCY = R.ECB<ECB.CURRENCY>
+        LOCATE ASST.TYPE IN R.ECB<ECB.CURR.ASSET.TYPE,1> SETTING POS THEN
+            IF AMT GT '0' THEN
+                R.ECB<ECB.CREDIT.MVMT,POS,1> + = AMT
+            END  ELSE
+                R.ECB< ECB.DEBIT.MVMT,POS,1> + = AMT
+            END
+            WRITE R.ECB TO F.ECB, CON.ID
+            IF NOT(PGM.VERSION) AND NOT(RUNNING.UNDER.BATCH) THEN
+                CALL JOURNAL.UPDATE('')
+            END
+        END
+       RELEASE F.ECB, CON.ID
+    END
+    RETURN 

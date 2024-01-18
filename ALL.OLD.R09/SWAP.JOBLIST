@@ -1,0 +1,100 @@
+    PROGRAM SWAP.JOBLIST
+*-----------------------------------------------------------------
+* 27 MAY 2016   C.Muruganand    Routine to swap the job.list in TAFC area
+*
+*-----------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+
+    F.LOCKING=""
+    FN.LOCKING="F.LOCKING"
+    CALL OPF(FN.LOCKING,F.LOCKING)
+
+    CRT "******** Swapping JOB.LIST ********"
+    CRT " Enter the Problematic JOB.LIST ID :"    ;*Give problematic job.list id
+    INPUT PBLM.JLIST.ID
+    CRT " Enter the Problematic BATCH F.LOCKING id :"       ;*Give problematic locking batch id. ID can be fetched using command jsh-->LIST F.LOCKING LIKE ...<<F.JOB.LIST.XX>>... , where <<F.JOB.LIST.XX>> is the problematic job.list id. Copy the Content field value and use it as ID. Sample shown below
+*************************************************************************************************
+* LIST F.LOCKING LIKE ...F.JOB.LIST.6...                                                        *
+*                                                                                               *
+* @ID..... F.JOB.LIST.6                                                                         *
+* @ID..... F.JOB.LIST.6                                                                         *
+* KEY..... F.JOB.LIST.6                                                                         *
+* CONTENT. BNK/PRINT.ACCOUNT.STMT-PRINT.ACCOUNT.STMT-1  ========>Use this as BATCH F.LOCKING id *
+* REMARK..                                                                                      *
+*************************************************************************************************
+
+    INPUT PBLM.BATCH.ID
+    CRT ""
+    FN.PBLM.JLIST.ID=PBLM.JLIST.ID
+    F.PBLM.JLIST.ID=""
+    OPEN FN.PBLM.JLIST.ID TO F.PBLM.JLIST.ID ELSE NULL
+
+    READ R.PBLM.JOB.LIST FROM F.LOCKING, PBLM.JLIST.ID THEN
+        IF R.PBLM.JOB.LIST<1> EQ PBLM.BATCH.ID THEN
+            READU R.PBLM.BATCH FROM F.LOCKING, PBLM.BATCH.ID THEN
+
+                CALL GET.FREE.LIST.FILE(JLIST.FILE)
+                CRT "New ":JLIST.FILE:" is used for SWAPPING"
+                CRT ""
+                FN.JLIST.FILE=JLIST.FILE
+                F.JLIST.FILE=""
+                OPEN FN.JLIST.FILE TO F.JLIST.FILE ELSE NULL
+
+*taking problematic joblist backup
+                TIMDTE=TIMEDATE()
+                TIMDTE=EREPLACE(TIMDTE," ","")
+                TIMDTE=EREPLACE(TIMDTE,":","")
+                PBLM.JLIST.ID.BK=PBLM.JLIST.ID:".":TIMDTE
+                FN.PBLM.JLIST.ID.BK=PBLM.JLIST.ID.BK
+                F.PBLM.JLIST.ID.BK=""
+                EXECUTE "CREATE.FILE DATA ":PBLM.JLIST.ID.BK:" TYPE=UD"
+                EXECUTE "CLEAR.FILE ":PBLM.JLIST.ID.BK
+                OPEN FN.PBLM.JLIST.ID.BK TO F.PBLM.JLIST.ID.BK ELSE NULL
+
+                EXECUTE "COPY FROM ":PBLM.JLIST.ID:" TO ":PBLM.JLIST.ID.BK:" ALL"
+*cross checking the qselect output before and after backup
+
+                SEL.CMD.ORIG='QSELECT ':FN.PBLM.JLIST.ID:' *'
+                ID.LIST.ORIG=''
+                CALL EB.READLIST(SEL.CMD.ORIG, FULL.LIST.ORIG, '', NUMBER.OF.KEYS.ORIG, '')
+
+                SEL.CMD.BK='QSELECT ':FN.PBLM.JLIST.ID.BK:' *'
+                ID.LIST.BK=''
+                CALL EB.READLIST(SEL.CMD.BK, FULL.LIST.BK, '', NUMBER.OF.KEYS.BK, '')
+
+                IF NUMBER.OF.KEYS.ORIG EQ NUMBER.OF.KEYS.BK THEN
+                    CMDD="COPY FROM ":PBLM.JLIST.ID:" TO ":JLIST.FILE:" ALL"
+                    EXECUTE CMDD
+
+*cross checking the qselect output for the new joblist
+                    SEL.CMD.NEW='QSELECT ':FN.JLIST.FILE:' *'
+                    ID.LIST.NEW=''
+                    CALL EB.READLIST(SEL.CMD.NEW,FULL.LIST.NEW,'',NUMBER.OF.KEYS.NEW,'')
+                    IF NUMBER.OF.KEYS.ORIG EQ NUMBER.OF.KEYS.NEW THEN
+*writing F.LOCKING file
+                        WRITE PBLM.BATCH.ID TO F.LOCKING, JLIST.FILE
+                        WRITE JLIST.FILE TO F.LOCKING, PBLM.BATCH.ID
+                        DELETE F.LOCKING, PBLM.JLIST.ID
+                        CLEARFILE.CMD="CLEAR.FILE ":PBLM.JLIST.ID
+                        EXECUTE CLEARFILE.CMD
+                        CRT "*************************************"
+                        CRT " JOB.LIST swapping successful!!! ":JLIST.FILE:" assigned to ":PBLM.BATCH.ID
+                        CRT "*************************************"
+                    END ELSE
+                        CRT "**** Some records missing in new joblist ":FN.JLIST.FILE:" !!! Please rerun the routine ****"
+                        EXECUTE "CLEAR.FILE ":FN.JLIST.FILE
+                        EXECUTE "CLEAR.FILE ":FN.PBLM.JLIST.ID.BK
+                    END
+                END ELSE
+                    CRT "**** Some records missing in joblist Backup ":FN.PBLM.JLIST.ID.BK:" !!! Please rerun the routine ****"
+                    EXECUTE "CLEAR.FILE ":FN.PBLM.JLIST.ID.BK
+                END
+
+            END
+        END ELSE
+            CRT "****  Please cross check the problematic JOB.LIST/BATCH id and RERUN the routine ****"
+            CRT "*************************************************************************************"
+        END
+    END
+END

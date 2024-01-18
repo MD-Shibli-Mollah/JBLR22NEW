@@ -1,0 +1,102 @@
+!**************************************************************
+!  Developed By:Fairooz Chowdhury
+!  Version :0.1
+!*************************************************************
+    SUBROUTINE BD.E.NOF.AZ.HOLD.CNT(Y.DATA)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    Y.ACC=''; Y.FT.ID=''
+
+    FN.AC = 'FBNK.ACCOUNT';               F.AC = ''
+    FN.FT ='FBNK.FUNDS.TRANSFER$NAU'  ;   F.FT = ''
+
+    R.ACC='' ; Y.ERR=''; R.FT='';
+
+    ID.ARR=''; Y.OLD.ACC=''  ;Y.CAT=''; Y.FT.C=''; Y.NAME=''
+    FLAG=0
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.FT,F.FT)
+
+    RETURN
+
+PROCESS:
+
+    LOCATE "CATEGORY" IN ENQ.SELECTION<2,1> SETTING CATEGORY.POS THEN
+        Y.CATEGORY = ENQ.SELECTION<4,CATEGORY.POS>
+    END
+
+    SEL.CMD.1="SELECT ":FN.AC:" WITH CATEGORY EQ ":Y.CATEGORY:" AND CO.CODE EQ ":ID.COMPANY:" "
+    CALL EB.READLIST(SEL.CMD.1,SEL.LIST.1,"",NO.OF.RECORD,RET.CODE)
+
+
+    SEL.CMD.2="SELECT ":FN.FT:"  WITH RECORD.STATUS EQ IHLD AND CO.CODE EQ ":ID.COMPANY:"  AND INPUTTER LIKE AZ.PROCESS... BY CREDIT.ACCT.NO"
+    CALL EB.READLIST(SEL.CMD.2,SEL.LIST.2,"",NO.OF.RECORD,RET.CODE)
+
+    LOOP
+        REMOVE Y.FT.ID FROM SEL.LIST.2 SETTING POS22
+    WHILE Y.FT.ID:POS22
+
+        CALL F.READ(FN.FT,Y.FT.ID,R.FT,F.FT,Y.ERR)
+        Y.ACC = R.FT<FT.CREDIT.ACCT.NO>
+
+!---------READING  1ST FT DATA MARKING FLAG 1-----
+        IF Y.OLD.ACC EQ '' AND FLAG EQ 0  THEN
+
+            FIND Y.ACC IN SEL.LIST.1  SETTING POS THEN
+                CALL F.READ(FN.AC,Y.ACC,R.ACC,F.AC,Y.ERR)
+                Y.CAT=R.ACC<AC.CATEGORY>
+                Y.NAME=R.ACC<AC.ACCOUNT.TITLE.1>
+                IF Y.CAT EQ Y.CATEGORY THEN
+                    Y.OLD.ACC=Y.ACC
+                    FLAG=1
+                END
+            END
+        END
+!-----------WHEN READING 2ND OR OTHER DATA IF CR ACC MATCH OR NOT MATCH----------
+        IF Y.ACC NE Y.OLD.ACC    THEN
+            Y.FT.C=DCOUNT(ID.ARR,@FM)
+            IF Y.CAT NE '' THEN
+                Y.DATA<-1>=Y.OLD.ACC:'*':Y.NAME:'*':Y.FT.C:"*":Y.CAT
+            END
+            ID.ARR=''; Y.OLD.ACC=''; Y.CAT=''; Y.FT.C='' ;Y.NAME=''
+
+            FIND Y.ACC IN SEL.LIST.1  SETTING POS THEN
+                CALL F.READ(FN.AC,Y.ACC,R.ACC,F.AC,Y.ERR)
+                Y.CAT=R.ACC<AC.CATEGORY>
+                Y.NAME=R.ACC<AC.ACCOUNT.TITLE.1>
+                IF  Y.CAT EQ Y.CATEGORY THEN
+                    ID.ARR<-1>= Y.FT.ID
+                    Y.OLD.ACC=Y.ACC
+                END
+            END
+        END   ELSE
+            IF FLAG EQ 1 AND Y.CAT EQ Y.CATEGORY  THEN
+                ID.ARR<-1>= Y.FT.ID
+            END
+        END
+
+
+    REPEAT
+!--------IF ANOTHER ACC NOT COME
+    IF Y.DATA EQ ''  AND Y.CAT NE '' THEN
+        Y.FT.C=DCOUNT(ID.ARR,@FM)
+        Y.DATA<-1>=Y.OLD.ACC:'*':Y.NAME:'*':Y.FT.C:'*':Y.CAT
+    END
+!--------------------------------
+    RETURN

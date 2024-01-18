@@ -1,0 +1,285 @@
+****************************************************
+*-----------------------------------------------------------------------------
+* <Rating>1473</Rating>
+*-----------------------------------------------------------------------------
+* PROGRAM : PROGRAM TO CREATE A CSV FILE FOR  GLPL INFORMATION
+* DEV BY      : MD. IMRAN HASAN
+* DEV DATE    : 2016-05-19
+* UPDATE DATE : 2016-05-19
+* UPDATE DATE : 2021-01-04
+* REQ         : ICTD
+****************************************************
+
+    PROGRAM ICTD.GET.GLPL.ALL
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.HOLD.CONTROL
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT GLOBUS.BP I_F.RE.CONSOL.ASSET.LINE
+    $INSERT GLOBUS.BP I_F.RE.CONSOL.PROFIT.LINE
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+!----
+INIT:
+!----
+    FN.HC = 'F.HOLD.CONTROL'
+    F.HC = ''
+    R.HC = ''
+    FN.CAT = 'F.CATEGORY'
+    F.CAT = ''
+    R.CAT = ''
+
+    FN.COMP = 'F.COMPANY'
+    F.COMP = ''
+    R.COMP = ''
+
+    FN.AL = 'F.RE.CONSOL.ASSET.LINE'
+    F.AL = ''
+    R.AL = ''
+
+    FN.PL = 'F.RE.CONSOL.PROFIT.LINE'
+    F.PL = ''
+    R.PL = ''
+
+    Y.LINE.CODE.ARRAY = ''
+
+    RETURN
+!---------
+OPENFILES:
+!---------
+    CALL OPF(FN.COMP,F.COMP)
+    CALL OPF(FN.HC,F.HC)
+    CALL OPF(FN.CAT,F.CAT)
+    CALL OPF(FN.AL,F.AL)
+    CALL OPF(FN.PL,F.PL)
+
+!-------Check Directory----------
+    CMD.STR = "CREATE.FILE ALL.GLPL.DIR/":TODAY:" TYPE=UD"
+    CUR.DIR = "ALL.GLPL.DIR/":TODAY
+
+    OPEN CUR.DIR TO F.ALL.GLPL.DIR
+    ELSE
+        EXECUTE CMD.STR
+        OPEN CUR.DIR TO F.ALL.GLPL.DIR
+        ELSE
+            CRT CUR.DIR "OPENING FAILED"
+            RETURN
+        END
+    END
+!-------------------------------
+
+    RETURN
+!-------
+PROCESS:
+!-------
+
+!------------------INITIALIZE LINE CODE------------------------
+!ASSET LINE CODE
+
+    SEL.CMD1='SELECT ':FN.AL
+    CALL EB.READLIST(SEL.CMD1,SEL.LIST1,'',NO.OF.REC1,RET.CODE1)
+    LOOP
+        REMOVE  Y.AL.ID FROM SEL.LIST1 SETTING Y.POS
+    WHILE Y.AL.ID:Y.POS
+        CALL F.READ(FN.AL,Y.AL.ID,R.AL,F.AL,ERR.CODE.AL)
+        Y.APPLIC.ID = R.AL<RE.CAL.APPLIC.ID,1>
+        IF ISDIGIT(Y.AL.ID) THEN
+            LOCATE Y.APPLIC.ID IN Y.LINE.CODE.ARRAY SETTING POS THEN
+            END
+            ELSE
+                Y.LINE.CODE.ARRAY<-1> = Y.APPLIC.ID
+            END
+        END
+
+    REPEAT
+
+!PROFIT LINE CODE
+
+    SEL.CMD2='SELECT ':FN.PL
+    CALL EB.READLIST(SEL.CMD2,SEL.LIST2,'',NO.OF.REC2,RET.CODE2)
+    LOOP
+        REMOVE  Y.PL.ID FROM SEL.LIST2 SETTING Y.POS
+    WHILE Y.PL.ID:Y.POS
+        CALL F.READ(FN.PL,Y.PL.ID,R.PL,F.PL,ERR.CODE.PL)
+        Y.APPLIC.ID = R.PL<RE.CPL.APPLIC.ID,1>
+        IF ISDIGIT(Y.PL.ID) THEN
+            LOCATE Y.APPLIC.ID IN Y.LINE.CODE.ARRAY SETTING POS THEN
+            END
+            ELSE
+                Y.LINE.CODE.ARRAY<-1> = Y.APPLIC.ID
+            END
+        END
+
+    REPEAT
+
+!------------------END INITIALIZE LINE CODE---------------------
+
+    CRT "INPUT BANK DATE: "
+    INPUT BANKDATE
+
+    CRT "INPUT REPORT NAME: "
+    INPUT REPORTNAME
+
+    CRT "ALL BRANCH ? (Y/N)"
+    INPUT USER.CHOICE
+    IF USER.CHOICE EQ 'Y' THEN
+        GOSUB READ.FROM.COMPANY
+    END
+    ELSE
+        IF USER.CHOICE EQ 'N' THEN
+            CRT "INPUT BRANCH CODE"
+            INPUT BRANCH.CODES
+            Y.TOT.BR=DCOUNT(BRANCH.CODES,' ')
+            FOR I=1 TO Y.TOT.BR
+                IF I EQ 1 THEN
+                    COMPANY.LIST :=  FIELD(BRANCH.CODES,' ',I)
+                END
+                ELSE
+                    COMPANY.LIST := @FM : FIELD(BRANCH.CODES,' ',I)
+                END
+            NEXT
+        END
+        ELSE
+            CRT 'INVALID CHARECTER'
+            RETURN
+        END
+    END
+
+    Y.COUNT = 0
+
+    Y.FILE.DIR = CUR.DIR
+    OPEN Y.FILE.DIR TO F.FILE.DIR
+    ELSE
+        CRT 'FAILED TO OPEN FILE DIRECTORY'
+        RETURN
+    END
+
+    Y.FILE.NAME = 'ALL.GLPL.':REPORTNAME:'.':BANKDATE:'.csv'
+    OPEN Y.FILE.DIR TO F.FILE.DIR ELSE NULL
+
+    FOR I=1 TO DCOUNT(COMPANY.LIST,@FM)
+
+        Y.FLAG.LINE = 0
+
+        COMP.ID =  FIELD(COMPANY.LIST,@FM,I)
+
+        SEL.CMD='SELECT ':FN.HC:' WITH REPORT.NAME EQ ':REPORTNAME:' AND COMPANY.ID EQ ':COMP.ID:' AND BANK.DATE EQ ':BANKDATE
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+        Y.HC.ID = ''
+
+        IF SEL.LIST NE '' THEN
+
+            FOR J=1 TO DCOUNT(SEL.LIST,@FM)
+                Y.HC.ID = FIELD(SEL.LIST,@FM,J)
+                CALL F.READ(FN.HC,Y.HC.ID,R.HC,F.HC,ERR.CODE.HC)
+
+                Y.REPORT.NAME = R.HC<HCF.REPORT.NAME>
+                Y.DATE.CREATED = R.HC<HCF.DATE.CREATED>
+                Y.BANK.DATE = R.HC<HCF.BANK.DATE>
+                Y.TIME.CREATED = R.HC<HCF.TIME.CREATED>
+                Y.COMPANY.ID = R.HC<HCF.COMPANY.ID>
+                Y.COUNTER = 1
+
+                Y.PATH = "/t24appsvr/jbllivetest/bnk/bnk.data/eb/&HOLD&/":Y.HC.ID
+                OPENSEQ Y.PATH TO F.FILE.VAR THEN
+                    LOOP
+                        READSEQ DATA.VALUES FROM F.FILE.VAR ELSE EOF = 1
+                    WHILE NOT(EOF)
+                        Y.CONSOL = TRIM(SUBSTRINGS(DATA.VALUES,0,74))
+                        Y.BALANCE = EREPLACE(TRIM(SUBSTRINGS(DATA.VALUES,75,50)),",","")
+                        Y.AC = SUBSTRINGS(Y.CONSOL,0,2)
+
+                        Y.REPORT.LINE = TRIM(SUBSTRINGS(DATA.VALUES,0,4))
+                        Y.COA.DESC = TRIM(SUBSTRINGS(DATA.VALUES,16,50))
+
+                        IF Y.FLAG.LINE EQ 0 AND (Y.REPORT.LINE EQ '6520' OR Y.REPORT.LINE EQ '1205') THEN
+
+                            Y.RETURN<-1>= REPORTNAME:'|':Y.HC.ID:'|':Y.REPORT.LINE:'|':Y.DATE.CREATED:'|':Y.BANK.DATE:'|':'':'|':'':'|':'':'|':Y.BALANCE:'|':TODAY:'|':Y.COMPANY.ID:'|':Y.COA.DESC:'|':''
+
+                            Y.FLAG.LINE = 1
+
+                        END
+                        ELSE
+
+                            LOCATE Y.AC IN Y.LINE.CODE.ARRAY SETTING LINE.CODE.POS THEN
+
+                                Y.FLAG = 1
+                                IF Y.AC EQ 'PL' THEN
+                                    Y.CAT.CODE = EREPLACE(SUBSTRINGS(Y.CONSOL,4,5),".","")
+                                    CALL F.READ(FN.CAT,Y.CAT.CODE,R.CAT,F.CAT,ERR.CODE.CAT)
+                                    Y.CAT.DESC = R.CAT<EB.CAT.DESCRIPTION>
+                                    Y.CAT.CODE = EREPLACE(SUBSTRINGS(Y.CONSOL,1,8),".","")
+                                END
+                                ELSE
+                                    Y.CAT.CODE = EREPLACE(SUBSTRINGS(Y.CONSOL,13,5),".","")
+                                    Y.CURRENCY = EREPLACE(SUBSTRINGS(Y.CONSOL,9,3),".","")
+                                    CALL F.READ(FN.CAT,Y.CAT.CODE,R.CAT,F.CAT,ERR.CODE.CAT)
+                                    Y.CAT.DESC = R.CAT<EB.CAT.DESCRIPTION>
+                                    Y.CAT.CODE = EREPLACE(SUBSTRINGS(Y.CONSOL,9,9),".","")
+                                END
+
+
+                                Y.DATA<-1>= REPORTNAME:'|':Y.HC.ID:'|':'LINE':'|':Y.DATE.CREATED:'|':Y.BANK.DATE:'|':Y.CONSOL:'|':Y.CAT.CODE:'|':'COACODE':'|':Y.BALANCE:'|':TODAY:'|':Y.COMPANY.ID:'|':'COADESC':'|':Y.CAT.DESC
+
+                            END
+                            ELSE
+                                Y.REPORT.LINE = TRIM(SUBSTRINGS(DATA.VALUES,0,4))
+                                Y.COA.CODE = TRIM(SUBSTRINGS(DATA.VALUES,5,11))
+                                Y.COA.DESC = TRIM(SUBSTRINGS(DATA.VALUES,16,50))
+                                Y.LINE.BALANCE = EREPLACE(TRIM(SUBSTRINGS(DATA.VALUES,75,50)),",","")
+                                IF NUM(Y.LINE.BALANCE) AND LEN(Y.REPORT.LINE) EQ 4 THEN
+                                    IF Y.FLAG EQ 1 THEN
+                                        Y.DATA1 = EREPLACE(Y.DATA,'LINE',Y.REPORT.LINE)
+                                        Y.DATA2 = EREPLACE(Y.DATA1,'COACODE',Y.COA.CODE)
+                                        Y.DATA3 = EREPLACE(Y.DATA2,'COADESC',Y.COA.DESC)
+
+                                        Y.RETURN<-1> = Y.DATA3
+                                        Y.DATA = ''
+                                        Y.FLAG = 0
+                                    END
+                                END
+                            END
+                        END
+
+                        Y.COUNTER++
+                    REPEAT
+                    EOF = 0
+                END
+                ELSE
+                    ETEXT =  "File not found : ": Y.HC.ID
+                    CALL STORE.END.ERROR
+                    RETURN
+                END
+            NEXT
+        END
+        Y.COUNT++
+        CRT "COMPLETED ": Y.COUNT :" OF ": DCOUNT(COMPANY.LIST,@FM)
+
+    NEXT
+
+    WRITE Y.RETURN TO F.FILE.DIR,Y.FILE.NAME
+    RETURN
+!-----------------
+READ.FROM.COMPANY:
+!-----------------
+    CALL GET.LOC.REF("COMPANY","BRANCH.STATUS",Y.BRANCH.STATUS.POS)
+    SEL.CMD1='SELECT ':FN.COMP
+    CALL EB.READLIST(SEL.CMD1,SEL.LIST1,'',NO.OF.REC1,RET.CODE1)
+    LOOP
+        REMOVE  Y.COMP.ID FROM SEL.LIST1 SETTING Y.POS
+    WHILE Y.COMP.ID:Y.POS
+        CALL F.READ(FN.COMP,Y.COMP.ID,R.COMP,F.COMP,ERR.CODE.COMP)
+        Y.BRANCH.STATUS = R.COMP<EB.COM.LOCAL.REF,Y.BRANCH.STATUS.POS>
+        IF Y.BRANCH.STATUS EQ 'SINGLE' THEN
+            COMPANY.LIST<-1> = Y.COMP.ID
+        END
+    REPEAT
+    CRT "TOAL SINGLE BRANCH : " : DCOUNT(COMPANY.LIST,@FM)
+    RETURN
+END

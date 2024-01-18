@@ -1,0 +1,99 @@
+*-----------------------------------------------------------------------------
+* <Rating>150</Rating>
+*-----------------------------------------------------------------------------
+* This Routine Convert number to Text. This routine call CALHUND Routine.
+* Return value : "LNGVAR" is incoming parameter, and "TXTOUT" is outgoing paramete.
+* Developed By : Md Rayhan Uddin
+
+    SUBROUTINE CONVT.NUM.TEXT2
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.TELLER
+    $INSERT I_F.FUNDS.TRANSFER
+
+    LNGVAR = COMI
+    TXTOUT = ''
+    TXTVAR1=''
+    INTVAL=''
+    Y.COMI.LEN = LEN(COMI)
+    IF Y.COMI.LEN LT 20 THEN
+        INTVAL = FIELD(LNGVAR,'.',1)
+        INTVAL3 = FIELD(LNGVAR,'.',2)
+
+        IF INTVAL3 NE 0 THEN
+            INTVAL2=INTVAL3
+        END ELSE
+            INTVAL2=0
+        END
+
+        CORE=INT(INTVAL / 10000000)
+        CALL CALHUND(CORE,INTCORE)
+        INTVAL = INT(INTVAL - INT(INTVAL / 10000000) * 10000000)
+
+        LAC=INT(INTVAL / 100000)
+        CALL CALHUND(LAC,INTLAC)
+        INTVAL = INT(INTVAL - INT(INTVAL / 100000) * 100000)
+
+        THOUSAND=INT(INTVAL / 1000)
+        CALL CALHUND(THOUSAND,INTTHOUSAND)
+        INTVAL = INT(INTVAL - INT(INTVAL / 1000) * 1000)
+
+        HUNDRED=INT(INTVAL / 100)
+        CALL CALHUND(HUNDRED,INTHUNDRED)
+        INTVAL = INT(INTVAL - INT(INTVAL / 100) * 100)
+
+        REST=INT(INTVAL / 1)
+        CALL CALHUND(REST,INTREST)
+
+        DES=INT(INTVAL2 / 1)
+        CALL CALHUND(DES,INTDES)
+
+        IF LEN(INTCORE) EQ 0 THEN
+            TXTVAR1=INTCORE:" ":""
+        END ELSE
+            TXTVAR1=INTCORE:" ":"Core"
+        END
+
+        IF LEN(INTLAC) EQ 0 THEN
+            TXTVAR1=TXTVAR1:" ":INTLAC:"":""
+        END ELSE
+            TXTVAR1=TXTVAR1:" ":INTLAC:" ":"Lac"
+        END
+
+        IF LEN(INTTHOUSAND) EQ 0 THEN
+            TXTVAR1=TXTVAR1:" ":INTTHOUSAND:"":""
+        END ELSE
+            TXTVAR1=TXTVAR1:" ":INTTHOUSAND:" ":"Thousand"
+        END
+
+        IF LEN(INTHUNDRED) EQ 0 THEN
+            TXTVAR1=TXTVAR1:" ":INTHUNDRED:"":""
+        END ELSE
+            TXTVAR1=TXTVAR1:" ":INTHUNDRED:" ":"Hundred"
+        END
+
+        TXTVAR1=TXTVAR1:" ":INTREST:" ":"Taka"
+
+        IF LEN(INTDES) EQ 0 THEN
+            TXTVAR1=TXTVAR1:""
+        END ELSE
+            TXTVAR1=TXTVAR1:" ":"and":" ":INTDES:" ":"Paisa"
+        END
+        DEBUG
+        TXTOUT = TXTVAR1
+        IF APPLICATION EQ 'TELLER' THEN
+            CALL GET.LOC.REF("TELLER","IN.WORDS",Y.TT.WORDS.POS)
+            R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.WORDS.POS> = TXTOUT
+        END ELSE
+            IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+                CALL GET.LOC.REF("FUNDS.TRANSFER","IN.WORDS",Y.FT.WORDS.POS)
+                R.NEW(FT.LOCAL.REF)<1,Y.FT.WORDS.POS> = TXTOUT
+            END
+        END
+        TT = ''
+        TY = ''
+    END
+
+    RETURN
+END

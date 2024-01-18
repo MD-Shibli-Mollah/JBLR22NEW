@@ -1,0 +1,74 @@
+    SUBROUTINE SMS.TEMP.APP.ID
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.SMS.TEMPLATE.DEFINE
+    $INSERT GLOBUS.BP I_F.STANDARD.SELECTION
+
+    FN.SS = 'F.STANDARD.SELECTION'
+    F.SS = ''
+    R.SS = ''
+
+    CALL OPF(FN.SS,F.SS)
+    CALL F.READ(FN.SS,ID.NEW,R.SS,F.SS,ERR.SS)
+
+    IF R.NEW(EB.SMS7.SMS.EVENT) EQ '' THEN
+        SMS.EVENT.NO = 1
+    END
+    ELSE
+        SMS.EVENT.NO = DCOUNT(R.NEW(EB.SMS7.SMS.EVENT),@VM)
+    END
+
+    FOR J=1 TO SMS.EVENT.NO
+        SMS.VAR.LIST = R.NEW(EB.SMS7.SMS.VARIABLE)<1,J>
+
+        IF SMS.VAR.LIST EQ '' THEN
+            SMS.VAR.NO = 1
+        END
+        ELSE
+            SMS.VAR.NO = DCOUNT(SMS.VAR.LIST,@SM)
+        END
+
+        FOR I=1 TO SMS.VAR.NO
+            SMS.VAR = FIELD(SMS.VAR.LIST,@SM,I)
+            LOCATE SMS.VAR IN R.SS<SSL.SYS.FIELD.NAME,1> SETTING POS1 THEN
+                IF SMS.VAR NE '@ID' AND (R.SS<SSL.SYS.FIELD.NO,POS1> EQ 0 OR R.SS<SSL.SYS.FIELD.NO,POS1> EQ '@ID') THEN
+                    AF = EB.SMS7.SMS.VARIABLE
+                    AV = J
+                    AS = I
+                    ETEXT = 'INTERNAL FIELD NOT ALLOWED'
+                    CALL STORE.END.ERROR
+                END
+            END
+            ELSE
+                IF SMS.VAR NE '' THEN
+                    AF = EB.SMS7.SMS.VARIABLE
+                    AV = J
+                    AS = I
+                    ETEXT = 'FIELD NOT FOUND IN STANDARD.SELECTION'
+                    CALL STORE.END.ERROR
+                END
+            END
+        NEXT
+
+        R.NEW(EB.SMS7.APPLICATION) = ID.NEW
+
+        IF R.NEW(EB.SMS7.SMS.TARGET)<1,J> EQ '' THEN
+            AF = EB.SMS7.SMS.TARGET
+            AV = J
+            ETEXT = 'CAN NOT BE NULL'
+            CALL STORE.END.ERROR
+        END
+        ELSE
+            LOCATE FIELD(R.NEW(EB.SMS7.SMS.TARGET),@VM,J) IN R.SS<SSL.SYS.FIELD.NAME,1> SETTING POS2 THEN
+            END
+            ELSE
+                AF = EB.SMS7.SMS.TARGET
+                AV = J
+                ETEXT = 'MUST BE AN APPLICATION FILED'
+                CALL STORE.END.ERROR
+            END
+        END
+    NEXT
+    RETURN
+END

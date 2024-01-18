@@ -1,0 +1,47 @@
+*************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>-10</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE  JBL.B.LOAN.LEDGER.REP.SELECT
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This batch routine is used to select all the LD Contracts
+*-------------------------------------------------------------------------
+*Parameter Description : Not Applicable
+*--------- -----------
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*---------------------------------------------------------------------
+*Called Subroutines: Not Applicable
+*------ ------------
+*Routine Name:             Local/Core:     Description:
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 14/02/2011 -                            New   - Shiva Shankar G
+*                                                 Thesys Technologies
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE JBL.BP I_JBL.B.LOAN.LEDGER.REP.COMMON
+
+    GOSUB PROCESS
+
+    RETURN
+*--------------------------------------------------------------------------
+PROCESS:
+*----------
+
+  SEL.CMD = "SELECT ":FN.LD.LOANS.AND.DEPOSITS
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'','','')
+
+    CALL BATCH.BUILD.LIST('',SEL.LIST)
+
+    RETURN
+*---------------------------------------------------------------------------------
+END

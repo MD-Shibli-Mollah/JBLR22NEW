@@ -1,0 +1,62 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.GET.ACCT.CCY
+*----------------------------------------------------------------------------------------------
+* Author        : Kiran Ghanathe
+* Description   : Attached as field validation Routine to get the account currency
+*                 and defalut in the currency field.
+*----------------------------------------------------------------------------------------------
+!
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.TELLER
+    $INSERT I_F.FUNDS.TRANSFER
+!
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT, F.ACCOUNT)
+!
+    IF APPLICATION EQ "TELLER" THEN
+        GOSUB GET.TT.VALUES
+    END
+!
+    IF APPLICATION EQ "FUNDS.TRANSFER" THEN
+        GOSUB GET.FT.VALUES
+    END
+
+    RETURN
+!
+GET.FT.VALUES:
+***************
+!
+    IF PGM.VERSION NE ",JBL.SELL.SANCHAYA.PATRA" THEN
+        Y.ACCT.NO = R.NEW(FT.DEBIT.ACCT.NO)
+    END ELSE
+        Y.ACCT.NO = COMI
+    END
+    CALL F.READ(FN.ACCOUNT, Y.ACCT.NO, R.ACC, F.ACCOUNT, AC.ERR)
+    IF R.ACC THEN
+        Y.ACCT.CCY = R.ACC<AC.CURRENCY>
+        R.NEW(FT.DEBIT.CURRENCY) = Y.ACCT.CCY
+    END
+!
+    RETURN
+
+GET.TT.VALUES:
+***************
+    IF PGM.VERSION NE ",JBL.SELL.SANCHAYA.PATRA" THEN
+        Y.ACCT.NO = R.NEW(TT.TE.ACCOUNT.1)
+    END ELSE
+        Y.ACCT.NO = COMI
+    END
+    CALL F.READ(FN.ACCOUNT, Y.ACCT.NO, R.ACC, F.ACCOUNT, AC.ERR)
+    IF R.ACC THEN
+        Y.ACCT.CCY = R.ACC<AC.CURRENCY>
+        R.NEW(TT.TE.CURRENCY.1) = Y.ACCT.CCY
+    END
+!
+    RETURN
+
+END

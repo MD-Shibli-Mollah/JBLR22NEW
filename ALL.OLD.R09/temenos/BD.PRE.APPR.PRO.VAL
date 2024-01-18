@@ -1,0 +1,12 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.PRE.APPR.PRO.VAL
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT I_F.BD.APPROVAL.PROCESS
+
+
+    Y.TOTAL=R.NEW(LC.BD.91.OBTAINED.SCORE)
+    R.NEW(LC.BD.91.TOTAL) = SUM(Y.TOTAL)
+    RETURN

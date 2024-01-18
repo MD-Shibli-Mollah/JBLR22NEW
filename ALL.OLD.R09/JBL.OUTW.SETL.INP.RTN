@@ -1,0 +1,69 @@
+!PROGRAM JBL.OUTW.SETL.INP.RTN
+*****************************************************************************************
+*Developed By: Md. Aminul Islam (Datasoft Systems)                                      *
+*This routine is attachedte to version FUNDS.TRANSFER,RTGS.OUTW.CLEAR.SETTLE            *
+*to validate                                                                            *
+*Date:2016/01/12                                                                        *
+*****************************************************************************************
+    SUBROUTINE JBL.OUTW.SETL.INP.RTN
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT JBL.BP I_F.BD.RTGS.PARAM
+
+    IF V$FUNCTION NE 'I' THEN
+        RETURN
+    END
+    GOSUB INIT
+    GOSUB OPEN.FILE
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.FT = 'F.FUNDS.TRANSFER'                 ;F.FT = ''
+    FN.FT.NAU = 'F.FUNDS.TRANSFER$NAU'         ;F.FT.NAU = ''
+    FN.AC = 'F.ACCOUNT'                        ;F.AC=''
+    FN.RT.PARM = 'F.EB.BD.RTGS.PARAM'          ;F.RT.PARM = ''
+    Y.NAU.AMT = 0
+    RETURN
+
+OPEN.FILE:
+
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.NAU,F.FT.NAU)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.RT.PARM,F.RT.PARM)
+    RETURN
+
+PROCESS:
+
+    Y.AC.ID = R.NEW(FT.DEBIT.ACCT.NO)
+    Y.DEBIT.AMT = R.NEW(FT.DEBIT.AMOUNT)
+    CALL F.READ(FN.AC,Y.AC.ID,REC.AC,F.AC,ERR.AC)
+    Y.WORKING.BALANCE = REC.AC<AC.WORKING.BALANCE>
+
+    SEL.CMD = 'SELECT ':FN.FT.NAU:' WITH CO.CODE EQ ':ID.COMPANY
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,Y.ERR)
+
+    LOOP
+        REMOVE FT.ID FROM SEL.LIST SETTING POS
+    WHILE FT.ID : POS
+        CALL F.READ(FN.FT.NAU,FT.ID,REC.FT.NAU,F.FT.NAU,ERR.FT.NAU)
+        Y.TEMP.DEBIT.ACCT = REC.FT.NAU<FT.DEBIT.ACCT.NO>
+        IF Y.TEMP.DEBIT.ACCT EQ Y.AC.ID THEN
+            Y.NAU.AMT = REC.FT.NAU<FT.DEBIT.AMOUNT> + Y.NAU.AMT
+        END
+    REPEAT
+
+    Y.TOT.DR.AMT = Y.DEBIT.AMT + Y.NAU.AMT
+!To check unauthorised OD for settlement account
+    IF Y.WORKING.BALANCE LT Y.TOT.DR.AMT THEN
+        AF = FT.DEBIT.AMOUNT
+        ETEXT = 'Unauthorised overdraft not possible'
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    RETURN
+END

@@ -1,0 +1,158 @@
+**************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>910</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VAL.PD.SUITE.FILE
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+*   PURPOSE TO Open an PD.PAYMENT.DUE with suite file is set to 'Y' then other
+*   fields is to Enable else Disable.
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*
+* <parameter description if used>
+*
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+*Variable name:   Insert file:          Description:
+* TODAY            I_COMMON              Will hold Todays date used for
+*                                        writing in flat file
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:     Description:
+*NA
+*
+*<Description of the arguments>
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 07/02/2011 -                            New   - MOHAN
+*                                                 Thesys Technologies
+**************************************************************************
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.PD.PAYMENT.DUE
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+
+INITIALISE:
+
+    FN.PD.PAYMENT.DUE = 'F.PD.PAYMENT.DUE'
+    FV.PD.PAYMENT.DUE = ''
+    CALL OPF(FN.PD.PAYMENT.DUE,FV.PD.PAYMENT.DUE)
+
+    RETURN
+
+PROCESS:
+
+    SYS.DATE = TODAY
+    Y.APPL.NAME = 'PD.PAYMENT.DUE'
+    Y.FLD.LIST = 'NATURE.OF.SUIT':VM:'SUIT.NUMBER':VM:'SUIT.FILE.DATE':VM:'COURT.NAME':VM:'NEXT.HEARING.DT':VM:'SUIT.CLAIM.AMT':VM:'LAWYER.NAME':VM:'MOBILE.NUMBER':VM:'REMARKS.SF'
+    Y.FLD.POS = ''
+    CALL MULTI.GET.LOC.REF(Y.APPL.NAME,Y.FLD.LIST,Y.FLD.POS)
+    Y.NATURE.OF.SUIT.POS = Y.FLD.POS<1,1>
+    Y.SUITE.NUMBER.POS = Y.FLD.POS<1,2>
+    Y.SUIT.FILE.DATE = Y.FLD.POS<1,3>
+    Y.COURT.NAME = Y.FLD.POS<1,4>
+    Y.NT.HEAR.DATE = Y.FLD.POS<1,5>
+    Y.SUIT.CLAIM.AMT = Y.FLD.POS<1,6>
+    Y.LAWYER.NAME = Y.FLD.POS<1,7>
+    Y.MOBILE.NUMBER = Y.FLD.POS<1,8>
+    Y.REMARKS = Y.FLD.POS<1,9>
+    Y.SUIT.FI = COMI
+
+    IF Y.SUIT.FI EQ 'YES' THEN
+        IF R.NEW(PD.LOCAL.REF)<1,Y.NATURE.OF.SUIT.POS> EQ '' THEN
+            ETEXT = 'PD-INPUT'
+            AF = PD.LOCAL.REF
+            AV = Y.NATURE.OF.SUIT.POS
+            CALL STORE.END.ERROR
+        END
+        ELSE IF R.NEW(PD.LOCAL.REF)<1,Y.SUITE.NUMBER.POS> EQ '' THEN
+            ETEXT = 'PD-INPUT'
+            AF = PD.LOCAL.REF
+            AV = Y.SUITE.NUMBER.POS
+            CALL STORE.END.ERROR
+        END
+        ELSE IF R.NEW(PD.LOCAL.REF)<1,Y.SUIT.FILE.DATE> EQ '' THEN
+            ETEXT = 'PD-INPUT'
+            AF = PD.LOCAL.REF
+            AV = Y.SUIT.FILE.DATE
+            CALL STORE.END.ERROR
+        END
+        ELSE IF R.NEW(PD.LOCAL.REF)<1,Y.COURT.NAME> EQ '' THEN
+            ETEXT = 'PD-INPUT'
+            AF = PD.LOCAL.REF
+            AV = Y.COURT.NAME
+            CALL STORE.END.ERROR
+        END
+        ELSE IF R.NEW(PD.LOCAL.REF)<1,Y.NT.HEAR.DATE> EQ '' THEN
+            ETEXT = 'PD-INPUT'
+            AF = PD.LOCAL.REF
+            AV = Y.NT.HEAR.DATE
+            CALL STORE.END.ERROR
+        END
+        ELSE IF R.NEW(PD.LOCAL.REF)<1,Y.SUIT.CLAIM.AMT> EQ '' THEN
+            ETEXT = 'PD-INPUT'
+            AF = PD.LOCAL.REF
+            AV = Y.SUIT.CLAIM.AMT
+            CALL STORE.END.ERROR
+        END
+        ELSE IF R.NEW(PD.LOCAL.REF)<1,Y.LAWYER.NAME> EQ '' THEN
+            ETEXT = 'PD-INPUT'
+            AF = PD.LOCAL.REF
+            AV = Y.LAWYER.NAME
+            CALL STORE.END.ERROR
+        END
+        ELSE IF R.NEW(PD.LOCAL.REF)<1,Y.NT.HEAR.DATE> LT SYS.DATE THEN
+            ETEXT = 'EB-DATE.LESS.THAN.SYSTEM.DATE'
+            AF = PD.LOCAL.REF
+            AV = Y.NT.HEAR.DATE
+            CALL STORE.END.ERROR
+        END
+    END
+
+    CALL REFRESH.FIELD(PD.LOCAL.REF,'')
+
+*    IF R.NEW(PD.LOCAL.REF)<1,Y.NT.HEAR.DATE> LT SYS.DATE THEN
+*        ETEXT = 'EB-DATE.LESS.THAN.SYSTEM.DATE'
+*        AF = PD.LOCAL.REF
+*        AV = Y.NT.HEAR.DATE
+*        CALL STORE.END.ERROR
+*    END
+
+    IF Y.SUIT.FI EQ 'NO' THEN
+        T.LOCREF<Y.NATURE.OF.SUIT.POS,7> = "NOINPUT"
+        T.LOCREF<Y.SUITE.NUMBER.POS,7>  = "NOINPUT"
+        T.LOCREF<Y.SUIT.FILE.DATE,7> = "NOINPUT"
+        T.LOCREF<Y.COURT.NAME,7> = "NOINPUT"
+        T.LOCREF<Y.NT.HEAR.DATE,7> = "NOINPUT"
+        T.LOCREF<Y.SUIT.CLAIM.AMT,7> = "NOINPUT"
+        T.LOCREF<Y.LAWYER.NAME,7> = "NOINPUT"
+        T.LOCREF<Y.MOBILE.NUMBER,7> = "NOINPUT"
+        T.LOCREF<Y.REMARKS,7> = "NOINPUT"
+        R.NEW(PD.LOCAL.REF)<1,Y.NT.HEAR.DATE> = " "
+        R.NEW(PD.LOCAL.REF)<1,Y.NATURE.OF.SUIT.POS> = " "
+        R.NEW(PD.LOCAL.REF)<1,Y.SUITE.NUMBER.POS> = " "
+        R.NEW(PD.LOCAL.REF)<1,Y.SUIT.FILE.DATE> = " "
+        R.NEW(PD.LOCAL.REF)<1,Y.COURT.NAME> = " "
+        R.NEW(PD.LOCAL.REF)<1,Y.SUIT.CLAIM.AMT> = " "
+        R.NEW(PD.LOCAL.REF)<1,Y.LAWYER.NAME> = " "
+        R.NEW(PD.LOCAL.REF)<1,Y.MOBILE.NUMBER> = " "
+        R.NEW(PD.LOCAL.REF)<1,Y.REMARKS> = " "
+    END
+
+
+    RETURN
+*********************************************************************************
+END

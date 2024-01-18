@@ -1,0 +1,72 @@
+**************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>80</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VAL.MODE
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+*  PURPOSE:The routine is used to populate the values into the LOCA.REF
+* field Mode Of Oper from the field Mode of Oper of ACCOUNT Application
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*
+* <parameter description if used>
+*
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+*Variable name:   Insert file:          Description:
+*
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:     Description:
+* MULTI.GET.LOC.REF        Core
+*
+*<Description of the arguments>
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 31/01/2011 -                            New   - SRIDHAR PRASAD
+*                                                 Thesys Technologies
+**************************************************************************
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.TELLER
+
+    FN.ACCOUNT = 'F.ACCOUNT'
+    FV.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT,FV.ACCOUNT)
+
+    FN.TELLER = 'F.TELLER'
+    FV.TELLER = ''
+    CALL OPF(FN.TELLER,FV.TELLER)
+
+    Y.ACC.ID = COMI
+    Y.APPL.NAME = 'ACCOUNT':FM:'FUNDS.TRANSFER':FM:'TELLER'
+    Y.FLD.LIST = 'MODE.OF.OPER':FM:'MODE.OF.OPER':FM:'MODE.OF.OPER'
+    Y.FLD.POS = ''
+    CALL MULTI.GET.LOC.REF(Y.APPL.NAME,Y.FLD.LIST,Y.FLD.POS)
+    Y.MODE.OPER.AC = Y.FLD.POS<1,1>
+    Y.MODE.OPER.FT = Y.FLD.POS<2,1>
+    Y.MODE.OPER.TT = Y.FLD.POS<3,1>
+    CALL F.READ(FN.ACCOUNT,Y.ACC.ID,R.ACCOUNT,FV.ACCOUNT,ERR)
+
+    IF ERR THEN RETURN
+
+    Y.MODE.OPER = R.ACCOUNT<AC.LOCAL.REF,Y.MODE.OPER.AC>
+
+    BEGIN CASE
+    CASE APPLICATION EQ 'FUNDS.TRANSFER'
+        R.NEW(FT.LOCAL.REF)<1,Y.MODE.OPER.FT> = Y.MODE.OPER
+    CASE APPLICATION EQ 'TELLER'
+        R.NEW(TT.TE.LOCAL.REF)<1,Y.MODE.OPER.TT> = Y.MODE.OPER
+    END CASE
+    RETURN
+END

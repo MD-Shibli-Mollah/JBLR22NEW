@@ -1,0 +1,59 @@
+***********************
+* DEV: MONWAR HOSSAIN
+* LIVE DATE: 21-09-2016
+*****************
+
+    SUBROUTINE JBL.INPUT.TP
+!PROGRAM JBL.INPUT.TP
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT BP I_F.EB.JBL.DCC.TP
+
+    F.FLAG = ''
+    P.FLAG = ''
+!DEBUG
+    Y.NO.TXN.MON= R.NEW(EB.JBL52.NO.TXN.MON)
+    Y.MAX.TXN.AMT = R.NEW(EB.JBL52.MAX.TXN.AMT)
+
+    Y.MON=DCOUNT(Y.NO.TXN.MON,@VM)
+
+!Y.WITH.NO.TXN.MON= R.NEW (EB.JBL52.WITH.NO.TXN.MON)
+!Y.WITH.MAX.TXN.AM = R.NEW (EB.JBL52.WITH.MAX.TXN.AM)
+
+!Y.WITH.MON=DCOUNT(Y.WITH.NO.TXN.MON,@VM)
+
+    FOR I = 1 TO Y.MON
+        IF (Y.NO.TXN.MON)<1,I> NE '' AND (Y.MAX.TXN.AMT<1,I>) NE '' THEN
+            F.FLAG = 0
+            BREAK
+        END
+
+        ELSE
+            F.FLAG = 1
+        END
+    NEXT  I
+    IF F.FLAG EQ '1' THEN
+        AF = EB.JBL52.DEP.PARTICULARS
+        AV = 1
+        ETEXT = 'At Least One Input Required for Deposit Portion ......'
+        CALL STORE.END.ERROR
+    END
+**************************WITHDRAW PORTION OMIT*****************************
+!FOR J = 1 TO Y.WITH.MON
+!IF (Y.WITH.NO.TXN.MON)<1,J> NE '' AND (Y.WITH.MAX.TXN.AM<1,J>) NE '' THEN
+!P.FLAG = 0
+!BREAK
+!END
+!ELSE
+!P.FLAG = 1
+!END
+!NEXT J
+!IF P.FLAG EQ '1' THEN
+!AF = EB.JBL52.WITH.PARTICULAR
+!AV = 1
+!ETEXT = 'At Least One Input Required for Withdraw Portion......'
+!CALL STORE.END.ERROR
+!END
+********************************END WITHDRAW PORTION OMIT**********************
+    RETURN
+END

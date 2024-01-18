@@ -1,0 +1,63 @@
+    SUBROUTINE TTTI.CK
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.TELLER.ID
+    $INSERT BP I_F.TT.TELLER.ID
+    $INSERT BP I_F.USER.MGT
+
+    FN.TT = 'F.TELLER'
+    F.TT = ''
+    FN.TI = 'F.TELLER.ID'
+    F.TI = ''
+    FN.TU = 'F.TELLER.USER'
+    F.TU = ''
+    FN.TTI = 'F.TT.TELLER.ID'
+    F.TTI = ''
+    FN.U = 'F.EB.USER.MGT'
+    F.U = ''
+
+    CALL OPF(FN.U,F.U)
+    CALL OPF(FN.TTI,F.TTI)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.TI,F.TI)
+    CALL OPF(FN.TU,F.TU)
+
+    Y.VER.ID=APPLICATION:PGM.VERSION
+    IF Y.VER.ID EQ 'TELLER,LCY.TILLTFR' OR Y.VER.ID EQ 'TELLER,FCY.TILLTFR' THEN
+        CALL F.READ(FN.TU,OPERATOR,R.TU,F.TU,ERR.TU)
+        IF R.TU<1> EQ R.NEW(TT.TE.TELLER.ID.1) OR R.TU<1> EQ R.NEW(TT.TE.TELLER.ID.2) THEN
+        END
+        ELSE
+            AF = 0
+            CALL F.READ(FN.TI,R.TU<1>,R.TI,F.TI,ERR.TI)
+            IF R.TI EQ '' THEN ETEXT = 'Authoriser must have Teller ID.' ELSE ETEXT = R.TU<1>:' must be placed in Teller IDs.'
+            CALL STORE.END.ERROR
+            RETURN
+        END
+    END
+    IF Y.VER.ID EQ 'TT.TELLER.ID,INPUT' OR Y.VER.ID EQ 'TT.TELLER.ID,VAULT' THEN
+        Y.AUTH = OPERATOR
+        SEL.CMD = 'SELECT ':FN.U:' WITH USER.ID EQ ':Y.AUTH
+        CALL EB.READLIST(SEL.CMD, SEL.LIST, F.U, NO.OF.REC, RET.CODE)
+        CALL F.READ(FN.U,SEL.LIST<1>,R.U,F.U,RET.U)
+        Y.AUTH.ROLE = R.U<EB.USE61.EMP.ROLE>
+        IF Y.AUTH.ROLE NE 'MANAGER' THEN
+            Y.INPR = FIELD(R.NEW(TTTI.INPUTTER),'_',2)
+            SEL.CMD = 'SELECT ':FN.U:' WITH USER.ID EQ ':Y.INPR
+            CALL EB.READLIST(SEL.CMD, SEL.LIST, F.U, NO.OF.REC, RET.CODE)
+            CALL F.READ(FN.U,SEL.LIST<1>,R.U,F.U,RET.U)
+            Y.INPR.ROLE = R.U<EB.USE61.EMP.ROLE>
+            IF Y.INPR.ROLE EQ 'MANAGER' THEN Y.MROL = 1
+        END
+        ELSE Y.MROL = 1
+
+        IF Y.MROL NE 1 THEN
+            AF = 0
+            ETEXT = 'Inputter or Authoriser Role must be Manager.'
+            CALL STORE.END.ERROR
+            RETURN
+        END
+    END
+    RETURN
+END 

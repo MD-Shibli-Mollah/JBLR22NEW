@@ -1,0 +1,80 @@
+*-----------------------------------------------------------------------------
+* <Rating>250</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.SMS.IC(Y.REC.ID)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+
+    $INSERT JBL.BP/REPGEN MT.SMS.IC.VARS
+
+    CALL F.READ(FN.STMT,Y.REC.ID,R.STMT,F.STMT,ERR.STMT)
+
+    Y.SYSTEM.ID = R.STMT<AC.STE.SYSTEM.ID>
+
+    IF Y.SYSTEM.ID EQ 'IC2' OR Y.SYSTEM.ID EQ 'IC4' THEN
+
+        Y.ACCOUNT.NUMBER = R.STMT<AC.STE.ACCOUNT.NUMBER>
+        CALL F.READ(FN.ACCT,Y.ACCOUNT.NUMBER,R.ACCT,F.ACCT,ERR.ACCT)
+        IF R.ACCT THEN
+            Y.CUSTOMER.ID = R.ACCT<AC.CUSTOMER>
+            CALL F.READ(FN.CUS,Y.CUSTOMER.ID,R.CUS,F.CUS,ERR.CUS)
+
+            Y.SMS.ALERT = R.CUS<EB.CUS.LOCAL.REF,Y.SMS.ALERT.POS>
+            MOBILE.NO = R.CUS<EB.CUS.SMS.1>
+
+            IF Y.SMS.ALERT EQ 'Y' AND MOBILE.NO NE '' THEN
+
+                Y.CURRENCY = R.ACCT<AC.CURRENCY>
+                Y.CUR.BAL = Y.CURRENCY:ABS(R.ACCT<AC.ONLINE.ACTUAL.BAL>)
+
+                TEMP.SMS.VAR = Y.ACCOUNT.NUMBER[LEN(Y.ACCOUNT.NUMBER)-3,4]
+                Y.ACCT.MASK = FMT(TEMP.SMS.VAR,'R*':LEN(Y.ACCOUNT.NUMBER) - 8)
+                Y.DATE.TIME = OCONV(OCONV(DATE(),'D2'),"MCT"):' ':OCONV(TIME(),'MTS')
+
+
+                Y.INT.AMNT = ABS(R.STMT<AC.STE.AMOUNT.LCY>)
+                Y.ID = R.STMT<AC.STE.TRANS.REFERENCE>
+
+                Y.MOB.LEN = DCOUNT(MOBILE.NO,@VM)
+                Y.DR.CR = ''
+                IF Y.SYSTEM.ID EQ 'IC2' THEN
+                    Y.DR.CR = 'credited'
+                END
+
+                IF Y.SYSTEM.ID EQ 'IC4' THEN
+                    Y.DR.CR = 'debited'
+                END
+
+                SMS.BUILD = 'Your Janata Bank account ':Y.ACCT.MASK:' has been ':Y.DR.CR:' ':Y.CURRENCY:Y.INT.AMNT:' as interest at ':Y.DATE.TIME:'. Current balance is ':Y.CUR.BAL:'. Thanks|1|8'
+
+                FOR Y=1 TO Y.MOB.LEN
+                    Y.MOBILE.NO = FIELD(MOBILE.NO,@VM,Y)
+                    Y.MOBILE.NO = TRIM(Y.MOBILE.NO," ","A")
+                    IF ISDIGIT(Y.MOBILE.NO) AND LEN(Y.MOBILE.NO) EQ 11 THEN
+                        Y.VALID.OPRT = Y.MOBILE.NO[0,3]
+                        LOCATE Y.VALID.OPRT IN Y.VALID.ARRAY SETTING Y.POS THEN
+
+                            SMS.FILE = SMS.DIR:'/':Y.ID:'-':Y:'-':Y.SYSTEM.ID:'.csv'
+                            Y.SMS.BUILD = Y.ID:'-':Y.SYSTEM.ID:"|":Y.MOBILE.NO:"|":SMS.BUILD
+                            SMS.FILE.POINT = ''
+                            OPENSEQ SMS.FILE TO SMS.FILE.POINT ELSE
+                            END
+                            IF SMS.FILE.POINT NE '' THEN
+                                WRITESEQ Y.SMS.BUILD TO SMS.FILE.POINT ELSE
+                                END
+                            END
+                        END
+                    END
+                NEXT Y
+            END
+        END
+    END
+    RETURN
+END

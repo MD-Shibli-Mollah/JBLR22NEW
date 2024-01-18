@@ -1,0 +1,109 @@
+*-----------------------------------------------------------------------------
+* <Rating>-42</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE NOFILE.ACLOCKEDAMT(Y.ARRAY)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.AC.LOCKED.EVENTS
+    $INSERT I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB PROCESS
+    GOSUB GET.HIS
+************************************************************************
+INIT:
+************************************************************************
+
+    FN.LOCKED.EVENTS = "FBNK.AC.LOCKED.EVENTS" ; FBNK.AC.LOCKED.EVENTS = ""
+    CALL OPF(FN.LOCKED.EVENTS,F.LOCKED.EVENTS)
+
+    FN.LOCKED.EVENTS$HIS = "FBNK.AC.LOCKED.EVENTS$HIS" ; FBNK.AC.LOCKED.EVENTS$HIS = ""
+    CALL OPF(FN.LOCKED.EVENTS$HIS,F.AC.LOCKED.EVENTS$HIS)
+
+    LOCATE "FROM.DATE" IN D.FIELDS<1> SETTING Y.DFROM.POS THEN
+        Y.DATE.FROM = D.RANGE.AND.VALUE<Y.DFROM.POS>
+    END
+
+
+    LOCATE "TO.DATE" IN D.FIELDS<1> SETTING Y.DFROM.POS THEN
+        Y.DATE.TO = D.RANGE.AND.VALUE<Y.DFROM.POS>
+    END
+
+    LOCATE "ACCOUNT.NUMBER" IN D.FIELDS<1> SETTING Y.AC.NO.POS THEN
+        Y.ACCOUNT.NO = D.RANGE.AND.VALUE<Y.AC.NO.POS>
+    END
+
+    RETURN
+*************************************************************************
+PROCESS:
+**************************************************************************
+    Y.ID.COM = ID.COMPANY
+    SEL = "SELECT ":FN.LOCKED.EVENTS:" WITH FROM.DATE GE ":Y.DATE.FROM:" AND FROM.DATE LE ":Y.DATE.TO " AND CO.CODE EQ ":Y.ID.COMP
+
+
+
+    CALL EB.READLIST(SEL,SEL.LIST,'',SEL.CNT,Y.SEL.ERR)
+
+    LOOP
+        REMOVE Y.AC.LCK.ID FROM SEL.LIST SETTING Y.SEL.POS
+    WHILE Y.AC.LCK.ID:Y.SEL.POS
+        CALL F.READ(FN.LOCKED.EVENTS,Y.AC.LCK.ID,R.AC.LC.REC,F.LOCKED.EVENTS,Y.ERR.1)
+
+        Y.RECORD.STATUS = R.AC.LC.REC<AC.LCK.RECORD.STATUS>
+        Y.STATUS = ''
+        Y.ACCOUNT.NUMBER = R.AC.LC.REC<AC.LCK.ACCOUNT.NUMBER>
+        Y.CO.CODE = R.AC.LC.REC<AC.LCK.CO.CODE>
+        IF Y.ACCOUNT.NUMBER EQ Y.ACCOUNT.NO OR Y.ACCOUNT.NO EQ "" AND Y.ID.COM EQ Y.CO.CODE THEN
+            Y.STATUS = "BLOCKED"
+            Y.DATE = R.AC.LC.REC<AC.LCK.FROM.DATE>
+            Y.AMT = R.AC.LC.REC<AC.LCK.LOCKED.AMOUNT>
+            Y.SETBY = R.AC.LC.REC<AC.LCK.INPUTTER>
+            Y.INPUT = FIELD(Y.SETBY,'_',2)
+            GOSUB UPDATE
+        END
+    REPEAT
+    RETURN
+*********************************************************************
+GET.HIS:
+**********************************************************************
+    SEL2 = "SELECT ":FN.LOCKED.EVENTS$HIS:" WITH FROM.DATE GE ":Y.DATE.FROM:" AND FROM.DATE LE ":Y.DATE.TO
+    CALL EB.READLIST(SEL2,SEL2.LIST,'',SEL2.CNT,Y.SEL2.ERR)
+
+    LOOP
+        REMOVE Y.LCK.ID FROM SEL2.LIST SETTING Y.SEL2.POS
+    WHILE Y.LCK.ID:Y.SEL2.POS
+        CALL F.READ(FN.LOCKED.EVENTS$HIS,Y.LCK.ID,R.LC.REC,F.AC.LOCKED.EVENTS$HIS,Y.ERR.2)
+        Y.STATUS = ''
+        Y.ACCOUNT.NUMBER = FIELD(R.LC.REC<AC.LCK.ACCOUNT.NUMBER>,';',1)
+        Y.CO.CODE = R.AC.LC.REC<AC.LCK.CO.CODE>
+
+        IF Y.ACCOUNT.NUMBER EQ Y.ACCOUNT.NO OR Y.ACCOUNT.NO EQ "" AND Y.ID.COM EQ Y.CO.CODE THEN
+            Y.RECORD.STATUS = R.LC.REC<AC.LCK.RECORD.STATUS>
+            IF Y.RECORD.STATUS EQ "REVE" THEN
+                Y.STATUS = "UNBLOCKED"
+
+                Y.DATE =R.LC.REC<AC.LCK.DATE.TIME>
+                Y.DATE=OCONV(ICONV(Y.DATE[1,6],"D2/"),'D4Y'):Y.DATE[3,4]
+                Y.AMT = R.LC.REC<AC.LCK.LOCKED.AMOUNT>
+                Y.SETBY = R.LC.REC<AC.LCK.INPUTTER>
+                Y.INPUT = FIELD(Y.SETBY,'_',2)
+            END
+            ELSE
+                Y.STATUS="BLOCKED"
+                Y.DATE = R.LC.REC<AC.LCK.FROM.DATE>
+                Y.AMT = R.LC.REC<AC.LCK.LOCKED.AMOUNT>
+                Y.SETBY = R.LC.REC<AC.LCK.INPUTTER>
+                Y.INPUT = FIELD(Y.SETBY,'_',2)
+            END
+
+            GOSUB UPDATE
+        END
+    REPEAT
+    RETURN
+**************************************************************************
+UPDATE:
+**************************************************************************
+    Y.ARRAY<-1> = Y.ACCOUNT.NUMBER:"*":Y.DATE:"*":Y.STATUS:"*":Y.AMT:"*":Y.INPUT
+    RETURN
+END

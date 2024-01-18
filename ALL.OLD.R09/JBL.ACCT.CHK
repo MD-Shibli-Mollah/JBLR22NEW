@@ -1,0 +1,56 @@
+***********************************************************************************************
+*Purpose: This routine is attachted to VERSION ACCOUNT,BD.CONT.LOAN as a INPUT ROUTINE and    *
+*is used to check that the given account no is lien against any loan account no before        *
+*Developed By: Md. Shafiul Azam(Datasoft Systems Bangladesh Ltd.)                             *
+***********************************************************************************************
+    SUBROUTINE JBL.ACCT.CHK
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.ALTERNATE.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+
+**********
+INIT:
+**********
+    FN.ACC = 'FBNK.ACCOUNT'
+    F.ACC = ''
+    FN.AC.ALT = 'F.ALTERNATE.ACCOUNT'
+    F.AC.ALT = ''
+    CALL GET.LOC.REF('ACCOUNT','LIEN.AGAINST',Y.LIEN.AGAINST.POS)
+    RETURN
+
+**********
+OPENFILES:
+**********
+    CALL OPF(FN.ACC,F.ACC)
+    CALL OPF(FN.AC.ALT,F.AC.ALT)
+    RETURN
+
+*********
+PROCESS:
+*********
+    Y.ACC.ID = R.NEW(AC.LOCAL.REF)<1,Y.LIEN.AGAINST.POS>
+    IF Y.ACC.ID EQ '' THEN RETURN
+    CALL F.READ(FN.ACC,Y.ACC.ID,R.ACC,F.ACC,Y.ERR)
+    IF R.ACC EQ '' THEN
+        CALL F.READ(FN.AC.ALT,Y.ACC.ID,R.ALT.ACC,F.AC.ALT,Y.ALT.ERR)
+        Y.ACC.ID = R.ALT.ACC<1>
+        CALL F.READ(FN.ACC,Y.ACC.ID,R.ACC,F.ACC,Y.ERR)
+    END
+!IF R.ACC EQ ''  THEN
+    IF R.ACC EQ ''  THEN
+        AF = AC.LOCAL.REF
+        AV = Y.LIEN.AGAINST.POS
+        ETEXT = 'Account is missing'
+        CALL STORE.END.ERROR
+    END
+    RETURN
+
+END

@@ -1,0 +1,16 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+******Time Check for File upload*********
+******Developed By: Zakir****************
+******Dated: 21 DEC 2016 ***************
+    SUBROUTINE TIME.CHK.FILE.UPD
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+
+    Y.TIME = OCONV(TIME(), "MT")
+    IF Y.TIME GT '23:30' THEN
+        E="TODAY.TIME.OVER.FOR.FILE.UPLOAD"
+        CALL STORE.END.ERROR
+    END 
+END

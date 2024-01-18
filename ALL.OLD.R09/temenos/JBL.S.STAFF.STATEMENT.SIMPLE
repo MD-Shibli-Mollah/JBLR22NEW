@@ -1,0 +1,311 @@
+*-----------------------------------------------------------------------------
+* <Rating>87</Rating>
+*-----------------------------------------------------------------------------
+!PROGRAM JBL.S.STAFF.STATEMENT.SIMPLE
+    SUBROUTINE JBL.S.STAFF.STATEMENT.SIMPLE(Y.RETURN)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.TRANSACTION
+    $INSERT GLOBUS.BP I_F.ACCOUNT.DEBIT.INT
+    $INSERT GLOBUS.BP I_F.GROUP.DEBIT.INT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.TELLER
+
+    FN.STMT='F.STMT.ENTRY'
+    F.STMT=''
+
+    FN.AC='F.ACCOUNT'
+    F.AC=''
+
+    FN.AC.HIS='F.ACCOUNT$HIS'
+    F.AC.HIS=''
+
+    FN.ADI = 'F.ACCOUNT.DEBIT.INT'
+    F.ADI = ''
+
+    FN.ADI.HIS ='F.ACCOUNT.DEBIT.INT$HIS'
+    F.ADI.HIS = ''
+
+    FN.GDI = 'F.GROUP.DEBIT.INT'
+    F.GDI = ''
+    FN.FT = "F.FUNDS.TRANSFER"
+    F.FT = ""
+    FN.FT.HIS = "F.FUNDS.TRANSFER$HIS"
+    F.FT.HIS = ""
+    FN.TT = "F.TELLER"
+    F.TT = ""
+    FN.TT.HIS = "F.TELLER$HIS"
+    F.TT.HIS = ""
+
+    Y.CODE=""
+
+    Y.AC.ID= ENQ.SELECTION<4,1>
+    Y.FROM.DATE= ENQ.SELECTION<4,2>
+    Y.TODATE= ENQ.SELECTION<4,3>
+
+    Y.COMM.VAL.DT=''
+    Y.COMM.BK.DT=''
+    Y.COMM.NARR=''
+    Y.COMM.MARKER=''
+    Y.COMM.MARKER.DR = ''
+    Y.COMM.MARKER.CR = ''
+    Y.AC.TR.AMT=''
+    Y.AC.RUN.BAL=''
+    Y.AC.OPEN.BAL=''
+    Y.AC.STMT.LIST=''
+    Y.AC.ER=''
+
+    Y.LIQ.TR.AMT=''
+    Y.LIQ.RUN.BAL=''
+    Y.LIQ.OPEN.BAL=''
+    Y.LIQ.STMT.LIST=''
+    Y.LIQ.ER=''
+    Y.COMM.TOTAL=''
+
+    Y.STMT.ID=''
+    REC.STMT=''
+    REC.AC=''
+    Y.TR.NARR=''
+
+    Y.CUS =''
+    Y.CAT=''
+    Y.INSTALL.AMT=''
+    Y.INT.RATE=''
+    Y.LOAN.AMT=''
+    Y.LOAN.START.DATE=''
+    Y.DIS.DATE=''
+
+    Y.SANCTION.ADV=''
+
+    Y.LN.AMT="LOAN.AMOUNT"
+    Y.LN.AMT.POS=''
+    CALL GET.LOC.REF("ACCOUNT",Y.LN.AMT,Y.LN.AMT.POS)
+
+    Y.LN.ST="LOAN.START.DATE"
+    Y.LN.ST.POS=""
+    CALL GET.LOC.REF("ACCOUNT",Y.LN.ST,Y.LN.ST.POS)
+
+    Y.SNC.ADV="SANC.ADV"
+    Y.SNC.ADV.POS=""
+    CALL GET.LOC.REF("ACCOUNT",Y.SNC.ADV,Y.SNC.ADV.POS)
+
+    Y.INST.AMT="INSTALL.AMOUNT"
+    Y.INST.AMT.POS=""
+    CALL GET.LOC.REF("ACCOUNT",Y.INST.AMT,Y.INST.AMT.POS)
+
+    Y.LN.MAT="LOAN.MAT.DATE"
+    Y.LN.MAT.POS=""
+    CALL GET.LOC.REF("ACCOUNT",Y.LN.MAT,Y.LN.MAT.POS)
+
+*******************Customize by Kamran*****************
+    CALL GET.LOC.REF("ACCOUNT",'PR.ASSET.CLASS',Y.PR.ASSET.CLASS.POS)
+*******************************************************
+
+    CALL OPF(FN.STMT,F.STMT)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.ADI,F.ADI)
+    CALL OPF(FN.ADI.HIS,F.ADI.HIS)
+    CALL OPF(FN.GDI,F.GDI)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.TT.HIS,F.TT.HIS)
+
+    CALL  F.READ(FN.AC,Y.AC.ID,REC.AC,F.AC,ERR.AC)
+    IF REC.AC THEN
+    END
+    ELSE
+        CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.AC.ID,REC.AC,YERROR)
+    END
+
+***********************Customize by Kamran******************
+    Y.AC.STATUS =  REC.AC<AC.LOCAL.REF,Y.PR.ASSET.CLASS.POS>
+************************************************************
+
+    Y.LIQ.ID=REC.AC<AC.INTEREST.LIQU.ACCT>
+    Y.CUS =REC.AC<AC.CUSTOMER>
+    Y.CAT=REC.AC<AC.CATEGORY>
+    Y.INSTALL.AMT=REC.AC<AC.LOCAL.REF,Y.INST.AMT.POS>
+    Y.AGC.ID = REC.AC<AC.CONDITION.GROUP>
+    Y.LOAN.AMT=REC.AC<AC.LOCAL.REF,Y.LN.AMT.POS>
+    Y.LOAN.START.DATE=REC.AC<AC.LOCAL.REF,Y.LN.ST.POS>
+    Y.DIS.DATE=REC.AC<AC.LOCAL.REF,Y.LN.MAT.POS>
+    Y.SANCTION.ADV=REC.AC<AC.LOCAL.REF,Y.SNC.ADV.POS>
+
+    GOSUB GET.INT.RATE
+    Y.INT.RATE= Y.DR.INT.RATE
+
+    CALL EB.ACCT.ENTRY.LIST(Y.AC.ID,Y.FROM.DATE,Y.TODATE,Y.AC.STMT.LIST,Y.AC.OPEN.BAL,Y.AC.ER)
+    CALL EB.ACCT.ENTRY.LIST(Y.LIQ.ID,Y.FROM.DATE,Y.TODATE,Y.LIQ.STMT.LIST,Y.LIQ.OPEN.BAL,Y.LIQ.ER)
+
+    Y.AC.RUN.BAL=Y.AC.OPEN.BAL
+    Y.LIQ.RUN.BAL=Y.LIQ.OPEN.BAL
+***********************CUSTOMIZE BY KAMRAN*************
+    Y.COMM.TOTAL = Y.AC.OPEN.BAL
+*******************************************************
+    IF Y.LIQ.STMT.LIST NE '' THEN
+        Y.AC.STMT.LIST=SORT(Y.AC.STMT.LIST:SM:Y.LIQ.STMT.LIST)
+    END
+*******************Customize by Shafiul Azam**************
+    IF Y.AC.STMT.LIST EQ '' THEN
+        Y.AC.RUN.BAL=Y.AC.OPEN.BAL
+        Y.LIQ.RUN.BAL=Y.LIQ.OPEN.BAL
+        Y.COMM.TOTAL = Y.AC.OPEN.BAL + Y.LIQ.RUN.BAL
+        Y.RETURN<-1>=Y.COMM.VAL.DT:"*":Y.COMM.BK.DT:"*":Y.COMM.NARR:"*":Y.COMM.MARKER.DR:"*":Y.COMM.MARKER.CR:"*":Y.AC.TR.AMT:"*":Y.AC.RUN.BAL:"*":Y.LIQ.TR.AMT:"*":Y.LIQ.RUN.BAL:"*":Y.COMM.TOTAL:"*":Y.CUS:"*":Y.CAT:"*":Y.INSTALL.AMT:"*":Y.INT.RATE:"*":Y.LOAN.AMT:"*":Y.LOAN.START.DATE:"*":Y.DIS.DATE:"*":Y.SANCTION.ADV:"*":Y.AC.STATUS
+!                       1                   2               3                 4                     5                 6               7                8                9                 10            11        12            13              14            15               16                   17              18               19                  20
+    END ELSE
+***********************************************************
+        LOOP
+            REMOVE Y.STMT.ID FROM Y.AC.STMT.LIST SETTING STMT.POS
+        WHILE Y.STMT.ID:STMT.POS
+
+            CALL F.READ(FN.STMT,Y.STMT.ID,REC.STMT,F.STMT,ERR.STMT)
+            Y.COMM.VAL.DT=REC.STMT<AC.STE.VALUE.DATE>
+            Y.COMM.BK.DT=REC.STMT<AC.STE.BOOKING.DATE>
+            Y.COMM.NARR=REC.STMT<AC.STE.TRANS.REFERENCE>
+
+*****************************CODE FOR OIBT******************************
+            Y.REF=REC.STMT<AC.STE.TRANS.REFERENCE>
+            Y.APP=REC.STMT<AC.STE.SYSTEM.ID>
+
+            IF Y.REF MATCHES "...\..."  THEN
+                Y.REF=FIELD(Y.REF,"\", 1)
+                IF Y.APP EQ 'FT'  THEN
+                    CALL F.READ(FN.FT,Y.REF,R.FT.REC,F.FT,Y.ERR)
+                    IF R.FT.REC EQ "" THEN
+                        CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.REF,R.FT.REC,Y.ERR)
+                    END
+                    Y.CODE = R.FT.REC<FT.CO.CODE>
+                END
+                ELSE IF Y.APP EQ 'TT'  THEN
+                    CALL F.READ(FN.TT,Y.REF,R.TT.REC,F.TT,Y.ERR)
+                    IF R.TT.REC EQ "" THEN
+                        CALL EB.READ.HISTORY.REC(F.TT.HIS,Y.REF,R.TT.REC,Y.ERR)
+                    END
+                    Y.CODE= R.TT.REC<TT.TE.CO.CODE>
+                END
+                IF Y.REF MATCHES "...;..."  THEN
+                    Y.REF=FIELD(Y.REF, ";", 1)
+                END
+                Y.CODE =RIGHT(Y.CODE,4)
+                Y.COMM.NARR=Y.REF:"\":Y.CODE
+            END
+*******************************************************************
+******************Added to check the a/c 0100000478479*****************
+            Y.COMM.NARR.CHECK=REC.STMT<AC.STE.TRANS.REFERENCE>
+***********************************************************************
+            CHECKFILE1 = 'TRANSACTION': FM:AC.TRA.NARRATIVE: FM: 'L.A'
+            CALL DBR(CHECKFILE1,REC.STMT<AC.STE.TRANSACTION.CODE>,Y.TR.NARR)
+            Y.COMM.NARR=Y.COMM.NARR:VM:Y.TR.NARR
+            IF REC.STMT<AC.STE.THEIR.REFERENCE> NE '' THEN
+                Y.COMM.NARR=Y.COMM.NARR:VM:"Cheque ":REC.STMT<AC.STE.THEIR.REFERENCE>
+            END
+************************************CUSTOMIZED BY KAMRAN*********************************
+            IF REC.STMT<AC.STE.AMOUNT.LCY> GT 0 THEN
+                Y.COMM.MARKER='CR'
+                Y.COMM.MARKER.CR = REC.STMT<AC.STE.AMOUNT.LCY>
+                Y.COMM.MARKER.DR = ''
+            END
+            ELSE
+                Y.COMM.MARKER='DR'
+                Y.COMM.MARKER.DR = (REC.STMT<AC.STE.AMOUNT.LCY>)
+                Y.COMM.MARKER.CR = ''
+            END
+
+            IF REC.STMT<AC.STE.ACCOUNT.NUMBER> EQ Y.AC.ID THEN
+                Y.AC.TR.AMT= Y.AC.TR.AMT + REC.STMT<AC.STE.AMOUNT.LCY>
+                Y.AC.RUN.BAL=Y.AC.RUN.BAL + REC.STMT<AC.STE.AMOUNT.LCY>
+            END
+
+            ELSE
+                Y.LIQ.TR.AMT= Y.LIQ.TR.AMT + REC.STMT<AC.STE.AMOUNT.LCY>
+                Y.LIQ.RUN.BAL=Y.LIQ.RUN.BAL + REC.STMT<AC.STE.AMOUNT.LCY>
+            END
+
+
+!IF REC.STMT<AC.STE.AMOUNT.LCY> EQ '' THEN
+!   Y.COMM.TOTAL = Y.COMM.TOTAL + REC.STMT<AC.STE.AMOUNT.LCY> + Y.LIQ.RUN.BAL
+!END ELSE
+!Y.COMM.TOTAL = Y.AC.RUN.BAL + REC.STMT<AC.STE.AMOUNT.LCY>
+            Y.COMM.TOTAL = Y.AC.RUN.BAL + Y.LIQ.RUN.BAL
+!Y.COMM.TOTAL = Y.AC.RUN.BAL + REC.STMT<AC.STE.AMOUNT.LCY> + Y.LIQ.RUN.BAL
+!END
+
+
+!Y.AC.TR.AMT + Y.LIQ.TR.AMT
+*****************************************END******************************************
+!Y.RETURN<-1>=Y.COMM.VAL.DT:"*":Y.COMM.BK.DT:"*":Y.COMM.NARR:"*":Y.COMM.MARKER:"*":Y.AC.TR.AMT:"*":Y.AC.RUN.BAL:"*":Y.LIQ.TR.AMT:"*":Y.LIQ.RUN.BAL:"*":Y.COMM.TOTAL:"*":Y.CUS:"*":Y.CAT:"*":Y.INSTALL.AMT:"*":Y.INT.RATE:"*":Y.LOAN.AMT:"*":Y.LOAN.START.DATE:"*":Y.DIS.DATE:"*":Y.SANCTION.ADV
+
+            Y.RETURN<-1>=Y.COMM.VAL.DT:"*":Y.COMM.BK.DT:"*":Y.COMM.NARR:"*":Y.COMM.MARKER.DR:"*":Y.COMM.MARKER.CR:"*":Y.AC.TR.AMT:"*":Y.AC.RUN.BAL:"*":Y.LIQ.TR.AMT:"*":Y.LIQ.RUN.BAL:"*":Y.COMM.TOTAL:"*":Y.CUS:"*":Y.CAT:"*":Y.INSTALL.AMT:"*":Y.INT.RATE:"*":Y.LOAN.AMT:"*":Y.LOAN.START.DATE:"*":Y.DIS.DATE:"*":Y.SANCTION.ADV:"*":Y.AC.STATUS
+!                        1                     2                3                  4                    5                6                 7                8                9                 10           11         12            13                14             15                16                17               18              19                  20
+            Y.TR.NARR=''
+!Y.COMM.MARKER.DR = ''
+!Y.COMM.MARKER.CR = ''
+        REPEAT
+
+    END
+
+    RETURN
+
+GET.INT.RATE:
+
+    R.GDI = ''
+    R.ADI = ''
+
+    IF REC.AC AND REC.AC<AC.RECORD.STATUS> NE 'CLOSED' THEN
+        SEL.CMD.DR = "SELECT ":FN.ADI :" WITH @ID LIKE ":Y.AC.ID:"... BY-DSND @ID"
+    END
+    ELSE
+        Y.AC.ID = FIELD(Y.AC.ID,';',1)
+        SEL.CMD.DR = "SELECT ":FN.ADI.HIS :" WITH @ID LIKE ":Y.AC.ID:"... BY-DSND @ID"
+    END
+
+    CALL EB.READLIST(SEL.CMD.DR,SEL.LIST.DR,'',NO.OF.REC.DR,RET.CODE.DR)
+    IF SEL.LIST.DR THEN
+        LOOP
+            REMOVE Y.DR.INT.ID FROM SEL.LIST.DR SETTING POS.DR
+        WHILE Y.DR.INT.ID:POS.DR
+            IF REC.AC AND REC.AC<AC.RECORD.STATUS> NE 'CLOSED' THEN
+                CALL F.READ(FN.ADI,Y.DR.INT.ID,R.ADI,F.ADI,Y.ERR.ADI)
+            END
+            ELSE
+                Y.DR.INT.ID = FIELD(Y.DR.INT.ID,';',1,1)
+                CALL EB.READ.HISTORY.REC(F.ADI.HIS,Y.DR.INT.ID,R.ADI,Y.ERR.ADI)
+            END
+            IF R.ADI THEN
+                Y.DR.INT.RATE = R.ADI<IC.ADI.DR.INT.RATE> + R.ADI<IC.ADI.DR2.INT.RATE>
+***********************************START AT 20180424*****************************************************
+                IF Y.DR.INT.RATE EQ '' THEN
+                    SEL.CMD.GDI = 'SELECT ':FN.GDI:' WITH @ID LIKE ':Y.AGC.ID:'BDT... BY-DSND @ID'
+                    CALL EB.READLIST(SEL.CMD.GDI,SEL.LIST.GDI,'',NO.OF.REC.GDI,ERR.AGC)
+                    LOOP
+                        REMOVE GDI.ID FROM SEL.LIST.GDI SETTING POS2
+                    WHILE GDI.ID:POS2
+                        CALL F.READ(FN.GDI,GDI.ID,R.GDI,F.GDI,Y.ERR.GDI)
+                        Y.DR.INT.RATE = R.GDI<IC.GDI.DR.INT.RATE> + R.GDI<IC.GDI.DR2.INT.RATE>
+                    REPEAT
+                END
+***************************************************END***************************************************
+            END
+            BREAK
+        REPEAT
+    END
+    ELSE
+        SEL.CMD.GDI = 'SELECT ':FN.GDI:' WITH @ID LIKE ':Y.AGC.ID:'BDT... BY-DSND @ID'
+        CALL EB.READLIST(SEL.CMD.GDI,SEL.LIST.GDI,'',NO.OF.REC.GDI,ERR.AGC)
+        LOOP
+            REMOVE GDI.ID FROM SEL.LIST.GDI SETTING POS2
+        WHILE GDI.ID:POS2
+            CALL F.READ(FN.GDI,GDI.ID,R.GDI,F.GDI,Y.ERR.GDI)
+            Y.DR.INT.RATE = R.GDI<IC.GDI.DR.INT.RATE> + R.GDI<IC.GDI.DR2.INT.RATE>
+            BREAK
+        REPEAT
+    END
+    RETURN
+
+END

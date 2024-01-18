@@ -1,0 +1,89 @@
+*-----------------------------------------------------------------------------
+* <Rating>-22</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM BM.SEAT
+*----------------------------.---------------------------------------------
+* Utility to extract and print the I/O in a particular SEAT.RESULTS record.
+* To run enter BM.SEAT <TheNameofYourSeatRecord>.
+* Originally under the name SEAT.IO. Enhancements made by BM Team.
+* This will print out the I/O by subroutine with the details
+* separated by hashes - to enbale you to copy and paste the
+* info into a spreadsheet
+*-------------------------------------------------------------------------
+
+
+*FILE = @SENTENCE[" ",3,1]
+*ID = @SENTENCE[" ",2,1]
+    OPTIONS = @SENTENCE[" ",2,99]       ;* Any options
+    outFileID= ''; LISTID = ''
+
+    line.sep = CHAR(10)
+
+    OPT = '-FILENAME'
+    GOSUB PARSE.OPTIONS
+    SPECIFIC.FILE = OPT.VALUE ;* Looking for a specific file
+    OPT = '-IO'
+    GOSUB PARSE.OPTIONS
+    SPECIFIC.IO = OPT.VALUE   ;* Just interested in reads or writes
+
+*OPT ='-DISPLAY' ;* What type of display
+*GOSUB PARSE.OPTIONS
+*DISPLAY.TYPE = OPT.VALUE  ;* Summary display only?
+
+    OPT = "-S"
+    GOSUB PARSE.OPTIONS
+    FILE=OPT.VALUE
+
+    OPT = "-I"
+    GOSUB PARSE.OPTIONS
+    ID=OPT.VALUE
+
+
+
+    OPT = "-O"
+    GOSUB PARSE.OPTIONS
+
+    IF OPT.VALUE = '' THEN
+        IF ID NE '' THEN
+            outFileID = ID:".HSV"
+        END
+    END ELSE
+        outFileID = OPT.VALUE:".HSV"
+    END
+
+    R.SEAT.REC = ''
+    IF ID = "" THEN
+        OPT = "-L"
+        GOSUB PARSE.OPTIONS
+        LISTID = OPT.VALUE
+        BEGIN CASE
+        CASE LISTID = ''
+            CRT 'BM.SEAT -I=ID -S=FILE -O=OUTFILEID -FILENAME=T24FileName -IO=WRITE -L=ListID'
+        CASE 1
+
+            CALL convertSEAT(FILE,ID,outFileID,SPECIFIC.FILE,SPECIFIC.IO,DISPLAY.TYPE,LISTID,R.SEAT.REC)
+        END CASE
+    END ELSE
+
+        CALL convertSEAT(FILE,ID,outFileID,SPECIFIC.FILE,SPECIFIC.IO,DISPLAY.TYPE,LISTID,R.SEAT.REC)
+    END
+
+    STOP
+*----------------------------------------------------------------------
+PARSE.OPTIONS:
+
+    OPT.IDX = INDEX(UPCASE(OPTIONS),OPT,1)        ;* Look for the option
+    IF OPT.IDX THEN ;* Found the option
+        OPT.VALUE = OPTIONS[OPT.IDX,9999]         ;* Starting with this option
+        OPT.VALUE = OPT.VALUE["=",2,1]  ;* The value
+        OPT.VALUE = OPT.VALUE[" ",1,1]  ;* Drop any hangers on
+    END ELSE
+        OPT.VALUE = ''        ;* Return null - no option set
+    END
+
+    RETURN
+*--------------------------------------------------------------------
+END
+
+
+

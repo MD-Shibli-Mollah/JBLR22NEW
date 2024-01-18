@@ -1,0 +1,36 @@
+****************************************************************************************
+*Purpose: This routine attachted to ENQUIRY RESCHEDULE.LIST as a CONVERSION ROUTINE and*
+*is used to get disbursement date and amount                                           *
+*enhancement & no of renewal                                                           *
+*Developed By: Md. Aminul Islam(Datasoft Systems Ltd.)                                 *
+****************************************************************************************
+    SUBROUTINE GET.DISBURSE.DET
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    Y.ACC.ID = O.DATA
+    FN.STMT = 'F.STMT.ENTRY'
+    F.STMT = ''
+    FN.ACC = 'F.ACCOUNT'
+    F.ACC = ''
+    CALL OPF(FN.STMT,F.STMT)
+    CALL OPF(FN.ACC,F.ACC)
+
+    CALL F.READ(FN.ACC,Y.ACC.ID,R.ACC,F.ACC,Y.ACC.ERR)
+    Y.FROM.DATE = R.ACC<AC.DATE.LAST.DR.CUST>
+    CALL EB.ACCT.ENTRY.LIST(Y.ACC.ID,Y.FROM.DATE,Y.FROM.DATE,Y.AC.STMT.LIST,Y.AC.OPEN.BAL,Y.AC.ER)
+    TOT.STMT.ENTRY = DCOUNT(Y.AC.STMT.LIST,FM)
+    Y.TOT.DISBURSE = 0
+    FOR I = 1 TO TOT.STMT.ENTRY
+        Y.STMT.ID = FIELD(Y.AC.STMT.LIST,FM,I)
+        CALL F.READ(FN.STMT,Y.STMT.ID,R.STMT,F.STMT,Y.STMT.ERR)
+        Y.TRANS.REFERENCE = R.STMT<AC.STE.TRANS.REFERENCE>
+        IF Y.TRANS.REFERENCE[1,2] EQ 'FT' OR Y.TRANS.REFERENCE[1,2] EQ 'TT' THEN
+            Y.TOT.DISBURSE = Y.TOT.DISBURSE + R.STMT<AC.STE.AMOUNT.LCY>
+        END
+    NEXT I
+    O.DATA = Y.FROM.DATE:'*':Y.TOT.DISBURSE
+END

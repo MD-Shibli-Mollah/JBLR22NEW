@@ -1,0 +1,69 @@
+**************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.H.GEN.PARAMETER.VALIDATE
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This is validation routine used to validate the account entered in NRB.ACCOUNT field.
+*-------------------------------------------------------------------------
+*Parameter Description: Not Applicable
+*--------- -----------
+*
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+*Variable name:   Insert file:          Description:
+* TODAY            I_COMMON              Will hold Todays date used for
+*                                        writing in flat file
+*
+*-------------------------------------------------------------------------
+*Called Subroutines: Not Applicable
+*------ ------------
+*Routine Name:             Local/Core:     Description:
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 31/11/2011 -                            New   - Shiva Shankar G
+*                                                 Thesys Technologies
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE JBL.BP I_F.JBL.H.GEN.PARAMETER
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*--------------------------------------------------------------------------
+INITIALISE:
+*----------
+    FN.JBL.H.GEN.PARAMETER = 'F.JBL.H.GEN.PARAMETER'
+    F.JBL.H.GEN.PARAMETER = ''
+    CALL OPF(FN.JBL.H.GEN.PARAMETER,F.JBL.H.GEN.PARAMETER)
+
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    RETURN
+*--------------------------------------------------------------------------------
+PROCESS:
+*-------
+
+    Y.ACCOUNT = R.NEW(JBL.PARAM.NRB.ACCOUNT)
+    CALL F.READ(FN.ACCOUNT,Y.ACCOUNT,R.ACCOUNT,F.ACCOUNT,Y.ACCOUNT.ERR)
+    Y.LIMIT.REF = R.ACCOUNT<AC.LIMIT.REF>
+    IF Y.LIMIT.REF NE 'NOSTRO' THEN
+        ETEXT = 'EB-NOT.VALID.NOSTRO'
+        AF = JBL.PARAM.NRB.ACCOUNT
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+*-------------------------------------------------------------------------
+END

@@ -1,0 +1,76 @@
+*-----------------------------------------------------------------------------
+* <Rating>-66</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.H.BILL.OF.ENTRY.FIELD.DEFINITIONS
+*-------------------------------------------------------------------------
+*
+*-------------------------------------------------------------------------
+* Modification History :
+
+* Modified field names for reports - 14/11/2006
+
+*-------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT       ;* Other Inserts required for Checkfiles, e
+    $INSERT I_F.CUSTOMER
+    $INSERT I_F.SEC.ACC.MASTER
+*-------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB DEFINE.FIELDS
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+DEFINE.FIELDS:
+    ID.F = "IDNAME" ; ID.N = "16" ; ID.T = "A"
+    ID.CHECKFILE="LETTER.OF.CREDIT"
+*
+    Z=0
+
+    Z+=1 ; F(Z) = "LC.NO" ; N(Z) = "25" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "LC.DATE" ; N(Z) = "12" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "CURRENCY" ; N(Z) = "12" ; T(Z) = "A"
+    CHECKFILE(Z)="CURRENCY"
+    Z+=1 ; F(Z) = "LC.VALUE.IN.FC" ;N(Z) = "18" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "XX<BILL.NO" ; N(Z) = "16" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "XX-BILL.DATE" ; N(Z) = "14..C" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "XX-BTB.BILL.AMT.FC"; N(Z) = "18" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "XX-DATE.REMET.MADE" ; N(Z) = "12" ; T(Z) = "D"
+* (S) 14/11/2006    
+    Z+=1 ; F(Z) = "XX-DATE.RECPT.BOE" ; N(Z) = "12..C" ; T(Z) = "D"
+* (E) 14/11/2006    
+    Z+=1 ; F(Z) = "XX-BILL.OF.ENTRY.AMT" ; N(Z) = "16" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "XX-DIFF.BILL.AMT " ; N(Z) = "16" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "XX-PORT.OF.UNLOADING" ; N(Z) = "18" ; T(Z) = "A"
+* (S) 14/11/2006        
+    Z+=1 ; F(Z) = "XX-IMP.NO" ; N(Z) = "15" ; T(Z) = "A"
+* (E) 14/11/2006        
+    Z+=1 ; F(Z) = "XX-DATE.OF.IMP.REPT" ; N(Z) = "16" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "XX-OUTSTANDING.PERIOD" ; N(Z) = "16" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "XX-OVERDUE.PERIOD" ; N(Z) = "16" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "XX>DATE.OF.ORIG.RECPT" ; N(Z) = "16" ; T(Z) = "D"
+
+REM > CHECKFILE(Z) = CHK.ACCOUNT
+*
+    V = Z + 9
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+INITIALISE:
+    MAT F = "" ; MAT N = "" ; MAT T = ""
+    MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+    ID.CHECKFILE = "" ; ID.CONCATFILE = ""
+*
+* Define often used checkfile variables
+*
+    CHK.ACCOUNT = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+    CHK.CUSTOMER = "CUSTOMER":FM:EB.CUS.SHORT.NAME:FM:'.A'
+    CHK.CUSTOMER.SECURITY = "CUSTOMER.SECURITY":FM:0:FM:'':FM:"CUSTOMER"
+    CHK.SAM = "SEC.ACC.MASTER":FM:SC.SAM.ACCOUNT.NAME:FM:'..S'
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+END

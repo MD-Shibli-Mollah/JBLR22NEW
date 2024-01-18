@@ -1,0 +1,61 @@
+*-----------------------------------------------------------------------------
+* <Rating>-77</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.H.BRANCH.CODE.FIELD.DEF
+
+*-------------------------------------------------------------------------
+*
+*-------------------------------------------------------------------------
+* Modification History :
+*-------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT       ;* Other Inserts required for Checkfiles, e
+    $INSERT I_F.CUSTOMER
+    $INSERT I_F.CHEQUE.TYPE
+    $INSERT JBL.BP I_F.JBL.H.ZONAL.CODE
+*-------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB DEFINE.FIELDS
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+DEFINE.FIELDS:
+    ID.F = "BRANCH.CODE" ; ID.N = "5" ; ID.T = "A"
+*
+    Z=0
+
+    Z+=1 ; F(Z) = "BRANCH.NAME" ; N(Z) = "50" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "ZONAL.CODE"  ; N(Z) = "5" ; T(Z) = ""
+    CHECKFILE(Z) = "EB.JBL.H.ZONAL.CODE":FM:EB.JBL86.NAME.OF.ZOZE:FM:"L"
+
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > CHECKFILE(Z) = CHK.ACCOUNT
+*
+    V = Z + 9
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+INITIALISE:
+    MAT F = "" ; MAT N = "" ; MAT T = ""
+    MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+    ID.CHECKFILE = "" ; ID.CONCATFILE = ""
+*
+* Define often used checkfile variables
+*
+    CHK.ACCOUNT = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+    CHK.CUSTOMER = "CUSTOMER":FM:EB.CUS.SHORT.NAME:FM:'.A'
+    CHK.CUSTOMER.SECURITY = "CUSTOMER.SECURITY":FM:0:FM:'':FM:"CUSTOMER"
+    CHK.CHQ.TYPE = "CHEQUE.TYPE":FM:CHEQUE.TYPE.DESCRIPTION:FM:"L"
+
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+END

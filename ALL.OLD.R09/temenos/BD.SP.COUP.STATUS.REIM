@@ -1,0 +1,42 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SP.COUP.STATUS.REIM
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT SP.BP I_F.BD.H.SP.COUPON
+
+    FN.CP.NAU="F.BD.H.SP.COUPON$NAU"
+    F.CP.NAU=""
+
+    CALL OPF(FN.CP.NAU,F.CP.NAU)
+
+    ALL.IDS = DCOUNT(ENQ.KEYS,@FM)
+
+
+    W.ENQ.KEYS = ""
+
+
+    FOR I = 1 TO ALL.IDS
+        CALL F.READ(FN.CP.NAU,ENQ.KEYS<I>,R.CP.REC,F.CP.NAU,Y.ERR)
+
+        IF R.CP.REC EQ "" THEN
+
+            W.ENQ.KEYS<-1> = ENQ.KEYS<I>
+        END
+
+    NEXT I
+        CALL F.READ(FN.CP.NAU,ID,R.CP.REC,F.CP.NAU,Y.ERR)
+    IF  R.CP.REC NE "" THEN
+        LINE =""
+        O.DATA=""
+        R.RECORD=""
+        ID=""
+    END
+    ENQ.KEYS = ""
+    ENQ.KEYS = W.ENQ.KEYS
+
+    RETURN
+END

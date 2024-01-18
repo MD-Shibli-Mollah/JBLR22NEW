@@ -1,0 +1,123 @@
+*-----------------------------------------------------------------------------
+* <Rating>-36</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE NOFILE.E.DD.ISSUES(Y.DD.ISSUE)
+*----------------------------------------------------------------------------
+*
+*SUBROUTINE DESCRIPTION
+***********************
+
+* This is Nofile Enquiry Routine Used to Display the List of DD ISSUED through TELLER
+* and FUNDS TRANSFER
+
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+*
+* 28/07/11  NEW - Amaravthi krithika B
+*
+*-----------------------------------------------------------------------------
+*
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.TELLER
+*
+    GOSUB INIT
+    GOSUB FT.TRANSACTION
+    GOSUB TELLER.TRANSACTION
+    RETURN
+*
+*----------------------------------------------------------------------------
+INIT:
+****
+*----------------------------------------------------------------------------
+    FN.FUNDS.TRANSFER = 'F.FUNDS.TRANSFER'
+    F.FUNDS.TRANSFER =''
+    R.FUNDS.TRANSFER =''
+    CALL OPF(FN.FUNDS.TRANSFER,F.FUNDS.TRANSFER)
+
+    FN.TELLER = 'F.TELLER'
+    F.TELLER =''
+    R.TELLER =''
+    CALL OPF(FN.TELLER,F.TELLER)
+
+    Y.FT.TRANSACTION.TYPE = 'ACDE'      ;* Transaction Type For DD Issued Local in FUNDS.TRANSAFER
+    Y.TT.TRANSACTION.TYPE = '15'        ;* Transaction Type For DD Issued in TELLER
+
+    RETURN
+*
+FT.TRANSACTION:
+***************
+*
+*----------------------------------------------------------------------------
+*Select the DD issued Record from FUNDS.TRANSAFER Using the TRANSACTION.TYPE
+*----------------------------------------------------------------------------
+
+    SEL.CMD ='SELECT ':FN.FUNDS.TRANSFER:' WITH TRANSACTION.TYPE EQ ':Y.FT.TRANSACTION.TYPE
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,Y.ERR)
+
+    LOOP
+        REMOVE Y.FT.ID FROM SEL.LIST SETTING FT.POS
+    WHILE Y.FT.ID:FT.POS
+        CALL F.READ(FN.FUNDS.TRANSFER,Y.FT.ID,R.FUNDS.TRANSFER,F.FUNDS.TRANSFER,Y.FT.ERR)
+
+        Y.DATE.ISSUE =  R.FUNDS.TRANSFER<FT.DEBIT.VALUE.DATE>
+        CALL GET.LOC.REF('FUNDS.TRANSFER','PR.CHEQUE.NO',FLD.POS)
+
+        Y.DD.NUMBER =   R.FUNDS.TRANSFER<FT.LOCAL.REF,FLD.POS>
+        Y.PAY.TO =      R.FUNDS.TRANSFER<FT.PAYMENT.DETAILS>
+        Y.ISSUE.AMOUNT =R.FUNDS.TRANSFER<FT.DEBIT.AMOUNT>
+        Y.COMMISION =   R.FUNDS.TRANSFER<FT.COMMISSION.AMT>
+        Y.COMMISION.TOTAL = Y.COMMISION[4,99]
+        Y.TRANSACTION.REF =Y.FT.ID
+        Y.TOTAL.AMT = Y.ISSUE.AMOUNT + Y.COMMISION.TOTAL
+*
+        Y.DD<-1>=Y.DATE.ISSUE:'*':Y.DD.NUMBER:'*':Y.PAY.TO:'*':Y.ISSUE.AMOUNT:'*':Y.COMMISION:'*':Y.TRANSACTION.REF:'*':Y.TOTAL.AMT:'*':Y.COMMISION.TOTAL
+
+    REPEAT
+    Y.DD.ISSUE<-1> = Y.DD
+    RETURN
+*----------------------------------------------------------------------------
+TELLER.TRANSACTION:
+*******************
+*
+    Y.DATE.ISSUE =''
+    Y.DD.NUMBER =''
+    Y.PAY.TO =''
+    Y.ISSUE.AMOUNT=''
+    Y.COMMISION =''
+    Y.TRANSACTION.REF =''
+    Y.TOTAL.AMT  =''
+    Y.COMMISION.TOTAL=''
+    Y.DD =''
+*----------------------------------------------------------------------------
+* Select the DD Issued Records From the TELLER  Using the TRANSACTION.TYPE
+*----------------------------------------------------------------------------
+*
+    SEL.CMD ='SELECT ':FN.TELLER:' WITH TRANSACTION.CODE EQ ':Y.TT.TRANSACTION.TYPE
+    CALL EB.READLIST(SEL.CMD,SEL.LIST.TT,'',NO.OF.REC,Y.ERR)
+*
+    LOOP
+        REMOVE Y.TT.ID FROM SEL.LIST.TT SETTING TT.POS
+    WHILE Y.TT.ID:TT.POS
+*
+        CALL F.READ(FN.TELLER,Y.TT.ID,R.TELLER,F.TELLER,Y.TT.ERR)
+*
+        Y.DATE.ISSUE =  R.TELLER<TT.TE.VALUE.DATE.1>
+        CALL GET.LOC.REF('TELLER','PR.CHEQUE.NO',TT.POS)
+        Y.DD.NUMBER =   R.TELLER<TT.TE.LOCAL.REF,TT.POS>
+        Y.PAY.TO =      R.TELLER<TT.TE.THEIR.REFERENCE>
+        Y.ISSUE.AMOUNT =R.TELLER<TT.TE.AMOUNT.LOCAL.1>
+        Y.COMMISION =   R.TELLER<TT.TE.CHRG.AMT.LOCAL>
+        Y.COMMISION.TOTAL = Y.COMMISION
+        Y.TRANSACTION.REF =Y.TT.ID
+        Y.TOTAL.AMT = Y.ISSUE.AMOUNT + Y.COMMISION
+*
+        Y.DD<-1>=Y.DATE.ISSUE:'*':Y.DD.NUMBER:'*':Y.PAY.TO:'*':Y.ISSUE.AMOUNT:'*':Y.COMMISION:'*':Y.TRANSACTION.REF:'*':Y.TOTAL.AMT:'*':Y.COMMISION.TOTAL
+
+    REPEAT
+    Y.DD.ISSUE<-1> = Y.DD
+    RETURN
+END

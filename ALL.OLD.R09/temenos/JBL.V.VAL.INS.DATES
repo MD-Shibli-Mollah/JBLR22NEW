@@ -1,0 +1,64 @@
+*-------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-33</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VAL.INS.DATES
+*-------------------------------------------------------------------------------
+* This routine check the value in INS.COVER.DATE and INS.EXPIRY.DATE local fields
+* and validates the record.
+*-------------------------------------------------------------------------------
+* Modification History :
+* --------------------
+* 20110210 - New - Naveen Kumar N
+*-------------------------------------------------------------------------------
+* Common Variables :
+* ----------------
+* R.NEW - Holds the current record values
+* ETEXT - Error Varable in the cross validations
+* AF    - Current Field number at the field validation
+* AV    - Current Value number at the field validation
+* AS    - Current SUB value number at the field validation
+* COMI  - Holds the current inputted field value and used at field validation
+*-------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.COLLATERAL
+*-------------------------------------------------------------------------------
+!---------------Main Para-------------------------------------------------------
+*
+    GOSUB GET.LOC.MULTI.REF
+    GOSUB PROCESS
+    RETURN
+*-------------------------------------------------------------------------------
+GET.LOC.MULTI.REF:
+******************
+! This Gosub is to get the positions for local reference fields used in thos code
+*
+    Y.APPLICATION       = "COLLATERAL"
+    FIELD.NAME          = "INS.COVER.DATE":VM:"INS.EXPIRY.DATE"
+    FIELD.POS           = ""
+    CALL MULTI.GET.LOC.REF(Y.APPLICATION,FIELD.NAME,FIELD.POS)
+*
+    INS.COVER.DATE.POS  = FIELD.POS<1,1>
+    INS.EXPIRY.DATE.POS = FIELD.POS<1,2>
+*
+    RETURN
+*-------------------------------------------------------------------------------
+PROCESS:
+********
+! This gosub is to Check the Expiry Date and Cover Date & also to throw the error
+! when Expiry Date is less than Cover Date.
+*
+    INS.EXPIRY.DATE = COMI
+    INS.COVER.DATE = R.NEW(COLL.LOCAL.REF)<1,INS.COVER.DATE.POS>
+    IF INS.EXPIRY.DATE NE "" AND INS.COVER.DATE NE "" THEN
+        IF INS.EXPIRY.DATE LT INS.COVER.DATE THEN
+            ETEXT = "EB-DATE.MISMATCH"
+            AF    = COLL.LOCAL.REF
+            AV    = INS.EXPIRY.DATE.POS
+            CALL STORE.END.ERROR
+        END
+    END
+    RETURN
+*-------------------------------------------------------------------------------
+END

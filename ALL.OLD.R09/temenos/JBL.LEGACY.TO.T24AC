@@ -1,0 +1,66 @@
+*-----------------------------------------------------------------------------
+* <Rating>-33</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.LEGACY.TO.T24AC(ENQ.DATA)
+! PROGRAM JBL.LEGACY.TO.T24AC
+*
+* * Error Variables:
+* ----------------
+*
+*-----------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INITIALISE
+    GOSUB OPEN.FILES
+    GOSUB PROCESS
+
+    RETURN          ;* Program RETURN
+*-----------------------------------------------------------------------------------
+PROCESS:
+
+    LOCATE "ACCOUNT" IN ENQ.DATA<2,1> SETTING Y.POS THEN
+        Y.AC.ID= ENQ.DATA<4,Y.POS>
+!    DEBUG
+!Y.AC.ID = '0212031S001328'
+        IF Y.AC.ID THEN
+            CALL F.READ(FN.ALT.AC,Y.AC.ID,R.ALT.AC,F.ALT.AC,ERR.ALT)
+
+            IF R.ALT.AC NE "" THEN
+                Y.T24.AC=FIELD(R.ALT.AC,"*",2)
+                CRT Y.T24.AC
+            END ELSE
+                Y.T24.AC= Y.AC.ID
+                CRT Y.T24.AC
+            END
+            CRT Y.T24.AC
+            ENQ.DATA<2,Y.POS> = '@ID'
+            ENQ.DATA<3,Y.POS> = 'CT'
+            ENQ.DATA<4,Y.POS> = Y.T24.AC
+        END
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------------
+INITIALISE:
+
+    Y.AC.ID = ''
+
+    RETURN          ;* From INITIALISE
+*-----------------------------------------------------------------------------------
+OPEN.FILES:
+
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+
+    FN.ALT.AC='F.ACCOUNT.ALT.ACCT.ID'
+    F.ALT.AC=''
+
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.ALT.AC,F.ALT.AC)
+
+    RETURN          ;* From OPEN.FILES
+*-----------------------------------------------------------------------------------
+END

@@ -1,0 +1,29 @@
+*-----------------------------------------------------------------------------
+* <Rating>-11</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM JBL.S.FDR.DR.CHANGE
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.AZ.ACCOUNT
+
+    FN.AZ='F.AZ.ACCOUNT'
+    F.AZ=''
+    REC.AZ=''
+    Y.AZ.ID=''
+    CNT=''
+    CALL OPF(FN.AZ,F.AZ)
+    SEL.CMD="SELECT ":FN.AZ:" WITH REPAY.ACCOUNT LIKE 'BDT...'"
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REF,ERR)
+    LOOP
+        REMOVE Y.AZ.ID FROM SEL.LIST SETTING Y.POS
+
+    WHILE Y.AZ.ID:Y.POS
+        CALL F.READ(FN.AZ,Y.AZ.ID,REC.AZ,F.AZ,ERR.AZ)
+        REC.AZ<AZ.REPAY.ACCOUNT> =REC.AZ<AZ.NOMINATED.ACCOUNT>
+        CALL F.WRITE(FN.AZ,Y.AZ.ID,REC.AZ)
+        CALL JOURNAL.UPDATE('')
+        CNT = CNT + 1
+        PRINT"Process....":CNT
+    REPEAT
+
+END

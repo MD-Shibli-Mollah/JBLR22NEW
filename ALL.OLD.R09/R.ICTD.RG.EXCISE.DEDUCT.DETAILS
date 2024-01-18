@@ -1,0 +1,97 @@
+*-----------------------------------------------------------------------------
+* <Rating>-38</Rating>
+*-----------------------------------------------------------------------------
+*----------------------------------------------------------------------------------
+** Program Information
+
+** Written By : MD IMRAN HASAN
+** Created Date : 2015-11-29
+** Last Modification Date : 2015-12-09
+
+!Generate Maintanance charge deduct report
+!ENQUIRY.REPORT,EXCISE.DUTY I ER.EXCISE.DUTY
+
+** Tools
+!TSM SERVICE - BNK/OFS.MESSAGE.SERVICE
+!TSM SERVICE - BNK/OFS.RESPONSE.QUEUE
+*-----------------------------------------------------------------------------------
+
+    SUBROUTINE R.ICTD.RG.EXCISE.DEDUCT.DETAILS
+!PROGRAM R.ICTD.RG.EXCISE.DEDUCT.DETAILS
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.COMPANY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*----
+INIT:
+*----
+    FN.COMPANY = 'F.COMPANY'
+    F.COMPANY = ''
+
+    RETURN
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.COMPANY,F.COMPANY)
+
+!    OPEN "&SAVEDLISTS&" TO F.SAVEDLISTS ELSE
+!        TEXT ="CANNOT OPEN SAVEDLISTS,PRESS ANY KEY TO EXIT"
+!        CRT TEXT
+!        INPUT USER.CHOICE1
+!        RETURN
+! END
+
+!    READ COMPANY.LIST FROM F.SAVEDLISTS,"REPGEN.COMPANY.LIST" ELSE
+!        TEXT ="CANNOT READ FILE NAME 'REPGEN.LIVE.COMPANY.LIST' FROM SAVEDLISTS,PRESS ANY KEY TO EXIT"
+!        CRT TEXT
+!        INPUT USER.CHOICE2
+!        RETURN
+!    END
+
+
+
+    Y.FILE.DIR = 'JBL.BP/REPGEN'
+    Y.FILE.NAME = 'PARAMETER.EXCISE.DETAILS.SINGLE.txt'
+    Y.FILE = Y.FILE.DIR :'/': Y.FILE.NAME
+
+    RETURN
+*-------
+PROCESS:
+*-------
+
+    OPENSEQ Y.FILE TO F.FILE.POINT THEN
+        LOOP
+            READSEQ Y.RECORD FROM F.FILE.POINT ELSE
+                Y.RECORD = ''
+            END
+        WHILE Y.RECORD
+            Y.REC<-1> = Y.RECORD
+        REPEAT
+
+    END
+    ELSE
+        ETEXT =  "File ":Y.FILE.NAME:" not found at ":Y.FILE.DIR:" Path"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    NO.OF.REC = DCOUNT(Y.REC,@FM)
+
+    FOR I=1 TO NO.OF.REC
+
+        Y.CUR.REC = FIELD(Y.REC,@FM,I)
+        COMP.ID = FIELD(Y.CUR.REC,',',1)
+        Y.CATEG.ID = FIELD(Y.CUR.REC,',',2)
+        Y.V.MESSAGE = "ENQUIRY.REPORT,EXCISE.DUTY/V/PROCESS,//":COMP.ID:",ER.EXCISE.DUTY.":Y.CATEG.ID
+        V.MSG.ID = ''
+        CALL OFS.POST.MESSAGE(Y.V.MESSAGE, V.MSG.ID ,"DM.OFS.SRC.VAL", "DMUSER")
+        CALL JOURNAL.UPDATE ('TEST')
+
+    NEXT I
+
+    RETURN
+END

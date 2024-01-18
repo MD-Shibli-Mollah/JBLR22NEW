@@ -1,0 +1,170 @@
+*-----------------------------------------------------------------------------------------
+*CODER NAME:KH.MONWAR HOSSAIN.
+*CODE PURPOSE:Transaction Profile Validation(Fund Transfer,Deposit and Withdraw).
+*DATE:13-04-2016
+*APPLICATION USE:FUNDS.TRANSFER,ACCOUNT,STMT.ENTRY,TELLER And EB.JBL.DCC.TP
+*FUNCTION USE: OPF(),EB.READLIST(),F.READ(),WRITE(),EB.ACCT.ENTRY.LIST(),R.NEW(),FIELD().
+*FUNCTION USE: DCOUNT(),STORE.OVERRIDE(),IF(),ELSEIF(),ELSE().
+* LIVE DATE: 21-09-2016
+*-----------------------------------------------------------------------------------------
+    SUBROUTINE JBL.TP.VALID
+!PROGRAM JBL.TP.VALID
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT BP I_F.EB.JBL.DCC.TP
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+*------
+INIT:
+*------
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+    FN.TT = 'F.TELLER'
+    F.TT = ''
+    FN.TP = 'F.EB.JBL.DCC.TP'
+    F.TP = ''
+
+    RETURN
+
+*---------
+OPENFILE:
+*---------
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.TP,F.TP)
+
+    RETURN
+
+*---------
+PROCESS:
+*---------
+
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        Y.AC.ID = R.NEW(FT.DEBIT.ACCT.NO)
+        Y.DP.AC.ID = R.NEW(FT.CREDIT.ACCT.NO)
+        Y.FT.AMT = R.NEW(FT.DEBIT.AMOUNT)
+        Y.CHK.AMT = Y.FT.AMT
+    END
+
+    IF APPLICATION EQ 'TELLER' THEN
+        Y.MARKER = R.NEW (TT.TE.DR.CR.MARKER)
+        IF Y.MARKER EQ 'DEBIT' THEN
+            Y.AC.ID = R.NEW(TT.TE.ACCOUNT.1)      ;*For Deposit
+            Y.DP.AC.ID = R.NEW(TT.TE.ACCOUNT.2)
+            Y.TT.AMT = R.NEW(TT.TE.AMOUNT.LOCAL.1)
+            Y.CHK.AMT = Y.TT.AMT
+        END ELSE
+            Y.DP.AC.ID = R.NEW(TT.TE.ACCOUNT.1)   ;*For Withdraw
+            Y.AC.ID = R.NEW(TT.TE.ACCOUNT.2)
+            Y.TT.AMT = R.NEW(TT.TE.AMOUNT.LOCAL.1)
+            Y.CHK.AMT = Y.TT.AMT
+        END
+    END
+*---------------------------For Withdrawal Part(Start)------------------------------------------------
+    IF ISALPHA(LEFT(Y.AC.ID,2)) EQ '0' THEN
+        CALL F.READ(FN.TP,Y.AC.ID,R.TP.REC,F.TP,Y.TP.ERR)
+        Y.TRNC.STATUS = R.TP.REC<EB.JBL52.WITH.PARTICULAR>
+        Y.MAX.TRNC = R.TP.REC<EB.JBL52.WITH.NO.TXN.MON>
+        Y.MAX.TRNS.AMT = R.TP.REC<EB.JBL52.WITH.MAX.TXN.AM>
+        Y.WITH.TOT.AMT =R.TP.REC<EB.JBL52.WITH.TOT.AMT>
+        Y.TRNC.STATUS.CNT = DCOUNT(Y.TRNC.STATUS,@VM)
+
+        IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+            FOR I = 1 TO Y.TRNC.STATUS.CNT
+                Y.TRNC.STATUS.OBO = FIELD(Y.TRNC.STATUS,@VM,I)
+                IF Y.TRNC.STATUS.OBO EQ 'Paid by Transfer/Instrument' THEN
+                    Y.MAX.TRNC.OBO = FIELD(Y.MAX.TRNC,@VM,I)
+                    Y.MAX.TRNS.AMT.OBO = FIELD(Y.MAX.TRNS.AMT,@VM,I)
+                    Y.WITH.TOT.AMT.OBO = FIELD(Y.WITH.TOT.AMT,@VM,I)
+                    BREAK
+                END
+
+            NEXT I
+        END
+
+        IF APPLICATION EQ 'TELLER' THEN
+            FOR M = 1 TO Y.TRNC.STATUS.CNT
+                Y.TRNC.STATUS.OBO = FIELD(Y.TRNC.STATUS,@VM,M)
+                IF Y.TRNC.STATUS.OBO EQ 'Cash Withdrawal(Including ATM/POS)' THEN
+                    Y.MAX.TRNC.OBO = FIELD(Y.MAX.TRNC,@VM,M)
+                    Y.MAX.TRNS.AMT.OBO = FIELD(Y.MAX.TRNS.AMT,@VM,M)
+                    Y.WITH.TOT.AMT.OBO = FIELD(Y.WITH.TOT.AMT,@VM,M)
+                    BREAK
+                END
+            NEXT M
+        END
+
+        IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+            IF Y.CHK.AMT GT Y.MAX.TRNS.AMT.OBO THEN
+                V.NO = DCOUNT(R.NEW(FT.OVERRIDE), VM) + 1
+                TEXT = 'Your Amount Limit is over in Debit Account(Fund Transfer);Please Update Your TP in ': Y.AC.ID:';'
+                CALL STORE.OVERRIDE(V.NO)
+            END
+        END
+        IF APPLICATION EQ 'TELLER' THEN
+            IF Y.CHK.AMT GT Y.MAX.TRNS.AMT.OBO THEN
+                V.NO = DCOUNT(R.NEW(TT.TE.OVERRIDE), VM) + 1
+                TEXT = 'Your Amount Limit is over in Debit Account(Withdraw);Please Update Your TP in ': Y.AC.ID:';'
+                CALL STORE.OVERRIDE(V.NO)
+            END
+        END
+    END
+*------------------------For Withdrawal Part(End)------------------------------------------------
+*************************************************************************************************
+*------------------------For Deposit (Start)-----------------------------------------------------
+    IF ISALPHA(LEFT(Y.DP.AC.ID,2)) EQ '0' THEN
+        IF ISALPHA(LEFT(Y.DP.AC.ID,3)) EQ '0' THEN
+            CALL F.READ(FN.TP,Y.DP.AC.ID,R.DP.ACC.REC,F.TP,Y.DP.ACC.ERR)
+            Y.DP.TRNC.STATUS = R.DP.ACC.REC<EB.JBL52.DEP.PARTICULARS>
+            Y.DP.MAX.TRNC = R.DP.ACC.REC<EB.JBL52.NO.TXN.MON>
+            Y.DP.MAX.TRNS.AMT = R.DP.ACC.REC<EB.JBL52.MAX.TXN.AMT>
+            Y.DEP.TOT.AMT = R.DP.ACC.REC<EB.JBL52.DEP.TOT.AMT>
+            Y.DP.TRNC.STATUS.CNT = DCOUNT(Y.DP.TRNC.STATUS,@VM)
+
+            IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+                FOR K = 1 TO Y.DP.TRNC.STATUS.CNT
+                    Y.DP.TRNC.STATUS.OBO = FIELD(Y.DP.TRNC.STATUS,@VM,K)
+                    IF Y.DP.TRNC.STATUS.OBO EQ 'Deposted by Transfer/Instrument' THEN
+                        Y.DP.MAX.TRNC.OBO = FIELD(Y.DP.MAX.TRNC,@VM,K)
+                        Y.DP.MAX.TRNS.AMT.OBO = FIELD(Y.DP.MAX.TRNS.AMT,@VM,K)
+                        Y.DEP.TOT.AMT.OBO = FIELD(Y.DEP.TOT.AMT,@VM,K)
+                        BREAK
+                    END
+                NEXT K
+            END
+            IF APPLICATION EQ 'TELLER' THEN
+                FOR P = 1 TO Y.DP.TRNC.STATUS.CNT
+                    Y.DP.TRNC.STATUS.OBO = FIELD(Y.DP.TRNC.STATUS,@VM,P)
+                    IF Y.DP.TRNC.STATUS.OBO EQ 'Cash Deposit' THEN
+                        Y.DP.MAX.TRNC.OBO = FIELD(Y.DP.MAX.TRNC,@VM,P)
+                        Y.DP.MAX.TRNS.AMT.OBO = FIELD(Y.DP.MAX.TRNS.AMT,@VM,P)
+                        Y.DEP.TOT.AMT.OBO = FIELD(Y.DEP.TOT.AMT,@VM,P)
+                        BREAK
+                    END
+                NEXT P
+            END
+
+            IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+                IF Y.CHK.AMT GT Y.DP.MAX.TRNS.AMT.OBO THEN
+                    V.NO = DCOUNT(R.NEW(FT.OVERRIDE), VM) + 1
+                    TEXT = 'Your Transaction Amount Limit is over in Credit Account(Fund Transfer); Please Update Your TP in ':Y.DP.AC.ID:';'
+                    CALL STORE.OVERRIDE(V.NO)
+                END
+            END
+            IF APPLICATION EQ 'TELLER' THEN
+                IF Y.CHK.AMT GT Y.DP.MAX.TRNS.AMT.OBO THEN
+                    V.NO = DCOUNT(R.NEW(TT.TE.OVERRIDE), VM) + 1
+                    TEXT = 'Your Transaction Amount Limit is over in Credit Account(Deposit); Please Update Your TP in ':Y.DP.AC.ID:';'
+                    CALL STORE.OVERRIDE(V.NO)
+                END
+            END
+        END
+        RETURN
+    END
+*--------------------------------------For Deposit (End)-----------------------------------------

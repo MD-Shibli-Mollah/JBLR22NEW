@@ -1,0 +1,84 @@
+**************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>-22</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.EXCISE.DUTY.AZ.LIVE.LOAD
+**************************************************************************
+* Subroutine Description:
+*-----------------------
+* This Load Routine is used to open all the required files.
+*-------------------------------------------------------------------------
+* Parameter Description: Not Applicable
+*--------- -----------
+* NA
+*-------------------------------------------------------------------------
+* Common Variable Description
+*------  ------- -----------
+*
+* Variable name:               Insert file:          Description:
+* TODAY                       I_COMMON              Will hold Today's date
+*-------------------------------------------------------------------------
+* Called Subroutines: Not Applicable
+*------ ------------
+*Routine Name:                Local/Core:           Description:
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 01/03/2011 -                            New   - Rashmitha M
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.AZ.ACCOUNT
+    $INCLUDE JBL.BP I_JBL.B.EXCISE.DUTY.AZ.LIVE.COMMON
+    $INCLUDE JBL.BP I_F.BD.EXCISE.DUTY.SLAB
+    $INCLUDE JBL.BP I_F.EB.BD.EXCISE.DUTY.PARAM
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+    RETURN
+*--------------------------------------------------------------------------
+INITIALISE:
+*---------
+*
+    FN.AZ.ACCOUNT = 'F.AZ.ACCOUNT'
+    F.AZ.ACCOUNT = ''
+    CALL OPF(FN.AZ.ACCOUNT,F.AZ.ACCOUNT)
+*
+    FN.EB.BD.EXCISE.DUTY.PARAM = 'F.EB.BD.EXCISE.DUTY.PARAM'
+    F.EB.BD.EXCISE.DUTY.PARAM = ''
+    CALL OPF(FN.EB.BD.EXCISE.DUTY.PARAM,F.EB.BD.EXCISE.DUTY.PARAM)
+    R.EB.BD.EXCISE.DUTY.PARAM =''
+    EB.BD.EXCISE.DUTY.PARAM.ERR =''
+*
+    FN.EB.BD.EXCISE.DUTY.SLAB = 'F.EB.BD.EXCISE.DUTY.SLAB'
+    F.EB.BD.EXCISE.DUTY.SLAB = ''
+    CALL OPF(FN.EB.BD.EXCISE.DUTY.SLAB,F.EB.BD.EXCISE.DUTY.SLAB)
+    R.EB.BD.EXCISE.DUTY.SLAB =''
+    EB.BD.EXCISE.DUTY.SLAB.ERR=''
+*
+    FN.EB.BD.EXCISE.DUTY = 'F.EB.BD.EXCISE.DUTY'
+    F.EB.BD.EXCISE.DUTY = ''
+    CALL OPF(FN.EB.BD.EXCISE.DUTY,F.EB.BD.EXCISE.DUTY)
+*
+    RETURN
+*------------------------------------------------------------------------------------------
+PROCESS:
+*------
+!Read EB.BD.EXCISE.DUTY.PARAM with ID as AZ
+    Y.EB.BD.EXCISE.DUTY.PARAM.ID = 'AZ'
+    CALL F.READ(FN.EB.BD.EXCISE.DUTY.PARAM,Y.EB.BD.EXCISE.DUTY.PARAM.ID,R.EB.BD.EXCISE.DUTY.PARAM,F.EB.BD.EXCISE.DUTY.PARAM,Y.EB.BD.EXCISE.DUTY.PARAM.ERR)
+    IF NOT(R.EB.BD.EXCISE.DUTY.PARAM) THEN
+        RETURN
+    END
+*
+! Read BD.EXCISE.DUTY.SLAB with ID as SYSTEM
+
+    CALL F.READ(FN.EB.BD.EXCISE.DUTY.SLAB,'SYSTEM',R.EB.BD.EXCISE.DUTY.SLAB,F.EB.BD.EXCISE.DUTY.SLAB,EB.BD.EXCISE.DUTY.SLAB.ERR)
+    IF NOT(R.EB.BD.EXCISE.DUTY.SLAB) THEN
+        RETURN
+    END
+*
+    RETURN
+*-------------------------------------------------------------------------------------------------------
+END

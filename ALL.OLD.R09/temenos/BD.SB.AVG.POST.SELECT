@@ -1,0 +1,35 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SB.AVG.POST.SELECT
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT JBL.BP I_F.ABL.H.SB.YRPAR
+    $INSERT JBL.BP I_BD.SB.AVG.POST.COMMON
+
+    GOSUB MAIN.SELECTION
+    RETURN
+
+*---------------
+MAIN.SELECTION:
+*---------------
+!SEL.CMD.AC="SELECT ":FN.SB.CHRG:" WITH CHRG.STATUS EQ ''"
+    SEL.CMD.AC="SELECT ":FN.SB.CHRG
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.AC,'',NO.OF.REC.AC,ERR.AC)
+
+    CRT" TOTAL RECORDS SELECTED FOR SAVINGS HALF YEARLY CHRG ......":NO.OF.REC.AC
+    CRT" DO YOU WANT TO START THE PROCESSING OF SAVING HALF YEARLY CHRG Y/N"
+    INPUT USER.CHOICE
+
+    IF USER.CHOICE EQ 'Y' THEN
+        GOSUB BATCH.RUN
+    END
+    RETURN
+
+*----------
+BATCH.RUN:
+*----------
+    CALL BATCH.BUILD.LIST('',SEL.LIST.AC)
+    RETURN

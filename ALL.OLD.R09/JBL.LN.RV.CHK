@@ -1,0 +1,108 @@
+*Developed By: ALIN BOBY
+*allow to reverse FT or TT for loan which is enlisted in account class U-LNRV
+*only show override message which may be accepted by user
+*requirement from core cell
+*date 20210203
+
+    SUBROUTINE JBL.LN.RV.CHK
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CLASS
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.LIMIT
+
+    FN.AC.CLS = 'F.ACCOUNT.CLASS'
+    F.AC.CLS  = ''
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT  = ''
+    FN.LMT= 'F.LIMIT'
+    F.LMT= ''
+    R.ACCOUNT  = ''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    CALL OPF(FN.AC.CLS,F.AC.CLS)
+    CALL OPF(FN.LMT,F.LMT)
+    Y.PR.ASSET.CLASS.POS = ''
+    Y.DP.STOCK.POS = ''
+
+    CALL GET.LOC.REF ('ACCOUNT', 'PR.ASSET.CLASS', Y.PR.ASSET.CLASS.POS)
+    CALL GET.LOC.REF('LIMIT','DR.STOCK.VALUE',Y.DP.STOCK.POS)
+
+    Y.AC.CLS.CATEG=''
+    Y.CREDIT.AC=''
+    Y.CREDIT.AC.CAT=''
+    V.NO = ''
+    Y.TRANS.AMT = ''
+    REC.LMT= ''
+    Y.LMT.ID= ''
+    Y.DP.AMT= ''
+    TOT.AVAL.AMT = ''
+    Y.EXCESS.AMT = ''
+
+    CALL F.READ(FN.AC.CLS,'U-LNRV',R.AC.CLS,F.AC.CLS,ERR.AC.CLS)
+
+    IF R.AC.CLS EQ '' THEN
+        ETEXT="ACCOUNT CLASS U-LNRV IS MISSING"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    ELSE
+        Y.AC.CLS.CATEG=R.AC.CLS<AC.CLS.CATEGORY>
+        IF V$FUNCTION EQ 'R' THEN
+            IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+                Y.CREDIT.AC = R.NEW(FT.CREDIT.ACCT.NO)
+                V.NO = DCOUNT(R.NEW(FT.OVERRIDE), VM)
+                Y.TRANS.AMT = R.NEW(FT.DEBIT.AMOUNT)
+            END
+            IF APPLICATION EQ 'TELLER' THEN
+                IF R.NEW(TT.TE.DR.CR.MARKER) EQ 'DEBIT' THEN
+                    Y.CREDIT.AC = R.NEW(TT.TE.ACCOUNT.2)
+                END
+                ELSE
+                    Y.CREDIT.AC = R.NEW(TT.TE.ACCOUNT.1)
+                END
+                V.NO = DCOUNT(R.NEW(TT.TE.OVERRIDE), VM)
+                Y.TRANS.AMT = R.NEW(TT.TE.AMOUNT.LOCAL.1)
+            END
+            CALL F.READ(FN.ACCOUNT,Y.CREDIT.AC,R.ACCOUNT,F.ACCOUNT,ERR.AC)
+            Y.CREDIT.AC.CAT = R.ACCOUNT<AC.CATEGORY>
+            Y.PR.ASSET.CLASS = R.ACCOUNT<AC.LOCAL.REF,Y.PR.ASSET.CLASS.POS>
+
+            IF (Y.PR.ASSET.CLASS EQ 20 OR Y.PR.ASSET.CLASS EQ 30 OR Y.PR.ASSET.CLASS EQ 40 OR Y.PR.ASSET.CLASS EQ 50) THEN
+                AF = Y.CREDIT.AC
+                TEXT = "Loan Account is Classified ": Y.PR.ASSET.CLASS
+                V.NO = V.NO + 1
+                CALL STORE.OVERRIDE(V.NO)
+            END
+
+            IF R.ACCOUNT<AC.LIMIT.REF> THEN
+                Y.LMT.ID = R.ACCOUNT<AC.CUSTOMER>:".":FMT(FIELD(R.ACCOUNT<AC.LIMIT.REF>,".",1,1),"R%7"):".":FMT(FIELD(R.ACCOUNT<AC.LIMIT.REF>,".",2,1),"R%2")
+                CALL F.READ(FN.LMT,Y.LMT.ID,REC.LMT,F.LMT,ERR.LMT)
+                Y.DP.AMT = REC.LMT<LI.LOCAL.REF,Y.DP.STOCK.POS>
+                Y.LIMIT.EXP.DT = REC.LMT<LI.EXPIRY.DATE>
+                IF Y.DP.AMT THEN
+                    TOT.AVAL.AMT = R.ACCOUNT<AC.WORKING.BALANCE>
+                    IF ( TOT.AVAL.AMT < 0 AND ABS(TOT.AVAL.AMT) GT Y.DP.AMT ) THEN
+                        Y.EXCESS.AMT = Y.DP.AMT - TOT.AVAL.AMT
+                        TEXT = R.ACCOUNT<AC.CURRENCY>: Y.EXCESS.AMT :" excess than Drawing Power"
+                        V.NO = V.NO + 1
+                        CALL STORE.OVERRIDE(V.NO)
+                    END
+                END
+            END
+
+            LOCATE Y.CREDIT.AC.CAT IN  Y.AC.CLS.CATEG<1,1> SETTING Y.POS ELSE Y.POS = ''
+            IF Y.POS EQ '' THEN
+                AF=I
+                ETEXT = 'This Category is not Allowed to reverse'
+                CALL STORE.END.ERROR
+            END
+        END
+        ELSE
+            AF=I
+            ETEXT='Only Reverse function is Allowed'
+            CALL STORE.END.ERROR
+        END
+    END
+    RETURN 

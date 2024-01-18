@@ -1,0 +1,21 @@
+*-----------------------------------------------------------------------------
+* <Rating>100</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.AMF.ELG(Y.ACC.ID)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.ABL.H.SB.CHRG
+
+
+    $INSERT JBL.BP/REPGEN MT.AMF.ELG.VARS
+
+    CALL F.READ(FN.ACCT,Y.ACC.ID,R.ACCT,F.ACCT,ERR.CODE)
+
+    Y.SLAB.AMT = R.ACCT<SBC.SLAB.AMT>
+    IF Y.SLAB.AMT NE 0 THEN
+        Y.RETURN = Y.ACC.ID:'|':Y.SLAB.AMT:'|':TODAY
+        WRITESEQ Y.RETURN APPEND TO F.FILE.DIR ELSE NULL
+    END
+    RETURN
+END

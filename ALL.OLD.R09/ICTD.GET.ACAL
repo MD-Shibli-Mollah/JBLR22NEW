@@ -1,0 +1,100 @@
+*-----------------------------------------------------------------------------
+* <Rating>250</Rating>
+*-----------------------------------------------------------------------------
+* IFNO
+* PROGRAM     : PROGRAM TO CREATE A CSV FILE FOR COLLATERAL
+* DEV BY      : MD. IMRAN HASAN
+* DEV DATE    : 2021-07-03
+* UPDATE DATE : 2021-07-03
+* REQ         : ICTD
+****************************************************
+
+    PROGRAM ICTD.GET.ACAL
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+
+*------
+INIT:
+*------
+
+    FN.FT = 'F.FUNDS.TRANSFER$HIS'
+    F.FT = ''
+
+    Y.START.DATE = '20220101'
+    Y.END.DATE = '20220131'
+
+    CALL CDD ('', Y.START.DATE, Y.END.DATE, Y.NO.DAYS)
+
+    Y.FILE.NAME = 'ACAL.DATA.':Y.START.DATE:'-TO-':Y.END.DATE:'.csv'
+    Y.FILE.DIR = 'RPT.DATA.DIR'
+    Y.FILE.PATH = Y.FILE.DIR:'/':Y.FILE.NAME
+
+
+    RETURN
+
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.FT,F.FT)
+
+    RETURN
+
+*-------
+PROCESS:
+*-------
+
+    Y.FROM.DATE = Y.START.DATE
+
+    FOR J = 1 TO Y.NO.DAYS + 1
+
+        Y.DAY.NUMBER = OCONV(ICONV(Y.FROM.DATE, 'DJ'),'DJ')
+        Y.DAY.LEN = "000"
+        Y.TXNID = TODAY[3,2]:SUBSTRINGS(Y.DAY.LEN,1,3 - LEN(Y.DAY.NUMBER)):Y.DAY.NUMBER
+
+        SEL.CMD='SELECT ':FN.FT:' WITH @ID LIKE FT':Y.TXNID:'...'
+        CALL EB.READLIST(SEL.CMD,SEL.LIST.FT,'',NO.OF.REC,RET.CODE)
+
+        CRT 'DATE :':Y.FROM.DATE
+        CRT 'RECORDS :':NO.OF.REC
+
+        LOOP
+            REMOVE Y.REC.ID FROM SEL.LIST.FT SETTING Y.POS
+        WHILE Y.REC.ID:Y.POS
+            CALL F.READ(FN.FT,Y.REC.ID,R.FT,F.FT,Y.ERR)
+
+            Y.TXN.TYPE = R.FT<FT.TRANSACTION.TYPE>
+            IF Y.TXN.TYPE EQ 'ACAL' THEN
+
+                Y.DR.ACCT  = R.FT<FT.DEBIT.ACCT.NO>
+                Y.CR.ACCT  = R.FT<FT.CREDIT.ACCT.NO>
+                Y.AMOUNT   = R.FT<FT.AMOUNT.DEBITED>
+                Y.PROCESSING.DATE   = R.FT<FT.PROCESSING.DATE>
+                Y.CO.CODE  = R.FT<FT.CO.CODE>
+
+                Y.REC<-1> = Y.REC.ID:'|':Y.DR.ACCT:'|':Y.CR.ACCT:'|':Y.AMOUNT:'|':Y.PROCESSING.DATE:'|':Y.CO.CODE:'|':TODAY:'|'
+            END
+
+            Y.COUNT++
+            Y.PROGRESS = MOD(Y.COUNT,5000)
+            IF Y.PROGRESS EQ 0 THEN
+                Y.PERCENT = Y.COUNT*100/NO.OF.REC
+                PRINT DROUND(Y.PERCENT,0):'% is Completed.'
+            END
+
+        REPEAT
+        CALL CDT('', Y.FROM.DATE, '+1W')
+    NEXT J
+
+    OPEN Y.FILE.DIR TO F.FILE.DIR ELSE NULL
+    WRITE Y.REC TO F.FILE.DIR,Y.FILE.NAME
+
+    RETURN
+END
+

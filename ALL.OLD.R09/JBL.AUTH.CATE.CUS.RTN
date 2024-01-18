@@ -1,0 +1,22 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.AUTH.CATE.CUS.RTN
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.CUSTOMER
+
+
+    YACCT.TYPE = ""
+    YCAT = ""
+    CALL INT.ACC(ID.NEW,YACCT.TYPE)
+
+    IF ID.OLD = "" AND NUM(ID.NEW) = NUMERIC AND YACCT.TYPE EQ 0 THEN
+        YCAT = R.NEW(AC.CATEGORY)
+        CALL TABLE.FILE.UPDATE("AR":FM:"CATEG.CUS.ACCT","",YCAT)
+    END
+
+    RETURN
+END

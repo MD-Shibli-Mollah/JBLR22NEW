@@ -1,0 +1,36 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+
+*-----------------------------------------------------------------------------
+!PROGRAM JBL.ATM.UNI.ID.WRT
+    SUBROUTINE JBL.ATM.UNI.ID.WRT
+!-----------------------------------------------------------------------------!
+**********ATM TRANSACTION TABLE DATA WRITE
+
+*DEV MOHAMMAD ROBIUL ISLAM
+!------------------------------------------------------------------------------!
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT ATM.BP I_F.ATM.TRANSACTION
+!DEBUG
+
+    FN.ATM ='F.ATM.TRANSACTION'
+    F.ATM=''
+    CALL OPF(FN.ATM,F.ATM)
+
+    CALL GET.LOC.REF('FUNDS.TRANSFER','AT.UNIQUE.ID',Y.FT.UNQUIE.ID)
+
+    IF R.NEW(FT.LOCAL.REF)<1,Y.FT.UNQUIE.ID> NE '' THEN
+        Y.UNQUIE.ID = R.NEW(FT.LOCAL.REF)<1,Y.FT.UNQUIE.ID>
+        CALL F.READ(FN.ATM,Y.UNQUIE.ID,R.ATM,F.ATM,ATM.INFO.ERR)
+        R.ATM<AT.REV.BOOKING.DATE> = R.NEW(FT.DEBIT.VALUE.DATE)
+        R.ATM<AT.REV.TRANS.REF>=ID.NEW
+        R.ATM<AT.REV.COMPANY.CODE>=R.NEW(FT.CO.CODE)
+        IF R.ATM THEN
+            CALL F.WRITE(FN.ATM,Y.UNQUIE.ID,R.ATM)
+        END
+
+    END
+    RETURN

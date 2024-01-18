@@ -1,0 +1,49 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+!SUBROUTINE E.JBL.NOM.AGE
+    PROGRAM E.JBL.NOM.AGE
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ACCOUNT
+
+    DEBUG
+
+    GOSUB INIT
+    GOSUB OPEN
+    GOSUB PROCESS
+
+    RETURN
+
+    Y.ACCT.ID = '0100000441222'
+
+*----
+INIT:
+*----
+    DEBUG
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+    !Y.ACCT.ID = ''
+    R.CUSTOMER = ''
+    R.ACCOUNT = ''
+    Y.DAYS = ''
+    RETURN
+
+OPEN:
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    RETURN
+
+*-------
+PROCESS:
+*-------
+    DEBUG
+
+    CALL F.READ(FN.ACCOUNT,Y.ACCT.ID,R.ACCOUNT,F.ACCOUNT,Y.ACCT.ERR)
+    CALL GET.LOC.REF('ACCOUNT','JBL.NOM.DOB',Y.NOM.DOB.POS)
+    Y.NOM.DT.OF.BIRTH = R.ACCOUNT<AC.LOCAL.REF,Y.NOM.DOB.POS>
+    Y.TD.DATE = TODAY
+    CALL CDD('C',Y.TD.DATE,Y.NOM.DT.OF.BIRTH,Y.DAYS)
+    O.DATA = Y.DAYS
+    RETURN
+END

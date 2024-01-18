@@ -1,0 +1,59 @@
+    SUBROUTINE INTER.BR.LIST(Y.BR.CODE)
+!PROGRAM INTER.BR.LIST
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.COMPANY.SMS.GROUP
+    $INSERT GLOBUS.BP I_F.COMPANY
+
+    LOCATE "COMPANY.CODE" IN ENQ.SELECTION<2,1> SETTING Y.COM.POS THEN
+        Y.CO.CODE = ENQ.SELECTION<4,Y.COM.POS>
+    END
+
+    FN.COM.SMS.GROUP='F.COMPANY.SMS.GROUP'
+    F.COM.SMS.GROUP=''
+    FN.COM='F.COMPANY'
+    F.COM=''
+
+    CALL OPF(FN.COM.SMS.GROUP,F.COM.SMS.GROUP)
+    CALL OPF(FN.COM,F.COM)
+
+    CALL F.READ(FN.COM.SMS.GROUP,'INTRBRCOMP',R.SMS,F.COM.SMS.GROUP,AC.ERR)
+    Y.COM.CODE=R.SMS<CO.SMS.COMPANY.CODE>
+
+    Y.TOT=DCOUNT(Y.COM.CODE,@VM)
+    IF Y.CO.CODE NE '' THEN
+        FOR I =1  TO Y.TOT
+            Y.ARR=FIELD(Y.COM.CODE,@VM,I)
+            IF Y.ARR EQ Y.CO.CODE THEN
+                CALL F.READ(FN.COM,Y.ARR,R.COM,F.COM,COM.ERR)
+                Y.BR.NAME=R.COM<EB.COM.COMPANY.NAME>
+                Y.ADD=R.COM<EB.COM.NAME.ADDRESS>
+                Y.TOT.ADD=DCOUNT(Y.ADD,@VM)
+                Y.ADD1=''
+                FOR J = 1 TO Y.TOT.ADD
+                    Y.ADD1 := FIELD(Y.ADD,@VM,J,1)
+                    Y.ADD1 := " "
+                NEXT J
+                Y.LIST<-1>=Y.BR.NAME:"*":TRIM(Y.ADD1):"*":Y.ARR
+            END
+        NEXT I
+    END ELSE
+        FOR I =1  TO Y.TOT
+            Y.ARR=FIELD(Y.COM.CODE,@VM,I)
+            CALL F.READ(FN.COM,Y.ARR,R.COM,F.COM,COM.ERR)
+
+            Y.BR.NAME=R.COM<EB.COM.COMPANY.NAME>
+            Y.ADD=R.COM<EB.COM.NAME.ADDRESS>
+            Y.TOT.ADD=DCOUNT(Y.ADD,@VM)
+            Y.ADD1=''
+            FOR J = 1 TO Y.TOT.ADD
+                Y.ADD1 := FIELD(Y.ADD,@VM,J,1)
+                Y.ADD1 := " "
+            NEXT J
+            Y.LIST<-1>=Y.BR.NAME:"*":TRIM(Y.ADD1):"*":Y.ARR
+        NEXT I
+    END
+    Y.BR.CODE = SORT(Y.LIST)
+    RETURN
+END

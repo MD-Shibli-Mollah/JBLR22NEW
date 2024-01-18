@@ -1,0 +1,58 @@
+***************************************************
+*This Routine is Created to Blank the fields(COLL.TXN.REF,COLL.TXN.COMPANY,DATE.OF.PRESENTED)
+*of (PR.H.INSTR.ISSUED) application.
+*Development Date : 20180416
+*Developed By : Md Shafiul Azam
+***************************************************
+    PROGRAM PR.H.INSTR.ISSUED.WRITE
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.PR.H.INSTR.ISSUED
+
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+
+*****
+INIT:
+*****
+    Y.DIR ='MIGRATION/PR'
+    Y.FILE.NAME = 'COLLECTION.REMOVE.LIST.txt'
+    FN.PR = 'FBNK.PR.H.INSTR.ISSUED'
+    F.PR = ''
+    RETURN
+
+
+**********
+OPENFILES:
+**********
+    OPEN Y.DIR TO JBASE.DIR ELSE STOP
+    CALL OPF(FN.PR,F.PR)
+    RETURN
+
+
+********
+PROCESS:
+********
+    READ FILE.VALUES FROM JBASE.DIR,Y.FILE.NAME THEN
+        Y.ALL.ID<-1> = FILE.VALUES
+    END
+    Y.ALL.ID = SORT(Y.ALL.ID)
+    Y.TOT.REC = DCOUNT(Y.ALL.ID,FM)
+    FOR I = 1 TO Y.TOT.REC
+        Y.ID = FIELD(Y.ALL.ID,FM,I)
+        CALL F.READ(FN.PR,Y.ID,R.PR,F.PR,PR.ERR)
+        IF R.PR NE '' THEN
+            R.PR<INS.COLL.TXN.REF> = ''
+            R.PR<INS.COLL.TXN.COMPANY> = ''
+            R.PR<INS.DATE.OF.PRESENTED> = ''
+            WRITE R.PR TO F.PR,Y.ID
+        END
+    NEXT I
+    RETURN
+
+END

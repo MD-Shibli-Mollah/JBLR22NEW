@@ -1,0 +1,35 @@
+****************************************************************************************
+*Purpose: This routine attachted to ENQUIRY LIMIT.AMEND as a BUILD ROUTINE and is used *
+*to get parent limit only                                                              *
+*Developed By: Md. Aminul Islam(Datasoft Systems Ltd.)                                 *
+****************************************************************************************
+    SUBROUTINE BUILD.LI.AMND(ENQ.DATA)
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    LOCATE "LIABILITY.NUMBER" IN ENQ.DATA<2,1> SETTING Y.POS THEN
+        Y.CUS.NO = ENQ.DATA<4,Y.POS>
+    END
+    IF Y.CUS.NO NE '' THEN
+        SEL.CMD = 'SELECT FBNK.LIMIT WITH @ID LIKE ':Y.CUS.NO:'....'
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+        LOOP
+            REMOVE LIMIT.ID FROM SEL.LIST SETTING POS
+        WHILE LIMIT.ID : POS
+            Y.PARENT.ID = RIGHT(FIELD(LIMIT.ID,'.',2),4)
+            IF MOD(Y.PARENT.ID,100) EQ 0 THEN
+                Y.TEMP := LIMIT.ID: ' '
+            END
+        REPEAT
+        Y.SEL = ENQ.DATA<2>
+        Y.SEL.COUNT = DCOUNT(Y.SEL,VM) + 1
+        FN.LI.A = 'F.LIMIT.LIABILITY'
+        F.LI.A = ''
+        CALL F.READ(FN.LI.A,Y.ID,R.LI.A,F.LI.A,LI.A.ERR)
+        ENQ.DATA<2,Y.SEL.COUNT> = '@ID'
+        ENQ.DATA<3,Y.SEL.COUNT> = 'EQ'
+        ENQ.DATA<4,Y.SEL.COUNT> = Y.TEMP
+    END
+    RETURN
+END

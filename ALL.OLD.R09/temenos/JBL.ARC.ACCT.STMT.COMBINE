@@ -1,0 +1,164 @@
+*-----------------------------------------------------------------------------
+* <Rating>-40</Rating>
+*-----------------------------------------------------------------------------
+**************************************************************************
+*-------------For Combine Account Statement(Archive & Live)------------
+*Company Name   : Datasoft Systems Bangladesh Ltd.
+*Developed By   : Mehedi
+*
+*----------------------------------------------------------------------
+*Subroutine Type:
+*
+*Attached To    :
+*
+*Attached As    :
+*
+*In Parameter   : N/A
+*
+*Out Parameter  : N/A
+*---------------------------------------------------------------------------------------
+*Description    : This Routine Create Combine Account Statement (Archive & Live)
+*
+*---------------------------------------------------------------------------------------
+*Modification Details:
+*New:
+*
+*-------------------------------------------------------------------------
+*Modification History :
+*
+*-------------------------------------------------------------------------
+*Info :
+**************************************************************************
+    SUBROUTINE JBL.ARC.ACCT.STMT.COMBINE(Y.RETURN)
+*
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ARCHIVE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+*
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+*
+*------
+INIT:
+*------
+    FN.ARCHV.DATE = 'F.ARCHIVE'
+    F.ARCHV.DATE = ''
+*
+    FN.ACCOUNT = 'FBNK.ACCOUNT'
+    F.ACCOUNT = ''
+*
+    Y.ARCHV.DT.CHK = 'STATEMENT'
+    RETURN
+*
+*---------
+OPENFILE:
+*---------
+    CALL OPF(FN.ARCHV.DATE,F.ARCHV.DATE)
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    RETURN
+*
+*--------
+PROCESS:
+*--------
+    LOCATE "ACCOUNT" IN D.FIELDS<1> SETTING YACCOUNT.POS ELSE
+        RETURN
+    END
+    LOCATE "BOOKING.DATE" IN D.FIELDS<1> SETTING YDATE.POS ELSE
+        RETURN
+    END
+*
+    YSORT.DETS = R.ENQ<4,1>
+    SORT.FLD = FIELD(YSORT.DETS,' ',1,1)
+    SORT.BY = FIELD(YSORT.DETS,' ',2,1)
+*
+    IF D.LOGICAL.OPERANDS<YDATE.POS> = '' OR D.RANGE.AND.VALUE<YDATE.POS> = "" OR D.RANGE.AND.VALUE<YDATE.POS> = "ALL" THEN
+        RETURN
+    END
+*
+    YOPERAND.DT = D.LOGICAL.OPERANDS<YDATE.POS>
+    YENQ.LIST.COPY = D.RANGE.AND.VALUE<YDATE.POS>
+    YOPERAND.ACC = D.LOGICAL.OPERANDS<YACCOUNT.POS>
+    YENQ.LIST = D.RANGE.AND.VALUE<YACCOUNT.POS>
+    Y.FROM.DT = YENQ.LIST.COPY[1,8]
+    Y.TO.DT = YENQ.LIST.COPY[10,17]
+*
+    CALL F.READ(FN.ACCOUNT,YENQ.LIST,R.ACCOUNT.REC,F.ACCOUNT,Y.ACCT.ERR)
+    Y.ACCT.OPN.DT = R.ACCOUNT.REC<AC.OPENING.DATE>
+*
+    CALL F.READ(FN.ARCHV.DATE,Y.ARCHV.DT.CHK,R.ARCHV.REC,F.ARCHV.DATE,Y.ARCHV.ERR)
+    Y.ARCHV.DT = R.ARCHV.REC<ARC.PURGE.DATE>
+*----------------------------*
+*     1 = EQ    4 = GT       *
+*     2 = RG    8 = LE       *
+*     3 = LT    9 = GE       *
+*----------------------------*
+*--------------------------------------------------
+* Here only Archive records selection
+*--------------------------------------------------
+!IF (Y.FROM.DT LT Y.ARCHV.DT AND Y.TO.DT NE '' AND Y.TO.DT LT Y.ARCHV.DT AND Y.ACCT.OPN.DT LT Y.ARCHV.DT) OR (Y.FROM.DT LT Y.ARCHV.DT AND YOPERAND.DT EQ 1 AND Y.ACCT.OPN.DT LT Y.ARCHV.DT) OR (Y.FROM.DT LT Y.ARCHV.DT AND YOPERAND.DT EQ 3 AND Y.ACCT.OPN.DT LT Y.ARCHV.DT) OR (Y.FROM.DT LT Y.ARCHV.DT AND YOPERAND.DT EQ 8 AND Y.ACCT.OPN.DT LT Y.ARCHV.DT) THEN
+!CALL BD.ARC.E.STMT.ENQ.BY.CONCAT.COMB(YENQ.LIST,YSORT.DETS,SORT.FLD,SORT.BY,YOPERAND.DT,YOPERAND.ACC,YENQ.LIST.COPY,Y.ID.LIST)
+!Y.RETURN.TEMP<-1> = Y.ID.LIST
+!END
+*--------------------------------------------------
+* Here only Live records selection
+*--------------------------------------------------
+    IF (Y.FROM.DT GE Y.ARCHV.DT AND Y.TO.DT NE '' AND Y.TO.DT GE Y.ARCHV.DT) OR (Y.FROM.DT GE Y.ARCHV.DT AND YOPERAND.DT EQ 1) OR (Y.FROM.DT GE Y.ARCHV.DT AND YOPERAND.DT EQ 4) OR (Y.FROM.DT GE Y.ARCHV.DT AND YOPERAND.DT EQ 9) OR (Y.FROM.DT LT Y.ARCHV.DT AND Y.ACCT.OPN.DT GE Y.ARCHV.DT) OR (Y.FROM.DT GE Y.ARCHV.DT AND Y.ACCT.OPN.DT GE Y.ARCHV.DT) THEN
+        CALL BD.LIVE.E.STMT.ENQ.BY.CONCAT.COMB(YENQ.LIST,YSORT.DETS,SORT.FLD,SORT.BY,YOPERAND.DT,YOPERAND.ACC,YENQ.LIST.COPY,Y.ID.LIST)
+        Y.RETURN.TEMP<-1> = Y.ID.LIST
+    END
+*--------------------------------------------------
+* Here Archive & Live both and
+* Only Archive records selection
+*--------------------------------------------------
+    IF ((Y.FROM.DT LT Y.ARCHV.DT AND Y.TO.DT NE '' AND Y.TO.DT GE Y.ARCHV.DT AND Y.ACCT.OPN.DT LT Y.ARCHV.DT) OR (Y.FROM.DT GE Y.ARCHV.DT AND YOPERAND.DT EQ 8 AND Y.ACCT.OPN.DT LT Y.ARCHV.DT) OR (Y.FROM.DT LT Y.ARCHV.DT AND YOPERAND.DT EQ 9 AND Y.ACCT.OPN.DT LT Y.ARCHV.DT) OR (Y.FROM.DT GE Y.ARCHV.DT AND YOPERAND.DT EQ 3 AND Y.ACCT.OPN.DT LT Y.ARCHV.DT) OR (Y.FROM.DT LT Y.ARCHV.DT AND YOPERAND.DT EQ 4 AND Y.ACCT.OPN.DT LT Y.ARCHV.DT)) OR ((Y.FROM.DT LT Y.ARCHV.DT AND Y.TO.DT NE '' AND Y.TO.DT LT Y.ARCHV.DT AND Y.ACCT.OPN.DT LT Y.ARCHV.DT) OR (Y.FROM.DT LT Y.ARCHV.DT AND YOPERAND.DT EQ 1 AND Y.ACCT.OPN.DT LT Y.ARCHV.DT) OR (Y.FROM.DT LT Y.ARCHV.DT AND YOPERAND.DT EQ 3 AND Y.ACCT.OPN.DT LT Y.ARCHV.DT) OR (Y.FROM.DT LT Y.ARCHV.DT AND YOPERAND.DT EQ 8 AND Y.ACCT.OPN.DT LT Y.ARCHV.DT)) THEN
+        CALL BD.ARC.E.STMT.ENQ.BY.CONCAT.COMB(YENQ.LIST,YSORT.DETS,SORT.FLD,SORT.BY,YOPERAND.DT,YOPERAND.ACC,YENQ.LIST.COPY,Y.ID.LIST)
+        Y.ARC.ID.LIST.CNT = DCOUNT(Y.ID.LIST,FM)
+!Y.RETURN.TEMP<-1> = Y.ID.LIST
+*
+        Y.ARC.LAST.ID = Y.ID.LIST<Y.ARC.ID.LIST.CNT>
+        Y.RETURN.TEMP<-1> = Y.ID.LIST
+*
+        Y.ARC.LIST.TEMP = FIELD(Y.ID.LIST,"*",3)
+        YOPERAND.DT = D.LOGICAL.OPERANDS<YDATE.POS>
+        YENQ.LIST.COPY = D.RANGE.AND.VALUE<YDATE.POS>
+        YOPERAND.ACC = D.LOGICAL.OPERANDS<YACCOUNT.POS>
+        YENQ.LIST = D.RANGE.AND.VALUE<YACCOUNT.POS>
+        Y.ID.LIST = ''
+*
+        CALL BD.LIVE.E.STMT.ENQ.BY.CONCAT.COMB(YENQ.LIST,YSORT.DETS,SORT.FLD,SORT.BY,YOPERAND.DT,YOPERAND.ACC,YENQ.LIST.COPY,Y.ID.LIST)
+*
+        IF FIELD(Y.ARC.LAST.ID,"*",2) NE '' THEN
+            IF Y.ARC.LIST.TEMP EQ 0 THEN
+                Y.ID.LIST.CNT = DCOUNT(Y.ID.LIST,FM)
+                FOR I = 1 TO Y.ID.LIST.CNT
+                    A = Y.ID.LIST[FM,I,1]
+                    Y.ID.LIST.TEMP<-1> = EREPLACE(A,A['*',3,1],'0')
+                NEXT
+            END ELSE
+                Y.ID.LIST.CNT = DCOUNT(Y.ID.LIST,FM)
+                FOR I = 1 TO Y.ID.LIST.CNT
+                    A = Y.ID.LIST[FM,I,1]
+                    B = '*':A['*',3,1]:'*'
+                    C = '*':Y.ARC.LIST.TEMP:'*'
+!Y.ID.LIST.TEMP<-1> = EREPLACE(A,A['*',3,1],Y.ARC.LIST.TEMP)
+                    Y.ID.LIST.TEMP<-1> = EREPLACE(A,B,C)
+                NEXT
+            END
+        END ELSE
+            Y.RETURN.TEMP = ''
+            Y.ID.LIST.TEMP<-1> = Y.ID.LIST
+        END
+*
+        Y.RETURN.TEMP<-1> = Y.ID.LIST.TEMP
+*
+    END
+*--------------- Records Selection End ------------
+*
+    CONVERT '^' TO VM IN Y.RETURN.TEMP
+*
+    Y.RETURN = Y.RETURN.TEMP
+    RETURN

@@ -1,0 +1,108 @@
+*********************************************************************************
+* Developed :03.06.2018
+* Developer:Fairooz Chowdhury
+* All  12810 acc in current branch doing transaction with other branches.
+* Those accounts opening balance+given date transaction
+* whether amended or not amended
+*********************************************************************************8
+    SUBROUTINE CIBTA.ACCOUNT.BALANCE(Y.RETURN)
+!    PROGRAM CIBTA.ACCOUNT.BALANCE
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+!   $INSERT JBL.BP I_F.ABL.H.NM.ER
+    $INSERT JBL.BP I_F.ABL.H.BRANCH.CODE
+    $INSERT BP I_F.JBL.H.ZONAL.CODE
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+INIT:
+!   FN.NM = "F.ABL.H.NM.ER";                 F.NM = ""
+    FN.NM.BR="F.ABL.H.BRANCH.CODE";          F.NM.BR=""
+    FN.NM.ZN = "F.EB.JBL.H.ZONAL.CODE";      F.NM.ZN = ""
+    FN.AC = "F.ACCOUNT";                     F.AC = ""
+    FN.STMT.ENTRY = "F.STMT.ENTRY";          F.STMT.ENTRY = ""
+    Y.CATEGORY = '12810'
+
+    LOCATE 'Y.START.DATE' IN ENQ.SELECTION<2,1> SETTING Y.START.DATE.POS THEN
+        Y.START.DATE =  ENQ.SELECTION<4,Y.START.DATE.POS>
+    END
+
+!    Y.START.DATE='20170314'
+    Y.AC.OPEN.BAL =0; Y.AC.CLOSE.BAL=0
+    Y.AMT=0
+    Y.CLOSING.AMT.DBT = 0; Y.CLOSING.AMT.CRDT = 0
+
+    Y.FROM.DATE=Y.START.DATE
+    Y.TOTAL.DR=0;Y.TOTAL.CR=0
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.NM.BR,F.NM.BR)
+    CALL OPF(FN.NM.ZN,F.NM.ZN)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.STMT.ENTRY,F.STMT.ENTRY)
+    RETURN
+
+PROCESS:
+!-------------------------SELECTING ACC WISE STMT ENTRY & OPEN BALANCE-----------------------
+    SEL.CMD.AC = "SELECT ":FN.AC:" WITH CO.CODE EQ ":ID.COMPANY:" AND CATEGORY EQ ":Y.CATEGORY
+
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+        CALL EB.ACCT.ENTRY.LIST(Y.ID,Y.FROM.DATE,Y.FROM.DATE,Y.AC.STMT.LIST,Y.AC.OPEN.BAL,Y.AC.ER)
+        Y.AC.CLOSE.BAL=Y.AC.OPEN.BAL
+        Y.AMT=0
+        Y.FT.C=DCOUNT(Y.AC.STMT.LIST,@FM)
+        FOR I = 1 TO Y.FT.C
+            Y.STMT.ID = FIELD(Y.AC.STMT.LIST,@FM,I)
+            CALL F.READ(FN.STMT.ENTRY, Y.STMT.ID , R.STMT, F.STMT.ENTRY , Y.ERR)
+            Y.TR.REF = R.STMT<AC.STE.TRANS.REFERENCE>
+            Y.AMT =Y.AMT+ R.STMT<AC.STE.AMOUNT.LCY>
+            Y.TR.ARR<-1>=Y.TR.REF:"*":Y.AMT
+        NEXT I
+        Y.AC.CLOSE.BAL=Y.AC.CLOSE.BAL+Y.AMT
+!---------------------------CALCULATING CLOSING BALANCE------------------------------
+        IF Y.AC.CLOSE.BAL GE 0 THEN
+            Y.CLOSING.AMT.DBT = 0
+            Y.CLOSING.AMT.CRDT = Y.AC.CLOSE.BAL
+        END ELSE
+            Y.CLOSING.AMT.CRDT = 0
+            Y.CLOSING.AMT.DBT = Y.AC.CLOSE.BAL
+        END
+!-------------ZONE ---------------------------
+        Y.CO.CODE=RIGHT(Y.ID,8)
+        Y.ZONE=LEFT(Y.CO.CODE,4)
+
+        CALL F.READ(FN.NM.ZN,Y.ZONE,R.ZN,F.NM.ZN,Y.ERR)
+        ZONE.NAME=R.ZN<EB.JBL86.NAME.OF.ZOZE>
+!---------------------------------------------
+        Y.TOTAL.DR=Y.TOTAL.DR+(-1)*Y.CLOSING.AMT.DBT
+        Y.TOTAL.CR=Y.TOTAL.CR+Y.CLOSING.AMT.CRDT
+        Y.NET=Y.TOTAL.DR-Y.TOTAL.CR
+
+        IF (Y.CLOSING.AMT.DBT NE '0' AND Y.CLOSING.AMT.CRDT EQ '0') OR (Y.CLOSING.AMT.DBT EQ '0' AND Y.CLOSING.AMT.CRDT NE '0') THEN
+
+!            PRINT Y.ID:"*":(-1)*Y.CLOSING.AMT.DBT:"*": Y.ZONE:"*":ZONE.NAME:"*":Y.CLOSING.AMT.CRDT:"*":Y.TOTAL.DR:" ":Y.TOTAL.CR:" ":Y.NET
+            Y.RETURN<-1>=Y.FROM.DATE:"*":(-1)*Y.CLOSING.AMT.DBT:"*": Y.ZONE:"*":ZONE.NAME:"*":Y.CLOSING.AMT.CRDT:"*":Y.TOTAL.DR:"*":Y.TOTAL.CR:"*":Y.NET
+!                       1                  2                      3            4                   5                    6             7          8
+
+        END
+        Y.AC.OPEN.BAL=0; Y.AC.CLOSE.BAL=0
+        Y.CLOSING.AMT.DBT=0; Y.CLOSING.AMT.CRDT=0
+
+    REPEAT
+
+    RETURN
+END

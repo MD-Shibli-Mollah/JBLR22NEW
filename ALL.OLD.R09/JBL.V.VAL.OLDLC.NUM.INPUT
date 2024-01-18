@@ -1,0 +1,42 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VAL.OLDLC.NUM.INPUT
+
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INCLUDE GLOBUS.BP I_F.LC.TYPES
+
+
+    FN.LC = 'F.LETTER.OF.CREDIT'
+    F.LC = ''
+    Y.TENOR.POS=''
+
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","TENOR.DAYS",Y.TENOR.POS)
+
+
+    Y.LC.TYPE.ID = R.NEW(TF.LC.LC.TYPE)
+
+    IF V$FUNCTION EQ "I"  THEN
+        IF Y.LC.TYPE.ID EQ 'ALU' OR Y.LC.TYPE.ID EQ 'OTUC' OR Y.LC.TYPE.ID EQ 'OTUN' OR Y.LC.TYPE.ID EQ 'OTUT' OR Y.LC.TYPE.ID EQ 'OTUU' OR Y.LC.TYPE.ID EQ 'STU' THEN
+            CURRENT.VALUE = R.NEW(TF.LC.LOCAL.REF)<1,Y.TENOR.POS>
+            IF ISDIGIT(CURRENT.VALUE) EQ "0"  THEN
+                AF = TF.LC.LOCAL.REF
+                AV = Y.TENOR.POS
+                ETEXT = 'TENOR DAYS NEEDED'
+                CALL STORE.END.ERROR
+            END
+        END
+        ELSE
+            CURRENT.VALUE = R.NEW(TF.LC.LOCAL.REF)<1,Y.TENOR.POS>
+            IF ISDIGIT(CURRENT.VALUE) THEN
+                AF = TF.LC.LOCAL.REF
+                AV = Y.TENOR.POS
+                ETEXT = 'TENOR DAYS MUST BE EMPTY FOR SIGHT LC'
+                CALL STORE.END.ERROR
+            END
+        END
+    END
+
+END

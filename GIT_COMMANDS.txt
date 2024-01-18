@@ -1,0 +1,39 @@
+git init
+git remote -v
+git remote add main https://github.com/MD-Shibli-Mollah/JBLR22
+git branch
+git checkout main
+git add .
+ls
+git commit -m "my commit"
+git branch -D master
+
+Special ----
+git pull origin main --allow-unrelated-histories
+git push -u origin main
+
+Authentication helper---
+### https://stackoverflow.com/questions/74051851/git-keeps-asking-for-authentication
+git config --global user.name "MD SHIBLI MOLLAH"
+git config --global user.email "md.ta.shibli@gmail.com"
+Windows--
+git config --global credential.helper wincred
+git config --global credential.helper store
+
+#To verify that things are working properly, enter these commands and 
+verify whether the output matches your name and email address.
+git config --get user.name
+git config --get user.email
+
+SSH--
+ls ~/.ssh/id_ed25519.pub
+ssh-keygen -t ed25519 -C "md.ta.shibli@gmail.com"
+cat ~/.ssh/id_ed25519.pub
+ssh-add C:/Users/nazihar/.ssh/id_ed25519
+ssh -T git@github.com (Hi MD-Shibli-Mollah! You've successfully authenticated, but GitHub does not provide shell access.)
+---------------------------
+
+
+
+
+

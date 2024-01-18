@@ -1,0 +1,32 @@
+*-----------------------------------------------------------------------------
+!PROGRAM JBL.API.IN.MSG.RTN
+    SUBROUTINE JBL.API.IN.MSG.RTN(Y.LIST)
+
+!-----------------------------------------------------------------------------!
+**********MSG IN
+
+*DEV MOHAMMAD ROBIUL ISLAM
+!------------------------------------------------------------------------------!
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT BP  I_F.API.SYS.INFO
+
+!DEBUG
+    FN.SYS.INFO ='F.EB.API.SYS.INFO'
+    F.SYS.INFO=''
+    CALL OPF(FN.SYS.INFO,F.SYS.INFO)
+
+    CALL F.READ(FN.SYS.INFO,'FRD',R.SYS,F.SYS.INFO,SYS.INFO.ERR)
+    Y.USER=R.SYS<EB.API64.SIGN.ON.NAME>
+    Y.PASSWORD=R.SYS<EB.API64.PASSWORD>
+
+    Y.OPRATION=Y.USER:"/":Y.PASSWORD:"/"
+    Y.LIST=EREPLACE(Y.LIST,",",@FM)
+    Y.LIST<3>= Y.OPRATION:Y.LIST<3>
+    Y.LIST=EREPLACE(Y.LIST,@FM,",")
+
+    RETURN
+END

@@ -1,0 +1,19 @@
+    SUBROUTINE RESTRICT.AC.TRANSACTION
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.TELLER
+
+
+    FN.TT = 'F.TELLER'
+    F.TT = ''
+
+    CALL OPF(FN.TT,F.TT)
+    Y.AC.ID = R.NEW(TT.TE.ACCOUNT.2)
+    IF ISDIGIT(Y.AC.ID) THEN
+        AV = 1
+        AF = TT.TE.ACCOUNT.2
+        ETEXT = "Customer Account is not allowed for Transaction(Only For GL/PL Transaction)."
+        CALL STORE.END.ERROR
+    END
+END 

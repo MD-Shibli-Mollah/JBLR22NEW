@@ -1,0 +1,377 @@
+*-----------------------------------------------------------------------------
+* <Rating>297</Rating>
+* Developed By: Md. Zakir Hossain & Kamran Mallick
+* Organization: JBL & Datasoft
+* Development Date: 15th Nov 2019
+*-----------------------------------------------------------------------------
+    SUBROUTINE TF.VOCHER.GEN(Y.DATA)
+!PROGRAM TF.VOCHER.GEN
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.RE.CONSOL.SPEC.ENTRY
+    $INSERT GLOBUS.BP I_F.CATEG.ENTRY
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INSERT GLOBUS.BP I_F.DRAWINGS
+
+    FN.STMT.ENT = 'FBNK.STMT.ENTRY'
+    F.STMT.ENT = ''
+    FN.CONSOL.SPEC.ENTRY = "F.RE.CONSOL.SPEC.ENTRY"
+    F.CONSOL.SPEC.ENTRY = ""
+    FN.CATEG.ENT ='F.CATEG.ENTRY'
+    F.CATEG.ENT =''
+    FN.CATEG = 'F.CATEGORY'
+    F.CATEG = ''
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    FN.LC = 'F.LETTER.OF.CREDIT'
+    F.LC = ''
+    FN.DR='F.DRAWINGS'
+    F.DR=''
+
+    CALL OPF(FN.STMT.ENT,F.STMT.ENT)
+    CALL OPF(FN.CONSOL.SPEC.ENTRY,F.CONSOL.SPEC.ENTRY)
+    CALL OPF(FN.CATEG.ENT,F.CATEG.ENT)
+    CALL OPF(FN.CATEG,F.CATEG)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.LC,F.LC)
+    CALL OPF(FN.DR,F.DR)
+
+    LOCATE 'TF.ID' IN ENQ.SELECTION<2,1> SETTING TF.ID.POS THEN
+        Y.TF.ID = ENQ.SELECTION<4,TF.ID.POS>
+    END
+    LOCATE 'USR.DATE' IN ENQ.SELECTION<2,1> SETTING USR.DT.POS THEN
+        Y.USR.DT = ENQ.SELECTION<4,USR.DT.POS>
+    END
+    Y.APP=''
+    CALL F.READ(FN.LC,Y.TF.ID,R.LC,F.LC,Y.LC.ERR)
+    IF R.LC NE '' THEN
+        Y.APP='LC'
+    END ELSE
+        CALL F.READ(FN.DR,Y.TF.ID,R.DR,F.DR,Y.DR.ERR)
+        IF R.DR NE '' THEN
+            Y.APP='DR'
+            Y.DRN.AC = R.DR<TF.DR.DRAWDOWN.ACCOUNT>
+            Y.PAY.AC = R.DR<TF.DR.PAYMENT.ACCOUNT>
+            CALL GET.LOC.REF("DRAWINGS","BTB.BILL.NO",Y.BTB.BILL.NO)
+            CALL GET.LOC.REF("DRAWINGS","EXLC.COLL.NO",Y.EXLC.COLL.NO)
+            Y.NARR = R.DR<TF.DR.LOCAL.REF><1,Y.BTB.BILL.NO>:R.DR<TF.DR.LOCAL.REF><1,Y.EXLC.COLL.NO>
+        END ELSE
+            Y.APP='MD'
+        END
+    END
+
+    Y.LC.NO = R.LC<TF.LC.OLD.LC.NUMBER>
+    IF Y.LC.NO EQ '' THEN
+        Y.LC.ID=LEFT(Y.TF.ID,LEN(Y.TF.ID)-2)
+        CALL F.READ(FN.LC,Y.LC.ID,R.LC1,F.LC,Y.LC.ERR)
+        Y.LC.NO = R.LC1<TF.LC.OLD.LC.NUMBER>
+    END
+
+    SEL.CMD = 'SELECT ':FN.CONSOL.SPEC.ENTRY :' WITH TRANS.REFERENCE EQ ':Y.TF.ID
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.REC,SYS.ERR)
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+        CALL F.READ(FN.CONSOL.SPEC.ENTRY,Y.ID,R.CONSOL.SPEC.ENTRY,F.CONSOL.SPEC.ENTRY,Y.ERR)
+        Y.AC.ID = ''
+!Y.AC.TITLE = R.CONSOL.SPEC.ENTRY<RE.CSE.TRANSACTION.CODE>
+        Y.CAT.ID=R.CONSOL.SPEC.ENTRY<RE.CSE.PRODUCT.CATEGORY>
+
+        Y.CONSOL.KEY = R.CONSOL.SPEC.ENTRY<RE.CSE.CONSOL.KEY.TYPE>
+        Y.CONSOL.TYPE=FIELD(Y.CONSOL.KEY,".",18)
+
+        Y.ALLOW.TYPE='ISSUE':@FM:'ISSUEBL':@FM:'COLL':@FM:'COLLBL':@FM:'ACPTBANKBL':@FM:'ACPTBANK':@FM:'CONTDB':@FM:'CONTDBBL'
+        LOCATE Y.CONSOL.TYPE IN Y.ALLOW.TYPE SETTING Y.POS THEN
+
+            Y.ALLOW.TXN.LC.OPEN='NEW':@FM:'DEC':@FM:'INC':@FM:'LNW'
+            Y.TXN.TYPE=R.CONSOL.SPEC.ENTRY<RE.CSE.TRANSACTION.CODE>
+
+            IF Y.APP EQ 'LC' OR Y.APP EQ 'MD' THEN          ;*For Opening
+
+                Y.CAT.ID=R.CONSOL.SPEC.ENTRY<RE.CSE.PRODUCT.CATEGORY>
+                Y.DISALLOW.CATEG='23101':@FM:'23105':@FM:'23106':@FM:'23107':@FM:'23110':@FM:'23111':@FM:'23112':@FM:'23115':@FM:'23115':@FM:'23156':@FM:'23160':@FM:'23170':@FM:'28020'
+                LOCATE Y.CAT.ID IN Y.DISALLOW.CATEG SETTING Y.POS2 THEN
+                    CONTINUE
+                END
+
+                LOCATE Y.TXN.TYPE IN Y.ALLOW.TXN.LC.OPEN SETTING Y.POS1 THEN
+
+                END ELSE
+                    CONTINUE
+                END
+            END ELSE          ;*For Payment
+                Y.DRAW.TYPE=R.DR<TF.DR.DRAWING.TYPE>
+                Y.DISALLOW.PAY='SP':@FM:'MA':@FM:'DP'
+                LOCATE Y.DRAW.TYPE IN Y.DISALLOW.PAY SETTING Y.POS THEN
+                    CONTINUE
+                END
+
+            END
+
+        END ELSE
+            CONTINUE
+        END
+
+        BEGIN CASE
+        CASE Y.CONSOL.TYPE EQ 'ISSUEBL'
+            Y.HEAD.NAME = "Customer Liability LC"
+        CASE Y.CONSOL.TYPE EQ 'ADVICEBL'
+            Y.HEAD.NAME = "Expoert LC Reg/Advice"
+        CASE Y.CONSOL.TYPE EQ 'ACPTBANKBL'
+!Y.HEAD.NAME = "Customer Liability IFDBC(Cash)"
+            Y.HEAD.NAME = "Customer Liability IFDBC"
+        CASE Y.CONSOL.TYPE EQ 'COLLBL'
+!Y.HEAD.NAME = "Customer Liability IFDBC(Cash)"
+            Y.HEAD.NAME = "Customer Liability FDBL"
+        CASE Y.CONSOL.TYPE EQ 'COLL'
+!Y.HEAD.NAME = "Bankers Liability IFDBC(Cash)"
+            Y.HEAD.NAME = "Bankers Liability FDBC"
+        CASE Y.CONSOL.TYPE EQ 'ISSUE'
+            Y.HEAD.NAME = "Bankers Liability LC"
+        CASE Y.CONSOL.TYPE EQ 'ADVICE'
+            Y.HEAD.NAME = "Expoert LC Reg/Advice"
+        CASE Y.CONSOL.TYPE EQ 'ACPTBANK'
+!Y.HEAD.NAME = "Bankers Liability IFDBC(Cash)"
+            Y.HEAD.NAME = "Bankers Liability IFDBC"
+        CASE Y.CONSOL.TYPE EQ 'CONTDB'
+            Y.HEAD.NAME = "Customer Liability LG"
+        CASE Y.CONSOL.TYPE EQ 'CONTDBBL'
+            Y.HEAD.NAME = "Bankers Liability LG"
+        END CASE
+        Y.CATEG = R.CONSOL.SPEC.ENTRY<RE.CSE.PRODUCT.CATEGORY>
+        Y.AC.ID="BDT":Y.CATEG
+        CALL F.READ(FN.CATEG,Y.CATEG,R.CATEG,F.CATEG,Y.CATEG.ERR)
+        Y.AC.TYPE = R.CATEG<EB.CAT.DESCRIPTION>
+        Y.REF = R.CONSOL.SPEC.ENTRY<RE.CSE.DEAL.NUMBER>
+        Y.CCY = "BDT"
+        Y.DECI = 2
+        Y.AMT = R.CONSOL.SPEC.ENTRY<RE.CSE.AMOUNT.LCY>
+        CALL EB.ROUND.AMOUNT(Y.CCY,Y.AMT,Y.DECI,"")
+        Y.AMT.1 = ABS(Y.AMT)
+        LNGVAR=Y.AMT.1
+        CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+        Y.LCY.TXTOUT=LEFT(TXTOUT,LEN(TXTOUT)-5)
+        Y.AMT.2 = FMT(Y.AMT.1,'R2,#15')
+        Y.DATE = R.CONSOL.SPEC.ENTRY<RE.CSE.VALUE.DATE>
+        INT.DATE = ICONV(Y.DATE,"D")
+        DISP.DATE = OCONV(INT.DATE, 'DD') "R%2":" ":OCONV(INT.DATE, 'DMA'):" ":OCONV(INT.DATE, 'DY4')
+        Y.AMT.TRIM = LEFT(Y.AMT,1)
+
+        Y.FCY.CURR=R.CONSOL.SPEC.ENTRY<RE.CSE.CURRENCY>
+        IF Y.FCY.CURR EQ 'BDT' THEN
+            Y.FCY.CURR='FCY'
+        END
+        Y.FCY.AMT=ABS(R.CONSOL.SPEC.ENTRY<RE.CSE.AMOUNT.FCY>)
+        Y.EXCH.RATE=R.CONSOL.SPEC.ENTRY<RE.CSE.EXCHANGE.RATE>
+        LNGVAR=Y.FCY.AMT
+        CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+        TXTOUT=LEFT(TXTOUT,LEN(TXTOUT)-5)
+        Y.FCY.AMT = FMT(Y.FCY.AMT,'R2,#15')
+
+        Y.INP = R.CONSOL.SPEC.ENTRY<RE.CSE.INPUTTER>
+        Y.INPUTTER = FIELD(Y.INP,'_',2,1)
+        Y.AUTH = R.CONSOL.SPEC.ENTRY<RE.CSE.AUTHORISER>
+        Y.AUTHOR = FIELD(Y.AUTH,'_',2,1)
+        IF Y.USR.DT NE '' THEN
+            IF Y.DATE EQ Y.USR.DT THEN
+                IF Y.AMT.TRIM EQ '-' THEN
+                    Y.DATA<-1> = 'Debit Voucher':'*':Y.AC.ID:'*':Y.HEAD.NAME:'*':Y.AC.TYPE:'*':Y.REF:'*':Y.LC.NO:'*':DISP.DATE:'*':Y.AMT.2:'*':Y.LCY.TXTOUT:'*':Y.FCY.CURR:'*':Y.FCY.AMT:'*':TXTOUT:'*':Y.EXCH.RATE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.NARR
+                END ELSE
+                    Y.DATA<-1> = 'Credit Voucher':'*':Y.AC.ID:'*':Y.HEAD.NAME:'*':Y.AC.TYPE:'*':Y.REF:'*':Y.LC.NO:'*':DISP.DATE:'*':Y.AMT.2:'*':Y.LCY.TXTOUT:'*':Y.FCY.CURR:'*':Y.FCY.AMT:'*':TXTOUT:'*':Y.EXCH.RATE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.NARR
+                END
+            END
+        END ELSE
+            IF Y.AMT.TRIM EQ '-' THEN
+                Y.DATA<-1> = 'Debit Voucher':'*':Y.AC.ID:'*':Y.HEAD.NAME:'*':Y.AC.TYPE:'*':Y.REF:'*':Y.LC.NO:'*':DISP.DATE:'*':Y.AMT.2:'*':Y.LCY.TXTOUT:'*':Y.FCY.CURR:'*':Y.FCY.AMT:'*':TXTOUT:'*':Y.EXCH.RATE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.NARR
+            END ELSE
+                Y.DATA<-1> = 'Credit Voucher':'*':Y.AC.ID:'*':Y.HEAD.NAME:'*':Y.AC.TYPE:'*':Y.REF:'*':Y.LC.NO:'*':DISP.DATE:'*':Y.AMT.2:'*':Y.LCY.TXTOUT:'*':Y.FCY.CURR:'*':Y.FCY.AMT:'*':TXTOUT:'*':Y.EXCH.RATE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.NARR
+            END
+        END
+    REPEAT
+
+!SEL.CMD.1 = 'SELECT ':FN.STMT.ENT :' WITH TRANS.REFERENCE EQ ':Y.TF.ID:' BY ACCOUNT.NUMBER BY AMOUNT.LCY'
+    SEL.CMD.1 = 'SELECT ':FN.STMT.ENT :' WITH TRANS.REFERENCE EQ ':Y.TF.ID:' BY ACCOUNT.NUMBER BY VALUE.DATE BY AMOUNT.LCY'
+    CALL EB.READLIST(SEL.CMD.1,SEL.LIST.1,'',NO.REC.1,SYS.ERR)
+
+    Y.AMT=0
+    TOT=DCOUNT(SEL.LIST.1,@FM)
+    Y.DISALLOW.CATEG='14016':@FM:'14032'
+    FOR I=1 TO TOT
+        Y.ENT.1=FIELD(SEL.LIST.1,@FM,I)
+        IF LEFT(Y.ENT.1,1) EQ 'F' THEN  ;*Forward Entries
+            CONTINUE
+        END
+        CALL F.READ(FN.STMT.ENT,Y.ENT.1,R.TF.STMT.ENT.REC,F.STMT.ENT,Y.TF.STMT.ENT.ERR)
+        Y.AC.ID1 = R.TF.STMT.ENT.REC<AC.STE.ACCOUNT.NUMBER>
+        Y.CATEG = R.TF.STMT.ENT.REC<AC.STE.PRODUCT.CATEGORY>
+        LOCATE Y.CATEG IN Y.DISALLOW.CATEG SETTING Y.POS THEN
+            CONTINUE
+        END
+
+        Y.ENT.2=FIELD(SEL.LIST.1,@FM,I+1)
+        CALL F.READ(FN.STMT.ENT,Y.ENT.2,R.TF.STMT.ENT.REC2,F.STMT.ENT,Y.TF.STMT.ENT.ERR)
+
+        Y.AC.ID2 = R.TF.STMT.ENT.REC2<AC.STE.ACCOUNT.NUMBER>
+        Y.AMT1 = R.TF.STMT.ENT.REC<AC.STE.AMOUNT.LCY>
+        IF Y.AMT EQ 0 THEN
+            Y.AMT=ABS(Y.AMT1)
+        END
+        Y.AMT1.TRIM=''
+        IF Y.AMT1 LT 0 THEN
+            Y.AMT1.TRIM='-'
+        END
+
+        Y.AMT2 = R.TF.STMT.ENT.REC2<AC.STE.AMOUNT.LCY>
+        Y.AMT2.TRIM=''
+        IF Y.AMT2 LT 0 THEN
+            Y.AMT2.TRIM='-'
+        END
+        Y.DATE = R.TF.STMT.ENT.REC<AC.STE.VALUE.DATE>
+        Y.DATE2 = R.TF.STMT.ENT.REC2<AC.STE.VALUE.DATE>
+        IF Y.AC.ID1 EQ Y.AC.ID2 THEN
+            IF Y.AC.ID1 EQ Y.DRN.AC OR Y.AC.ID1 EQ Y.PAY.AC THEN
+            END
+            ELSE
+                IF Y.USR.DT NE '' THEN
+                    IF Y.AC.ID1[1,1]='0' THEN
+                        IF Y.DATE EQ Y.USR.DT THEN
+                            Y.CAMT += ABS(Y.AMT1)
+                            Y.AMT = Y.CAMT
+                        END
+                        IF Y.DATE2 EQ Y.USR.DT THEN CONTINUE
+                    END
+                    ELSE
+                        IF Y.DATE2 EQ Y.USR.DT AND Y.DATE EQ Y.USR.DT THEN
+                            Y.AMT + =ABS(Y.AMT2)
+                            CONTINUE
+                        END
+                    END
+                END
+                ELSE
+                    IF Y.DATE EQ Y.DATE2 THEN
+                        Y.AMT + =ABS(Y.AMT2)
+                        CONTINUE
+                    END
+                END
+            END
+        END
+        ELSE
+            IF Y.USR.DT NE '' AND Y.DATE EQ Y.USR.DT THEN Y.AMT = ABS(Y.AMT1) + Y.CAMT
+            Y.CAMT = 0
+        END
+        IF Y.AMT GT 0 THEN
+            CALL F.READ(FN.AC,Y.AC.ID1,R.AC.ID,F.AC,Y.AC.ERR)
+            Y.AC.TITLE = R.AC.ID<AC.ACCOUNT.TITLE.1>
+            CALL F.READ(FN.CATEG,Y.CATEG,R.CATEG,F.CATEG,Y.CATEG.ERR)
+            Y.AC.TYPE = R.CATEG<EB.CAT.DESCRIPTION>
+            Y.REF = R.TF.STMT.ENT.REC<AC.STE.TRANS.REFERENCE>
+            LNGVAR=Y.AMT
+            CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+            Y.LCY.TXTOUT=LEFT(TXTOUT,LEN(TXTOUT)-5)
+            Y.AMT = FMT(Y.AMT,'R2,#15')
+!Y.DATE = R.TF.STMT.ENT.REC<AC.STE.VALUE.DATE>
+            INT.DATE = ICONV(Y.DATE,"D")
+            DISP.DATE = OCONV(INT.DATE, 'DD') "R%2":" ":OCONV(INT.DATE, 'DMA'):" ":OCONV(INT.DATE, 'DY4')
+
+            Y.FCY.CURR=''
+            TXTOUT=''
+            Y.FCY.AMT=ABS(R.TF.STMT.ENT.REC<AC.STE.AMOUNT.FCY>)
+            IF Y.FCY.AMT NE 0 THEN
+                Y.FCY.CURR=R.TF.STMT.ENT.REC<AC.STE.CURRENCY>
+                Y.EXCH.RATE=R.TF.STMT.ENT.REC<AC.STE.EXCHANGE.RATE>
+                LNGVAR=Y.FCY.AMT
+                CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+                TXTOUT=LEFT(TXTOUT,LEN(TXTOUT)-5)
+                Y.FCY.AMT = FMT(Y.FCY.AMT,'R2,#15')
+            END ELSE
+                Y.FCY.CURR='FCY'
+                Y.FCY.AMT=''
+            END
+            Y.AC.ID=Y.AC.ID1
+            Y.INP = R.TF.STMT.ENT.REC<AC.STE.INPUTTER>
+            Y.INPUTTER = FIELD(Y.INP,'_',2,1)
+            Y.AUTH = R.TF.STMT.ENT.REC<AC.STE.AUTHORISER>
+            Y.AUTHOR = FIELD(Y.AUTH,'_',2,1)
+            IF Y.USR.DT NE '' THEN
+                IF Y.DATE EQ Y.USR.DT THEN
+                    IF Y.AMT1.TRIM EQ '-' THEN
+                        Y.DATA<-1> = 'Debit Voucher':'*':Y.AC.ID:'*':Y.AC.TITLE:'*':Y.AC.TYPE:'*':Y.REF:'*':Y.LC.NO:'*':DISP.DATE:'*':Y.AMT:'*':Y.LCY.TXTOUT:'*':Y.FCY.CURR:'*':Y.FCY.AMT:'*':TXTOUT:'*':Y.EXCH.RATE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.NARR
+                    END ELSE
+                        Y.DATA<-1> = 'Credit Voucher':'*':Y.AC.ID:'*':Y.AC.TITLE:'*':Y.AC.TYPE:'*':Y.REF:'*':Y.LC.NO:'*':DISP.DATE:'*':Y.AMT:'*':Y.LCY.TXTOUT:'*':Y.FCY.CURR:'*':Y.FCY.AMT:'*':TXTOUT:'*':Y.EXCH.RATE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.NARR
+                    END
+                END
+            END ELSE
+                IF Y.AMT1.TRIM EQ '-' THEN
+                    Y.DATA<-1> = 'Debit Voucher':'*':Y.AC.ID:'*':Y.AC.TITLE:'*':Y.AC.TYPE:'*':Y.REF:'*':Y.LC.NO:'*':DISP.DATE:'*':Y.AMT:'*':Y.LCY.TXTOUT:'*':Y.FCY.CURR:'*':Y.FCY.AMT:'*':TXTOUT:'*':Y.EXCH.RATE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.NARR
+                END ELSE
+                    Y.DATA<-1> = 'Credit Voucher':'*':Y.AC.ID:'*':Y.AC.TITLE:'*':Y.AC.TYPE:'*':Y.REF:'*':Y.LC.NO:'*':DISP.DATE:'*':Y.AMT:'*':Y.LCY.TXTOUT:'*':Y.FCY.CURR:'*':Y.FCY.AMT:'*':TXTOUT:'*':Y.EXCH.RATE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.NARR
+
+                END
+            END
+            Y.AMT=0
+        END
+    NEXT I
+
+    SEL.CMD.2 = 'SELECT ':FN.CATEG.ENT :' WITH TRANS.REFERENCE EQ ':Y.TF.ID
+    CALL EB.READLIST(SEL.CMD.2,SEL.LIST.2,'',NO.REC.2,SYS.ERR)
+    Y.AMT=0
+    LOOP
+        REMOVE Y.ID.CATEG FROM SEL.LIST.2 SETTING POS.CATEG
+    WHILE Y.ID.CATEG:POS.CATEG
+        CALL F.READ(FN.CATEG.ENT,Y.ID.CATEG,R.CATEG.REC,F.CATEG.ENT,Y.CATEG.ERR)
+        Y.CATEG = R.CATEG.REC<AC.CAT.PL.CATEGORY>
+        CALL F.READ(FN.CATEG,Y.CATEG,R.CATEG,F.CATEG,Y.CATEG.ERR)
+        Y.AC.TYPE = R.CATEG<EB.CAT.DESCRIPTION>
+        Y.AC.TITLE = R.CATEG<EB.CAT.DESCRIPTION>
+        Y.AC.ID = 'PL':Y.CATEG
+        Y.REF = R.CATEG.REC<AC.CAT.TRANS.REFERENCE>
+        Y.AMT = R.CATEG.REC<AC.CAT.AMOUNT.LCY>
+        Y.AMT.1 = ABS(Y.AMT)
+        LNGVAR=Y.AMT.1
+        CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+        Y.LCY.TXTOUT=TXTOUT
+        Y.AMT.2 = FMT(Y.AMT.1,'R2,#15')
+        Y.DATE = R.CATEG.REC<AC.CAT.VALUE.DATE>
+        INT.DATE = ICONV(Y.DATE,"D")
+        DISP.DATE = OCONV(INT.DATE, 'DD') "R%2":" ":OCONV(INT.DATE, 'DMA'):" ":OCONV(INT.DATE, 'DY4')
+        Y.AMT.TRIM = LEFT(Y.AMT,1)
+
+        Y.FCY.CURR='FCY'
+        Y.FCY.AMT=''
+        Y.EXCH.RATE=''
+        TXTOUT=''
+
+!Y.FCY.CURR=R.CONSOL.SPEC.ENTRY<RE.CSE.CURRENCY>
+!Y.FCY.AMT=R.CONSOL.SPEC.ENTRY<RE.CSE.AMOUNT.FCY>
+!Y.EXCH.RATE=R.CONSOL.SPEC.ENTRY<RE.CSE.EXCHANGE.RATE>
+!LNGVAR=Y.FCY.AMT
+!CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+!Y.FCY.AMT = FMT(Y.FCY.AMT,'R2,#15')
+
+        Y.INP = R.CATEG.REC<AC.CAT.INPUTTER>
+        Y.INPUTTER = FIELD(Y.INP,'_',2,1)
+        Y.AUTH = R.CATEG.REC<AC.CAT.AUTHORISER>
+        Y.AUTHOR = FIELD(Y.AUTH,'_',2,1)
+        IF Y.USR.DT NE '' THEN
+            IF Y.DATE EQ Y.USR.DT THEN
+                IF Y.AMT.TRIM EQ '-' THEN
+                    Y.DATA<-1> = 'Debit Voucher (Expenditure)':'*':Y.AC.ID:'*':Y.AC.TITLE:'*':Y.AC.TYPE:'*':Y.REF:'*':Y.LC.NO:'*':DISP.DATE:'*':Y.AMT.2:'*':Y.LCY.TXTOUT:'*':Y.FCY.CURR:'*':Y.FCY.AMT:'*':TXTOUT:'*':Y.EXCH.RATE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.NARR
+                END ELSE
+                    Y.DATA<-1> = 'Credit Voucher (Income)':'*':Y.AC.ID:'*':Y.AC.TITLE:'*':Y.AC.TYPE:'*':Y.REF:'*':Y.LC.NO:'*':DISP.DATE:'*':Y.AMT.2:'*':Y.LCY.TXTOUT:'*':Y.FCY.CURR:'*':Y.FCY.AMT:'*':TXTOUT:'*':Y.EXCH.RATE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.NARR
+                END
+            END
+        END ELSE
+            IF Y.AMT.TRIM EQ '-' THEN
+                Y.DATA<-1> = 'Debit Voucher (Expenditure)':'*':Y.AC.ID:'*':Y.AC.TITLE:'*':Y.AC.TYPE:'*':Y.REF:'*':Y.LC.NO:'*':DISP.DATE:'*':Y.AMT.2:'*':Y.LCY.TXTOUT:'*':Y.FCY.CURR:'*':Y.FCY.AMT:'*':TXTOUT:'*':Y.EXCH.RATE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.NARR
+            END ELSE
+                Y.DATA<-1> = 'Credit Voucher (Income)':'*':Y.AC.ID:'*':Y.AC.TITLE:'*':Y.AC.TYPE:'*':Y.REF:'*':Y.LC.NO:'*':DISP.DATE:'*':Y.AMT.2:'*':Y.LCY.TXTOUT:'*':Y.FCY.CURR:'*':Y.FCY.AMT:'*':TXTOUT:'*':Y.EXCH.RATE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.NARR
+            END
+        END
+        Y.AMT=0
+    REPEAT
+    RETURN
+END 

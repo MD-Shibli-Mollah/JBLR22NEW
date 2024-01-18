@@ -1,0 +1,94 @@
+*-----------------------------------------------------------------------------
+* <Rating>168</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.CHG.LOCAL
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.MD.DEAL
+    $INSERT GLOBUS.BP I_F.MD.BALANCES
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+
+*--------------
+INIT:
+*--------------
+    Y.DATA=O.DATA
+
+    FN.DEAL="F.MD.DEAL"
+    F.DEAL =""
+    FN.BLNC="FBNK.MD.BALANCES"
+    F.BLNC =""
+
+    Y.LIAB.REV.DT = ""
+    Y.TODAY = TODAY
+    Y.CHG.CODE1= 'GTISSCLV':@FM:'GTISSCCWOV':@FM:'GTISSCFV':@FM:'GTISSCFWOV':@FM:'GTISSFULMCL':@FM:'GTISSFULMCF':@FM:'GTEECANLL':@FM:'GTEEADVLG':@FM:'GTAMDCV':@FM:'GTAMDCWOV':@FM:'GTISSCLWOV':@FM:'GTAMDCLV'
+    Y.CHG.CODE2= 'LCSWCHGFUL':@FM:'LCSWCHGAMD'
+    Y.CHG.CODE3= 'LCPOSTCORC':@FM:'LCPOSTCORL'
+    Y.CHG.CODE4= 'LCSTAMPCHG'
+
+*--------------
+OPENFILE:
+*--------------
+    CALL OPF(FN.DEAL,F.DEAL)
+    CALL OPF(FN.BLNC,F.BLNC)
+    RETURN
+
+*--------------
+PROCESS:
+*--------------
+
+    CALL F.READ(FN.DEAL,Y.DATA,R.DEAL.REC,F.DEAL,Y.DELA.ERR)
+
+    CALL F.READ(FN.BLNC,Y.DATA,R.BLNC.REC,F.BLNC,Y.BLNC.ERR)
+    Y.CR.CNT=DCOUNT(R.BLNC.REC<MD.BAL.CHARGE.CODE>,@SM)
+
+    FOR I=1 TO Y.CR.CNT
+        Y.CHARGE.CODE=R.BLNC.REC<MD.BAL.CHARGE.CODE,1,I>
+
+        LOCATE Y.CHARGE.CODE IN Y.CHG.CODE1 SETTING POS.1 THEN
+            Y.CRG.CODE1 =R.BLNC.REC<MD.BAL.CHARGE.CODE,1,I>
+            Y.CRG.AMT1 +=R.BLNC.REC<MD.BAL.CHARGE.AMT,1,I>
+            Y.CRG.VAT1 +=R.BLNC.REC<MD.BAL.CHRG.TAX.AMT,1,I>
+        END ELSE
+            LOCATE Y.CHARGE.CODE IN Y.CHG.CODE2 SETTING POS.2 THEN
+                Y.CRG.CODE2 =R.BLNC.REC<MD.BAL.CHARGE.CODE,1,I>
+                Y.CRG.AMT2 +=R.BLNC.REC<MD.BAL.CHARGE.AMT,1,I>
+                Y.CRG.VAT2 +=R.BLNC.REC<MD.BAL.CHRG.TAX.AMT,1,I>
+            END ELSE
+                LOCATE Y.CHARGE.CODE IN Y.CHG.CODE3 SETTING POS.3 THEN
+                    Y.CRG.CODE3 =R.BLNC.REC<MD.BAL.CHARGE.CODE,1,I>
+                    Y.CRG.AMT3 +=R.BLNC.REC<MD.BAL.CHARGE.AMT,1,I>
+                    Y.CRG.VAT3 +=R.BLNC.REC<MD.BAL.CHRG.TAX.AMT,1,I>
+                END ELSE
+                    LOCATE Y.CHARGE.CODE IN Y.CHG.CODE4 SETTING POS.4 THEN
+                        Y.CRG.CODE4 =R.BLNC.REC<MD.BAL.CHARGE.CODE,1,I>
+                        Y.CRG.AMT4 +=R.BLNC.REC<MD.BAL.CHARGE.AMT,1,I>
+                    END ELSE
+                        Y.CRG.CODE5 =R.BLNC.REC<MD.BAL.CHARGE.CODE,1,I>
+                        Y.CRG.AMT5 +=R.BLNC.REC<MD.BAL.CHARGE.AMT,1,I>
+                        Y.CRG.VAT5 +=R.BLNC.REC<MD.BAL.CHRG.TAX.AMT,1,I>
+                    END
+                END
+            END
+        END
+    NEXT
+    Y.AUTO.EXP = R.DEAL.REC<MD.DEA.AUTO.EXPIRY>
+    Y.ONLINE.MAT = R.DEAL.REC<MD.DEA.ONLINE.MAT>
+    Y.MATURITY.DATE = R.DEAL.REC<MD.DEA.MATURITY.DATE>
+
+!IF (Y.AUTO.EXP EQ 'YES' OR Y.ONLINE.MAT EQ 'YES') AND Y.MATURITY.DATE LE Y.TODAY THEN
+*--------Added By Mehedi-----
+    IF Y.MATURITY.DATE LE Y.TODAY THEN
+*----------------------------
+        Y.LIAB.REV.DT = Y.MATURITY.DATE
+    END ELSE
+        Y.LIAB.REV.DT = ""
+    END
+
+    O.DATA= Y.CRG.AMT1:"*":Y.CRG.VAT1:"*":Y.CRG.AMT2:"*":Y.CRG.VAT2:"*":Y.CRG.AMT3:"*":Y.CRG.VAT3:"*":Y.CRG.AMT4:"*":Y.CRG.AMT5:"*":Y.CRG.VAT5:"*":Y.LIAB.REV.DT
+
+    RETURN

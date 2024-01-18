@@ -1,0 +1,451 @@
+*-----------------------------------------------------------------------------
+* <Rating>-62</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE AC.UPDATE.STMT.PRINTED(PROCESSING.DATE, ENTRY.ID, ACCT.ID, R.ACCT.STMT, FREQ, YERR)
+*
+** This routine is called from the  EB.UPDATE.AC.XREF update to directly update
+** the STMT.PRINTED file based on the next statement date.
+** For Value dated entries we may need to update STMT.PRINTED in future dates.
+** For Passbooks we will update a record keyed on ACCOUNT.NO-PASSBOOK.
+** When the passbook is updated it will be changed to a statement date
+** All the different dates will be stored in ACCT.STMT.PRINT so PRINT.ACCOUNT.STMT will
+** actually have very little to do.
+** If there are frequency changes then ACCOUNT.STATEMENT will need to move the entries
+** from one record to another
+*
+***************************************************************************************
+* 11/07/05 - EN_10002592
+*            Online Update of Statement concat files
+*
+* 20/09/05 - BG_100009426
+*            Locking problem, file is not released.
+*
+* 25/10/05 - BG_100009586
+*            Resolved the problem of updating duplicate entries
+*            in STMT.PRINTED and STMT2.PRINTED files.
+*
+* 11/11/05 - BG_100009669
+*            While deleting in the STMT2 frequencies and frequency numbers
+*            of ACCOUNT.STATEMENT, the concat files are getting updated
+*            incorrecly.
+*
+* 17/11/05 - BG_100009702
+*            Changes done to update ACCT.STMT/2.PRINT and STMT/2.PRINTED files
+*            correctly when the frequency falls on holiday.
+*
+* 19/01/05 - BG_100010040
+*            Changes done to skip the para GET.CORRECT.STMT.DATE when STMT.DATE is null
+*            or 'PASSBOOK'
+*
+* 08/05/06 - BG_100011082 / Ref:TTS0551306
+*            Uninitialised variable initialised
+*
+* 08/09/06 - CI_10043956
+*            Account statement show different closing balance when an original account
+*            is changed into passbook account.
+*
+* 06/10/06 - BG_100012189 / Ref:TTS0652538
+*            FATAL.ERROR in CDT call of AC.UPDATE.STMT.PRINTED
+*
+* 07/11/06 - CI_10045314
+*            Cache Read error when authorising transactions involving accounts which has
+*            account.statement frequency as BSNSS and transaction processing date as Today
+*            and value date future.
+*
+* 16/02/07 - BG_100013026
+*            If stmt.date becomes a holiday, because of changes in holiday table, then append the
+*            prev stmt.entries to the new stmt.date and delete the stmt.printed for prev date.
+*            if exits.
+*
+* 06/11/07 - CI_10052378
+*            get rid of direct read and only readd if id's not same
+*
+* 20/02/08 - BG_100017206
+*            Remove READ of ACCT.STMT.PRINT as it is not used in any checks.
+*
+*
+*10/06/08 - BG_100018734
+*            STMT.PRINTED records of current ACCOUNT.STATEMENT frequency are cycled to value date
+*            of future-value dated entry in a value-dated system. This is avoided.
+*
+* 14/07/08 - CI_10056674(CSS REF:HD0813726)
+*            Entries duplicated in enquiry STMT.ENT.BOOK when FWD.MVMT.REQD field in AC.STMT.PARAMETER is set.
+*            Changes done to stop updating STMT.PRINTED files when the entry is already printed
+*            i.e in FWD.STMT1.PRINTED or FWD.STMT2.PRINTED
+*
+*08/07/08 - CI_10056557
+*            STMT.PRINTED id generated incorrectly when transactions are input in COB.
+*            Since the ACCOUNT.STATEMENT  is cycled to a date which is immidiately next to or equal to TODAY
+*            to determine the next ACCOUNT.STATEMENT date,In COB,for BSNSS frequency, TODAY will be the
+*            immediate date on which the next ACCOUNT.STATEMENT will be produced.
+*            This is done as calling CFQ returns incorrect date for BSNSS frequency.
+*
+* 01/10/08 - EN_10003871
+*            The ID for STMT.PRINTED/STMT2.PRINTED is formed using ACCOUNT.STATEMENT frequency.
+*            When the account statement frequency falls on a holiday, this routine finds the
+*            previous working day to form the ID. When a day is set to holiday the entries
+*            under that day are missed out.
+*
+*            So the process of finding previous working day to form ID for STMT.PRINTED/ STMT2.PRINTED is
+*            removed and it is formed using the ACCOUNT.STATEMENT frequency irrespective of holiday/ working day.
+*
+*            PRINT.ACCOUNT.STMT logic is changed to select those accounts with frequency from
+*            today to next working day. Hence account statement is printed for accounts whose
+*            frequency falls on today and frequency less than next working day.
+*
+* 22/12/08 - BG_100020832
+*            In value dated system, for multivalued freqs while inputting a forward value dated transaction,
+*            STMT.PRINTED and ACCT.STMT.PRINT is updated with wrong date.
+*            In the para DETERMINE.STMT.PRINTED.ID from multivalue set the first date
+*            on the set is taken to form the ID for STMT.PRINTED.
+*            Code is changed to find the correct period.
+*
+* 06/05/09 - BG_100023241
+*            Infinite loop ocurs in Conversion of STMT.PRINTED
+*
+* 17/07/09 - CI_10064611
+*            Part redemption done on AZ passbook account takes long time to commit.
+*            In an AZ contract for a passbook account, sub account is created with PASSBOOK
+*            set to 'NO'. Account statement of sub account is inherited from master account.
+*            Hence it does not hold frequency
+*            In this routine, considers this sub account as NON-PASSBOOK and
+*            and tries to find minimum of frequency dates. Hence NEXT.DATE is assigned with zero.
+*            In DETERMINE.STMT.PRINTED.ID para, code specific to non passbook account gets
+*            executed and looping is done.
+*            Code changed to check for value in NEXT.DATE to avoid this.
+*
+* 25/03/10 - EN_10004538
+*            Determine the processing date by calling AC.GET.STMT.DATE for future
+*            value dated transaction.
+****************************************************************************************
+* INSERTS
+*==========
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.ACCOUNT.STATEMENT
+    $INSERT I_F.AC.STMT.PARAMETER
+    $INSERT I_F.DATES
+    $INSERT I_F.SPF
+
+    GOSUB INITIALISE
+    FOR IDX = FQU.START TO FQU.END
+        GOSUB INIT.FREQUENCY
+        GOSUB FIND.NEXT.DATE
+        GOSUB DETERMINE.STMT.PRINTED.ID
+        GOSUB UPDATE.STMT.PRINTED
+    NEXT IDX
+*
+    RETURN
+*
+*-----------------------------------------------------------------------------------
+INITIALISE:
+*==========
+*
+    F.STMT.PRINTED = ''
+    CALL OPF("F.STMT.PRINTED", F.STMT.PRINTED)
+*
+    F.STMT2.PRINTED = ""
+    CALL OPF("F.STMT2.PRINTED", F.STMT2.PRINTED)
+*
+    F.ACCT.STMT.PRINT = ''
+    CALL OPF("F.ACCT.STMT.PRINT", F.ACCT.STMT.PRINT)
+*
+    F.ACCT.STMT2.PRINT = ''
+    CALL OPF("F.ACCT.STMT2.PRINT", F.ACCT.STMT2.PRINT)
+*
+    F.ACCOUNT.STATEMENT = ''
+    CALL OPF("F.ACCOUNT.STATEMENT", F.ACCOUNT.STATEMENT)
+*
+    F.ACCOUNT = ''
+    CALL OPF("F.ACCOUNT", F.ACCOUNT)
+*
+    F.FWD.STMT1.PRINTED = ''
+    CALL OPF("F.FWD.STMT1.PRINTED",F.FWD.STMT1.PRINTED)
+*
+    F.FWD.STMT2.PRINTED = ''
+    CALL OPF("F.FWD.STMT2.PRINTED",F.FWD.STMT2.PRINTED)
+*
+    F.AC.STMT.PARAM = ''
+    CALL OPF("F.AC.STMT.PARAMETER",F.AC.STMT.PARAM)
+*
+    CALL CACHE.READ("F.AC.STMT.PARAMETER","SYSTEM",R.AC.STMT.PARAM,PARAM.ERR)
+    FWD.MVMT.REQD = ''
+    IF R.AC.STMT.PARAM THEN
+        FWD.MVMT.REQD = R.AC.STMT.PARAM<AC.STP.FWD.MVMT.REQD>
+    END
+
+    IF R.ACCT.STMT = '' THEN
+        CALL F.READ("F.ACCOUNT.STATEMENT", ACCT.ID, R.ACCT.STMT, F.ACCOUNT.STATEMENT, "")
+    END
+    FREQ1.LAST.BAL = R.ACCT.STMT<AC.STA.FQU1.LAST.BALANCE>
+    IF FREQ1.LAST.BAL = '' THEN
+        FREQ1.LAST.BAL = 0
+    END
+
+*
+    R.ACCOUNT = ''
+    CALL F.READ("F.ACCOUNT", ACCT.ID, R.ACCOUNT, F.ACCOUNT, "")
+*
+    Y.LAST.DATE = ''
+
+    IF FREQ = ''  THEN
+
+        BEGIN CASE
+
+        CASE R.ACCOUNT<AC.PASSBOOK> = 'Y'         ;* passboook ac
+            FQU.CNT = 1
+
+        CASE R.ACCT.STMT<AC.STA.CONS.SB.PASSBOOK> = 'YES'   ;* consolidated  passbook ac
+            FQU.CNT = 1
+
+        CASE 1
+            FQU.CNT = DCOUNT(R.ACCT.STMT<AC.STA.FREQ.NO>,VM) + 1      ;* For extra statment fqu
+
+        END CASE
+
+        FQU.START = 1 ; FQU.END = FQU.CNT         ;* Do all frequencies
+
+    END ELSE
+        FQU.START = FREQ ; FQU.END = FREQ         ;* Only the one requested
+    END
+*
+    RETURN
+*
+*-----------------------------------------------------------------------------------
+INIT.FREQUENCY:
+*==============
+** Store the frequency fields and file variables
+*
+
+    IF IDX = 1 THEN ;* Normal frequency
+        FN.STMT.PRINTED = "F.STMT.PRINTED" ; FV.STMT.PRINTED = F.STMT.PRINTED
+        FN.ACCT.STMT.PRINT = "F.ACCT.STMT.PRINT" ; FV.ACCT.STMT.PRINT = F.ACCT.STMT.PRINT
+        FN.FWD.STMT.PRINTED = "F.FWD.STMT1.PRINTED" ; FV.FWD.STMT.PRINTED = F.FWD.STMT1.PRINTED
+        STMT.FIELD = AC.STA.STMT.FQU.1
+        SPECIAL.STMT.FIELD = AC.STA.SPECIAL.STATEMENT
+        FQU.IDX = 1 ;* First frequency only
+        LAST.BAL = R.ACCT.STMT<AC.STA.FQU1.LAST.BALANCE>
+        Y.LAST.DATE = R.ACCT.STMT<AC.STA.FQU1.LAST.DATE,FQU.IDX>
+        ASP.ID = ACCT.ID
+    END ELSE
+        FN.STMT.PRINTED = "F.STMT2.PRINTED" ; FV.STMT.PRINTED = F.STMT2.PRINTED
+        FN.ACCT.STMT.PRINT = "F.ACCT.STMT2.PRINT" ; FV.ACCT.STMT.PRINT = F.ACCT.STMT2.PRINT         ;* BG_100009426
+        FN.FWD.STMT.PRINTED = "F.FWD.STMT2.PRINTED" ; FV.FWD.STMT.PRINTED = F.FWD.STMT2.PRINTED
+        STMT.FIELD = AC.STA.STMT.FQU.2
+        SPECIAL.STMT.FIELD = AC.STA.SPL.STMT.FQU2
+
+        IF FREQ THEN          ;*  Only requested freq
+            LOCATE FREQ IN R.ACCT.STMT<AC.STA.FREQ.NO,1> SETTING FREQ.ONLY ELSE
+                FREQ.ONLY = ''
+            END
+            FQU.IDX = FREQ.ONLY
+        END ELSE
+            FQU.IDX = IDX-1
+        END
+
+        LAST.BAL = R.ACCT.STMT<AC.STA.FQU2.LAST.BAL, FQU.IDX>
+        Y.LAST.DATE = R.ACCT.STMT<AC.STA.FQU2.LAST.DATE, FQU.IDX>
+        IF R.ACCT.STMT<AC.STA.FREQ.NO,FQU.IDX> NE 2 THEN
+            ASP.ID = ACCT.ID:".":R.ACCT.STMT<AC.STA.FREQ.NO,FQU.IDX>
+        END ELSE
+            ASP.ID = ACCT.ID
+        END
+    END
+    IF LAST.BAL EQ '' THEN
+        LAST.BAL = FREQ1.LAST.BAL
+    END
+    FWD.MVMT.AND.FUTURE.DATE = 0
+*
+    RETURN
+*
+*-------------------------------------------------------------------------------------
+FIND.NEXT.DATE:
+*==============
+
+    BEGIN CASE
+
+    CASE R.ACCOUNT<AC.PASSBOOK> = 'Y'   ;* passboook ac
+        NEXT.DATE = ''
+
+    CASE R.ACCT.STMT<AC.STA.CONS.SB.PASSBOOK> = "YES"
+        NEXT.DATE = ''
+
+    CASE 1
+
+* If multiple freq , then find the next nearest date.
+
+        NEXT.DATES = ''
+        IF IDX = 1 THEN
+            FQU.CNT = DCOUNT(R.ACCT.STMT<STMT.FIELD>,VM)
+            FOR FQU.ID = 1 TO FQU.CNT
+                NEXT.DATES<-1> = R.ACCT.STMT<STMT.FIELD,FQU.ID>[1,8]
+            NEXT FQU.ID
+            NEXT.DATE = MINIMUM(NEXT.DATES)
+
+        END ELSE
+            FQU.CNT = DCOUNT(R.ACCT.STMT<STMT.FIELD,FQU.IDX>,SM)
+            FOR FQU.ID = 1 TO FQU.CNT
+                NEXT.STMT.DATE.FQU = R.ACCT.STMT<STMT.FIELD,FQU.IDX,FQU.ID>
+                NEXT.DATES<-1> = NEXT.STMT.DATE.FQU[1,8]
+            NEXT FQU.ID
+            NEXT.DATE = MINIMUM(NEXT.DATES)
+        END
+*
+* If Special stmt freq is also set , then get the eariest stmt date.
+*
+        IF SPECIAL.STMT.FIELD THEN
+            IF R.ACCT.STMT<SPECIAL.STMT.FIELD,FQU.IDX,1> THEN
+                IF R.ACCT.STMT<SPECIAL.STMT.FIELD,FQU.IDX,1>  LT NEXT.DATE THEN
+                    NEXT.DATE = R.ACCT.STMT<SPECIAL.STMT.FIELD,FQU.IDX,1>
+                END
+            END
+        END
+
+    END CASE
+*
+** If we are inputting an NS transaction we need to see if a statement is due
+** tonight, if so then the entry cannot appear on it, it must be on the next
+** statement. We update STMT.PRINTED directly for the period. Also for VD accounting
+** we must put the entry on the correct period
+*
+    IF NOT(RUNNING.UNDER.BATCH) AND R.SPF.SYSTEM<SPF.OP.MODE> = "B" THEN
+        IF NEXT.DATE AND NEXT.DATE LT TODAY THEN
+            DATE.LIMIT = TODAY
+            CYCLE.DATE = R.ACCT.STMT<STMT.FIELD,FQU.IDX,1>
+*Since the account statement date  is cycled to a date which is immidiately next to or equal to TODAY to determine the next ACCOUNT.STATEMENT date,
+*for BSNSS frequency in COB , TODAY will be the immediate date on which the next ACCOUNT.STATEMENT will be produced.
+*
+            IF NOT(CYCLE.DATE[5] EQ "BSNSS") THEN
+                GOSUB CYCLE.NEXT.DATE
+                NEXT.DATE = CYCLE.DATE[1,8]
+            END ELSE
+                NEXT.DATE = TODAY
+            END
+        END
+    END
+
+    STMT.PRINTED.ID = ASP.ID:"-":NEXT.DATE
+
+    RETURN
+*
+*-----------------------------------------------------------------------------------
+DETERMINE.STMT.PRINTED.ID:
+*=========================
+** Check the processing data against the next date. If it's after it we'll need to cycle
+** the statement date until the date is on or after the processing date
+** If it's a passbook we'll update with a value of PASSBOOK and the passbook printing
+** must take care of updating STMT.PRINTED
+*
+    STMT.PRINTED.ID = ASP.ID
+    STMT.DATE = ''
+    BEGIN CASE
+    CASE NOT(NEXT.DATE)       ;* It's a passbook item
+        STMT.DATE = "PASSBOOK"
+    CASE PROCESSING.DATE LE NEXT.DATE   ;* Put it on the next statement
+        STMT.DATE = NEXT.DATE
+
+    CASE 1          ;* We need to cycle to the correct statement
+        IF FWD.MVMT.REQD[1,1] EQ 'Y' THEN
+            STMT.DATE = NEXT.DATE
+            FWD.MVMT.AND.FUTURE.DATE = 1          ;* flag to indicate processing.date is greater than next.date and FWD.MVMT.REQD is set
+        END ELSE
+* We need to cycle to the correct statement
+            CALL AC.GET.STMT.DATE(IDX,FREQ,R.ACCT.STMT,PROCESSING.DATE,STMT.DATE)
+        END
+    END CASE
+*
+    STMT.PRINTED.ID := "-":STMT.DATE
+*
+    RETURN
+*
+*-----------------------------------------------------------------------------------
+UPDATE.STMT.PRINTED:
+*===================
+** Add the entry to the STMT.PRINTED record. Check and see if it's a new date if we
+** need to update ACCT.STMT.PRINT
+DEBUG
+    IF FWD.MVMT.AND.FUTURE.DATE THEN
+        R.FWD.STMT.PRINTED = ''
+       CRT "371: TIME BEFORE READU ":OCONV(TIME(), "MTS")
+        CALL F.READU(FN.FWD.STMT.PRINTED, STMT.PRINTED.ID, R.FWD.STMT.PRINTED, FV.FWD.STMT.PRINTED, "", "")
+        CRT "373: TIME BEFORE READU ":OCONV(TIME(), "MTS")
+        LOCATE ENTRY.ID IN R.FWD.STMT.PRINTED<1> SETTING Y.POS ELSE
+            R.FWD.STMT.PRINTED<-1> = ENTRY.ID
+        END
+        CRT "377: TIME BEFORE READU ":OCONV(TIME(), "MTS")
+        CALL F.WRITE(FN.FWD.STMT.PRINTED, STMT.PRINTED.ID, R.FWD.STMT.PRINTED)
+    END ELSE
+        R.STMT.PRINTED = ''
+        CRT "380: TIME BEFORE READU ":OCONV(TIME(), "MTS")
+        CALL F.READU(FN.STMT.PRINTED, STMT.PRINTED.ID, R.STMT.PRINTED, FV.STMT.PRINTED, "", "")
+        CRT "382: TIME BEFORE READU ":OCONV(TIME(), "MTS")
+        LOCATE ENTRY.ID IN R.STMT.PRINTED<1> SETTING Y.POS ELSE
+            R.STMT.PRINTED<-1> = ENTRY.ID
+        END
+        CRT "387: TIME BEFORE READU ":OCONV(TIME(), "MTS")
+        CALL F.WRITE(FN.STMT.PRINTED, STMT.PRINTED.ID, R.STMT.PRINTED)
+    END
+*
+    CALL F.READU(FN.ACCT.STMT.PRINT, ASP.ID, R.ACCT.STMT.PRINT, FV.ACCT.STMT.PRINT, "", "")
+
+    STMT.DATES = FIELDS(R.ACCT.STMT.PRINT,"/",1,1)
+    STMT.BALS = FIELDS(R.ACCT.STMT.PRINT,"/",2,1)
+
+    LOCATE STMT.DATE IN STMT.DATES<1> BY "AR" SETTING DATE.POS THEN
+        CALL F.RELEASE(FN.ACCT.STMT.PRINT,ASP.ID,FV.ACCT.STMT.PRINT)
+    END ELSE
+        INS STMT.DATE BEFORE STMT.DATES<DATE.POS>
+        IF STMT.DATE = NEXT.DATE OR STMT.DATE = 'PASSBOOK' THEN
+            GOSUB DETERMINE.LAST.BAL
+            INS LAST.BAL BEFORE STMT.BALS<DATE.POS>
+        END
+        GOSUB WRITE.ACCT.STMT.PRINT
+    END
+*
+    RETURN
+*
+*-----------------------------------------------------------------------------------
+DETERMINE.LAST.BAL:
+*------------------
+* Consider acct.stmt.print has 1dec to 3dec. On 04 Dec, if a txn is input with value date 04 dec
+* then update closing balance of 03 Dec since 1dec to 03 dec would be processed and
+* merged only on 04 dec cob.
+
+    IF FWD.MVMT.REQD[1,1] EQ 'Y' THEN
+        RETURN
+    END
+    IF STMT.DATES<DATE.POS-1> GT Y.LAST.DATE THEN
+        BALANCE.DATE = STMT.DATES<DATE.POS-1>
+        YBALANCE = ""
+        CR.MVMT = ""
+        DR.MVMT = ""
+        ERR = ""
+        CALL EB.GET.ACCT.BALANCE(ACCT.ID,R.ACCOUNT,"BOOKING",BALANCE.DATE,"",LAST.BAL,CR.MVMT,DR.MVMT,ERR)
+    END
+    RETURN
+*-----------------------------------------------------------------------------------
+WRITE.ACCT.STMT.PRINT:
+*---------------------
+    R.ACCT.STMT.PRINT = SPLICE(STMT.DATES, "/", STMT.BALS)
+    CALL F.WRITE(FN.ACCT.STMT.PRINT, ASP.ID, R.ACCT.STMT.PRINT)
+
+    RETURN
+*-----------------------------------------------------------------------------------
+CYCLE.NEXT.DATE:
+*---------------
+** Cycle the date supplied until it exceeds or equals the next date required
+*
+    COMI.SAVE = COMI
+    COMI = CYCLE.DATE
+    LOOP
+        CALL CFQ
+    UNTIL COMI GE DATE.LIMIT
+    REPEAT
+    CYCLE.DATE = COMI
+    COMI = COMI.SAVE
+*
+    RETURN
+*-------------------------------------------------------------------------------------
+END

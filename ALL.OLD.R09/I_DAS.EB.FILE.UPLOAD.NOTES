@@ -1,0 +1,21 @@
+*-----------------------------------------------------------------------------
+* Insert for EB.FILE.UPLOAD Data Access Service.
+* ----------------------------------------
+* Defines the named queries that can be issued against the EB.FILE.UPLOAD table.
+* For the implementation of these queries, refer to DAS.EB.FILE.UPLOAD
+*-----------------------------------------------------------------------------
+* You MUST have a dimensioned array for DAS$CACHE and DAS$NOTES
+*
+*-----------------------------------------------------------------------------
+* TODO Replace EB.FILE.UPLOAD with the name of the table
+* TODO Define named queries and give descriptions
+*-----------------------------------------------------------------------------
+* Modifications:
+* -------------
+* 11 NOV 09 - EN_10004423
+*             TO SELECT THE EB.BUILD RECORD BASED ON THE STATUS
+*----------------------------------------------------------------------------
+    COMMON/DAS.EB.FILE.UPLOAD/DAS$CACHE(100),DAS$NOTES(100)
+*-----------------------------------------------------------------------------
+
+    DAS$NOTES(dasEbFileUploadEqStatus) = 'To select the EB.FILE.UPLOAD record with STATUS specified'

@@ -1,0 +1,72 @@
+*-----------------------------------------------------------------------------
+* <Rating>170</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE CUS.SS.MODEL2(Y.RETURN)
+!PROGRAM CUS.SS.MODEL2
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+
+INIT:
+    Y.DIR ='CUS.SUPP.DIR/DESTINATION'
+    Y.FILE.NAME = ID.COMPANY:'.':TODAY:'.csv'
+**************************************************************************
+
+    LOCATE "PRODUCT" IN ENQ.SELECTION<2,1> SETTING PROD.POS THEN
+        Y.PRODUCT = ENQ.SELECTION<4,PROD.POS>
+    END
+    LOCATE "DEBIT.CREDIT" IN ENQ.SELECTION<2,1> SETTING DR.CR.POS THEN
+        Y.DR.CR.MARK = ENQ.SELECTION<4,DR.CR.POS>
+    END
+    LOCATE "USER" IN ENQ.SELECTION<2,1> SETTING USER.POS THEN
+        Y.INPUTTER = ENQ.SELECTION<4,USER.POS>
+    END
+    LOCATE "TRANSACTION.MODE" IN ENQ.SELECTION<2,1> SETTING TRANS.MODE.POS THEN
+        Y.TR.MODE = ENQ.SELECTION<4,TRANS.MODE.POS>
+    END
+***********************************************************************************
+    LOCATE "SORT(T24.LEGACY)" IN ENQ.SELECTION<2,1> SETTING T24.LEGACY.POS THEN
+        Y.T24.LEGACY= ENQ.SELECTION<4,T24.LEGACY.POS>
+    END
+*******************************************END*************************************
+
+    RETURN
+
+OPENFILES:
+
+    OPEN Y.DIR TO JBASE.DIR ELSE STOP
+
+    RETURN
+
+PROCESS:
+
+    READ FILE.VALUES FROM JBASE.DIR,Y.FILE.NAME THEN
+        Y.TO.REC = DCOUNT(FILE.VALUES,FM)
+        FOR I = 1 TO Y.TO.REC
+            Y.INDV.REC = FIELD(FILE.VALUES,FM,I)
+            Y.DR.CR.FLAG = FIELD(Y.INDV.REC,'*',13)
+
+            IF Y.PRODUCT EQ 'ALL' THEN
+                BEGIN CASE
+                CASE Y.DR.CR.MARK EQ Y.DR.CR.FLAG
+                    Y.RETURN<-1> = Y.INDV.REC
+                END CASE
+            END
+            ELSE
+                Y.CLASS.ID = FIELD(Y.INDV.REC,'*',14)
+                BEGIN CASE
+                CASE Y.PRODUCT EQ Y.CLASS.ID AND Y.DR.CR.MARK EQ Y.DR.CR.FLAG
+                    Y.RETURN<-1> = Y.INDV.REC
+                END CASE
+            END
+        NEXT I
+    END
+    RETURN
+
+END

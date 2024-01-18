@@ -1,0 +1,63 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+**************************************************************************
+*---------------------------------
+*Company Name   : Datasoft
+*Developed By   : Mehedi
+*
+*----------------------------------------------------------------------
+*Subroutine Type:
+*
+*Attached To    :
+*
+*Attached As    : Attached as a Validation Routine.
+*
+*In Parameter   : N/A
+*
+*Out Parameter  : N/A
+*---------------------------------------------------------------------------------------
+*Description    : This routine shows ERROR Message
+*
+*---------------------------------------------------------------------------------------
+    SUBROUTINE BD.TF.FUTR.DATE.CHK
+*---------------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.DRAWINGS
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+*-----
+INIT:
+*-----
+    FN.DR = 'F.DRAWINGS'
+    F.DR = ''
+
+    Y.TODAY = TODAY
+    RETURN
+
+*-----------
+OPENFILES:
+*-----------
+    CALL OPF(FN.DR,F.DR)
+
+    CALL GET.LOC.REF('DRAWINGS','BIL.LANDAWD.DT',Y.BIL.LANDAWD.DT.POS)
+    RETURN
+
+*--------
+PROCESS:
+*--------
+    Y.BIL.LND.DT = COMI
+    IF Y.BIL.LND.DT NE '' AND Y.BIL.LND.DT GT Y.TODAY THEN
+        ETEXT = 'Bill of Lading/AWB Date greater than Today'
+        AF = TF.DR.LOCAL.REF
+        AV = Y.BIL.LANDAWD.DT.POS
+        CALL STORE.END.ERROR
+    END
+    RETURN
+END

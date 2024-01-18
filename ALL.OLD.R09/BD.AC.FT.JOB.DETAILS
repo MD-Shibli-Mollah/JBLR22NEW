@@ -1,0 +1,63 @@
+*-----------------------------------------------------------------------------
+* <Rating>-21</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.AC.FT.JOB.DETAILS
+*--------------------------------------------------------------------------------
+* This is a Validation Rtn
+* This rtn will update the job entitlement value from the job register, when the
+* respective JOB.NO is given
+*---------------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LETTER.OF.CREDIT
+    $INSERT I_F.LD.LOANS.AND.DEPOSITS
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.BD.BTB.JOB.REGISTER
+    $INSERT I_F.FUNDS.TRANSFER
+
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+    RETURN
+
+INITIALISE:
+
+    FN.LETTER.OF.CREDIT="F.LETTER.OF.CREDIT"
+    F.LETTER.OF.CREDIT=""
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+
+    FN.LD="F.LD.LOANS.AND.DEPOSITS"
+    F.LD=""
+    CALL OPF(FN.LD,F.LD)
+
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+    CALL OPF(FN.AC,F.AC)
+
+    FN.BD.BTB.JOB.REGISTER = "F.BD.BTB.JOB.REGISTER"
+    F.BD.BTB.JOB.REGISTER = ""
+    CALL OPF(FN.BD.BTB.JOB.REGISTER,F.BD.BTB.JOB.REGISTER)
+    RETURN
+
+PROCESS:
+*gets the local ref position
+    CALL GET.LOC.REF("ACCOUNT","JOB.NUMBER",Y.AC.JOBNO.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","JOB.NUMBER",Y.FT.JOBNO.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","JOB.ENT.CUR",Y.FT.JOBENT.CUR.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","JOB.ENTIT.AMT",Y.FT.JOBENT.AMT.POS)
+
+    Y.AC.ID = COMI
+    CALL F.READ(FN.AC,Y.AC.ID,R.AC.REC,F.AC,Y.AC.ERR)
+    Y.JOB.NO = R.AC.REC<AC.LOCAL.REF,Y.AC.JOBNO.POS>
+    CALL F.READ(FN.BD.BTB.JOB.REGISTER,Y.JOB.NO,R.BD.BTB.JOB.REGISTER,F.BD.BTB.JOB.REGISTER,Y.JOB.REG.ERR)
+    IF Y.JOB.REG.ERR THEN
+        ETEXT = 'JOB NUMBER DOES NOT EXIST'
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    R.NEW(FT.LOCAL.REF)<1,Y.FT.JOBNO.POS> = Y.JOB.NO
+    R.NEW(FT.LOCAL.REF)<1,Y.FT.JOBENT.CUR.POS> = R.BD.BTB.JOB.REGISTER<BTB.JOB.JOB.CURRENCY>
+    R.NEW(FT.LOCAL.REF)<1,Y.FT.JOBENT.AMT.POS> = R.BD.BTB.JOB.REGISTER<BTB.JOB.TOT.PC.AVL.AMT>
+
+    RETURN
+END

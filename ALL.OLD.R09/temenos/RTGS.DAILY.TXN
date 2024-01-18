@@ -1,0 +1,203 @@
+****************************************************************************************
+*Developed By: Md. Aminul Islam(Datasoft Systems)                                      *
+*This routine is attachedte to standard selection NOFILE.RTGS.DAILY.TXN to return      *
+*daily inward & outward transactions                                                   *
+*Date:2016/01/12                                                                       *
+****************************************************************************************
+
+!PROGRAM RTGS.DAILY.TXN
+    SUBROUTINE RTGS.DAILY.TXN(Y.RETURN)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT JBL.BP I_F.BD.BANK.ROUTING.LIST
+    $INSERT JBL.BP I_F.BD.BIC.CODE.LIST
+
+    GOSUB INIT
+    GOSUB OPEN.FILE
+    GOSUB PROCESS
+
+INIT:
+
+    FN.FT = 'F.FUNDS.TRANSFER';               F.FT = ''
+    FN.FT.HIS = 'F.FUNDS.TRANSFER$HIS';       F.FT.HIS = ''
+    FN.ACC = 'F.ACCOUNT';                     F.ACC = ''
+    FN.AC.HIS = 'F.ACCOUNT$HIS';              F.AC.HIS = ''
+    FN.COMPANY = 'F.COMPANY';                 F.COMPANY = ''
+    FN.RTL = 'F.EB.BD.BANK.ROUTING.LIST';     F.RTL = ''
+    FN.BC = 'F.EB.BD.BIC.CODE.LIST';          F.BC = ''
+
+!Y.TXN.TYPE = 'ACIR'
+    CALL GET.LOC.REF('FUNDS.TRANSFER','BICC.CODE',BICC.CODE.POS)
+    CALL GET.LOC.REF('FUNDS.TRANSFER','BRANCH',BRANCH.POS)
+    CALL GET.LOC.REF('FUNDS.TRANSFER','ACCT.NO',ACCT.NO.POS)
+    CALL GET.LOC.REF('FUNDS.TRANSFER','BENEFI.NAME',BENEFI.NAME.POS)
+    CALL GET.LOC.REF('FUNDS.TRANSFER','REMARKS',REMARKS.POS)
+
+    LOCATE 'INWARD.OUTWARD' IN ENQ.SELECTION<2,1> SETTING INWARD.OUTWARD.POS THEN
+        Y.TEM.SEL = ENQ.SELECTION<4,INWARD.OUTWARD.POS>
+        IF Y.TEM.SEL EQ 'INWARD' THEN
+            Y.TXN.TYPE = 'ACIR'
+        END
+        IF Y.TEM.SEL EQ 'OUTWARD' THEN
+            Y.TXN.TYPE = 'ACOR'
+        END
+    END
+
+    LOCATE 'VALUE.DATE' IN ENQ.SELECTION<2,1> SETTING VALUE.DATE.POS THEN
+        Y.VALUE.DATE = ENQ.SELECTION<4,VALUE.DATE.POS>
+    END
+    IF NOT(Y.VALUE.DATE) THEN
+        Y.VALUE.DATE = TODAY
+    END
+    CALL JULDATE(Y.VALUE.DATE,JULIAN.DATE)
+    Y.FT.ID.LK = 'FT':JULIAN.DATE[3,5]:'...'
+    RETURN
+
+OPEN.FILE:
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    CALL OPF(FN.ACC,F.ACC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.COMPANY,F.COMPANY)
+    CALL OPF(FN.RTL,F.RTL)
+    CALL OPF(FN.BC,F.BC)
+    RETURN
+
+PROCESS:
+    IF Y.VALUE.DATE EQ TODAY THEN
+        IF ID.COMPANY EQ 'BD0012001' THEN
+            SEL.CMD = 'SELECT ':FN.FT:' WITH @ID LIKE ':Y.FT.ID.LK:' AND TRANSACTION.TYPE EQ ':Y.TXN.TYPE
+        END
+        ELSE
+            SEL.CMD = 'SELECT ':FN.FT:' WITH @ID LIKE ':Y.FT.ID.LK:' AND TRANSACTION.TYPE EQ ':Y.TXN.TYPE:' AND CO.CODE EQ ':ID.COMPANY
+        END
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+        LOOP
+            REMOVE Y.FT.ID FROM SEL.LIST SETTING POS
+        WHILE Y.FT.ID:POS
+            CALL F.READ(FN.FT,Y.FT.ID,R.REC,F.FT,Y.ERR)
+            STLMNT.DATE = R.REC<FT.DEBIT.VALUE.DATE>
+            Y.DEBIT.CURRENCY = R.REC<FT.DEBIT.CURRENCY>
+            Y.DEBIT.AMOUNT = R.REC<FT.DEBIT.AMOUNT>
+            Y.LOC.AMT.DEBITED = R.REC<FT.LOC.AMT.DEBITED>
+            Y.LOC.TOT.TAX.AMT = R.REC<FT.LOC.TOT.TAX.AMT>
+            Y.LOCAL.CHARGE.AMT = R.REC<FT.LOCAL.CHARGE.AMT> - Y.LOC.TOT.TAX.AMT
+            Y.REMARKS = R.REC<FT.LOCAL.REF,REMARKS.POS>
+            IF Y.TXN.TYPE EQ 'ACOR' THEN
+                SENDER.ACC.NO = R.REC<FT.DEBIT.ACCT.NO>
+                SENDER.BANK = 'JANATA BANK LTD'
+                CALL F.READ(FN.ACC,SENDER.ACC.NO,R.ACC,F.ACC,Y.ERR.ACC)
+                IF NOT (R.ACC) THEN
+                    CALL EB.READ.HISTORY.REC(F.AC.HIS,SENDER.ACC.NO,R.ACC,Y.AC.HIS.ERR)
+                END
+                SENDER.NAME = R.ACC<AC.SHORT.TITLE>
+                SENDER.CO.CODE = R.ACC<AC.CO.CODE>
+                CALL F.READ(FN.COMPANY,SENDER.CO.CODE,REC.COMPANY,F.COMPANY,Y.ERR.COMPANY)
+                SENDER.BR.NAME = REC.COMPANY<EB.COM.COMPANY.NAME>
+
+                RECEIVER.BICC.CODE = R.REC<FT.LOCAL.REF,BICC.CODE.POS>
+                CALL F.READ(FN.BC,RECEIVER.BICC.CODE,R.BC,F.BC,Y.ERR.BC)
+                RECEIVER.BANK.NAME = R.BC<EB.BD.75.BANK.NAME>
+                RECEIVER.BRANCH = R.REC<FT.LOCAL.REF,BRANCH.POS>
+                RECEIVER.BRANCH = FIELD(RECEIVER.BRANCH,'-',1)
+                RECEIVER.AC.NO = R.REC<FT.LOCAL.REF,ACCT.NO.POS>
+                RECEIVER.NAME = R.REC<FT.LOCAL.REF,BENEFI.NAME.POS>
+            END
+            IF Y.TXN.TYPE EQ 'ACIR' THEN
+                SENDER.BR.RID = R.REC<FT.LOCAL.REF,BRANCH.POS>
+                CALL F.READ(FN.RTL,SENDER.BR.RID,REC.RTL,F.RTL,Y.ERR.RTL)
+                SENDER.BR.NAME = REC.RTL<EB.BD.91.BRANCH.NAME>
+                SENDER.ACC.NO = R.REC<FT.LOCAL.REF,ACCT.NO.POS>
+                SENDER.BICC.CODE = R.REC<FT.LOCAL.REF,BICC.CODE.POS>
+                CALL F.READ(FN.BC,SENDER.BICC.CODE,R.BC,F.BC,Y.ERR.BC)
+                SENDER.BANK = R.BC<EB.BD.75.BANK.NAME>
+                SENDER.NAME = R.REC<FT.LOCAL.REF,BENEFI.NAME.POS>
+
+                RECEIVER.BANK.NAME = 'JANATA BANK LIMITED'
+                RECEIVER.AC.NO = R.REC<FT.CREDIT.ACCT.NO>
+                CALL F.READ(FN.ACC,RECEIVER.AC.NO,R.ACC,F.ACC,Y.ERR.ACC)
+                IF NOT(R.ACC) THEN
+                    CALL EB.READ.HISTORY.REC(F.AC.HIS,RECEIVER.AC.NO,R.ACC,Y.AC.HIS.ERR)
+                END
+                RECEIVER.NAME = R.ACC<AC.SHORT.TITLE>
+                RECEIVER.CO.CODE = R.ACC<AC.CO.CODE>
+                CALL F.READ(FN.COMPANY,RECEIVER.CO.CODE,REC.COMPANY,F.COMPANY,Y.ERR.COMPANY)
+                RECEIVER.BRANCH = REC.COMPANY<EB.COM.COMPANY.NAME>
+            END
+            Y.RETURN<-1> = Y.FT.ID:'*':STLMNT.DATE:'*':SENDER.BANK:'*':SENDER.BR.NAME:'*':SENDER.ACC.NO:'*':SENDER.NAME:'*':Y.DEBIT.CURRENCY:'*':Y.LOC.AMT.DEBITED:'*':Y.DEBIT.AMOUNT:'*':Y.LOCAL.CHARGE.AMT:'*':Y.LOC.TOT.TAX.AMT:'*':RECEIVER.BANK.NAME:'*':RECEIVER.BRANCH:'*':RECEIVER.AC.NO:'*':RECEIVER.NAME:'*':Y.REMARKS
+!                             1                2               3                  4              5               6                   7                 8                       9                    10                 11                        12                      13                14                  15           16
+        REPEAT
+    END
+    ELSE
+        IF ID.COMPANY EQ 'BD0012001' THEN
+            SEL.CMD = 'SELECT ':FN.FT.HIS:' WITH @ID LIKE ':Y.FT.ID.LK:' AND TRANSACTION.TYPE EQ ':Y.TXN.TYPE
+        END
+        ELSE
+            SEL.CMD = 'SELECT ':FN.FT.HIS:' WITH @ID LIKE ':Y.FT.ID.LK:' AND TRANSACTION.TYPE EQ ':Y.TXN.TYPE:' AND CO.CODE EQ ':ID.COMPANY
+        END
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+        LOOP
+            REMOVE Y.FT.ID FROM SEL.LIST SETTING POS
+        WHILE Y.FT.ID:POS
+            Y.FT.ID = FIELD(Y.FT.ID,';',1)
+            CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.FT.ID,R.REC,Y.FT.ERR)
+            FINDSTR Y.FT.ID IN Y.RETURN SETTING REC.POS ELSE
+                STLMNT.DATE = R.REC<FT.DEBIT.VALUE.DATE>
+                Y.DEBIT.CURRENCY = R.REC<FT.DEBIT.CURRENCY>
+                Y.DEBIT.AMOUNT = R.REC<FT.DEBIT.AMOUNT>
+                Y.LOC.AMT.DEBITED = R.REC<FT.LOC.AMT.DEBITED>
+                Y.LOC.TOT.TAX.AMT = R.REC<FT.LOC.TOT.TAX.AMT>
+                Y.LOCAL.CHARGE.AMT = R.REC<FT.LOCAL.CHARGE.AMT> - Y.LOC.TOT.TAX.AMT
+                Y.REMARKS = R.REC<FT.LOCAL.REF,REMARKS.POS>
+                IF Y.TXN.TYPE EQ 'ACOR' THEN
+                    SENDER.ACC.NO = R.REC<FT.DEBIT.ACCT.NO>
+                    SENDER.BANK = 'JANATA BANK LTD'
+                    CALL F.READ(FN.ACC,SENDER.ACC.NO,R.ACC,F.ACC,Y.ERR.ACC)
+                    IF NOT (R.ACC) THEN
+                        CALL EB.READ.HISTORY.REC(F.AC.HIS,SENDER.ACC.NO,R.ACC,Y.AC.HIS.ERR)
+                    END
+                    SENDER.NAME = R.ACC<AC.SHORT.TITLE>
+                    SENDER.CO.CODE = R.ACC<AC.CO.CODE>
+                    CALL F.READ(FN.COMPANY,SENDER.CO.CODE,REC.COMPANY,F.COMPANY,Y.ERR.COMPANY)
+                    SENDER.BR.NAME = REC.COMPANY<EB.COM.COMPANY.NAME>
+
+                    RECEIVER.BICC.CODE = R.REC<FT.LOCAL.REF,BICC.CODE.POS>
+                    CALL F.READ(FN.BC,RECEIVER.BICC.CODE,R.BC,F.BC,Y.ERR.BC)
+                    RECEIVER.BANK.NAME = R.BC<EB.BD.75.BANK.NAME>
+                    RECEIVER.BRANCH = R.REC<FT.LOCAL.REF,BRANCH.POS>
+                    RECEIVER.BRANCH = FIELD(RECEIVER.BRANCH,'-',1)
+                    RECEIVER.AC.NO = R.REC<FT.LOCAL.REF,ACCT.NO.POS>
+                    RECEIVER.NAME = R.REC<FT.LOCAL.REF,BENEFI.NAME.POS>
+                END
+                IF Y.TXN.TYPE EQ 'ACIR' THEN
+                    SENDER.BR.RID = R.REC<FT.LOCAL.REF,BRANCH.POS>
+                    CALL F.READ(FN.RTL,SENDER.BR.RID,REC.RTL,F.RTL,Y.ERR.RTL)
+                    SENDER.BR.NAME = REC.RTL<EB.BD.91.BRANCH.NAME>
+                    SENDER.ACC.NO = R.REC<FT.LOCAL.REF,ACCT.NO.POS>
+                    SENDER.BICC.CODE = R.REC<FT.LOCAL.REF,BICC.CODE.POS>
+                    CALL F.READ(FN.BC,SENDER.BICC.CODE,R.BC,F.BC,Y.ERR.BC)
+                    SENDER.BANK = R.BC<EB.BD.75.BANK.NAME>
+                    SENDER.NAME = R.REC<FT.LOCAL.REF,BENEFI.NAME.POS>
+
+                    RECEIVER.BANK.NAME = 'JANATA BANK LIMITED'
+                    RECEIVER.AC.NO = R.REC<FT.CREDIT.ACCT.NO>
+                    CALL F.READ(FN.ACC,RECEIVER.AC.NO,R.ACC,F.ACC,Y.ERR.ACC)
+                    IF NOT(R.ACC) THEN
+                        CALL EB.READ.HISTORY.REC(F.AC.HIS,RECEIVER.AC.NO,R.ACC,Y.AC.HIS.ERR)
+                    END
+                    RECEIVER.NAME = R.ACC<AC.SHORT.TITLE>
+                    RECEIVER.CO.CODE = R.ACC<AC.CO.CODE>
+                    CALL F.READ(FN.COMPANY,RECEIVER.CO.CODE,REC.COMPANY,F.COMPANY,Y.ERR.COMPANY)
+                    RECEIVER.BRANCH = REC.COMPANY<EB.COM.COMPANY.NAME>
+                END
+                Y.RETURN<-1> = Y.FT.ID:'*':STLMNT.DATE:'*':SENDER.BANK:'*':SENDER.BR.NAME:'*':SENDER.ACC.NO:'*':SENDER.NAME:'*':Y.DEBIT.CURRENCY:'*':Y.LOC.AMT.DEBITED:'*':Y.DEBIT.AMOUNT:'*':Y.LOCAL.CHARGE.AMT:'*':Y.LOC.TOT.TAX.AMT:'*':RECEIVER.BANK.NAME:'*':RECEIVER.BRANCH:'*':RECEIVER.AC.NO:'*':RECEIVER.NAME:'*':Y.REMARKS
+!                             1                2               3                  4              5               6                   7                 8                       9                    10                 11                        12                      13                14                  15           16
+            END
+        REPEAT
+    END
+    RETURN
+END

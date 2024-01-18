@@ -1,0 +1,190 @@
+*-----------------------------------------------------------------------------
+* NOFILE ENQUIRY : REPORT LIST WHICH ARE NOT GENERATED TODAY BY BRANCH
+* DEVELOPED BY ALIN BOBY
+* REQ BY : BRANCH
+* START DATE: 20160412
+* COMPLETION DATE :20160417
+* UPLOAD DATE: 20160417
+*-----------------------------------------------------------------------------
+
+    SUBROUTINE UNGEN.REPORT.LIST(Y.RETURN)
+**    PROGRAM UNGEN.REPORT.LIST
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.HOLD.CONTROL
+    $INSERT GLOBUS.BP I_F.REPORT.CONTROL
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+!    DEBUG
+    GOSUB STEP1
+    GOSUB STEP2
+    GOSUB STEP3
+    RETURN
+
+STEP1:
+
+
+**************** REPORT LIST WHICH ARE NEED TO BE GENERATED **************************
+
+    Y.RL<-1>='RC.INW.CL.REG|Inward Clearing Register'
+    Y.RL<-1>='RC.INW.TD.REG|Inward TD Register'
+    Y.RL<-1>='OUT.CLEARING|Outward clearing Register'
+    Y.RL<-1>='JBL.TD.OUTWARD|Outward TD Register'
+    Y.RL<-1>='RC.PR.TT.CASH.PAYMENT|Cash Payment Register-All Teller'
+    Y.RL<-1>='RC.PR.TT.CASH.RECEIVE|Cash Receive Register-All Teller'
+    Y.RL<-1>='RC.PR.TT.CASH.PAYMENT.INDV|Cash Payment Register-Indv. Teller'
+    Y.RL<-1>='RC.PR.TT.CASH.RECEIVE.INDV|Cash Receive Register-Indv. Teller'
+    Y.RL<-1>='RC.INTER.BR.TRANS|On us Transaction Report'
+    Y.RL<-1>='RC.INTER.BR.TRANS.OFUS|Off us Transaction Report'
+    Y.RL<-1>='RC.CUS.SUP.CD.DR|Customer Supplementary CD(Debit)'
+    Y.RL<-1>='RC.CUS.SUP.CD.CR|Customer Supplementary CD(Credit)'
+    Y.RL<-1>='RC.CUS.SUP.SB.DR|Customer Supplementary SB(Debit)'
+    Y.RL<-1>='RC.CUS.SUP.SB.CR|Customer Supplementary SB(Credit)'
+    Y.RL<-1>='RC.CUS.SUP.SND.DR|Customer Supplementary SND(Debit)'
+    Y.RL<-1>='RC.CUS.SUP.SND.CR|Customer Supplementary SND(Credit)'
+    Y.RL<-1>='RC.CUS.SUPP2|Generate Customer Supplimentary'
+    Y.RL<-1>='GL.DR|GL Supplementary (DEBIT)'
+    Y.RL<-1>='GL.CR|GL Supplementary (CREDIT)'
+    Y.RL<-1>='PL.DR|PL Supplementary (DEBIT)'
+    Y.RL<-1>='PL.CR|PL Supplementary (CREDIT)'
+    Y.RL<-1>='RC.CASH.BOOK2.1|Daily Cash Book Today (update)'
+    Y.RL<-1>='ENQ.TRF.REG|Daily Transfer Register'
+    Y.RL<-1>='$1321.1010.1.GB|Report for Today account opening'
+    Y.RL<-1>='%390.1.1.GB|Report for Today account closing'
+
+
+
+
+    Y.HC.ID=''
+    Y.HC.REPORT.NAME=''
+    Y.HC.DATE.CREATED=''
+    Y.HC.TIME.CREATED=''
+    Y.HC.USER=''
+    Y.HC.RECORD.STATUS=''
+    Y.HC.CURR.NO=''
+    Y.HC.RUN.IN.BATCH=''
+    Y.STAT=''
+    Y.RETURN=''
+*    Y.PRIORITY='0'
+*    Y.RETURN<-1>=Y.PRIORITY:'*':'-':'*':'-':'*':'-':'*':'-':'*':'-':'*':'-'
+
+
+    Y.TODAY=TODAY
+    Y.COMPANY=ID.COMPANY
+
+**    Y.TODAY='20120115'
+**    Y.COMPANY='BD0010232'
+
+
+*    Y.COMPANY=ENQ.SELECTION<4,2>
+*    Y.BALANCE.DATE=ENQ.SELECTION<4,1>
+*    IF Y.BALANCE.DATE EQ "" THEN
+*        Y.BALANCE.DATE=TODAY
+*    END
+*    IF Y.COMPANY EQ "" THEN
+*        Y.COMPANY="ALL"
+*    END
+**    Y.BALANCE.DATE = '20150110'
+
+    FN.HC='F.HOLD.CONTROL'
+    F.HC=''
+
+    FN.RC = 'F.REPORT.CONTROL'
+    F.RC = ''
+
+**    CRT Y.TODAY:'*':Y.COMPANY
+
+    RETURN
+
+STEP2:
+
+    CALL OPF(FN.HC,F.HC)
+    CALL OPF(FN.RC,F.RC)
+
+    RETURN
+STEP3:
+
+    SEL.CMD='SELECT ':FN.HC:' WITH COMPANY.ID EQ ':Y.COMPANY:' AND DATE.CREATED EQ ':Y.TODAY
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,ERR)
+
+
+    LOOP
+        REMOVE Y.HC.ID FROM SEL.LIST SETTING POS
+    WHILE Y.HC.ID:POS
+
+        CALL F.READ(FN.HC,Y.HC.ID,R.HC,F.HC,ERR.HC)
+        Y.HC.REPORT.NAME=R.HC<HCF.REPORT.NAME>
+*        Y.HC.DATE.CREATED=R.HC<HCF.DATE.CREATED>
+        Y.HC.TIME.CREATED=R.HC<HCF.TIME.CREATED>
+        Y.HC.USER=R.HC<HCF.USER>
+        Y.HC.RUN.IN.BATCH=R.HC<HCF.RUN.IN.BATCH>
+        Y.HC.RECORD.STATUS=R.HC<HCF.RECORD.STATUS>
+        Y.HC.CURR.NO=R.HC<HCF.CURR.NO>
+
+
+
+        IF Y.HC.RUN.IN.BATCH='Y' THEN
+            Y.STAT='Generated during COB'
+            Y.PRIORITY='1'
+        END
+        ELSE
+            IF LEFT(Y.HC.TIME.CREATED,2) LE 12 THEN
+                Y.STAT='Generated in early morning before 12PM'
+                Y.PRIORITY='2'
+            END
+
+            ELSE IF LEFT(Y.HC.TIME.CREATED,2) GT 12 AND LEFT(Y.HC.TIME.CREATED,2) LE 16.30  THEN
+                Y.STAT='Generated after noon before 4.30PM'
+                Y.PRIORITY='3'
+            END
+            ELSE
+                Y.STAT='Generated after 4.30PM'
+                Y.PRIORITY='4'
+            END
+        END
+
+        Y.HC.TIME.CREATED=LEFT(Y.HC.TIME.CREATED,2):':':RIGHT(Y.HC.TIME.CREATED,2)
+
+        CALL F.READ(FN.RC,Y.HC.REPORT.NAME,R.RC,F.RC,ERR.RC)
+        Y.RC.SHORT.DESC=R.RC<RCF.SHORT.DESC>
+
+
+**        CRT Y.STAT:'*':Y.HC.ID:'*':Y.HC.REPORT.NAME:'*':Y.RC.SHORT.DESC:'*':Y.HC.TIME.CREATED:'*':Y.HC.USER
+        Y.RETURN<-1>=Y.PRIORITY:'*':Y.STAT:'*':Y.HC.ID:'*':Y.HC.REPORT.NAME:'*':Y.RC.SHORT.DESC:'*':Y.HC.TIME.CREATED:'*':Y.HC.USER
+        SEL.LIST.ALL<-1>=Y.HC.REPORT.NAME
+
+    REPEAT
+
+    LOOP
+        REMOVE Y.RL.ID FROM Y.RL SETTING P
+    WHILE Y.RL.ID:P
+
+        Y.RL.ID1=FIELD(Y.RL.ID,'|',1)
+        Y.RC.SHORT.DESC=FIELD(Y.RL.ID,'|',2)
+        LOCATE Y.RL.ID1 IN SEL.LIST.ALL SETTING MARKS ELSE MARKS=0
+        IF MARKS=0 THEN
+            Y.STAT='Pending Report generation'
+            Y.PRIORITY='5'
+
+
+**            CRT Y.STAT:'*':'-':'*':Y.RL.ID1:'*':Y.RC.SHORT.DESC:'*':'-':'*':'-'
+            Y.RETURN<-1>=Y.PRIORITY:'*':Y.STAT:'*':'-':'*':Y.RL.ID1:'*':Y.RC.SHORT.DESC:'*':'-':'*':'-'
+        END
+        ELSE END
+
+    REPEAT
+
+
+    Y.RETURN=SORT(Y.RETURN)
+
+
+
+*   CRT "----------------------------------------------------------------------"
+
+*    CRT Y.RETURN
+
+    RETURN
+
+
+END

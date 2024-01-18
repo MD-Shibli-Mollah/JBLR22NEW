@@ -1,0 +1,89 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SB.AVG.CALC.LOAD
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT JBL.BP I_F.ABL.H.SB.YRPAR
+    $INSERT JBL.BP I_F.ABL.H.SB.CHRG
+    $INSERT JBL.BP I_BD.SB.AVG.CALC.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB CALC.CHRG
+    RETURN
+
+*-----
+INIT:
+*-----
+    IN.DATA=''
+    OUT.DATA=''
+    ST.EN.DATE=''
+
+    FN.SB.CHR='F.ABL.H.SB.CHRG'
+    F.SB.CHR=''
+    REC.SB.CHR=''
+    Y.SB.CHR.ID=''
+
+    FN.CUS='F.CUSTOMER'
+    F.CUS=''
+    REC.CUS=''
+    Y.SECTOR=''
+
+    FN.AC="F.ACCOUNT"
+    F.AC=''
+    REC.AC=''
+    Y.AC.ID=''
+
+    FN.SB.YR='F.ABL.H.SB.YRPAR'
+    F.SB.YR=''
+    Y.SB.YR.ID=''
+    REC.SB.YR=''
+    REC.SB.YR.SYS=''
+    Y.SB.CHRG.AMT=''
+    Y.SB.VAT.AMT=''
+
+    Y.SB.SLAB.AMT=''
+    Y.SB.STAFF.CHRG.AMT= ''
+    Y.SB.OTHER.CHRG.AMT1 =''
+    Y.SB.SLAB.AMT=''
+    Y.SB.OTHER.CHRG.AMT=''
+    Y.SB.STAFF.CHRG.AMT=''
+    Y.EXCLUDE.AC.LIST=''
+    Y.MAIN.CNT = ''
+
+    Y.CHRG.SLAB.COUNT=''
+    CNT=''
+    Y.BALANCE=''
+    CALL GET.LOC.REF("ACCOUNT","MAIN.CHARGE",Y.MAIN.CHG.POS)
+    RETURN
+
+*----------
+OPENFILES:
+*----------
+    CALL OPF(FN.CUS,F.CUS)
+    CALL OPF(FN.SB.YR,F.SB.YR)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.SB.CHR,F.SB.CHR)
+    RETURN
+
+*----------
+CALC.CHRG:
+*----------
+    CALL F.READ(FN.SB.YR,'SYSTEM',REC.SB.YR.SYS,F.SB.YR,ERR.SB.YR)
+    IF REC.SB.YR.SYS EQ '' THEN
+        ETEXT="There must be a record SYSTEM in ABL.H.SB.YRPAR"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    Y.CHRG.SLAB.COUNT=DCOUNT(REC.SB.YR.SYS<SY.CHRG.SLAB.FROM>,VM)
+    ST.EN.DATE=REC.SB.YR.SYS<SY.START.DATE>:REC.SB.YR.SYS<SY.END.DATE>
+    Y.SB.STAFF.CHRG.AMT=REC.SB.YR.SYS<SY.STAFF.CHRG.AMT>
+
+    RETURN
+END

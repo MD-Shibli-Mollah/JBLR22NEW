@@ -1,0 +1,172 @@
+*-----------------------------------------------------------------------------
+* <Rating>-101</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE  NOFILE.FX.DEAL.NET.PROFIT.DEALERWISE.OTH(Y.ARR)
+*-------------------------------------------------------------------------
+* This is a Nofile Enquiry Routine used to calculate the Net profit of Other's
+* between First Deal and Pair Deal.
+* Dealer-wise Report
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 31/08/2013 - New - Manjunath Suvarna
+*                    Sepit SoftTech Pvt. Ltd.
+*-----------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.FOREX
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT JBL.BP I_F.BD.FIRST.PAIR.DEAL.DETAILS
+    $INSERT JBL.BP I_F.BD.BASE.CURRENCY.TABLE
+*-------------------------------------------------------------------------
+* Main controlling section:
+*-------------------------------------------------------------------------
+    GOSUB INITIALISATION
+    GOSUB MAIN.PROCESS
+
+    RETURN
+
+*-------------------------------------------------------------------------
+* Subroutine Section:
+* File Opening and Variable set up
+
+INITIALISATION:
+*-------------------------------------------------------------------------
+    FN.FOREX = 'F.FOREX'
+    F.FOREX = ''
+*
+    FN.FOREX$HIS = 'F.FOREX$HIS'
+    F.FOREX$HIS = ''
+*
+    FN.CUSTOMER = 'F.CUSTOMER'
+    F.CUSTOMER = ''
+*
+    FN.FT$NAU = 'F.FUNDS.TRANSFER$NAU'
+    F.FT$NAU = ''
+*
+    FN.BASE.CCY = 'F.BD.BASE.CURRENCY.TABLE'
+    F.BASE.CCY = ''
+*
+    CALL OPF(FN.FOREX,F.FOREX)
+    CALL OPF(FN.FOREX$HIS,F.FOREX$HIS)
+    CALL OPF(FN.CUSTOMER,F.CUSTOMER)
+    CALL OPF(FN.FT$NAU,F.FT$NAU)
+    CALL OPF(FN.BASE.CCY,F.BASE.CCY)
+*
+
+    Y.APP = "FOREX":FM:"FUNDS.TRANSFER"
+    Y.FLD = "FIRST.DEAL.REF":VM:"PAIR.DEAL.REF":VM:"FIRST.PAIR.DEAL":VM:"DEALER.NO":FM:"FX.DEAL.REF"
+    CALL MULTI.GET.LOC.REF(Y.APP, Y.FLD, Y.POS)
+    Y.FIRST.POS = Y.POS<1,1>
+    Y.PAIR.POS = Y.POS<1,2>
+    Y.FP.POS = Y.POS<1,3>
+    Y.DEALER.POS = Y.POS<1,4>
+    Y.FT.POS = Y.POS<2,1>
+*
+    RETURN
+*-------------------------------------------------------------------------
+* Main Subroutine processing:
+* Locating the field of Exposure Date in the ENQUIRY which should be a Mandatory input
+MAIN.PROCESS:
+    GOSUB SEL.INPUT
+    GOSUB SELECTION.CRITERIA
+*
+    RETURN
+*
+*-------------------------------------------------------------------------
+* Locate Function
+SEL.INPUT:
+    LOCATE "DEALER.NUMBER" IN  D.FIELDS<1> SETTING POS THEN
+        Y.ID = D.RANGE.AND.VALUE<POS>
+    END
+
+    RETURN
+*
+*-------------------------------------------------------------------------
+* Main Selection Criteria
+SELECTION.CRITERIA:
+    SELECT.CMD = "SELECT ":FN.FOREX:" WITH DEALER.NO EQ ":Y.ID:" AND FIRST.PAIR.DEAL EQ 'FIRST.DEAL' AND PAIR.DEAL.REF NE '' AND FT.TRANS.REF EQ ''"
+    CALL EB.READLIST(SELECT.CMD,SELECT.LIST,"",NO.OF.REC,RETURN.CODE)
+    LOOP
+        REMOVE TRN.ID FROM SELECT.LIST SETTING TRN.POS
+    WHILE TRN.ID:TRN.POS
+        CALL F.READ(FN.FOREX,TRN.ID,R.FOREX.F,F.FOREX,Y.ERR)
+*
+        Y.F.COUNTER = R.FOREX.F<FX.COUNTERPARTY>
+        CALL F.READ(FN.CUSTOMER,Y.F.COUNTER,R.CUSTOMER,F.CUSTOMER,Y.ERR)
+        Y.F.COUNTER.NAME = R.CUSTOMER<EB.CUS.SHORT.NAME>
+        Y.F.DEAL.NO = TRN.ID
+        Y.F.DEAL.RATE = R.FOREX.F<FX.SPOT.RATE>
+        Y.F.DEALER.ID = R.FOREX.F<FX.LOCAL.REF,Y.DEALER.POS>
+        Y.F.DEAL.DATE = R.FOREX.F<FX.DEAL.DATE>
+        Y.F.CCY.BUY = R.FOREX.F<FX.CURRENCY.BOUGHT>
+        Y.F.AMT.BUY = R.FOREX.F<FX.AMOUNT.BOUGHT>
+        Y.F.CCY.SOLD = R.FOREX.F<FX.CURRENCY.SOLD>
+        Y.F.AMT.SOLD = R.FOREX.F<FX.AMOUNT.SOLD>
+        Y.PAIR.ID = R.FOREX.F<FX.LOCAL.REF,Y.PAIR.POS>
+*
+        SEL.CMD = "SELECT ":FN.FT$NAU:" WITH FX.DEAL.REF EQ ":Y.PAIR.ID
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RETURNN.CODE)
+        IF NOT(SEL.LIST) THEN
+*
+            CALL F.READ(FN.FOREX,Y.PAIR.ID,R.FOREX.P,F.FOREX,Y.ERR)
+*
+            Y.P.COUNTER = R.FOREX.P<FX.COUNTERPARTY>
+            R.CUSTOMER = ''
+            CALL F.READ(FN.CUSTOMER,Y.P.COUNTER,R.CUSTOMER,F.CUSTOMER,Y.ERR)
+            Y.P.COUNTER.NAME = R.CUSTOMER<EB.CUS.SHORT.NAME>
+            Y.P.DEAL.NO = Y.PAIR.ID
+            Y.P.DEAL.RATE = R.FOREX.P<FX.SPOT.RATE>
+            Y.P.DEALER.ID = R.FOREX.F<FX.LOCAL.REF,Y.DEALER.POS>
+            Y.P.DEAL.DATE = R.FOREX.P<FX.DEAL.DATE>
+            Y.P.CCY.BUY = R.FOREX.P<FX.CURRENCY.BOUGHT>
+            Y.P.AMT.BUY = R.FOREX.P<FX.AMOUNT.BOUGHT>
+            Y.P.CCY.SOLD = R.FOREX.P<FX.CURRENCY.SOLD>
+            Y.P.AMT.SOLD = R.FOREX.P<FX.AMOUNT.SOLD>
+*
+*
+            GOSUB BEGIN.CASE
+*
+*
+            Y.SL.NO = Y.SL.NO + 1
+*
+            Y.AR<-1> = Y.SL.NO:"*":Y.F.COUNTER:"*":Y.F.COUNTER.NAME:"*":TRN.ID:"*":Y.F.DEAL.RATE:"*":Y.F.DEALER.ID:"*":Y.F.DEAL.DATE:"*":Y.F.CCY.BUY:"*":Y.F.AMT.BUY:"*":Y.F.CCY.SOLD:"*":Y.F.AMT.SOLD:"*"
+            Y.AR<-1> = "*":Y.P.COUNTER:"*":Y.P.COUNTER.NAME:"*":Y.PAIR.ID:"*":Y.P.DEAL.RATE:"*":Y.P.DEALER.ID:"*":Y.P.DEAL.DATE:"*":Y.P.CCY.BUY:"*":Y.P.AMT.BUY:"*":Y.P.CCY.SOLD:"*":Y.P.AMT.SOLD:"*":Y.PROFIT.LOSS
+            Y.AR<-1> = "---------------"
+            Y.ARR<-1> = Y.AR
+            Y.AR = ''
+*
+        END
+*
+    REPEAT
+*
+*
+    RETURN
+*-------------------------------------------------------------------------
+*
+BEGIN.CASE:
+*
+    CALL F.READ(FN.BASE.CCY,'SYSTEM',R.BASE.CCY,F.BASE.CCY,Y.ERR)
+*
+    IF Y.F.CCY.BUY EQ 'USD' THEN
+        LOCATE Y.F.CCY.SOLD IN R.BASE.CCY<1,1> SETTING BASE.POS THEN
+!            Y.PROFIT.LOSS = Y.P.AMT.SOLD - Y.F.AMT.BUY
+            Y.PROFIT.LOSS = Y.F.AMT.BUY - Y.P.AMT.SOLD
+        END ELSE
+!            Y.PROFIT.LOSS = Y.F.AMT.SOLD - Y.P.AMT.BUY
+            Y.PROFIT.LOSS = Y.P.AMT.BUY - Y.F.AMT.SOLD
+        END
+    END ELSE
+!        Y.PROFIT.LOSS = Y.P.AMT.SOLD - Y.F.AMT.BUY
+*        Y.PROFIT.LOSS = Y.F.AMT.BUY - Y.P.AMT.SOLD
+        Y.PROFIT.LOSS = Y.P.AMT.BUY - Y.F.AMT.SOLD
+    END
+*
+    RETURN
+*-------------------------------------------------------------------------
+*
+*
+END

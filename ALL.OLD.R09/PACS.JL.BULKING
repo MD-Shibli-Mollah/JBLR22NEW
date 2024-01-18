@@ -1,0 +1,67 @@
+*-----------------------------------------------------------------------------
+* <Rating>148</Rating>
+*-----------------------------------------------------------------------------
+PROGRAM PACS.JL.BULKING
+$INSERT I_COMMON
+$INSERT I_EQUATE
+$INSERT I_BATCH.FILES
+$INSERT I_F.PGM.FILE
+
+CRT "********************************************************************************************************"
+CRT " This routine is used to split / bulk a JOB.LIST file. To split a JOB.LIST, Input the Bulking No. as 1 "
+CRT "********************************************************************************************************"
+CRT "Input the JOB.LIST to bulk, example F.JOB.LIST.6"
+INPUT LIST.NAME
+CRT "Input the Bulking No, say 50"
+INPUT Y.BULK.NO
+FN.LIST=LIST.NAME
+FV.LIST=''
+CALL OPF(FN.LIST,FV.LIST)
+RUNNING.UNDER.BATCH=1
+
+BATCH.LIST.FILE ='TEST.FILE'
+SEL.CMD='SELECT ' : FN.LIST
+ID.LIST=''
+CALL EB.READLIST(SEL.CMD, FULL.LIST, '', NUMBER.OF.KEYS, '')
+
+LOOP
+REMOVE KEY1 FROM FULL.LIST SETTING YDELIM WHILE KEY1:YDELIM
+READ LIST.RECORD FROM FV.LIST, KEY1 THEN
+
+NO.OF.LIST.KEYS = DCOUNT(LIST.RECORD,FM)
+FOR LIDX = 1 TO NO.OF.LIST.KEYS ;*Loop through one by one
+Y.TEMP.LIST = ''
+Y.TEMP.LIST = LIST.RECORD<LIDX>
+
+NO.OF.TEM.KEYS = DCOUNT(Y.TEMP.LIST,VM)
+
+FOR J = 1 TO NO.OF.TEM.KEYS
+
+IF ID.LIST THEN
+ID.LIST<-1>= Y.TEMP.LIST<1,J>
+
+END ELSE
+ID.LIST= Y.TEMP.LIST<1,J>
+END
+NEXT J
+
+NEXT LIDX
+END ELSE
+NULL
+END
+REPEAT
+LIST.PARAMETER=''
+IF Y.BULK.NO THEN
+LIST.PARAMETER<6>=Y.BULK.NO
+END ELSE
+LIST.PARAMETER<6>=''
+END
+
+CALL BATCH.BUILD.LIST(LIST.PARAMETER,ID.LIST)
+RMSG = ''
+IF SYSTEM(47) THEN
+CALL EB.TRANS('END',RMSG)
+END
+
+STOP
+END

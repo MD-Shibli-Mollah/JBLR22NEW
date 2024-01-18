@@ -1,0 +1,33 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-10</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.HOME.LOAN.REBATE.SELECT
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This subroutine will create a list file with all the ID's which needs to be
+* processed by the job.
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20111502 - New - Sabari.G
+*                  Thesys Technologies
+*-------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE GLOBUS.BP I_F.PD.PAYMENT.DUE
+    $INCLUDE GLOBUS.BP I_F.STMT.ENTRY
+    $INCLUDE GLOBUS.BP I_F.CATEG.ENTRY
+    $INCLUDE GLOBUS.BP I_F.LMM.SCHEDULES.PAST
+    $INCLUDE JBL.BP I_JBL.B.HOME.LOAN.REBATE.COMMON
+
+    Y.SEL.CMD = 'SELECT ':FN.LD.LOANS.AND.DEPOSITS: ' WITH ((CATEGORY EQ 21051 AND (LIMIT.REFERENCE EQ 1782 OR LIMIT.REFERENCE EQ 1783)) OR (CATEGORY EQ 21052 AND (LIMIT.REFERENCE EQ 3282 OR LIMIT.REFERENCE EQ 3283)))'
+    Y.SEL.CMD := ' AND STATUS EQ CUR'
+
+    CALL EB.READLIST(Y.SEL.CMD,Y.SEL.LIST,'',NO.OF.REC,Y.ERR)
+    CALL BATCH.BUILD.LIST("",Y.SEL.LIST)
+
+    RETURN
+END

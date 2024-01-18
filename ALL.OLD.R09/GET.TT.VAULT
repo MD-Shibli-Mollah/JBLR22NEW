@@ -1,0 +1,100 @@
+****************************************************
+*-----------------------------------------------------------------------------
+* <Rating>69</Rating>
+*-----------------------------------------------------------------------------
+* PROGRAM : PROGRAM TO CREATE A CSV FILE FOR TT VAULT
+* DEV BY      : MD. Bahar Uddin
+* DEV DATE    : 2020-09-28
+* UPDATE DATE : 2020-09-28
+* REQ         : ICTD
+****************************************************
+    PROGRAM GET.TT.VAULT
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT BP I_F.TT.VAULT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*----
+INIT:
+*----
+
+    FN.ACCT = 'FBNK.TT.VAULT'
+    F.ACCT = ''
+
+    Y.FILE.DIR = 'RPT.DATA.DIR'
+    Y.FILE.NAME = 'TT.VAULT.':TODAY:'.csv'
+    Y.FILE = Y.FILE.DIR :'/': Y.FILE.NAME
+
+    RETURN
+*---------
+OPENFILES:
+*---------
+
+    CALL OPF(FN.ACCT,F.ACCT)
+
+!-------Check Directory----------
+    CMD.STR = "CREATE.FILE RPT.DATA.DIR TYPE=UD"
+    CUR.DIR = "RPT.DATA.DIR"
+
+    OPEN CUR.DIR TO F.RPT.DATA.DIR
+    ELSE
+        EXECUTE CMD.STR
+        OPEN CUR.DIR TO F.RPT.DATA.DIR
+        ELSE
+            CRT CUR.DIR "OPENING FAILED"
+            RETURN
+        END
+    END
+!-------------------------------
+    RETURN
+*-------
+PROCESS:
+*-------
+
+    CRT 'INPUT A DATE OR LEAVE BLANK FOR ALL'
+    INPUT Y.DATE
+
+    IF Y.DATE THEN
+        SEL.CMD='SELECT ':FN.ACCT:' WITH @ID LIKE ...':Y.DATE
+    END
+    ELSE
+        SEL.CMD='SELECT ':FN.ACCT
+    END
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+    Y.COUNT = 1
+    LOOP
+        REMOVE Y.REC.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.REC.ID:Y.POS
+        CALL F.READ(FN.ACCT,Y.REC.ID,R.ACCT,F.ACCT,ACCT.ERR)
+        Y.TTV.DENOM=''
+        Y.TTV.F.UNIT=''
+        FOR I = 1 TO DCOUNT(R.ACCT<TTV.DENOM>,@VM)
+
+            Y.TTV.DENOM  = FIELD(R.ACCT<TTV.DENOM>,@VM,I)
+            Y.TTV.F.UNIT = FIELD(R.ACCT<TTV.F.UNIT>,@VM,I)
+            Y.TTV.M.UNIT = FIELD(R.ACCT<TTV.M.UNIT>,@VM,I)
+            Y.TTV.COIN   = FIELD(R.ACCT<TTV.COIN>,@VM,I)
+            Y.TTV.N.UNIT = FIELD(R.ACCT<TTV.N.UNIT>,@VM,I)
+            Y.REC<-1>=Y.REC.ID:'|':Y.TTV.DENOM:'|':Y.TTV.F.UNIT:'|':Y.TTV.M.UNIT:'|':Y.TTV.COIN:'|':R.ACCT<TTV.TXN.DATE>:'|':Y.TTV.N.UNIT
+        NEXT
+
+        Y.COUNT++
+        Y.PROGRESS = MOD(Y.COUNT,5000)
+        IF Y.PROGRESS EQ 0 THEN
+            Y.PERCENT = Y.COUNT*100/NO.OF.REC
+            PRINT DROUND(Y.PERCENT,0):'% is Completed.'
+        END
+
+    REPEAT
+    OPEN Y.FILE.DIR TO F.FILE.DIR ELSE NULL
+    WRITE Y.REC TO F.FILE.DIR,Y.FILE.NAME
+    RETURN
+END

@@ -1,0 +1,30 @@
+*-----------------------------------------------------------------------------
+* <Rating>500</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE AS.AC.CORR(ACC.ID)
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.ACCOUNT.STATEMENT
+
+    COMMON/CHK/FN.ACC,F.ACC
+    COMMON/CHK/FN.AS,F.AS
+    COMMON/CHK/FN.ACL,F.ACL
+
+    R.ACC = "" ; R.AS = "" ; R.ACL = ""
+
+    IF ACC.ID THEN
+        READ R.ACC FROM F.ACC,ACC.ID ELSE R.ACC = ""
+        IF NOT(R.ACC) THEN
+            READ R.AS FROM F.AS,ACC.ID ELSE R.AS = ""
+            IF R.AS THEN
+                READ R.ACL FROM F.ACL,ACC.ID ELSE R.ACL = ""
+                IF NOT(R.ACL) THEN DELETE F.AS,ACC.ID
+            END
+        END
+    END
+
+    RETURN
+
+END

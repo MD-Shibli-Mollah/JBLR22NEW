@@ -1,0 +1,27 @@
+*-----------------------------------------------------------------------------
+* <Rating>99</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.BR.WISE.CATEG(Y.ACC.ID)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_F.COMPANY
+
+    $INSERT JBL.BP/REPGEN MT.BR.WISE.CATEG.VARS
+
+    CALL F.READ(FN.ACCT,Y.ACC.ID,R.AC.REC,F.ACCT,Y.ERR)
+    Y.CATEG = R.AC.REC<AC.CATEGORY>
+    Y.CO.CODE = R.AC.REC<AC.CO.CODE>
+
+    LOCATE Y.CO.CODE IN COMPANY.LIST SETTING COMP.POS THEN
+        LOCATE Y.CATEG IN Y.CATEGORY SETTING POS THEN
+            Y.RETURN  = Y.CO.CODE:',':Y.CATEG
+            WRITESEQ Y.RETURN APPEND TO F.FILE.DIR ELSE NULL
+        END
+    END
+    RETURN
+END

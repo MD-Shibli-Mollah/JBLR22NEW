@@ -1,0 +1,40 @@
+*********************************************************************************************
+*Purpose: This routine is attachted to LIMIT,SECURED version as a AUT.NEW.CONTENT field and *
+*is used to get get first two digit from Head Parent Limit                                  *
+*Developed By: Md. Shafiul Azam(Datasoft Systems Bangladesh Ltd.)                           *
+*Supervised by : Md. Aminul Islam(Datasoft Systems Bangladesh Ltd.)                         *
+*********************************************************************************************
+
+    SUBROUTINE GET.PARENT.CHILD
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.LIMIT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*********
+INIT:
+*********
+    FN.LIMIT = 'FBNK.LIMIT$NAU'
+    F.LIMIT = ''
+    CALL GET.LOC.REF('LIMIT','SUB.PARENT',Y.SUB.PARENT.POS)
+    RETURN
+
+***********
+OPENFILES:
+***********
+    CALL OPF(FN.LIMIT,F.LIMIT)
+    RETURN
+
+***********
+PROCESS:
+***********
+    Y.LIMIT.ID = ID.NEW
+    Y.ID = FIELD(Y.LIMIT.ID,'.',2)[4,2]
+    R.NEW(LI.LOCAL.REF)<1,Y.SUB.PARENT.POS> = Y.ID
+    RETURN
+END

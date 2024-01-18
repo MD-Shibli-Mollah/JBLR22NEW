@@ -1,0 +1,35 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.JBL.CUSTOMER.SMS.SELECT
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+
+    $INSERT JBL.BP/REPGEN MT.JBL.CUSTOMER.SMS.VARS
+
+    GOSUB MAIN.SELECTION
+
+    RETURN
+**************
+MAIN.SELECTION:
+**************
+
+    CRT 'PLEASE WAIT RECORD SELECTION IS STARTED....'
+    CRT ' '
+
+    SEL.CMD = "SELECT ":FN.CUS
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.RECORD,RET.CODE)
+
+    CRT "TOTAL RECORDS SELECTED FOR SMS GENERATE......":NO.OF.RECORD
+    CRT "DO YOU WANT TO START THE SMS GENERATE PROCESS (Y/N)"
+    INPUT USER.CHOICE
+
+    IF USER.CHOICE EQ 'Y' THEN
+        CALL BATCH.BUILD.LIST('',SEL.LIST)
+    END
+    RETURN
+
+END

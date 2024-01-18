@@ -1,0 +1,54 @@
+*-----------------------------------------------------------------------------
+* <Rating>-10</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.URM.SMS(Y.USER.ID)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT BP I_F.USER.MGT
+    $INSERT JBL.BP I_JBL.URM.SMS.COMMON
+    $INSERT JBL.BP I_F.SMS.TEMPLATE.DEFINE
+    GOSUB PROCESS
+
+    RETURN
+**********
+PROCESS:
+**********
+
+    CALL OPF(FN.USER.MGT,F.USER.MGT)
+    CALL F.READ(FN.USER.MGT,Y.USER.ID,R.USER,F.USER.MGT,Y.ERR)
+
+    Y.ROLE          = R.USER<EB.USE61.EMP.ROLE>
+    Y.REQUEST.FOR   = R.USER<EB.USE61.REQUEST.FOR>
+    Y.MOBILE.NO     = R.USER<EB.USE61.MOBILE.NO>
+    Y.MESSAGE.TEXT  = R.SMS<EB.SMS7.SMS.TEXT>
+    Y.MESSAGE.COUNT = DCOUNT(Y.MESSAGE.TEXT,@SM)
+    Y.MESSAGE.BODY  = ''
+
+    FOR I=1 TO Y.MESSAGE.COUNT
+        Y.MSG=FIELD(Y.MESSAGE.TEXT,@SM,I)
+        Y.MESSAGE.BODY:=Y.MSG:' '
+    NEXT I
+
+    IF Y.ROLE NE 'OTHER' AND Y.MOBILE.NO NE '' AND Y.REQUEST.FOR NE 'CLOSE' THEN
+        IF ISDIGIT(Y.MOBILE.NO) AND LEN(Y.MOBILE.NO) EQ 11 THEN
+            Y.TODAY = TODAY
+
+            Y.FILE.NAME = Y.MOBILE.NO:'-':Y.TODAY:'-':Y.SERVICE.VAL:'.csv'
+            Y.MESSAGE.ID=Y.MOBILE.NO:'-':Y.TODAY:'-':Y.SERVICE.VAL
+
+
+            OPEN "URM.SMS.DIR" TO F.URM.SMS.DIR ELSE
+                CMD = "CREATE.FILE URM.SMS.DIR TYPE=UD"
+                EXECUTE CMD
+            END
+            Y.MESSAGE=Y.MESSAGE.ID:'|':Y.MOBILE.NO:'|':Y.MESSAGE.BODY:'|1|6'
+            SMS.FILE = SMS.DIR:'/':Y.FILE.NAME
+            OPENSEQ SMS.FILE TO SMS.FILE.POINT ELSE
+            END
+            WRITESEQ Y.MESSAGE TO SMS.FILE.POINT ELSE
+            END
+        END
+    END
+    RETURN
+END

@@ -1,0 +1,37 @@
+*-----------------------------------------------------------------------------
+* <Rating>-10</Rating>
+*-----------------------------------------------------------------------------
+*Company Name   :
+*Developed By   : Abu Huraira
+*----------------------------------------------------------------------
+*Subroutine Type:
+*Attached To    : The Version 'DM.SERVICE.CONTROL,JBL.CURR.RATE.UP'
+*Attached As    : Validation Routine
+*In Parameter   : Flat File Id
+*Out Parameter  :
+*----------------------------------------------------------------------
+*Description    : This Validation Routine is use to convert sequential file from DOS to UNIX format
+*               : and replace content to original file
+*-----------------------------------------------------------------------
+*Modification Details:
+*New:
+*-------------------------------------------------------------------------
+*Modification History :
+* -----------------------------------------------------------------------
+
+!PROGRAM JBL.CURR.RATE.UPLOAD
+    SUBROUTINE JBL.CURR.RATE.UPLOAD
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+
+    GOSUB PROCESS
+    RETURN
+
+PROCESS:
+    Y.FU.REC.ID = COMI
+    FN.UP.FILE.PATH = 'upload/'
+    CMD =  "DOS.TO.UNIX ":FN.UP.FILE.PATH:" ":Y.FU.REC.ID
+    EXECUTE CMD
+    RETURN
+END

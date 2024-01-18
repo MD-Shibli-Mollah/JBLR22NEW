@@ -1,0 +1,188 @@
+*-----------------------------------------------------------------------------
+* <Rating>-97</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE NOFILE.COB.LIST.CHQ.DELIV(Y.ARR)
+*-------------------------------------------------------------------------
+* This is a Nofile Enquiry Routine used to Bankwise instrument list.
+* List particular bank's branches cheques delivered list.
+* To display using for COB report
+*@author        manjunath.s@sepit.net
+*-------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.DATES
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.CHEQUE.COLLECTION
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT JBL.BP I_F.ABL.H.CLEARING.ROUTE
+*-------------------------------------------------------------------------
+* Main controlling section:
+*-------------------------------------------------------------------------
+    GOSUB INITIALISATION
+    GOSUB MAIN.PROCESS
+
+    RETURN
+
+*-------------------------------------------------------------------------
+* Subroutine Section:
+* File Opening and Variable set up
+
+INITIALISATION:
+
+*-------------------------------------------------------------------------
+    FN.CHEQUE.COLLEC = "F.CHEQUE.COLLECTION"
+    F.CHEQUE.COLLEC = ""
+    R.CHEQUE.COLLEC = ""
+    CALL OPF(FN.CHEQUE.COLLEC,F.CHEQUE.COLLEC)
+
+    FN.TELLER = "F.TELLER"
+    F.TELLER= ""
+    R.TELLER = ''
+    CALL OPF(FN.TELLER,F.TELLER)
+
+    FN.TELLERHIS = "F.TELLER$HIS"
+    F.TELLERHIS = ""
+    CALL OPF(FN.TELLERHIS,F.TELLERHIS)
+
+    FN.CLEARING.ROUTE = "F.ABL.H.CLEARING.ROUTE"
+    F.CLEARING.ROUTE = ""
+    R.CLEARING.ROUTE = ""
+    CALL OPF(FN.CLEARING.ROUTE,F.CLEARING.ROUTE)
+
+    RETURN
+*-------------------------------------------------------------------------
+* Main Subroutine processing:
+* Locating the field of Exposure Date in the ENQUIRY which should be a Mandatory input
+*
+MAIN.PROCESS:
+*
+    Y.EXPO.DATE = TODAY
+    Y.COM.CODE = ID.COMPANY
+    GOSUB SELECTION.CRITERIA
+    RETURN
+*
+*-------------------------------------------------------------------------
+SELECTION.CRITERIA:
+*-------------------------------------------------------------------------
+    SELEC.CMD = "SELECT ":FN.CLEARING.ROUTE
+    Y.CNT = 1
+    CALL EB.READLIST(SELEC.CMD,SELEC.LIST,"",NUM.OF.RECORDS,RETRN.CODE)
+    Y.TEMP.ROUTE=SELEC.LIST
+    SEL.CMD.CHE = "SELECT ":FN.CHEQUE.COLLEC:" WITH CO.CODE EQ ":Y.COM.CODE:" AND EXPOSURE.DATE EQ ":Y.EXPO.DATE
+    CALL EB.READLIST(SEL.CMD.CHE,SELECT.LIST.CHE,"",NO.OF.RECORDS,RETURN.CODE)
+    LOOP
+        REMOVE TRXN.ID FROM SELEC.LIST SETTING TRXN.POS
+    WHILE TRXN.ID:TRXN.POS
+        GOSUB BANK.LIST
+    REPEAT
+*
+    GOSUB INSTRUMENT.LIST
+
+    RETURN
+
+*-------------------------------------------------------------------------
+INSTRUMENT.LIST:
+*-------------------------------------------------------------------------
+
+    Y.RNT.CNT = DCOUNT(Y.ROUTE.NO,@FM)
+    Y.BANK.CNT=DCOUNT(Y.TEMP.ROUTE,@FM)
+    FOR Y.II=1 TO Y.RNT.CNT
+        GOSUB FINAL.DATA
+    NEXT Y.II
+
+    RETURN
+
+*-------------------------------------------------------------------------
+BANK.LIST:
+*-------------------------------------------------------------------------
+    CALL F.READ(FN.CLEARING.ROUTE,TRXN.ID,R.CLEARING.ROUTE,F.CLEARING.ROUTE,Y.ERR)
+    Y.ROUTE.CODE = TRXN.ID
+    Y.BANK = R.CLEARING.ROUTE<CRO.BANK>
+    FLAG = "0"
+    Y.TEMP.RR=""
+    Y.SEL.ROUTE = TRXN.ID[1,3]
+    Y.CNT=DCOUNT(Y.ROUTE.NO,@FM)
+    FOR Y.I=1 TO Y.CNT
+        Y.TEMP.RR = FIELD(Y.ROUTE.NO,@FM,Y.I,1)
+        IF Y.TEMP.RR = Y.SEL.ROUTE THEN
+            FLAG = "1"
+        END
+    NEXT Y.I
+    IF FLAG = "0" THEN
+        Y.ROUTE.NO<-1> = Y.SEL.ROUTE
+    END
+    RETURN
+
+*-------------------------------------------------------------------------
+FINAL.DATA:
+*-------------------------------------------------------------------------
+    GOSUB VAL.DATA
+    LOOP
+        REMOVE TRXN.ID FROM SELECTION.LIST.CLR SETTING TRXN.POS
+    WHILE TRXN.ID:TRXN.POS
+        Y.BH.CODE = TRXN.ID
+        Y.TEMP = SELECT.LIST.CHE
+        LOOP
+            REMOVE TRANSACTION.ID FROM Y.TEMP SETTING TRAN.POS
+        WHILE TRANSACTION.ID:TRAN.POS
+            GOSUB DATA.ACCESS
+        REPEAT
+        IF Y.CHQ.CNT THEN
+            Y.SL.NO = Y.SL.NO + 1
+            Y.ARR<-1> = Y.BANK.CODE:" * ":Y.BANK.NAME:" * ":Y.SL.NO:" * ":Y.BANK.BR:" * ":Y.CHQ.CNT:" * ":Y.AMOUNT
+        END
+        Y.BANK.CODE = ''
+        Y.BANK.NAME = ''
+        Y.AMOUNT = ''
+        Y.BANK = ''
+        Y.CHQ.CNT = ''
+    REPEAT
+    Y.SL.NO = ''
+    RETURN
+
+*-------------------------------------------------------------------------
+VAL.DATA:
+*-------------------------------------------------------------------------
+    Y.DATA = FIELD(Y.ROUTE.NO,@FM,Y.II)
+    SELECTION.LIST.CLR=""
+    FOR CN1 = 1 TO Y.BANK.CNT
+        Y.BNK.CODE=FIELD(Y.TEMP.ROUTE,FM,CN1,1)
+        IF Y.DATA = Y.BNK.CODE[1,3] THEN
+            SELECTION.LIST.CLR<-1>=Y.BNK.CODE
+        END
+    NEXT CN1
+    RETURN
+*-------------------------------------------------------------------------
+DATA.ACCESS:
+*-------------------------------------------------------------------------
+    Y.TRAN.ID = TRANSACTION.ID
+    CALL F.READ(FN.CHEQUE.COLLEC,Y.TRAN.ID,R.CHEQUE.COLLEC,F.CHEQUE.COLLEC,Y.ERR)
+    Y.TXN.ID = R.CHEQUE.COLLEC<CHQ.COL.TXN.ID>
+    JUL.DATE = ''
+    Y.JUL.DATE = RIGHT(R.DATES(EB.DAT.JULIAN.DATE),5)
+    IF Y.TXN.ID[3,5] EQ Y.JUL.DATE THEN
+        CALL F.READ(FN.TELLER,Y.TXN.ID,R.TELLER,F.TELLER,Y.ERR)
+    END ELSE
+        Y.TXNR.ID = Y.TXN.ID:";1"
+        CALL F.READ(FN.TELLERHIS,Y.TXNR.ID,R.TELLER,F.TELLERHIS,Y.ERR)
+    END
+    Y.TRAN.CODE = R.TELLER<TT.TE.TRANSACTION.CODE>
+    IF Y.TRAN.CODE EQ '42' OR Y.TRAN.CODE EQ '43' THEN
+        LOCAL.REF.FLD.POS = ''
+        CALL GET.LOC.REF('TELLER',"BB.ROUTE.CODE",LOCAL.REF.FLD.POS)
+        Y.RUT.CODE = R.TELLER<TT.TE.LOCAL.REF,LOCAL.REF.FLD.POS>
+        Y.RUT.COMP = Y.RUT.CODE
+        IF Y.BH.CODE EQ Y.RUT.COMP THEN
+            CALL F.READ(FN.CHEQUE.COLLEC,Y.TRAN.ID,R.CHEQUE.COLLEC,F.CHEQUE.COLLEC,Y.ERR)
+            Y.AMOUNT += R.CHEQUE.COLLEC<CHQ.COL.AMOUNT>
+            Y.CHQ.CNT = Y.CHQ.CNT + 1
+            TRXN2.ID = Y.RUT.CODE
+            CALL F.READ(FN.CLEARING.ROUTE,TRXN2.ID,R.CLEARING.ROUTE,F.CLEARING.ROUTE,Y.ERR)
+            Y.BANK.BR = R.CLEARING.ROUTE<CRO.BANK.BR.NAME>
+            Y.BANK.CODE = Y.DATA
+            Y.BANK.NAME = R.CLEARING.ROUTE<CRO.BANK>
+        END
+    END
+    RETURN
+
+END

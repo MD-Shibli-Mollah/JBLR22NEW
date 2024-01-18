@@ -1,0 +1,112 @@
+*-----------------------------------------------------------------------------
+* <Rating>-48</Rating>
+*-----------------------------------------------------------------------------
+* Version 3 21/07/00  GLOBUS Release No. G14.0.00 03/07/03
+
+    SUBROUTINE PR.H.BTB.JOB.REGISTER.CHECK.FIELDS
+*----------------------------------------------------------------------------------------
+*
+*-----------------------------------------------------------------------------------------
+*
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.PR.H.BTB.JOB.REGISTER
+*
+*-----------------------------------------------------------------------------------------
+
+    GOSUB INITIALISE
+*
+************************************************************************
+*
+* Default the current field if input is null and the field is null.
+*
+    BEGIN CASE
+    CASE AS
+        INTO.FIELD = R.NEW(AF)<1,AV,AS>
+    CASE AV
+        INTO.FIELD = R.NEW(AF)<1,AV>
+    CASE OTHERWISE
+        INTO.FIELD = R.NEW(AF)
+    END CASE
+*
+    IF COMI = '' AND INTO.FIELD = '' THEN
+        GOSUB DEFAULT.FIELDS
+    END
+*
+*
+*
+* Now default other fields from this one if there is a value....
+*
+    IF COMI THEN
+        COMI.ENRI.SAVE = COMI.ENRI
+        COMI.ENRI = ''
+        GOSUB DEFAULT.OTHER.FIELDS
+        COMI.ENRI = COMI.ENRI.SAVE
+    END
+    GOSUB CHECK.FIELDS
+* All done here.
+*
+    RETURN
+
+************************************************************************
+* Local subroutines....
+************************************************************************
+*
+INITIALISE:
+*----------
+    E = ''
+    ETEXT = ''
+    I=0
+*
+    RETURN
+
+*
+*-----------------------------------------------------------------------------------------
+DEFAULT.FIELDS:
+*--------------
+    BEGIN CASE
+    CASE AF EQ BTB.JOB.EXPORT.LC.RF
+        IF R.NEW(AF) EQ '' THEN
+            CALL EB.FIELD.OPERATION(BTB.JOB.EXPORT.LC.CY,BTB.JOB.EXPIRY.DATE,NI)
+        END
+    CASE AF EQ BTB.JOB.CONTRACT.REF
+        IF R.NEW(AF) EQ '' THEN
+            CALL EB.FIELD.OPERATION(BTB.JOB.CONTRACT.CCY,BTB.JOB.CON.EXP.DATE,NI)
+        END
+    CASE AF EQ BTB.JOB.IMPORT.LC.RF
+        IF R.NEW(AF) EQ '' THEN
+            CALL EB.FIELD.OPERATION(BTB.JOB.IMPORT.LC.CCY,BTB.JOB.LC.ID.NO,NI)
+        END
+    END CASE
+    RETURN
+
+
+*
+*-----------------------------------------------------------------------------------------
+DEFAULT.OTHER.FIELDS:
+*--------------------
+    DEFAULTED.FIELD = ''
+    DEFAULTED.ENRI = ''
+    BEGIN CASE
+*         CASE AF = XX.FIELD.NUMBER
+*              DEFAULTED.FIELD = XX.FIELD.NUMBER
+*              DEFAULTED.ENRI = ENRI
+    END CASE
+*
+    CALL REFRESH.FIELD(DEFAULTED.FIELD, DEFAULTED.ENRI)
+*
+    RETURN
+
+
+
+*
+*-----------------------------------------------------------------------------------------
+CHECK.FIELDS:
+*------------
+* Where an error occurs, set E
+*
+    RETURN
+
+*
+*-----------------------------------------------------------------------------------------
+END 

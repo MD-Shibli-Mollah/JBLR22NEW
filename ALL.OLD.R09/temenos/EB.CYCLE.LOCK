@@ -1,0 +1,38 @@
+*-----------------------------------------------------------------------------
+* <Rating>49</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM EB.CYCLE.LOCK
+
+    $INSERT I_COMMON
+    $INSERT I_F.COMPANY
+    $INSERT I_EQUATE
+    $INSERT I_F.LOCKING
+
+    FN.LOCKING = 'F.LOCKING'
+    F.LOCKING = ''
+    CALL OPF(FN.LOCKING, F.LOCKING)
+
+    FN.COMPANY = 'F.COMPANY'
+    F.COMPANY = ''
+    CALL OPF(FN.COMPANY, F.COMPANY)
+
+    SEL.CMD='SELECT ':FN.COMPANY
+    CALL EB.READLIST(SEL.CMD, SEL.LIST, '', REC, RET)
+    LOOP
+        REMOVE COM.ID FROM SEL.LIST SETTING POS
+    WHILE COM.ID:POS
+        R.COM = ''
+        READ R.COM FROM F.COMPANY, COM.ID THEN
+            LOCK.ID='BATCH.START.DATE-':COM.ID
+            R.LOCK=''
+            READ R.LOCK FROM F.LOCKING, LOCK.ID THEN
+                IF R.LOCK<EB.LOK.CONTENT> NE '20130811' THEN
+                    R.LOCK<EB.LOK.CONTENT>='20130811'
+                    WRITE R.LOCK TO F.LOCKING, LOCK.ID
+                    CRT "PROCESSED :":LOCK.ID
+                END
+            END
+        END
+    REPEAT
+    STOP
+END

@@ -1,0 +1,654 @@
+*-----------------------------------------------------------------------------
+* <Rating>3292</Rating>
+* MODIFICATION BY: TOWHID TIPU
+* MODIFICATION DATE: 14 MARCH 2018
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SDSA.AUTO.REF.ID
+!PROGRAM BD.SDSA.AUTO.REF.ID
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.LOCKING
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT JBL.BP I_F.BD.SDSA.ENTRY.DETAILS
+    $INSERT GLOBUS.BP I_GTS.COMMON
+
+    IF V$FUNCTION NE 'I' THEN RETURN
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+INIT:
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+
+    FN.FT.NAU = 'FBNK.FUNDS.TRANSFER$NAU'
+    F.FT.NAU = ''
+
+    FN.TT = 'F.TELLER'
+    F.TT = ''
+
+    FN.TT.NAU = 'FBNK.TELLER$NAU'
+    F.TT.NAU = ''
+
+    FN.CAT = 'F.CATEGORY'
+    F.CAT = ''
+
+    FN.SDSA.ENTRY = 'F.BD.SDSA.ENTRY.DETAILS'
+    F.SDSA.ENTRY = ''
+
+    FN.LOC = 'F.LOCKING'
+    F.LOC = ''
+
+    Y.BR.CODE  = ID.COMPANY[6,4]
+!Y.AC.CATEG = Y.AC.NO[4,5]
+    Y.YEAR = TODAY[3,2]
+
+    Y.APP.VER.NAME = APPLICATION : PGM.VERSION
+
+    CALL GET.LOC.REF("FUNDS.TRANSFER","ORG.ADJ",Y.FT.ORGADJ.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","A.L",Y.FT.AL.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","FT.DR.DETAILS",Y.FT.DR.DETAILS.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","FT.CR.DETAILS",Y.FT.CR.DETAILS.POS)
+    CALL GET.LOC.REF("TELLER","ORG.ADJ",Y.TT.ORGADJ.POS)
+    CALL GET.LOC.REF("TELLER","A.L",Y.TT.AL.POS)
+    CALL GET.LOC.REF("CATEGORY","A.L",Y.CAT.AL.POS)
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.CAT,F.CAT)
+    CALL OPF(FN.FT.NAU,F.FT.NAU)
+    CALL OPF(FN.TT.NAU,F.TT.NAU)
+    CALL OPF(FN.SDSA.ENTRY,F.SDSA.ENTRY)
+    OPEN 'F.LOCKING' TO F.LOCKING ELSE F.LOCKING = ''
+
+    RETURN
+
+PROCESS:
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        GOSUB FT.VAL.PROCESS
+    END ELSE
+        IF APPLICATION EQ 'TELLER' THEN
+            GOSUB TT.VAL.PROCESS
+        END
+    END
+    RETURN
+
+FT.VAL.PROCESS:
+!Y.DR.ACC = R.NEW(FT.DEBIT.ACCT.NO)
+!Y.CR.ACC = R.NEW(FT.CREDIT.ACCT.NO)
+!Y.DR.THEIR.REF =R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS>
+!Y.CR.THEIR.REF =R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS>
+!CALL F.READ(FN.SDSA.ENTRY,Y.DR.THEIR.REF,R.DR.REF,F.SDSA.ENTRY,DR.ERR.ENTRY)
+!CALL F.READ(FN.SDSA.ENTRY,Y.CR.THEIR.REF,R.CR.REF,F.SDSA.ENTRY,CR.ERR.ENTRY)
+
+!IF Y.DR.ACC NE R.DR.REF<BD.SDSA.AC.NUMBER> THEN
+!ETEXT = "INVALID DR ACCOUNT"
+!CALL STORE.END.ERROR
+!END
+!IF Y.CR.ACC NE R.CR.REF<BD.SDSA.AC.NUMBER> THEN
+!ETEXT = "INVALID CR ACCOUNT"
+!CALL STORE.END.ERROR
+!END
+
+**Commented by zakir advice by nihar dada
+!Y.DR.AC.CAT=R.NEW(FT.DEBIT.ACCT.NO)[4,5]
+!Y.CR.AC.CAT=R.NEW(FT.CREDIT.ACCT.NO)[4,5]
+
+!CALL F.READ(FN.CAT,Y.DR.AC.CAT,R.DR.CAT.REC,F.CAT,Y.DR.CAT.ERR)
+!CALL F.READ(FN.CAT,Y.CR.AC.CAT,R.CR.CAT.REC,F.CAT,Y.CR.CAT.ERR)
+
+******************AMENDMENT STARTS 14 MARCH 2018 TOWHID TIPU********************
+!IF R.DR.CAT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> EQ '' AND R.CR.CAT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> EQ '' THEN
+******************AMENDMENT ENDS 14 MARCH 2018 TOWHID TIPU**********************
+! ETEXT = "Both Debit/Credit Account Should not Sundry/Suspense"
+!CALL STORE.END.ERROR
+!END
+*** End By Zakir
+    BEGIN CASE
+    CASE R.NEW(FT.LOCAL.REF)<1,Y.FT.ORGADJ.POS> EQ 'ORG' AND R.NEW(FT.LOCAL.REF)<1,Y.FT.AL.POS> EQ 'A'
+****************************ADDED BY KAMRAN ON 20180730*********************************************
+        IF R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS> EQ '' THEN
+            AF = FT.LOCAL.REF
+            AV = Y.FT.DR.DETAILS.POS
+            ETEXT = "Should Not be Null"
+            CALL STORE.END.ERROR
+        END
+!IF NOT(ISALNUM(R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS>)) AND R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS> NE '' THEN
+        IF DCOUNT(R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS>,' ') GT 1 AND R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS> NE '' THEN
+            AF = FT.LOCAL.REF
+            ETEXT = "INVALID SWIFT CHAR."
+            CALL STORE.END.ERROR
+        END
+***********************************************END**************************************************
+        Y.AC.CAT = R.NEW(FT.DEBIT.ACCT.NO)[4,5]
+        CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+        Y.DR.ACCT = R.NEW(FT.DEBIT.ACCT.NO)
+!IF SUBSTRINGS(Y.DR.ACCT,1,2) NE 'PL' THEN
+        IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'A' THEN
+            AF = FT.DEBIT.ACCT.NO
+            ETEXT = "Is Not Asset Account "
+            CALL STORE.END.ERROR
+        END
+!END
+        IF R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS> THEN
+            AF = FT.LOCAL.REF
+            ETEXT = "Should Not be Any Value"
+            CALL STORE.END.ERROR
+        END
+        IF R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS> NE '' THEN
+            CALL F.READ(FN.SDSA.ENTRY,R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS>,R.SDSA.ENTRY.REC,F.SDSA.ENTRY,Y.SDSA.ENTRY.ERR)
+            IF R.SDSA.ENTRY.REC THEN
+                IF R.SDSA.ENTRY.REC<BD.SDSA.CO.CODE> NE ID.COMPANY THEN
+!CHANGE BY MONWAR
+                    AF = FT.LOCAL.REF
+                    AV = 1
+                    ETEXT = "Reference Number is already used in another Company"
+!CHANGE END
+                    CALL STORE.END.ERROR
+                END
+            END ELSE
+***************************KAMRAN(20191015)***************************
+!DEBUG
+                Y.DR.DET = R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS>
+                IF LEN(Y.DR.DET) GT 12 THEN
+                    AF = FT.LOCAL.REF
+                    AV = Y.FT.DR.DETAILS.POS
+                    ETEXT = "LENGTH NOT EXCEED 12 DIGIT"
+                    CALL STORE.END.ERROR
+                END
+            END
+*********************************END**********************************
+        END
+*Commented By Zakir
+!IF R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS> EQ '' AND R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS> EQ '' THEN
+!IF OFS.VAL.ONLY THEN RETURN
+!GOSUB SDSA.REF.ID
+!R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS> = Y.REF.ID
+!END
+* End By Zakir
+
+! T(FT.DR.DETAILS)<3> = 'NOINPUT'
+! T(FT.CR.DETAILS)<3> = 'NOINPUT'
+    CASE R.NEW(FT.LOCAL.REF)<1,Y.FT.ORGADJ.POS> EQ 'ADJ' AND R.NEW(FT.LOCAL.REF)<1,Y.FT.AL.POS> EQ 'A'
+
+*********************ADDED BY KAMRAN**************************
+!IF DCOUNT(R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS>,' ') GT 1 AND R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS> NE '' THEN
+!AF = FT.LOCAL.REF
+!ETEXT = "INVALID SWIFT CHAR."
+!CALL STORE.END.ERROR
+!END
+*****************************END******************************
+        Y.AC.CAT = R.NEW(FT.CREDIT.ACCT.NO)[4,5]
+        CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+        Y.CR.ACCT = R.NEW(FT.CREDIT.ACCT.NO)
+        IF SUBSTRINGS(Y.CR.ACCT,1,2) NE 'PL' THEN
+            IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'A' THEN
+                AF = FT.CREDIT.ACCT.NO
+                ETEXT = "Is Not Asset Account "
+                CALL STORE.END.ERROR
+            END
+        END
+        IF R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS> THEN
+            AF = FT.LOCAL.REF
+            ETEXT = "Should Not be Any Value"
+            CALL STORE.END.ERROR
+        END
+        IF R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS> NE '' THEN
+*******************KAMRAN(20191013)*******************
+            SEL.CMD.CR='SELECT ':FN.FT.NAU:' WITH CO.CODE EQ ':ID.COMPANY:' AND TRANSACTION.TYPE EQ ACAL'
+            CALL EB.READLIST(SEL.CMD.CR,SEL.LIST.CR,'',NO.OF.REC,E.RR)
+            Y.TOT.AMT = R.NEW(FT.DEBIT.AMOUNT)
+            LOOP
+                REMOVE Y.ID FROM SEL.LIST.CR SETTING POS
+            WHILE Y.ID:POS
+                CALL F.READ(FN.FT.NAU,Y.ID,R.FT.NAU.CR,F.FT.NAU,Y.FT.NAU.ERR)
+                Y.CR.REF =  R.FT.NAU.CR<FT.LOCAL.REF><1,Y.FT.CR.DETAILS.POS>
+                IF Y.CR.REF EQ R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS> THEN
+                    Y.CR.AMT = R.FT.NAU.CR<FT.DEBIT.AMOUNT>
+                    Y.TOT.AMT = Y.TOT.AMT + Y.CR.AMT
+                END
+            REPEAT
+            CALL F.READ(FN.SDSA.ENTRY,R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS>,R.SDSA.ENTRY.REC,F.SDSA.ENTRY,Y.SDSA.ENTRY.ERR)
+            IF Y.TOT.AMT GT R.SDSA.ENTRY.REC<BD.SDSA.OUTSTANDING.AMT> THEN
+                AF = FT.LOCAL.REF
+                ETEXT = "Amount Should Not GT Oustanding Amount"
+                CALL STORE.END.ERROR
+            END
+**********************************20191013*****************************
+            CALL F.READ(FN.SDSA.ENTRY,R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS>,R.SDSA.ENTRY.REC,F.SDSA.ENTRY,Y.SDSA.ENTRY.ERR)
+            IF R.SDSA.ENTRY.REC THEN
+                IF R.SDSA.ENTRY.REC<BD.SDSA.CO.CODE> NE ID.COMPANY THEN
+                    ETEXT = "Reference Number Not Valid Company"
+                    CALL STORE.END.ERROR
+                END
+                IF R.NEW(FT.CREDIT.ACCT.NO) NE R.SDSA.ENTRY.REC<BD.SDSA.AC.NUMBER> THEN
+                    AF = FT.CREDIT.ACCT.NO
+                    ETEXT = "Not Belong to this Cr. Reference Number"
+                    CALL STORE.END.ERROR
+                END
+            END ELSE
+                ETEXT = "Not Valid Cr. Reference Number"
+                CALL STORE.END.ERROR
+            END
+        END ELSE
+            AF = FT.LOCAL.REF
+            ETEXT = "Should Not Null"
+            CALL STORE.END.ERROR
+        END
+    CASE R.NEW(FT.LOCAL.REF)<1,Y.FT.ORGADJ.POS> EQ 'ORG' AND R.NEW(FT.LOCAL.REF)<1,Y.FT.AL.POS> EQ 'L'
+*****************************************ADDED BY DS KAMRAN 0N 20180730**************************************
+        IF R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS> EQ '' THEN
+            AF = FT.LOCAL.REF
+            AV = Y.FT.CR.DETAILS.POS
+            ETEXT = "Should Not be Null"
+            CALL STORE.END.ERROR
+        END
+        IF DCOUNT(R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS>,' ') GT 1 AND R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS> NE '' THEN
+            AF = FT.LOCAL.REF
+            ETEXT = "INVALID SWIFT CHAR."
+            CALL STORE.END.ERROR
+        END
+*********************************************END**************************************************************
+        Y.AC.CAT = R.NEW(FT.CREDIT.ACCT.NO)[4,5]
+        CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+        IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'L' THEN
+            AF = FT.CREDIT.ACCT.NO
+            ETEXT = "Is Not Liability Account "
+            CALL STORE.END.ERROR
+        END
+        IF R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS> THEN
+            AF = FT.LOCAL.REF
+            ETEXT = "Should Not be Any Value"
+            CALL STORE.END.ERROR
+        END
+        IF R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS> NE '' THEN
+            CALL F.READ(FN.SDSA.ENTRY,R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS>,R.SDSA.ENTRY.REC,F.SDSA.ENTRY,Y.SDSA.ENTRY.ERR)
+            IF R.SDSA.ENTRY.REC THEN
+                IF R.SDSA.ENTRY.REC<BD.SDSA.CO.CODE> NE ID.COMPANY THEN
+                    ETEXT = "Reference Number Not Valid Company"
+                    CALL STORE.END.ERROR
+                END
+            END ELSE
+***************************KAMRAN(20191015)***************************
+
+                Y.CR.DET = R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS>
+                IF LEN(Y.CR.DET) GT 12 THEN
+                    AF = FT.LOCAL.REF
+                    AV = Y.FT.CR.DETAILS.POS
+                    ETEXT = "LENGTH NOT EXCEED 12 DIGIT"
+                    CALL STORE.END.ERROR
+                END
+            END
+*********************************END**********************************
+        END
+!IF R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS> EQ '' AND R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS> EQ '' THEN
+!IF OFS.VAL.ONLY THEN RETURN
+!GOSUB SDSA.REF.ID
+!R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS> = Y.REF.ID
+!END
+    CASE R.NEW(FT.LOCAL.REF)<1,Y.FT.ORGADJ.POS> EQ 'ADJ' AND R.NEW(FT.LOCAL.REF)<1,Y.FT.AL.POS> EQ 'L'
+
+***************************ADDED BY KAMRAN*************************************
+!IF DCOUNT(R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS>,' ') GT 1 AND R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS> NE '' THEN
+!AF = FT.LOCAL.REF
+!ETEXT = "INVALID SWIFT CHAR."
+!CALL STORE.END.ERROR
+!END
+*******************************END*********************************************
+        Y.AC.CAT = R.NEW(FT.DEBIT.ACCT.NO)[4,5]
+        CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+        IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'L' THEN
+            AF = FT.DEBIT.ACCT.NO
+            ETEXT = "Is Not Liability Account "
+            CALL STORE.END.ERROR
+        END
+        IF R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS> THEN
+            AF = FT.LOCAL.REF
+            ETEXT = "Should Not be Any Value"
+            CALL STORE.END.ERROR
+        END
+        IF R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS> NE '' THEN
+            CALL F.READ(FN.SDSA.ENTRY,R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS>,R.SDSA.ENTRY.REC,F.SDSA.ENTRY,Y.SDSA.ENTRY.ERR)
+            IF R.SDSA.ENTRY.REC THEN
+                IF R.SDSA.ENTRY.REC<BD.SDSA.CO.CODE> NE ID.COMPANY THEN
+                    ETEXT = "Reference Number Not Valid Company"
+                    CALL STORE.END.ERROR
+                END
+*******************KAMRAN(20191013)*******************
+                SEL.CMD.CR='SELECT ':FN.FT.NAU:' WITH CO.CODE EQ ':ID.COMPANY:' AND TRANSACTION.TYPE EQ ACAL'
+                CALL EB.READLIST(SEL.CMD.DR,SEL.LIST.DR,'',NO.OF.REC,E.RR)
+                Y.TOT.AMT = R.NEW(FT.DEBIT.AMOUNT)
+                LOOP
+                    REMOVE Y.ID.DR FROM SEL.LIST.DR SETTING POS
+                WHILE Y.ID.DR:POS
+                    CALL F.READ(FN.FT.NAU,Y.ID.DR,R.FT.NAU.DR,F.FT.NAU,Y.FT.NAU.ERR)
+                    Y.DR.REF =  R.FT.NAU.DR<FT.LOCAL.REF><1,Y.FT.DR.DETAILS.POS>
+                    IF Y.DR.REF EQ R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS> THEN
+                        Y.DR.AMT = R.FT.NAU.DR<FT.DEBIT.AMOUNT>
+                        Y.TOT.AMT = Y.TOT.AMT + Y.DR.AMT
+                    END
+                REPEAT
+
+                IF Y.TOT.AMT GT R.SDSA.ENTRY.REC<BD.SDSA.OUTSTANDING.AMT> THEN
+                    AF = FT.LOCAL.REF
+                    ETEXT = "Amount Should Not GT Oustanding Amount"
+                    CALL STORE.END.ERROR
+                END
+**********************************20191013*****************************
+                IF R.NEW(FT.DEBIT.ACCT.NO) NE R.SDSA.ENTRY.REC<BD.SDSA.AC.NUMBER> THEN
+                    AF = FT.DEBIT.ACCT.NO
+                    ETEXT = "Not Belong to this Dr. Reference Number"
+                    CALL STORE.END.ERROR
+                END
+            END ELSE
+                ETEXT = "Not Valid Dr. Reference Number"
+                CALL STORE.END.ERROR
+            END
+        END ELSE
+            AF = FT.LOCAL.REF
+            ETEXT = "Should Not Null"
+            CALL STORE.END.ERROR
+        END
+!T(FT.CR.DETAILS)<3> = 'NOINPUT'
+    END CASE
+    RETURN
+
+TT.VAL.PROCESS:
+
+*COMMENTED BY ZAKIR
+!IF R.NEW(TT.TE.ACCOUNT.2)[1,3] NE 'BDT' THEN
+!AF = TT.TE.ACCOUNT.2
+! ETEXT = "Not Sundry/Suspense Account"
+!CALL STORE.END.ERROR
+! END
+
+    IF R.NEW(TT.TE.ACCOUNT.2)[1,2] NE 'PL' THEN
+        Y.DRCR.AC.CAT=R.NEW(TT.TE.ACCOUNT.2)[4,5]
+        CALL F.READ(FN.CAT,Y.DRCR.AC.CAT,R.DRCR.CAT.REC,F.CAT,Y.DRCR.CAT.ERR)
+        IF R.DRCR.CAT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> EQ '' THEN
+            AF = TT.TE.ACCOUNT.2
+            ETEXT = "Not Sundry/Suspense Account"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    IF Y.APP.VER.NAME EQ 'TELLER,SDSA.LCY.CASHIN' THEN
+
+******************KAMRAN(20191020)********************************
+!Y.AC.CAT = R.NEW(TT.TE.ACCOUNT.2)[4,5]
+!CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+!IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> EQ 'A' THEN
+!R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.AL.POS> = 'A'
+!END ELSE
+!R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.AL.POS> = 'L'
+!END
+**************************END*************************************
+        BEGIN CASE
+        CASE R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.ORGADJ.POS> EQ 'ORG' AND R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.AL.POS> EQ 'L'
+            IF DCOUNT(R.NEW(TT.TE.NARRATIVE.2),' ') GT 1 THEN
+                AF = TT.TE.NARRATIVE.2
+                ETEXT = "INVALID SWIFT CHAR."
+                CALL STORE.END.ERROR
+            END
+            Y.AC.CAT = R.NEW(TT.TE.ACCOUNT.2)[4,5]
+            CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+            IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'L' THEN
+                AF = TT.TE.ACCOUNT.2
+                ETEXT = "Is Not Liability Account "
+                CALL STORE.END.ERROR
+            END
+
+            CALL F.READ(FN.SDSA.ENTRY,R.NEW(TT.TE.NARRATIVE.2),R.SDSA.ENTRY.REC,F.SDSA.ENTRY,Y.SDSA.ENTRY.ERR)
+            IF R.SDSA.ENTRY.REC THEN
+                IF R.SDSA.ENTRY.REC<BD.SDSA.CO.CODE> NE ID.COMPANY THEN
+                    ETEXT = "Reference Number Not Valid Company"
+                    CALL STORE.END.ERROR
+                END
+*********************************END**********************************
+            END ELSE
+                Y.TT.REF.CIN = R.NEW(TT.TE.NARRATIVE.2)
+                IF LEN(Y.TT.REF.CIN) GT 12 THEN
+                    AF = TT.TE.LOCAL.REF
+                    AV = 1
+                    ETEXT = "LENGTH NOT EXCEED 12 DIGIT"
+                    CALL STORE.END.ERROR
+                END
+            END
+
+
+        CASE R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.ORGADJ.POS> EQ 'ORG' AND R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.AL.POS> EQ 'A'
+            IF DCOUNT(R.NEW(TT.TE.NARRATIVE.2),' ') GT 1 THEN
+                AF = TT.TE.NARRATIVE.2
+                ETEXT = "INVALID SWIFT CHAR."
+                CALL STORE.END.ERROR
+            END
+            Y.AC.CAT = R.NEW(TT.TE.ACCOUNT.2)[4,5]
+            CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+            IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'A' THEN
+                AF = TT.TE.ACCOUNT.2
+                ETEXT = "Is Not Asset Account "
+                CALL STORE.END.ERROR
+            END
+            CALL F.READ(FN.SDSA.ENTRY,R.NEW(TT.TE.NARRATIVE.2),R.SDSA.ENTRY.REC,F.SDSA.ENTRY,Y.SDSA.ENTRY.ERR)
+            IF R.SDSA.ENTRY.REC THEN
+                IF R.SDSA.ENTRY.REC<BD.SDSA.CO.CODE> NE ID.COMPANY THEN
+                    ETEXT = "Reference Number Not Valid Company"
+                    CALL STORE.END.ERROR
+                END
+*********************************END**********************************
+            END ELSE
+                Y.TT.REF.CIN = R.NEW(TT.TE.NARRATIVE.2)
+                IF LEN(Y.TT.REF.CIN) GT 12 THEN
+                    AF = TT.TE.LOCAL.REF
+                    AV = 1
+                    ETEXT = "LENGTH NOT EXCEED 12 DIGIT"
+                    CALL STORE.END.ERROR
+                END
+            END
+
+        CASE R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.ORGADJ.POS> EQ 'ADJ' AND R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.AL.POS> EQ 'A'
+            Y.AC.CAT = R.NEW(TT.TE.ACCOUNT.2)[4,5]
+            CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+            Y.TT.ACCT = R.NEW(TT.TE.ACCOUNT.2)
+            IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'A' THEN
+                AF = TT.TE.ACCOUNT.2
+                ETEXT = "Is Not Asset Account "
+                CALL STORE.END.ERROR
+            END
+            CALL F.READ(FN.SDSA.ENTRY,R.NEW(TT.TE.NARRATIVE.2),R.SDSA.ENTRY.REC,F.SDSA.ENTRY,Y.SDSA.ENTRY.ERR)
+            IF R.SDSA.ENTRY.REC THEN
+                IF R.SDSA.ENTRY.REC<BD.SDSA.CO.CODE> NE ID.COMPANY THEN
+                    ETEXT = "Reference Number Not Valid Company"
+                    CALL STORE.END.ERROR
+                END
+*******************KAMRAN(20191015)*******************
+                SEL.CMD.TT ='SELECT ':FN.TT.NAU:' WITH CO.CODE EQ ':ID.COMPANY:' AND TRANSACTION.CODE EQ 10'
+                CALL EB.READLIST(SEL.CMD.TT,SEL.LIST.TT,'',NO.OF.REC,E.RR)
+                Y.TOT.AMT = R.NEW(TT.TE.AMOUNT.LOCAL.1)
+                LOOP
+                    REMOVE Y.ID.IN.TT FROM SEL.LIST.TT SETTING POS
+                WHILE Y.ID.IN.TT:POS
+                    CALL F.READ(FN.TT.NAU,Y.ID.IN.TT,R.TT.NAU.IN,F.TT.NAU,Y.TT.NAU.ERR)
+                    Y.TT.REF =  R.TT.NAU.IN<TT.TE.NARRATIVE.2>
+                    IF Y.TT.REF EQ R.NEW(TT.TE.NARRATIVE.2) THEN
+                        Y.TT.AMT = R.TT.NAU.IN<TT.TE.AMOUNT.LOCAL.1>
+                        Y.TOT.AMT = Y.TOT.AMT + Y.DR.AMT
+                    END
+                REPEAT
+
+                IF Y.TOT.AMT GT R.SDSA.ENTRY.REC<BD.SDSA.OUTSTANDING.AMT> THEN
+                    AF = TT.TE.NARRATIVE.2
+                    ETEXT = "Amount Should Not GT Oustanding Amount"
+                    CALL STORE.END.ERROR
+                END
+********************************20191015*****************************
+                IF R.NEW(TT.TE.ACCOUNT.2) NE R.SDSA.ENTRY.REC<BD.SDSA.AC.NUMBER> THEN
+                    AF = TT.TE.ACCOUNT.2
+                    ETEXT = "Not Belong to this Reference Number"
+                    CALL STORE.END.ERROR
+                END
+            END ELSE
+                ETEXT = "Not Valid Reference Number"
+                CALL STORE.END.ERROR
+            END
+
+
+        CASE R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.ORGADJ.POS> EQ 'ADJ' AND R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.AL.POS> EQ 'L'
+            Y.AC.CAT = R.NEW(TT.TE.ACCOUNT.2)[4,5]
+
+            CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+            Y.TT.ACCT = R.NEW(TT.TE.ACCOUNT.2)
+            IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'L' THEN
+                AF = TT.TE.ACCOUNT.2
+                ETEXT = "Is Not Liability Account "
+                CALL STORE.END.ERROR
+            END
+            CALL F.READ(FN.SDSA.ENTRY,R.NEW(TT.TE.NARRATIVE.2),R.SDSA.ENTRY.REC,F.SDSA.ENTRY,Y.SDSA.ENTRY.ERR)
+            IF R.SDSA.ENTRY.REC THEN
+                IF R.SDSA.ENTRY.REC<BD.SDSA.CO.CODE> NE ID.COMPANY THEN
+                    ETEXT = "Reference Number Not Valid Company"
+                    CALL STORE.END.ERROR
+                END
+*******************KAMRAN(20191015)*******************
+                SEL.CMD.TT ='SELECT ':FN.TT.NAU:' WITH CO.CODE EQ ':ID.COMPANY:' AND TRANSACTION.CODE EQ 10'
+                CALL EB.READLIST(SEL.CMD.TT,SEL.LIST.TT,'',NO.OF.REC,E.RR)
+                Y.TOT.AMT = R.NEW(TT.TE.AMOUNT.LOCAL.1)
+                LOOP
+                    REMOVE Y.ID.IN.TT FROM SEL.LIST.TT SETTING POS
+                WHILE Y.ID.IN.TT:POS
+                    CALL F.READ(FN.TT.NAU,Y.ID.IN.TT,R.TT.NAU.IN,F.TT.NAU,Y.TT.NAU.ERR)
+                    Y.TT.REF =  R.TT.NAU.IN<TT.TE.NARRATIVE.2>
+                    IF Y.TT.REF EQ R.NEW(TT.TE.NARRATIVE.2) THEN
+                        Y.TT.AMT = R.TT.NAU.IN<TT.TE.AMOUNT.LOCAL.1>
+                        Y.TOT.AMT = Y.TOT.AMT + Y.DR.AMT
+                    END
+                REPEAT
+
+                IF Y.TOT.AMT GT R.SDSA.ENTRY.REC<BD.SDSA.OUTSTANDING.AMT> THEN
+                    AF = TT.TE.NARRATIVE.2
+                    ETEXT = "Amount Should Not GT Oustanding Amount"
+                    CALL STORE.END.ERROR
+                END
+********************************20191015*****************************
+                IF R.NEW(TT.TE.ACCOUNT.2) NE R.SDSA.ENTRY.REC<BD.SDSA.AC.NUMBER> THEN
+                    AF = TT.TE.ACCOUNT.2
+                    ETEXT = "Not Belong to this Reference Number"
+                    CALL STORE.END.ERROR
+                END
+            END ELSE
+                ETEXT = "Not Valid Reference Number"
+                CALL STORE.END.ERROR
+            END
+
+        END CASE
+    END
+
+    IF Y.APP.VER.NAME EQ 'TELLER,SDSA.LCY.CASHWDL' THEN
+        BEGIN CASE
+        CASE R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.ORGADJ.POS> EQ 'ORG' AND R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.AL.POS> EQ 'A'
+            IF DCOUNT(R.NEW(TT.TE.NARRATIVE.2),' ') GT 1 THEN
+                AF = TT.TE.NARRATIVE.2
+                ETEXT = "INVALID SWIFT CHAR."
+                CALL STORE.END.ERROR
+            END
+            Y.AC.CAT = R.NEW(TT.TE.ACCOUNT.2)[4,5]
+            CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+            Y.TT.TE.ACCT = R.NEW(TT.TE.ACCOUNT.2)
+
+            IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'A' THEN
+                AF = TT.TE.ACCOUNT.2
+                ETEXT = "Is Not Asset Account "
+                CALL STORE.END.ERROR
+            END
+
+            CALL F.READ(FN.SDSA.ENTRY,R.NEW(TT.TE.NARRATIVE.2),R.SDSA.ENTRY.REC,F.SDSA.ENTRY,Y.SDSA.ENTRY.ERR)
+            IF R.SDSA.ENTRY.REC THEN
+                IF R.SDSA.ENTRY.REC<BD.SDSA.CO.CODE> NE ID.COMPANY THEN
+                    ETEXT = "Reference Number Not Valid Company"
+                    CALL STORE.END.ERROR
+                END
+            END ELSE
+
+***************************KAMRAN(20191015)***************************
+
+                Y.TT.REF = R.NEW(TT.TE.NARRATIVE.2)
+                IF LEN(Y.TT.REF) GT 12 THEN
+                    AF = TT.TE.LOCAL.REF
+                    AV = 1
+                    ETEXT = "LENGTH NOT EXCEED 12 DIGIT"
+                    CALL STORE.END.ERROR
+                END
+!END
+*********************************END**********************************
+!END
+            END
+!CASE R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.ORGADJ.POS> EQ 'ADJ' AND R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.AL.POS> EQ 'L'
+        CASE R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.ORGADJ.POS> EQ 'ADJ'
+            Y.AC.CAT = R.NEW(TT.TE.ACCOUNT.2)[4,5]
+            CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+
+! IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'L' THEN
+!  AF = TT.TE.ACCOUNT.2
+! ETEXT = "Is Not Liability Account "
+! CALL STORE.END.ERROR
+! END
+
+!IF R.NEW(TT.TE.NARRATIVE.2) NE '' THEN
+            CALL F.READ(FN.SDSA.ENTRY,R.NEW(TT.TE.NARRATIVE.2),R.SDSA.ENTRY.REC,F.SDSA.ENTRY,Y.SDSA.ENTRY.ERR)
+            IF R.SDSA.ENTRY.REC THEN
+                IF R.SDSA.ENTRY.REC<BD.SDSA.CO.CODE> NE ID.COMPANY THEN
+                    ETEXT = "Reference Number Not Valid Company"
+                    CALL STORE.END.ERROR
+                END
+
+*******************KAMRAN(20191015)*******************
+                SEL.CMD.WDL='SELECT ':FN.TT.NAU:' WITH CO.CODE EQ ':ID.COMPANY:' AND TRANSACTION.CODE EQ 14'
+                CALL EB.READLIST(SEL.CMD.WDL,SEL.LIST.WDL,'',NO.OF.REC,E.RR)
+                Y.TOT.AMT = R.NEW(TT.TE.AMOUNT.LOCAL.1)
+                LOOP
+                    REMOVE Y.ID.WDL FROM SEL.LIST.WDL SETTING POS
+                WHILE Y.ID.WDL:POS
+                    CALL F.READ(FN.TT.NAU,Y.ID.WDL,R.TT.NAU.WDL,F.TT.NAU,Y.TT.NAU.ERR)
+                    Y.TT.WDL.REF = R.TT.NAU.WDL<TT.TE.NARRATIVE.2>
+                    IF Y.TT.WDL.REF EQ R.NEW(TT.TE.NARRATIVE.2) THEN
+                        Y.TT.WDL.AMT = R.TT.NAU.WDL<TT.TE.AMOUNT.LOCAL.1>
+                        Y.TOT.AMT = Y.TOT.AMT + Y.TT.WDL.AMT
+                    END
+                REPEAT
+
+                IF Y.TOT.AMT GT R.SDSA.ENTRY.REC<BD.SDSA.OUTSTANDING.AMT> THEN
+                    AF = TT.TE.NARRATIVE.2
+                    ETEXT = "Amount Should Not GT Oustanding Amount"
+                    CALL STORE.END.ERROR
+                END
+********************************20191015*****************************
+                IF R.NEW(TT.TE.ACCOUNT.2) NE R.SDSA.ENTRY.REC<BD.SDSA.AC.NUMBER> THEN
+                    AF = TT.TE.ACCOUNT.2
+                    ETEXT = "Not Belong to this Reference Number"
+                    CALL STORE.END.ERROR
+                END
+            END ELSE
+                ETEXT = "Not Valid Reference Number"
+                CALL STORE.END.ERROR
+            END
+!END ELSE
+! ETEXT = "Reference Number Should Not Null"
+! CALL STORE.END.ERROR
+!END
+!T(FT.CR.DETAILS)<3> = 'NOINPUT'
+        END CASE
+    END
+    RETURN
+
+
+END

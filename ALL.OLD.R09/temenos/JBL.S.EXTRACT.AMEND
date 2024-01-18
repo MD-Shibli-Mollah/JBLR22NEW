@@ -1,0 +1,414 @@
+*-----------------------------------------------------------------------------
+* <Rating>1570</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.EXTRACT.AMEND
+!PROGRAM JBL.S.EXTRACT.AMEND
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!This ID routine call when user select NGMO button in FT and TT transaction
+!Also Consider TF ID
+
+!UPDATE DATE: 19 MAR 2019
+!UPDATED BY: KAMRAN MALLICK
+!UPDATE DEBIT PAYMENT AMOUNT
+
+!UPDATE DATE: 16 OCT 2019
+!UPDATED BY: KAMRAN MALLICK
+!UPDATE DEBIT & CREDIT PAYMENT AMOUNT
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT JBL.BP I_F.ABL.H.NM.ER
+    $INSERT GLOBUS.BP I_F.DATA.CAPTURE
+    $INSERT GLOBUS.BP I_F.FT.BULK.CREDIT.AC
+    $INSERT GLOBUS.BP I_F.FT.BULK.DEBIT.AC
+    $INSERT GLOBUS.BP I_F.LC.TYPES
+    $INSERT GLOBUS.BP I_F.DRAWINGS
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INSERT JBL.BP I_F.ABL.H.BRANCH.CODE
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+
+    FN.BR.CODE = "F.ABL.H.BRANCH.CODE"
+    F.BR.CODE = ""
+
+    FN.TT='F.TELLER'
+    F.TT=''
+    REC.TT=''
+
+    FN.TT.NAU='F.TELLER$NAU'
+    F.TT.NAU=''
+    REC.TT.NAU=''
+
+    FN.TT.HIS='F.TELLER$HIS'
+    F.TT.HIS=''
+    REC.TT.HIS=''
+
+    FN.LD='F.LD.LOANS.AND.DEPOSITS'
+    F.LD=''
+    REC.LD=''
+
+
+    FN.FT='F.FUNDS.TRANSFER'
+    F.FT=''
+    REC.FT=''
+
+    FN.FT.NAU='F.FUNDS.TRANSFER$NAU'
+    F.FT.NAU=''
+    REC.FT.NAU=''
+
+    FN.FT.HIS='F.FUNDS.TRANSFER$HIS'
+    F.FT.HIS = ''
+
+
+    FN.DC="F.DATA.CAPTURE"
+    F.DC=''
+    REC.DC=''
+
+    FN.BULK.CR='F.FT.BULK.CREDIT.AC'
+    F.BULK.CR=''
+    REC.BULK.CR=''
+
+    FN.BULK.DR='F.FT.BULK.DEBIT.AC'
+    F.BULK.DR=''
+    REC.BULK.DR=''
+
+    FN.LCTYPE = 'F.LC.TYPES'
+    F.LCTYPE = ''
+    R.LCTYPE.REC = ''
+    Y.LCTYPE.ERR = ''
+
+    FN.DR = 'F.DRAWINGS'
+    F.DR = ''
+    R.DR.REC = ''
+    Y.DR.ERR = ''
+
+    FN.DR.HIS = 'F.DRAWINGS$HIS'
+    F.DR.HIS = ''
+
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+
+    FN.STMT = 'F.STMT.ENTRY'
+    F.STMT = ''
+
+    R.AC.REC = ''
+    R.AC.REC1 = ''
+    Y.AC.ERR = ''
+    Y.AC.ERR1 = ''
+
+    Y.LC.TYPE.ID = ''
+    TOT.ASS = ''
+    Y.TOT.ASS.AMT = ''
+    Y.TOT.AMT = ''
+    Y.ASS.AC.ID = ''
+    Y.AC.ID = ''
+    Y.AMT = ''
+***********ADDED BY SAYEED(20181009)**************
+!FN.COM='F.COMPANY'
+!F.COM=''
+********************END**************************
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.TT.NAU,F.TT.NAU)
+    CALL OPF(FN.TT.HIS,F.TT.HIS)
+    CALL OPF(FN.FT.NAU,F.FT.NAU)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    CALL OPF(FN.DC,F.DC)
+
+    CALL OPF(FN.BULK.CR,F.BULK.CR)
+    CALL OPF(FN.BULK.DR,F.BULK.DR)
+
+    CALL OPF(FN.LCTYPE,F.LCTYPE)
+    CALL OPF(FN.DR,F.DR)
+    CALL OPF(FN.DR.HIS,F.DR.HIS)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.LD,F.LD)
+
+    CALL OPF(FN.BR.CODE,F.BR.CODE)
+***************ADDED BY SAYEED(20181009)*****************
+!CALL OPF(FN.COM,F.COM)
+************************END******************************
+    IF V$FUNCTION EQ 'I' THEN
+        Y.BR.CODE = COMI
+*****************************ADDED BY SAYEED(20181009)********************************
+!SEL.CMD='SELECT ':FN.COM:' WITH @ID EQ BD001':Y.BR.CODE
+!CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,E.RR)
+!IF NO.OF.REC EQ '0' THEN
+!    ETEXT = 'Invalid Company Id!!!!'
+!END ELSE
+        Y.ZONE.CODE = "''"
+        SEL.CMD='SELECT ':FN.BR.CODE:' WITH @ID EQ ':Y.BR.CODE:' AND ZONAL.CODE NE ':Y.ZONE.CODE
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,E.RR)
+        IF NO.OF.REC EQ '0' THEN
+            ETEXT = 'Not a Valid Company ID'
+        END ELSE
+*****************************************END******************************************
+!DEBUG
+            CALL F.READ(FN.BR.CODE,Y.BR.CODE,R.BR.CODE,F.BR.CODE,Y.BR.ERR)
+            R.NEW(NM.ZONAL.CODE) = R.BR.CODE<BRN.ZONAL.CODE>
+            IF ID.NEW[1,2] EQ 'TT' THEN
+                CALL F.READ(FN.TT.NAU,ID.NEW,REC.TT.NAU,F.TT.NAU,ERR.TT.NAU)
+                Y.STMT.NO = REC.TT.NAU<TT.TE.STMT.NO>
+                Y.STMT.EXPL = FIELD(Y.STMT.NO,VM,1)
+                Y.STMT.PRFX = FIELD(Y.STMT.NO,VM,2)
+                Y.STMT.NO.1 = Y.STMT.EXPL:'000':FIELD(Y.STMT.PRFX,'-',1)
+                Y.STMT.NO.2 = Y.STMT.EXPL:'000':FIELD(Y.STMT.PRFX,'-',2)
+                CALL F.READ(FN.STMT, Y.STMT.NO.1, REC.STMT, F.STMT, ERR.STMT)
+                IF REC.STMT<AC.STE.ACCOUNT.NUMBER>[1,8] NE 'BDT12810' OR REC.STMT<AC.STE.ACCOUNT.NUMBER>[1,8] NE 'BDT12820' THEN
+                    CALL F.READ(FN.STMT, Y.STMT.NO.2, REC.STMT, F.STMT, ERR.STMT)
+                END
+                IF REC.STMT<AC.STE.CRF.TYPE> EQ 'DEBIT' THEN
+                    DR.CR.MARK = 'DR'
+                END
+                IF REC.STMT<AC.STE.CRF.TYPE> EQ 'CREDIT' THEN
+                    DR.CR.MARK = 'CR'
+                END
+                IF REC.TT.NAU THEN
+                    R.NEW(NM.VALUE.DATE)=REC.TT.NAU<TT.TE.VALUE.DATE.1>
+                    R.NEW(NM.AMOUNT)=REC.TT.NAU<TT.TE.AMOUNT.LOCAL.1>
+                    R.NEW(NM.DR.CR.MARKER) = DR.CR.MARK
+                END
+                ELSE
+**********************************************************UPDATE 20181101*****************************************************
+                    CALL F.READ(FN.TT,ID.NEW,REC.TT,F.TT,ERR.TT)
+                    IF REC.TT EQ '' THEN
+                        CALL EB.READ.HISTORY.REC(F.TT.HIS,ID.NEW,REC.TT,TT.HIS.ERR)
+                        ID.NEW = FIELD(ID.NEW,';',1)
+                    END
+!Y.STMT.NO = REC.TT<TT.TE.STMT.NO>
+!Y.STMT.EXPL = FIELD(Y.STMT.NO,VM,1)
+!Y.STMT.PRFX = FIELD(Y.STMT.NO,VM,2)
+!Y.STMT.NO.1 = Y.STMT.EXPL:'000':FIELD(Y.STMT.PRFX,'-',1)
+!Y.STMT.NO.2 = Y.STMT.EXPL:'000':FIELD(Y.STMT.PRFX,'-',2)
+!CALL F.READ(FN.STMT, Y.STMT.NO.1, REC.STMT, F.STMT, ERR.STMT)
+
+                    Y.DR.CR.MARKER = REC.TT<TT.TE.DR.CR.MARKER>
+                    Y.ACCT.1 = REC.TT<TT.TE.ACCOUNT.1>
+                    Y.ACCT.2 = REC.TT<TT.TE.ACCOUNT.2>
+                    Y.ACC.CIB.IBF.1 = SUBSTRINGS(Y.ACCT.1,4,5)
+                    Y.ACC.CIB.IBF = SUBSTRINGS(Y.ACCT.2,4,5)
+                    IF Y.ACC.CIB.IBF.1 EQ '12810' OR Y.ACC.CIB.IBF.1 EQ '12820' THEN
+                        IF Y.DR.CR.MARKER EQ 'DEBIT' THEN
+                            DR.CR.MARK = 'DR'
+                        END
+                        IF Y.DR.CR.MARKER EQ 'CREDIT' THEN
+                            DR.CR.MARK = 'CR'
+                        END
+                    END
+                    IF Y.ACC.CIB.IBF EQ '12810' OR Y.ACC.CIB.IBF EQ '12820' THEN
+                        IF Y.DR.CR.MARKER EQ 'DEBIT' THEN
+                            DR.CR.MARK = 'CR'
+                        END
+                        IF Y.DR.CR.MARKER EQ 'CREDIT' THEN
+                            DR.CR.MARK = 'DR'
+                        END
+
+                    END
+**************************************************************KAMRAN************************************************
+!IF REC.STMT<AC.STE.ACCOUNT.NUMBER>[1,8] EQ 'BDT12810' OR REC.STMT<AC.STE.ACCOUNT.NUMBER>[1,8] EQ 'BDT12820' THEN
+!IF REC.STMT<AC.STE.AMOUNT.LCY> LT '0' THEN
+!DR.CR.MARK = 'DR'
+!END
+!IF REC.STMT<AC.STE.AMOUNT.LCY> GT '0' THEN
+!DR.CR.MARK = 'CR'
+!END
+!END ELSE
+!IF REC.STMT<AC.STE.ACCOUNT.NUMBER>[1,8] NE 'BDT12810' OR REC.STMT<AC.STE.ACCOUNT.NUMBER>[1,8] NE 'BDT12820' THEN
+!CALL F.READ(FN.STMT, Y.STMT.NO.2, REC.STMT, F.STMT, ERR.STMT)
+!IF REC.STMT<AC.STE.CRF.TYPE> EQ 'DEBIT' THEN
+!IF REC.STMT<AC.STE.AMOUNT.LCY> LT '0' THEN
+!DR.CR.MARK = 'DR'
+!END
+!IF REC.STMT<AC.STE.CRF.TYPE> EQ 'CREDIT' THEN
+!IF REC.STMT<AC.STE.AMOUNT.LCY> GT '0' THEN
+!DR.CR.MARK = 'CR'
+!END
+!END
+!END
+******************************************************************END*****************************************************
+                    R.NEW(NM.VALUE.DATE)=REC.TT<TT.TE.VALUE.DATE.1>
+                    R.NEW(NM.AMOUNT)=REC.TT<TT.TE.AMOUNT.LOCAL.1>
+                    R.NEW(NM.DR.CR.MARKER) = DR.CR.MARK
+                END
+            END
+
+            IF ID.NEW[1,2] EQ 'DC' THEN
+                CALL F.READ(FN.DC,ID.NEW,REC.DC,F.DC,ERR.DC)
+                R.NEW(NM.VALUE.DATE)=REC.DC<DC.DC.VALUE.DATE>
+                R.NEW(NM.AMOUNT)=REC.DC<DC.DC.AMOUNT.LCY>
+            END
+            IF ID.NEW[1,2] EQ 'FT' THEN
+                CALL F.READ(FN.FT.NAU,ID.NEW,REC.FT.NAU,F.FT.NAU,ERR.FT.NAU)
+                IF REC.FT.NAU THEN
+                    IF REC.FT.NAU<FT.DEBIT.VALUE.DATE> THEN
+                        R.NEW(NM.VALUE.DATE)=REC.FT.NAU<FT.DEBIT.VALUE.DATE>
+                    END
+                    ELSE
+                        R.NEW(NM.VALUE.DATE)=REC.FT.NAU<FT.CREDIT.VALUE.DATE>
+                    END
+                    IF REC.FT.NAU<FT.DEBIT.AMOUNT> THEN
+                        R.NEW(NM.AMOUNT)=REC.FT.NAU<FT.DEBIT.AMOUNT>
+                    END
+                    ELSE
+                        R.NEW(NM.AMOUNT)=REC.FT.NAU<FT.CREDIT.AMOUNT>
+                    END
+                    IF REC.FT.NAU<FT.DEBIT.ACCT.NO>[1,8] EQ 'BDT12810' OR REC.FT.NAU<FT.DEBIT.ACCT.NO>[1,8] EQ 'BDT12820' THEN
+                        R.NEW(NM.DR.CR.MARKER) = 'DR'
+                    END
+                    IF REC.FT.NAU<FT.CREDIT.ACCT.NO>[1,8] EQ 'BDT12810' OR REC.FT.NAU<FT.CREDIT.ACCT.NO>[1,8] EQ 'BDT12820' THEN
+                        R.NEW(NM.DR.CR.MARKER) = 'CR'
+                    END
+                END
+                ELSE
+                    CALL F.READ(FN.FT,ID.NEW,REC.FT,F.FT,ERR.FT)
+!--------------------add---------------------------------
+                    IF REC.FT EQ '' THEN
+                        CALL EB.READ.HISTORY.REC(F.FT.HIS,ID.NEW,REC.FT,FT.HIS.ERR)
+                        ID.NEW = FIELD(ID.NEW,';',1)
+                    END
+!---------------------------------------------------------
+                    IF REC.FT<FT.DEBIT.VALUE.DATE> THEN
+                        R.NEW(NM.VALUE.DATE)=REC.FT<FT.DEBIT.VALUE.DATE>
+                    END
+                    ELSE
+                        R.NEW(NM.VALUE.DATE)=REC.FT<FT.CREDIT.VALUE.DATE>
+                    END
+***************************UPDATE ON 20191027*************************
+
+                    IF REC.FT<FT.DEBIT.CURRENCY> NE 'BDT' OR REC.FT<FT.CREDIT.CURRENCY> NE 'BDT' THEN
+                        IF REC.FT<FT.DEBIT.AMOUNT> THEN
+                            R.NEW(NM.AMOUNT)=REC.FT<FT.LOC.AMT.DEBITED>
+                        END
+                        ELSE
+                            R.NEW(NM.AMOUNT)=REC.FT<FT.LOC.AMT.CREDITED>
+                        END
+                    END ELSE
+                        IF REC.FT<FT.DEBIT.AMOUNT> THEN
+                            R.NEW(NM.AMOUNT)=REC.FT<FT.DEBIT.AMOUNT>
+                        END ELSE
+                            R.NEW(NM.AMOUNT)=REC.FT<FT.CREDIT.AMOUNT>
+                        END
+                    END
+
+***************************************END****************************
+                    IF REC.FT<FT.DEBIT.ACCT.NO>[1,8] EQ 'BDT12810' OR REC.FT<FT.DEBIT.ACCT.NO>[1,8] EQ 'BDT12820' THEN
+                        R.NEW(NM.DR.CR.MARKER) = 'DR'
+                    END
+                    IF REC.FT<FT.CREDIT.ACCT.NO>[1,8] EQ 'BDT12810' OR REC.FT<FT.CREDIT.ACCT.NO>[1,8] EQ 'BDT12820' THEN
+                        R.NEW(NM.DR.CR.MARKER) = 'CR'
+                    END
+                END
+
+            END
+            IF ID.NEW[1,2] EQ 'BK' THEN
+                CALL F.READ(FN.BULK.CR,ID.NEW,REC.BULK.CR,F.BULK.CR,ERR.BULK.CR)
+                IF REC.BULK.CR NE '' THEN
+                    R.NEW(NM.AMOUNT)= REC.BULK.CR<FT.BKCRAC.DR.AMOUNT>
+                    R.NEW(NM.VALUE.DATE) = REC.BULK.CR<FT.BKCRAC.DR.VALUE.DATE>
+
+                END
+                ELSE
+                    CALL F.READ(FN.BULK.DR,ID.NEW,REC.BULK.DR,F.BULK.DR,ERR.BULK.DR)
+                    IF REC.BULK.DR NE '' THEN
+                        R.NEW(NM.AMOUNT)= REC.BULK.DR<FT.BKDRAC.CR.AMOUNT>
+                        R.NEW(NM.VALUE.DATE) = REC.BULK.DR<FT.BKDRAC.CR.VALUE.DATE>
+                    END
+                END
+            END
+            IF ID.NEW[1,2] EQ 'TF' THEN
+
+                CALL GET.LOC.REF("DRAWINGS","DATE.OF.PAYMENT",Y.DATE.OF.PAYMENT)
+
+                CALL F.READ(FN.DR,ID.NEW,R.DR.REC,F.DR,Y.DR.ERR)
+                Y.TF.ID=ID.NEW
+                IF R.DR.REC EQ '' THEN
+                    CALL EB.READ.HISTORY.REC(F.DR.HIS,Y.TF.ID,R.DR.REC,ERR)
+                END
+
+                IF R.DR.REC NE '' THEN
+                    Y.LC.TYPE.ID = R.DR.REC<TF.DR.LC.CREDIT.TYPE>
+                    CALL F.READ(FN.LCTYPE,Y.LC.TYPE.ID,R.LCTYPE.REC,F.LCTYPE,Y.LCTYPE.ERR)
+                    IF R.LCTYPE.REC<LC.TYP.IMPORT.EXPORT> EQ 'E' THEN
+                        TOT.ASS = DCOUNT(R.DR.REC<TF.DR.ASSIGNMENT.REF>,@VM)
+                        FOR I = 1 TO TOT.ASS
+                            IF R.DR.REC<TF.DR.ASSIGNMENT.REF,I> EQ 'TPRECV' THEN
+                                Y.ASS.AC.ID = R.DR.REC<TF.DR.ASSN.CR.ACCT,I>
+                                CALL F.READ(FN.AC,Y.ASS.AC.ID,R.AC.REC,F.AC,Y.AC.ERR)
+                                IF R.AC.REC<AC.CATEGORY> EQ '12810' OR R.AC.REC<AC.CATEGORY> EQ '12820' THEN
+                                    Y.TOT.ASS.AMT = Y.TOT.ASS.AMT + R.DR.REC<TF.DR.ASSN.AMT.LCCY,I>
+                                END
+                                Y.ASS.AC.ID = ''
+                            END
+                        NEXT I
+                        Y.AC.ID = R.DR.REC<TF.DR.DRAWDOWN.ACCOUNT>
+                        CALL F.READ(FN.AC,Y.AC.ID,R.AC.REC1,F.AC,Y.AC.ERR1)
+                        IF R.AC.REC1<AC.CATEGORY> EQ '12810' OR R.AC.REC1<AC.CATEGORY> EQ '12820' THEN
+                            Y.AMT = R.DR.REC<TF.DR.REIMB.AMT.LCCY>
+                        END
+                        Y.TOT.AMT = Y.TOT.ASS.AMT + Y.AMT
+                        R.NEW(NM.AMOUNT) = Y.TOT.AMT
+
+                        Y.TXN.DATE=R.DR.REC<TF.DR.DEBIT.VALUE>
+                        IF Y.TXN.DATE EQ '' THEN
+                            Y.TXN.DATE=R.DR.REC<TF.DR.LOCAL.REF,Y.DATE.OF.PAYMENT>
+                        END
+                        IF Y.TXN.DATE EQ '' THEN
+                            Y.TXN.DATE=R.DR.REC<TF.DR.MATURITY.REVIEW>
+                        END
+                        R.NEW(NM.VALUE.DATE) =Y.TXN.DATE
+
+                    END
+                    IF R.LCTYPE.REC<LC.TYP.IMPORT.EXPORT> EQ 'I' THEN
+                        TOT.ASS = DCOUNT(R.DR.REC<TF.DR.ASSIGNMENT.REF>,@VM)
+                        FOR I = 1 TO TOT.ASS
+                            IF R.DR.REC<TF.DR.ASSIGNMENT.REF,I> EQ 'TPPAY' THEN
+                                Y.ASS.AC.ID = R.DR.REC<TF.DR.ASSN.CR.ACCT,I>
+                                CALL F.READ(FN.AC,Y.ASS.AC.ID,R.AC.REC,F.AC,Y.AC.ERR)
+                                IF R.AC.REC<AC.CATEGORY> EQ '12810' OR R.AC.REC<AC.CATEGORY> EQ '12820' THEN
+                                    Y.TOT.ASS.AMT = Y.TOT.ASS.AMT + R.DR.REC<TF.DR.ASSN.AMT.LCCY,I>
+                                END
+                                Y.ASS.AC.ID = ''
+                            END
+                        NEXT I
+                        Y.AC.ID = R.DR.REC<TF.DR.PAYMENT.ACCOUNT>
+                        CALL F.READ(FN.AC,Y.AC.ID,R.AC.REC1,F.AC,Y.AC.ERR1)
+                        IF R.AC.REC1<AC.CATEGORY> EQ '12810' OR R.AC.REC1<AC.CATEGORY> EQ '12820' THEN
+!-------------------K 1/2-------------------
+!Y.AMT = R.DR.REC<TF.DR.BEN.DRAW.LCCY>
+                            Y.AMT = R.DR.REC<TF.DR.PAY.AMT.LCCY>
+!------------------- K 1/2------------------
+                        END
+                        Y.TOT.AMT = Y.TOT.ASS.AMT + Y.AMT
+                        R.NEW(NM.AMOUNT) = Y.TOT.AMT
+
+                        Y.TXN.DATE=R.DR.REC<TF.DR.DEBIT.VALUE>
+                        IF Y.TXN.DATE EQ '' THEN
+                            Y.TXN.DATE=R.DR.REC<TF.DR.LOCAL.REF,Y.DATE.OF.PAYMENT>
+                        END
+                        IF Y.TXN.DATE EQ '' THEN
+                            Y.TXN.DATE=R.DR.REC<TF.DR.MATURITY.REVIEW>
+                        END
+                        R.NEW(NM.VALUE.DATE) =Y.TXN.DATE
+                    END
+
+                END
+            END
+            IF ID.NEW[1,2] EQ 'LD' THEN
+                CALL F.READ(FN.LD,ID.NEW,REC.LD,F.LD,ERR.LD)
+                IF REC.LD<LD.STATUS> EQ 'LIQ' THEN
+                    R.NEW(NM.VALUE.DATE)=REC.LD<LD.FIN.MAT.DATE>
+                    R.NEW(NM.AMOUNT)= REC.LD<LD.REIMBURSE.AMOUNT> + REC.LD<LD.TOT.INTEREST.AMT>
+                END
+                ELSE
+                    R.NEW(NM.VALUE.DATE)=REC.LD<LD.VALUE.DATE>
+                    R.NEW(NM.AMOUNT)=REC.LD<LD.AMOUNT>
+                END
+            END
+        END
+    END
+    RETURN
+END

@@ -1,0 +1,1576 @@
+* Version 2 02/06/00  GLOBUS Release No. G11.0.00 29/06/00
+*-----------------------------------------------------------------------------
+* <Rating>11576</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE CR.RSK.GRD.SCR.ST.VALIDATE
+*-----------------------------------------------------------------------------
+!** Template FOR validation routines
+*
+*!
+*-----------------------------------------------------------------------------
+*** <region name= Modification History>
+*-----------------------------------------------------------------------------
+* 07/06/06 - BG_100011433
+*            Creation
+*
+* 02/08/11 - Validation routine to calculate the amount
+*-----------------------------------------------------------------------------
+*** </region>
+*** <region name= Main section>
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CR.RSK.GRD.SCR.ST
+
+    GOSUB INITIALISE
+    GOSUB PROCESS.MESSAGE
+    RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+VALIDATE:
+* TODO - Add the validation code here.
+* Set AF, AV and AS to the field, multi value and sub value and invoke STORE.END.ERROR
+* Set ETEXT to point to the EB.ERROR.TABLE
+
+*      AF = MY.FIELD.NAME                 <== Name of the field
+*      ETEXT = 'EB-EXAMPLE.ERROR.CODE'    <== The error code
+*      CALL STORE.END.ERROR               <== Needs to be invoked per error
+
+
+*-----------
+*Criteria A
+*-----------
+    LEV.VAL = 0
+    LEV.AF = ""
+
+    AF = CRG.A.LEVERAGE.1
+    IF R.NEW(AF) THEN
+        LEV.VAL = LEV.VAL + 1
+        LEV.AF = "15"
+        IF LEV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) GT 0.25 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.LEVERAGE.2
+    IF R.NEW(AF) THEN
+        LEV.VAL = LEV.VAL + 1
+        LEV.AF = "14"
+        IF LEV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 0.26) OR (R.NEW(AF) GT 0.35) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.LEVERAGE.3
+    IF R.NEW(AF) THEN
+        LEV.VAL = LEV.VAL + 1
+        LEV.AF = "13"
+        IF LEV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 0.36) OR (R.NEW(AF) GT 0.50) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.LEVERAGE.4
+    IF R.NEW(AF) THEN
+        LEV.VAL = LEV.VAL + 1
+        LEV.AF = "12"
+        IF LEV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 0.51) OR (R.NEW(AF) GT 0.75) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.LEVERAGE.5
+    IF R.NEW(AF) THEN
+        LEV.VAL = LEV.VAL + 1
+        LEV.AF = "11"
+        IF LEV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 0.76) OR (R.NEW(AF) GT 1.25) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.LEVERAGE.6
+    IF R.NEW(AF) THEN
+        LEV.VAL = LEV.VAL + 1
+        LEV.AF = "10"
+        IF LEV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 1.26) OR (R.NEW(AF) GT 2) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.LEVERAGE.7
+    IF R.NEW(AF) THEN
+        LEV.VAL = LEV.VAL + 1
+        LEV.AF = "8"
+        IF LEV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 2.01) OR (R.NEW(AF) GT 2.50) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.LEVERAGE.8
+    IF R.NEW(AF) THEN
+        LEV.VAL = LEV.VAL + 1
+        LEV.AF = "7"
+        IF LEV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 2.51) OR (R.NEW(AF) GT 2.75) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.LEVERAGE.9
+    IF R.NEW(AF) THEN
+        LEV.VAL = LEV.VAL + 1
+        LEV.AF = "0"
+        IF LEV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) LE 2.75 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF = CRG.A.FI.RSK.OB.1
+    R.NEW(CRG.A.FI.RSK.OB.1) = LEV.AF
+
+    LIQ.VAL = 0
+    LIQ.AF = ""
+    AF = CRG.A.LIQUIDITY.1
+    IF R.NEW(AF) THEN
+        LIQ.VAL = LIQ.VAL + 1
+        LIQ.AF = "15"
+
+        IF LIQ.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) LE 2.74 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.LIQUIDITY.2
+    IF R.NEW(AF) THEN
+        LIQ.VAL = LIQ.VAL + 1
+        LIQ.AF = "14"
+
+        IF LIQ.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 2.50) OR (R.NEW(AF) GT 2.74) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.LIQUIDITY.3
+    IF R.NEW(AF) THEN
+        LIQ.VAL = LIQ.VAL + 1
+        LIQ.AF = "13"
+
+        IF LIQ.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 2) OR (R.NEW(AF) GT 2.49) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.LIQUIDITY.4
+    IF R.NEW(AF) THEN
+        LIQ.VAL = LIQ.VAL + 1
+        LIQ.AF = "12"
+
+        IF LIQ.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 1.50) OR (R.NEW(AF) GT 1.99) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.LIQUIDITY.5
+    IF R.NEW(AF) THEN
+        LIQ.VAL = LIQ.VAL + 1
+        LIQ.AF = "11"
+
+        IF LIQ.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 1.10) OR (R.NEW(AF) GT 1.49) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.LIQUIDITY.6
+    IF R.NEW(AF) THEN
+        LIQ.VAL = LIQ.VAL + 1
+        LIQ.AF = "10"
+
+        IF LIQ.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 0.90) OR (R.NEW(AF) GT 1.09) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.LIQUIDITY.7
+    IF R.NEW(AF) THEN
+        LIQ.VAL = LIQ.VAL + 1
+        LIQ.AF = "8"
+
+        IF LIQ.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 0.80) OR (R.NEW(AF) GT 0.89) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.LIQUIDITY.8
+    IF R.NEW(AF) THEN
+        LIQ.VAL = LIQ.VAL + 1
+        LIQ.AF = "7"
+
+        IF LIQ.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 0.70) OR (R.NEW(AF) GT 0.79) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.LIQUIDITY.9
+    IF R.NEW(AF) THEN
+        LIQ.VAL = LIQ.VAL + 1
+        LIQ.AF = "0"
+
+        IF LIQ.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) GE 0.70 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF = CRG.A.FI.RSK.OB.2
+    R.NEW(CRG.A.FI.RSK.OB.2) = LIQ.AF
+
+    PROF.VAL = 0
+    PROF.AF = ""
+    AF = CRG.A.PROFIT.1
+    IF R.NEW(AF) THEN
+        PROF.VAL = PROF.VAL + 1
+        PROF.AF = "15"
+
+        IF PROF.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) LT 25 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.PROFIT.2
+    IF R.NEW(AF) THEN
+        PROF.VAL = PROF.VAL + 1
+        PROF.AF = "14"
+
+        IF PROF.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 20) OR (R.NEW(AF) GT 24) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.PROFIT.3
+    IF R.NEW(AF) THEN
+        PROF.VAL = PROF.VAL + 1
+        PROF.AF = "13"
+
+        IF PROF.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 15) OR (R.NEW(AF) GT 19) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.PROFIT.4
+    IF R.NEW(AF) THEN
+        PROF.VAL = PROF.VAL + 1
+        PROF.AF = "12"
+
+        IF PROF.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 10) OR (R.NEW(AF) GT 14) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.PROFIT.5
+    IF R.NEW(AF) THEN
+        PROF.VAL = PROF.VAL + 1
+        PROF.AF = "10"
+
+        IF PROF.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 7) OR (R.NEW(AF) GT 9) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.PROFIT.6
+    IF R.NEW(AF) THEN
+        PROF.VAL = PROF.VAL + 1
+        PROF.AF = "9"
+
+        IF PROF.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 4) OR (R.NEW(AF) GT 6) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.PROFIT.7
+    IF R.NEW(AF) THEN
+        PROF.VAL = PROF.VAL + 1
+        PROF.AF = "7"
+
+        IF PROF.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 1) OR (R.NEW(AF) GT 3) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+
+    AF = CRG.A.PROFIT.8
+    IF R.NEW(AF) THEN
+        PROF.VAL = PROF.VAL + 1
+        PROF.AF = "0"
+
+        IF PROF.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) GE 1 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+
+*AF = CRG.A.FI.RSK.OB.3
+    R.NEW(CRG.A.FI.RSK.OB.3) = PROF.AF
+
+    COVER.VAL = 0
+    COVER.AF = ""
+    AF = CRG.A.COVERAGE.1
+    IF R.NEW(AF) THEN
+        COVER.VAL = COVER.VAL + 1
+        COVER.AF = "5"
+
+        IF COVER.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) LE 2 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.COVERAGE.2
+    IF R.NEW(AF) THEN
+        COVER.VAL = COVER.VAL + 1
+        COVER.AF = "4"
+
+        IF COVER.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 1.51) OR (R.NEW(AF) GT 2) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.COVERAGE.3
+    IF R.NEW(AF) THEN
+        COVER.VAL = COVER.VAL + 1
+        COVER.AF = "3"
+
+        IF COVER.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 1.25) OR (R.NEW(AF) GT 1.50) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.COVERAGE.4
+    IF R.NEW(AF) THEN
+        COVER.VAL = COVER.VAL + 1
+        COVER.AF = "2"
+
+        IF COVER.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 1) OR (R.NEW(AF) GT 1.24) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.A.COVERAGE.5
+    IF R.NEW(AF) THEN
+        COVER.VAL = COVER.VAL + 1
+        COVER.AF = "0"
+
+        IF COVER.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) GE 1 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF = CRG.A.FI.RSK.OB.4
+    R.NEW(CRG.A.FI.RSK.OB.4) = COVER.AF
+
+*AF = CRG.A.TOT.FIN.RSK
+    R.NEW(CRG.A.TOT.FIN.RSK) = R.NEW(CRG.A.FI.RSK.OB.1) + R.NEW(CRG.A.FI.RSK.OB.2) + R.NEW(CRG.A.FI.RSK.OB.3) + R.NEW(CRG.A.FI.RSK.OB.4)
+
+*-----------
+*Criteria B
+*-----------
+
+    SIZ.VAL = 0
+    SIZ.AF = ""
+    AF = CRG.B.SIZ.OF.BS.1
+    IF R.NEW(AF) THEN
+        SIZ.VAL = SIZ.VAL + 1
+        SIZ.AF = "5"
+
+        IF SIZ.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) LT 60 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.SIZ.OF.BS.2
+    IF R.NEW(AF) THEN
+        SIZ.VAL = SIZ.VAL + 1
+        SIZ.AF = "4"
+
+        IF SIZ.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 30) OR (R.NEW(AF) GT 59.99) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.SIZ.OF.BS.3
+    IF R.NEW(AF) THEN
+        SIZ.VAL = SIZ.VAL + 1
+        SIZ.AF = "3"
+
+        IF SIZ.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 10) OR (R.NEW(AF) GT 29.99) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.SIZ.OF.BS.4
+    IF R.NEW(AF) THEN
+        SIZ.VAL = SIZ.VAL + 1
+        SIZ.AF = "2"
+
+        IF SIZ.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 5) OR (R.NEW(AF) GT 9.99) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.SIZ.OF.BS.5
+    IF R.NEW(AF) THEN
+        SIZ.VAL = SIZ.VAL + 1
+        SIZ.AF = "1"
+
+        IF SIZ.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 2.50) OR (R.NEW(AF) GT 4.99) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.SIZ.OF.BS.6
+    IF R.NEW(AF) THEN
+        SIZ.VAL = SIZ.VAL + 1
+        SIZ.AF = "0"
+
+        IF SIZ.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) GE 2.50 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF = CRG.B.BS.IN.OBT.1
+    R.NEW(CRG.B.BS.IN.OBT.1) = SIZ.AF
+
+    AGE.VAL = 0
+    AGE.AF = ""
+
+    AF = CRG.B.AGE.OF.BS.1
+    IF R.NEW(AF) THEN
+        AGE.VAL = AGE.VAL + 1
+        AGE.AF = "3"
+
+        IF AGE.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) LE 10 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.AGE.OF.BS.2
+    IF R.NEW(AF) THEN
+        AGE.VAL = AGE.VAL + 1
+        AGE.AF = "2"
+
+        IF AGE.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 5) OR (R.NEW(AF) GT 10) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.AGE.OF.BS.3
+    IF R.NEW(AF) THEN
+        AGE.VAL = AGE.VAL + 1
+        AGE.AF = "1"
+
+        IF AGE.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 2) OR (R.NEW(AF) GT 5) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.AGE.OF.BS.4
+    IF R.NEW(AF) THEN
+        AGE.VAL = AGE.VAL + 1
+        AGE.AF = "0"
+
+        IF AGE.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) GE 2 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF = CRG.B.BS.IN.OBT.2
+    R.NEW(CRG.B.BS.IN.OBT.2) = AGE.AF
+
+    OUT.VAL = 0
+    OUT.AF = ""
+
+    AF = CRG.B.BS.OUTLK.1
+    IF R.NEW(AF) THEN
+        OUT.VAL = OUT.VAL + 1
+        OUT.AF = "3"
+
+        IF OUT.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 3 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.BS.OUTLK.2
+    IF R.NEW(AF) THEN
+        OUT.VAL = OUT.VAL + 1
+        OUT.AF = "2"
+
+        IF OUT.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 2 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.BS.OUTLK.3
+    IF R.NEW(AF) THEN
+        OUT.VAL = OUT.VAL + 1
+        OUT.AF = "1"
+
+        IF OUT.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 1 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.BS.OUTLK.4
+    IF R.NEW(AF) THEN
+        OUT.VAL = OUT.VAL + 1
+        OUT.AF = "0"
+
+        IF OUT.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE "ZERO" THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF = CRG.B.BS.IN.OBT.3
+    R.NEW(CRG.B.BS.IN.OBT.3) = OUT.AF
+
+    GROWTH.VAL = 0
+    GROWTH.AF = ""
+    AF = CRG.B.IN.GROWTH.1
+    IF R.NEW(AF) THEN
+        GROWTH.VAL = GROWTH.VAL + 1
+        GROWTH.AF = "3"
+
+        IF GROWTH.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) LE 10 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.IN.GROWTH.2
+    IF R.NEW(AF) THEN
+        GROWTH.VAL = GROWTH.VAL + 1
+        GROWTH.AF = "2"
+
+        IF GROWTH.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LE 5) OR (R.NEW(AF) GT 10) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.IN.GROWTH.3
+    IF R.NEW(AF) THEN
+        GROWTH.VAL = GROWTH.VAL + 1
+        GROWTH.AF = "1"
+
+        IF GROWTH.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 1) OR (R.NEW(AF) GT 5) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.IN.GROWTH.4
+    IF R.NEW(AF) THEN
+        GROWTH.VAL = GROWTH.VAL + 1
+        GROWTH.AF = "0"
+
+        IF GROWTH.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) GE 1 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF = CRG.B.BS.IN.OBT.4
+    R.NEW(CRG.B.BS.IN.OBT.4) = GROWTH.AF
+
+    MRK.COMP.VAL = 0
+    MRK.COMP.AF = ""
+    AF = CRG.B.MRK.COMP.1
+    IF R.NEW(AF) THEN
+        MRK.COMP.VAL = MRK.COMP.VAL + 1
+        MRK.COMP.AF = "2"
+
+        IF MRK.COMP.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 2 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.MRK.COMP.2
+    IF R.NEW(AF) THEN
+        MRK.COMP.VAL = MRK.COMP.VAL + 1
+        MRK.COMP.AF = "1"
+
+        IF MRK.COMP.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 1 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.MRK.COMP.3
+    IF R.NEW(AF) THEN
+        MRK.COMP.VAL = MRK.COMP.VAL + 1
+        MRK.COMP.AF = "0"
+
+        IF MRK.COMP.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE "ZERO" THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF = CRG.B.BS.IN.OBT.5
+    R.NEW(CRG.B.BS.IN.OBT.5) = MRK.COMP.AF
+
+    BARR.VAL = 0
+    BARR.AF = ""
+
+    AF = CRG.B.BARRIER.1
+    IF R.NEW(AF) THEN
+        BARR.VAL = BARR.VAL + 1
+        BARR.AF = "2"
+
+        IF BARR.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 2 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.BARRIER.2
+    IF R.NEW(AF) THEN
+        BARR.VAL = BARR.VAL + 1
+        BARR.AF = "1"
+
+        IF BARR.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 1 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.B.BARRIER.3
+    IF R.NEW(AF) THEN
+        BARR.VAL = BARR.VAL + 1
+        BARR.AF = "0"
+
+        IF BARR.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE "ZERO" THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF = CRG.B.BS.IN.OBT.6
+    R.NEW(CRG.B.BS.IN.OBT.6) = BARR.AF
+
+*AF = CRG.B.TOT.BS.IN
+    R.NEW(CRG.B.TOT.BS.IN) = R.NEW(CRG.B.BS.IN.OBT.1) + R.NEW(CRG.B.BS.IN.OBT.2) + R.NEW(CRG.B.BS.IN.OBT.3) + R.NEW(CRG.B.BS.IN.OBT.4) + R.NEW(CRG.B.BS.IN.OBT.5) + R.NEW(CRG.B.BS.IN.OBT.6)
+
+*-----------
+*Criteria C
+*-----------
+    EXP.VAL = 0
+    EXP.AF = ""
+
+    AF = CRG.C.EXP.1
+    IF R.NEW(AF) THEN
+        EXP.VAL = EXP.VAL + 1
+        EXP.AF = "5"
+
+        IF EXP.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) LE 10 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.C.EXP.2
+    IF R.NEW(AF) THEN
+        EXP.VAL = EXP.VAL + 1
+        EXP.AF = "3"
+
+        IF EXP.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 5) OR (R.NEW(AF) GT 10) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.C.EXP.3
+    IF R.NEW(AF) THEN
+        EXP.VAL = EXP.VAL + 1
+        EXP.AF = "2"
+
+        IF EXP.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 1) OR (R.NEW(AF) GE 5) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.C.EXP.4
+    IF R.NEW(AF) THEN
+        EXP.VAL = EXP.VAL + 1
+        EXP.AF = "0"
+
+        IF EXP.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE "ZERO" THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF = CRG.C.MA.RSK.OB.1
+    R.NEW(CRG.C.MA.RSK.OB.1) = EXP.AF
+
+    SUC.VAL = 0
+    SUC.AF = ""
+    AF = CRG.C.SUCCESS.1
+    IF R.NEW(AF) THEN
+        SUC.VAL = SUC.VAL + 1
+        SUC.AF = "4"
+
+        IF SUC.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 4 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.C.SUCCESS.2
+    IF R.NEW(AF) THEN
+        SUC.VAL = SUC.VAL + 1
+        SUC.AF = "3"
+
+        IF SUC.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 3 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.C.SUCCESS.3
+    IF R.NEW(AF) THEN
+        SUC.VAL = SUC.VAL + 1
+        SUC.AF = "2"
+
+        IF SUC.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF  R.NEW(AF) NE 2 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.C.SUCCESS.4
+    IF R.NEW(AF) THEN
+        SUC.VAL = SUC.VAL + 1
+        SUC.AF = "0"
+
+        IF SUC.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE "ZERO" THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF = CRG.C.MA.RSK.OB.2
+    R.NEW(CRG.C.MA.RSK.OB.2) = SUC.AF
+
+    TM.WRK.VAL = 0
+    TM.WRK.AF = ""
+
+    AF = CRG.C.TEAM.WRK.1
+    IF R.NEW(AF) THEN
+        TM.WRK.VAL = TM.WRK.VAL + 1
+        TM.WRK.AF = "3"
+
+        IF TM.WRK.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 3 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+
+    AF = CRG.C.TEAM.WRK.2
+    IF R.NEW(AF) THEN
+        TM.WRK.VAL = TM.WRK.VAL + 1
+        TM.WRK.AF = "2"
+
+        IF TM.WRK.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 2 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+
+    AF = CRG.C.TEAM.WRK.3
+    IF R.NEW(AF) THEN
+        TM.WRK.VAL = TM.WRK.VAL + 1
+        TM.WRK.AF = "1"
+
+        IF TM.WRK.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 1 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+
+    AF = CRG.C.TEAM.WRK.4
+    IF R.NEW(AF) THEN
+        TM.WRK.VAL = TM.WRK.VAL + 1
+        TM.WRK.AF = "0"
+
+        IF TM.WRK.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE "ZERO" THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+
+*AF = CRG.C.MA.RSK.OB.3
+    R.NEW(CRG.C.MA.RSK.OB.3) = TM.WRK.AF
+
+*AF = CRG.C.TOT.MA.RSK
+    R.NEW(CRG.C.TOT.MA.RSK) = R.NEW(CRG.C.MA.RSK.OB.1) + R.NEW(CRG.C.MA.RSK.OB.2) + R.NEW(CRG.C.MA.RSK.OB.3)
+
+*-----------
+*Criteria D
+*-----------
+    SEC.COV.VAL = 0
+    SEC.COV.AF = ""
+
+    AF = CRG.D.SEC.COVER.1
+    IF R.NEW(AF) THEN
+        SEC.COV.VAL = SEC.COV.VAL + 1
+        SEC.COV.AF = "4"
+
+        IF SEC.COV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 4 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.D.SEC.COVER.2
+    IF R.NEW(AF) THEN
+        SEC.COV.VAL = SEC.COV.VAL + 1
+        SEC.COV.AF = "3"
+
+        IF SEC.COV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 3 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.D.SEC.COVER.3
+    IF R.NEW(AF) THEN
+        SEC.COV.VAL = SEC.COV.VAL + 1
+        SEC.COV.AF = "2"
+
+        IF SEC.COV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 2 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.D.SEC.COVER.4
+    IF R.NEW(AF) THEN
+        SEC.COV.VAL = SEC.COV.VAL + 1
+        SEC.COV.AF = "1"
+
+        IF SEC.COV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 1 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.D.SEC.COVER.5
+    IF R.NEW(AF) THEN
+        SEC.COV.VAL = SEC.COV.VAL + 1
+        SEC.COV.AF = "0"
+
+        IF SEC.COV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE "ZERO" THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF = CRG.D.SEC.OBT.1
+    R.NEW(CRG.D.SEC.OBT.1) = SEC.COV.AF
+
+    COL.COV.VAL = 0
+    COL.COV.AF = ""
+
+    AF = CRG.D.COL.COVER.1
+    IF R.NEW(AF) THEN
+        COL.COV.VAL = COL.COV.VAL + 1
+        COL.COV.AF = "4"
+
+        IF COL.COV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 4 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.D.COL.COVER.2
+    IF R.NEW(AF) THEN
+        COL.COV.VAL = COL.COV.VAL + 1
+        COL.COV.AF = "3"
+
+        IF COL.COV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 3 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.D.COL.COVER.3
+    IF R.NEW(AF) THEN
+        COL.COV.VAL = COL.COV.VAL + 1
+        COL.COV.AF = "2"
+
+        IF COL.COV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 2 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.D.COL.COVER.4
+    IF R.NEW(AF) THEN
+        COL.COV.VAL = COL.COV.VAL + 1
+        COL.COV.AF = "1"
+
+        IF COL.COV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 1 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.D.COL.COVER.5
+    IF R.NEW(AF) THEN
+        COL.COV.VAL = COL.COV.VAL + 1
+        COL.COV.AF = "0"
+
+        IF COL.COV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE "ZERO" THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF =  CRG.D.SEC.OBT.2
+    R.NEW(CRG.D.SEC.OBT.2) = COL.COV.AF
+
+    SUPP.VAL = 0
+    SUPP.AF = ""
+
+    AF = CRG.D.SUPPORT.1
+    IF R.NEW(AF) THEN
+        SUPP.VAL = SUPP.VAL + 1
+        SUPP.AF = "2"
+
+        IF SUPP.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 2 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.D.SUPPORT.2
+    IF R.NEW(AF) THEN
+        SUPP.VAL = SUPP.VAL + 1
+        SUPP.AF = "1"
+
+        IF SUPP.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 1 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.D.SUPPORT.3
+    IF R.NEW(AF) THEN
+        SUPP.VAL = SUPP.VAL + 1
+        SUPP.AF = "0"
+
+        IF SUPP.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE "ZERO" THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF = CRG.D.SEC.OBT.3
+    R.NEW(CRG.D.SEC.OBT.3) = SUPP.AF
+
+*AF = CRG.D.TOT.SEC.RSK
+    R.NEW(CRG.D.TOT.SEC.RSK) = R.NEW(CRG.D.SEC.OBT.1) + R.NEW(CRG.D.SEC.OBT.2) + R.NEW(CRG.D.SEC.OBT.3)
+
+
+*-----------
+*Criteria E
+*-----------
+    ACT.COND.VAL = 0
+    ACT.COND.AF = ""
+
+    AF = CRG.E.ACT.CONDT.1
+    IF R.NEW(AF) THEN
+        ACT.COND.VAL = ACT.COND.VAL + 1
+        ACT.COND.AF = "5"
+
+        IF ACT.COND.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) LE 3 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+
+    AF = CRG.E.ACT.CONDT.2
+    IF R.NEW(AF) THEN
+        ACT.COND.VAL = ACT.COND.VAL + 1
+        ACT.COND.AF = "4"
+
+        IF ACT.COND.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) GT 3 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+
+    AF = CRG.E.ACT.CONDT.3
+    IF R.NEW(AF) THEN
+        ACT.COND.VAL = ACT.COND.VAL + 1
+        ACT.COND.AF = "2"
+
+        IF ACT.COND.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 2 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+
+    AF = CRG.E.ACT.CONDT.4
+    IF R.NEW(AF) THEN
+        ACT.COND.VAL = ACT.COND.VAL + 1
+        ACT.COND.AF = "0"
+
+        IF ACT.COND.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE "ZERO" THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF = CRG.E.REL.OBT.1
+    R.NEW(CRG.E.REL.OBT.1) = ACT.COND.AF
+
+    UTL.LIM.VAL = 0
+    UTL.LIM.AF = ""
+
+    AF = CRG.E.UTL.LIMIT.1
+    IF R.NEW(AF) THEN
+        UTL.LIM.VAL = UTL.LIM.VAL + 1
+        UTL.LIM.AF = "2"
+
+        IF UTL.LIM.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) LE 60 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.E.UTL.LIMIT.2
+    IF R.NEW(AF) THEN
+        UTL.LIM.VAL = UTL.LIM.VAL + 1
+        UTL.LIM.AF = "1"
+
+        IF UTL.LIM.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF (R.NEW(AF) LT 40) OR (R.NEW(AF) GT 60) THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.E.UTL.LIMIT.3
+    IF R.NEW(AF) THEN
+        UTL.LIM.VAL = UTL.LIM.VAL + 1
+        UTL.LIM.AF = "0"
+
+        IF UTL.LIM.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) GE 40 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF = CRG.E.REL.OBT.2
+    R.NEW(CRG.E.REL.OBT.2) = UTL.LIM.AF
+
+
+    COMP.COV.VAL = 0
+    COMP.COV.AF = ""
+
+    AF = CRG.E.COVENANTS.1
+    IF R.NEW(AF) THEN
+        COMP.COV.VAL = COMP.COV.VAL + 1
+        COMP.COV.AF = "2"
+
+        IF COMP.COV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 2 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.E.COVENANTS.2
+    IF R.NEW(AF) THEN
+        COMP.COV.VAL = COMP.COV.VAL + 1
+        COMP.COV.AF = "1"
+
+        IF COMP.COV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 1 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.E.COVENANTS.3
+    IF R.NEW(AF) THEN
+        COMP.COV.VAL = COMP.COV.VAL + 1
+        COMP.COV.AF = "0"
+
+        IF COMP.COV.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE "ZERO" THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF = CRG.E.REL.OBT.3
+    R.NEW(CRG.E.REL.OBT.3) = COMP.COV.AF
+
+    PER.DEP.VAL = 0
+    PER.DEP.AF = ""
+    AF = CRG.E.PER.DEPOT.1
+    IF R.NEW(AF) THEN
+        PER.DEP.VAL = PER.DEP.VAL + 1
+        PER.DEP.AF = "1"
+
+        IF PER.DEP.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE 1 THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = CRG.E.PER.DEPOT.2
+    IF R.NEW(AF) THEN
+        PER.DEP.VAL = PER.DEP.VAL + 1
+        PER.DEP.AF = "0"
+
+        IF PER.DEP.VAL GT 1 THEN
+            GOSUB RAISE.ERROR
+        END
+        IF R.NEW(AF) NE "ZERO" THEN
+            ETEXT = "AM-INVALID.INPUT"
+            CALL STORE.END.ERROR
+        END
+    END
+
+*AF = CRG.E.REL.OBT.4
+    R.NEW(CRG.E.REL.OBT.4) = PER.DEP.AF
+
+*AF = CRG.E.TOT.REL.RSK
+    R.NEW(CRG.E.TOT.REL.RSK) = R.NEW(CRG.E.REL.OBT.1) + R.NEW(CRG.E.REL.OBT.2) + R.NEW(CRG.E.REL.OBT.3) + R.NEW(CRG.E.REL.OBT.4)
+
+*AF = CRG.GRT.TOTAL.RSK
+    R.NEW(CRG.GRT.TOTAL.RSK) = R.NEW(CRG.A.TOT.FIN.RSK) + R.NEW(CRG.B.TOT.BS.IN) + R.NEW(CRG.C.TOT.MA.RSK) + R.NEW(CRG.D.TOT.SEC.RSK) + R.NEW(CRG.E.TOT.REL.RSK)
+    R.NEW(CRG.AGGREGATE.SC) = R.NEW(CRG.GRT.TOTAL.RSK)
+*----------
+*MAIN PAGE:
+*----------
+*DEBUG
+*AF = CRG.RSK.GRADING
+    IF R.NEW(CRG.GRT.TOTAL.RSK) EQ 100 THEN
+        R.NEW(CRG.RSK.GRADING) = "Superior"
+*R.NEW(CRG.AGGREGATE.SC) = "100"
+    END
+
+    IF (R.NEW(CRG.GRT.TOTAL.RSK) LT 100) AND (R.NEW(CRG.GRT.TOTAL.RSK) GE 85) THEN
+        R.NEW(CRG.RSK.GRADING) = "Good"
+*R.NEW(CRG.AGGREGATE.SC) = "85+"
+    END
+
+    IF (R.NEW(CRG.GRT.TOTAL.RSK) LT 84) AND (R.NEW(CRG.GRT.TOTAL.RSK) GE 75) THEN
+        R.NEW(CRG.RSK.GRADING) = "Acceptable"
+*R.NEW(CRG.AGGREGATE.SC) = "75-84"
+    END
+
+    IF (R.NEW(CRG.GRT.TOTAL.RSK) LT 74) AND (R.NEW(CRG.GRT.TOTAL.RSK) GE 65) THEN
+        R.NEW(CRG.RSK.GRADING) = "Marginal/Watchlist"
+*R.NEW(CRG.AGGREGATE.SC) = "65-74"
+    END
+
+    IF (R.NEW(CRG.GRT.TOTAL.RSK) LT 64) AND (R.NEW(CRG.GRT.TOTAL.RSK) GE 55) THEN
+        R.NEW(CRG.RSK.GRADING) = "Special Mention"
+*R.NEW(CRG.AGGREGATE.SC) = "55-64"
+    END
+
+    IF (R.NEW(CRG.GRT.TOTAL.RSK) LT 54) AND (R.NEW(CRG.GRT.TOTAL.RSK) GE 45) THEN
+        R.NEW(CRG.RSK.GRADING) = "Substandard"
+*R.NEW(CRG.AGGREGATE.SC) = "45-54"
+    END
+
+    IF (R.NEW(CRG.GRT.TOTAL.RSK) LT 44) AND (R.NEW(CRG.GRT.TOTAL.RSK) GE 35) THEN
+        R.NEW(CRG.RSK.GRADING) = "Doubtful"
+*R.NEW(CRG.AGGREGATE.SC) = "35-44"
+    END
+
+    IF R.NEW(CRG.GRT.TOTAL.RSK) LT 35 THEN
+        R.NEW(CRG.RSK.GRADING) = "Bad & Loss"
+*R.NEW(CRG.AGGREGATE.SC) = "<35"
+    END
+    RETURN
+
+*-----------
+RAISE.ERROR:
+*-----------
+    ETEXT = "LI-INPUT.ONE.PARAMETER"
+    CALL STORE.END.ERROR
+    RETURN
+*-----------------------------------------------------------------------------
+*** <region name= Initialise>
+INITIALISE:
+***
+
+*
+    RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+*** <region name= Process Message>
+PROCESS.MESSAGE:
+    BEGIN CASE
+    CASE MESSAGE EQ ''        ;* Only during commit...
+        BEGIN CASE
+        CASE V$FUNCTION EQ 'D'
+            GOSUB VALIDATE.DELETE
+        CASE V$FUNCTION EQ 'R'
+            GOSUB VALIDATE.REVERSE
+        CASE OTHERWISE        ;* The real VALIDATE...
+            GOSUB VALIDATE
+        END CASE
+    CASE MESSAGE EQ 'AUT' OR MESSAGE EQ 'VER'     ;* During authorisation and verification...
+        GOSUB VALIDATE.AUTHORISATION
+    END CASE
+*
+    RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+*** <region name= VALIDATE.DELETE>
+VALIDATE.DELETE:
+* Any special checks for deletion
+
+    RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+*** <region name= VALIDATE.REVERSE>
+VALIDATE.REVERSE:
+* Any special checks for reversal
+
+    RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+*** <region name= VALIDATE.AUTHORISATION>
+VALIDATE.AUTHORISATION:
+* Any special checks for authorisation
+
+    RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+END

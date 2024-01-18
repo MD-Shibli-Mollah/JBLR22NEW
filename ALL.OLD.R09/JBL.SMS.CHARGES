@@ -1,0 +1,144 @@
+*-----------------------------------------------------------------------------
+* <Rating>58</Rating>
+*-----------------------------------------------------------------------------
+****************************************************************************************************************
+*Objective: This subroutine for SMS generating of Charge deduction of AMF,ATM and SMS                         *
+*Developer: Md. Imran Hasan                                                                                   *
+*Release Date: 2020-06-06                                                                                     *
+****************************************************************************************************************
+    SUBROUTINE JBL.SMS.CHARGES
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT ATM.BP I_F.ATM.TRANSACTION
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*--------
+INIT:
+*--------
+
+    FN.CUS = 'F.CUSTOMER'
+    F.CUS = ''
+
+    FN.ACCT = 'FBNK.ACCOUNT'
+    F.ACCT = ''
+
+    FN.FT = 'FBNK.FUNDS.TRANSFER'
+    F.FT = ''
+
+    FN.AT = 'F.ATM.TRANSACTION'
+    F.AT = ''
+
+    SMS.BUILD = ''
+    SMS.DIR = 'BULK.SMS.OUT'
+    Y.VALID.ARRAY = '015':@FM:'017':@FM:'013':@FM:'019':@FM:'014':@FM:'018':@FM:'016'
+
+    RETURN
+
+*----------
+OPENFILES:
+*----------
+    CALL OPF(FN.CUS,F.CUS)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.ACCT,F.ACCT)
+    CALL OPF(FN.AT,F.AT)
+    CALL GET.LOC.REF('CUSTOMER','SMS.ALERT',CUS.SMS.ALERT.POS)
+
+    RETURN
+
+*----------
+PROCESS:
+*----------
+
+    Y.DR.ACCT = R.NEW(FT.DEBIT.ACCT.NO)
+    Y.AMT = R.NEW(FT.AMOUNT.DEBITED)
+!Y.AMT = SUBSTRINGS(Y.AMT,4,LEN(Y.AMT)-3)
+    Y.TRNS.TYPE = R.NEW(FT.TRANSACTION.TYPE)
+    Y.CUS.ID = R.NEW(FT.CHARGED.CUSTOMER)
+    CALL F.READ(FN.CUS,Y.CUS.ID,R.CUS,F.CUS,E.CUS)
+    MOBILE.NO = R.CUS<EB.CUS.SMS.1>
+    SMS.ALERT.VAL = R.CUS<EB.CUS.LOCAL.REF,CUS.SMS.ALERT.POS>
+
+    IF MOBILE.NO NE '' AND SMS.ALERT.VAL EQ 'Y' THEN
+        GOSUB BUILD.MSG
+    END
+
+    RETURN
+*----------
+BUILD.MSG:
+*----------
+    Y.PRIORITY = '1|8|0'
+
+    Y.DATE.TIME = OCONV(OCONV(DATE(),'D2'),"MCT"):' ':OCONV(TIME(),'MTS')
+
+    SMS.BUILD = ''
+
+    IF Y.TRNS.TYPE EQ 'ACMS' OR Y.TRNS.TYPE EQ 'ACHY' OR Y.TRNS.TYPE EQ 'ACAD' OR Y.TRNS.TYPE EQ 'ACED' OR Y.TRNS.TYPE EQ 'ACFR' THEN
+
+        Y.REASON = ''
+
+        IF Y.TRNS.TYPE EQ 'ACMS' THEN
+            Y.REASON = 'SMS charge'
+        END
+
+        IF Y.TRNS.TYPE EQ 'ACHY' OR Y.TRNS.TYPE EQ 'ACFR' THEN
+            Y.REASON = 'AMF'
+        END
+
+        IF Y.TRNS.TYPE EQ 'ACAD' THEN
+            Y.REASON = 'ATM'
+        END
+
+        IF Y.TRNS.TYPE EQ 'ACED' THEN
+            Y.REASON = 'Excise Duty'
+        END
+
+        TEMP.SMS.VAR = Y.DR.ACCT[LEN(Y.DR.ACCT)-3,4]
+        Y.ACCT.MASK = FMT(TEMP.SMS.VAR,'R*':LEN(Y.DR.ACCT) - 8)
+
+!----------------FOR Remaining Balance start-------
+        CALL F.READ(FN.ACCT,Y.DR.ACCT,R.ACCT,F.ACCT,ERR.ACCT)
+        Y.CURRENCY = R.ACCT<AC.CURRENCY>
+
+        Y.CUR.BAL = Y.CURRENCY:R.ACCT<AC.ONLINE.ACTUAL.BAL>
+
+!----------------FOR Remaining Balance end-------
+
+        SMS.BUILD='Your Janata Bank account ':Y.ACCT.MASK:' has been debited ':Y.AMT:' as ':Y.REASON:' at ':Y.DATE.TIME:'. Current balance is ':Y.CUR.BAL:'. Thanks':'|':Y.PRIORITY
+    END
+
+    Y.ID= ID.NEW:"-D"
+
+    IF SMS.BUILD THEN
+
+        Y.SMS.BUILD = ''
+        Y.MOB.LEN = DCOUNT(MOBILE.NO,@VM)
+        FOR Y=1 TO Y.MOB.LEN
+            Y.MOBILE.NO = FIELD(MOBILE.NO,@VM,Y)
+
+            Y.VALID.OPRT = Y.MOBILE.NO[0,3]
+            LOCATE Y.VALID.OPRT IN Y.VALID.ARRAY SETTING Y.POS THEN
+
+                SMS.FILE = SMS.DIR:'/':Y.MOBILE.NO:'-':Y.ID:'-':Y.TRNS.TYPE:'.csv'
+                Y.SMS.BUILD = Y.ID:"|":Y.MOBILE.NO:"|":SMS.BUILD
+                OPENSEQ SMS.FILE TO SMS.FILE.POINT ELSE
+                    CRT 'OPEN FAILED'
+                END
+                WRITESEQ Y.SMS.BUILD TO SMS.FILE.POINT ELSE
+                    CRT 'WRITE FAILED'
+                END
+                CLOSESEQ SMS.FILE.POINT
+            END
+        NEXT Y
+    END
+    Y.CUR = ''
+    SMS.BUILD = ''
+    RETURN
+END

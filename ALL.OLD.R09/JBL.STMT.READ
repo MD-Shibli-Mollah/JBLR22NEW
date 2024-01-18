@@ -1,0 +1,166 @@
+    SUBROUTINE JBL.STMT.READ(Y.RETURN)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.TRANSACTION
+    $INSERT JBL.BP I_F.ST.JBL.TXN.DETAIL
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+!DEBUG
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    R.AC = ''
+
+    FN.S.ENT = 'F.STMT.ENTRY'
+    F.S.ENT = ''
+    R.S.ENT = ''
+
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+    R.FT = ''
+
+    FN.TT = 'F.TELLER'
+    F.TT = ''
+    R.TT = ''
+
+    FN.TXN = 'F.TRANSACTION'
+    F.TXN = ''
+    R.TXN = ''
+
+    FN.TXN.DET = 'F.ST.JBL.TXN.DETAIL'
+    F.TXN.DET = ''
+    R.TXN.DET = ''
+
+    Y.FROM.DATE = '20121231'
+
+    LOCATE 'ACCOUNT.NUMBER' IN ENQ.SELECTION<2,1> SETTING ACCOUNT.NUMBER.POS THEN
+        Y.AC.ID =  ENQ.SELECTION<4,ACCOUNT.NUMBER.POS>
+    END
+    LOCATE 'TO.DATE' IN ENQ.SELECTION<2,1> SETTING TO.DATE.POS THEN
+        Y.TO.DATE =  ENQ.SELECTION<4,TO.DATE.POS>
+        IF Y.TO.DATE EQ '!TODAY' THEN
+            Y.TO.DATE = TODAY
+        END
+    END
+    IF Y.TO.DATE EQ '' THEN
+        Y.TO.DATE = TODAY
+    END
+
+    Y.AC.STMT.LIST = ''
+    Y.AC.OPEN.BAL = ''
+    Y.ENT.ERR = ''
+    TOTAL.OUTS = 0
+    PRIN.OUTS = 0
+    INT.OUTS = 0
+
+    CALL GET.LOC.REF('FUNDS.TRANSFER','PRIN.REPAY.AMT',Y.FT.PR.POS)
+    CALL GET.LOC.REF('TELLER','PRIN.REPAY.AMT',Y.TT.PR.POS)
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.S.ENT,F.S.ENT)
+    CALL OPF(FN.TXN,F.TXN)
+    CALL OPF(FN.TXN.DET,F.TXN.DET)
+
+    RETURN
+
+PROCESS:
+
+    CALL EB.ACCT.ENTRY.LIST(Y.AC.ID,Y.FROM.DATE,Y.TO.DATE,Y.AC.STMT.LIST,Y.AC.OPEN.BAL,Y.ENT.ERR)
+    IF (Y.AC.STMT.LIST) THEN
+        Y.STMT.NO = DCOUNT(Y.AC.STMT.LIST,@FM)
+        Y.STMT.CNT = 1
+        LOOP
+            WHILE(Y.STMT.CNT LE Y.STMT.NO)
+            Y.STMT.ID = Y.AC.STMT.LIST<Y.STMT.CNT>
+            CALL F.READ(FN.S.ENT,Y.STMT.ID,R.S.ENT,F.S.ENT,ERR.S.ENT)
+
+            TXN.ID = R.S.ENT<AC.STE.TRANS.REFERENCE>
+            TXN.AMT = R.S.ENT<AC.STE.AMOUNT.LCY>
+            IF (TXN.ID[1,2] EQ 'FT') THEN
+                CALL F.READ(FN.TXN.DET,TXN.ID,R.TXN.DET,F.TXN.DET,ERR.TXN.DET)
+                IF R.TXN.DET THEN
+                    PRIN.AMT = R.TXN.DET<ST.JBL11.PRIN.AMT>
+                END
+                ELSE
+                    CALL F.READ(FN.FT,TXN.ID,R.FT,F.FT,ERR.FT)
+                    PRIN.AMT = R.FT<FT.LOCAL.REF,Y.FT.PR.POS>
+                END
+            END
+            ELSE
+                IF (TXN.ID[1,2] EQ 'TT') THEN
+                    CALL F.READ(FN.TXN.DET,TXN.ID,R.TXN.DET,F.TXN.DET,ERR.TXN.DET)
+                    IF R.TXN.DET THEN
+                        PRIN.AMT = R.TXN.DET<ST.JBL11.PRIN.AMT>
+                    END
+                    ELSE
+                        CALL F.READ(FN.TT,TXN.ID,R.TT,F.TT,ERR.TT)
+                        PRIN.AMT = R.TT<TT.TE.LOCAL.REF,Y.TT.PR.POS>
+                    END
+                END
+            END
+
+            TXN.CODE = R.S.ENT<AC.STE.TRANSACTION.CODE>
+
+            IF TXN.CODE NE '391' AND TXN.CODE NE '393' AND TXN.CODE NE '395' AND TXN.CODE NE '397' THEN
+                IF (PRIN.AMT) THEN
+                    INT.AMT = TXN.AMT - PRIN.AMT
+                    PRIN.OUTS = PRIN.OUTS + PRIN.AMT
+                    INT.OUTS = INT.OUTS + INT.AMT
+                END
+                ELSE
+                    IF TXN.AMT GE 0 THEN
+                        IF TXN.AMT GE ABS(INT.OUTS) THEN
+                            INT.AMT = -INT.OUTS
+                            PRIN.AMT = TXN.AMT - INT.AMT
+                            PRIN.OUTS = PRIN.OUTS + PRIN.AMT
+                            INT.OUTS = INT.OUTS + INT.AMT
+                        END
+                        ELSE
+                            INT.AMT = TXN.AMT
+                            PRIN.AMT = TXN.AMT - INT.AMT
+                            PRIN.OUTS = PRIN.OUTS + PRIN.AMT
+                            INT.OUTS = INT.OUTS + INT.AMT
+                        END
+                    END
+                    ELSE
+                        PRIN.AMT = TXN.AMT
+                        INT.AMT = 0
+                        PRIN.OUTS = PRIN.OUTS + PRIN.AMT
+                    END
+                END
+                TOTAL.OUTS = TOTAL.OUTS + TXN.AMT
+            END
+            ELSE
+                INT.AMT = TXN.AMT
+                INT.OUTS = INT.OUTS + TXN.AMT
+                TOTAL.OUTS = TOTAL.OUTS + TXN.AMT
+            END
+
+            CALL F.READ(FN.TXN,TXN.CODE,R.TXN,F.TXN,ERR.TXN)
+            TXN.DESC = R.TXN<AC.TRA.NARRATIVE>
+
+            TXN.DATE = R.S.ENT<AC.STE.VALUE.DATE>
+
+            Y.RETURN<-1> = TXN.DATE:'*':TXN.DESC:'*':TXN.ID:'*':TXN.AMT:'*':PRIN.AMT:'*':INT.AMT:'*':TOTAL.OUTS:'*':PRIN.OUTS:'*':INT.OUTS
+            PRIN.AMT = 0
+            INT.AMT = 0
+            Y.STMT.CNT++
+        REPEAT
+    END
+    RETURN
+END

@@ -1,0 +1,24 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.DD.DUPLICATE
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT JBL.BP I_F.ABL.H.DD.DETAILS
+
+    FN.DD.DETAILS ='F.ABL.H.DD.DETAILS'
+    F.DD.DETAILS=''
+    CALL OPF(FN.DD.DETAILS,F.DD.DETAILS)
+    Y.DD.DETAILS.ID =''
+    REC.DD.DETAILS=''
+    Y.ISSUE.ID =''
+    Y.DD.DETAILS.ID =FIELD(ID.NEW,".",2,1)
+    Y.ISSUE.ID =RIGHT(ID.COMPANY,4)
+    IF Y.DD.DETAILS.ID NE Y.ISSUE.ID THEN
+        ETEXT = "Only Issuing Branch can Duplicate this DD"
+        CALL STORE.END.ERROR
+
+    END
+
+    RETURN
+END

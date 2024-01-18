@@ -1,0 +1,222 @@
+    SUBROUTINE JBL.LC.MARGIN.RPT.IMP(Y.RETURN)
+!PROGRAM JBL.LC.MARGIN.RPT.IMP
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INSERT GLOBUS.BP I_F.LC.ACCOUNT.BALANCES
+    $INSERT JBL.BP I_F.BD.TAX.COMM
+    $INSERT GLOBUS.BP I_F.LC.TYPES
+    $INSERT GLOBUS.BP I_F.DRAWINGS
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    Y.RETURN = Y.OUT
+
+    RETURN
+INIT:
+    FN.LC = 'F.LETTER.OF.CREDIT'
+    F.LC = ''
+    CALL OPF(FN.LC,F.LC)
+    R.LC = ''
+
+    FN.LC.ACCT.BAL = 'F.LC.ACCOUNT.BALANCES'
+    F.LC.ACCT.BAL = ''
+    CALL OPF(FN.LC.ACCT.BAL,F.LC.ACCT.BAL)
+    R.LC.ACCT.BAL = ''
+
+    FN.BD.TAX.COMM = 'F.BD.TAX.COMM'
+    F.BD.TAX.COMM = ''
+    CALL OPF(FN.BD.TAX.COMM,F.BD.TAX.COMM)
+    R.BD.TAX.COMM = ''
+
+    FN.LC.TYPE = 'F.LC.TYPES'
+    F.LC.TYPE = ''
+    CALL OPF(FN.LC.TYPE,F.LC.TYPE)
+    R.LC.TYPE = ''
+
+    FN.DR = 'F.DRAWINGS'
+    F.DR = ''
+    CALL OPF(FN.DR,F.DR)
+    R.DR = ''
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    CALL OPF(FN.AC,F.AC)
+    R.AC = ''
+
+    Y.COMM.AMT.TOTAL = '';Y.VAT.TOTAL = ''; Y.SOURCE.TAX.TOTAL = '';
+    Y.MARGIN.SUM = 0;  Y.LCAF.TOTAL = 0;  Y.IMP.TOTAL = 0
+    Y.APPL.CUSTNO.CHECK = '' ; Y.OUT = ''
+
+    RETURN
+PROCESS:
+    CALL F.READ(FN.BD.TAX.COMM,'LETTER.OF.CREDIT',R.BD.TAX.COMM,F.BD.TAX.COMM,Y.BD.TAX.COMM.ERR)
+    Y.FT.COMM.CODE = R.BD.TAX.COMM<BD.TC.FT.COMMISSION.CODE>
+
+    SEL.CMD = "SELECT ":FN.LC
+
+    Y.ENQ.SELECTION = ENQ.SELECTION<2>
+
+    LOCATE '@ID' IN Y.ENQ.SELECTION<1,1> SETTING POS THEN
+        IF ENQ.SELECTION<4,POS> THEN
+            SEL.CMD :=" AND WITH APPLICANT.CUSTNO EQ ":ENQ.SELECTION<4,POS>
+        END
+    END
+    LOCATE 'ISSUE.DATE' IN Y.ENQ.SELECTION<1,1> SETTING POS THEN
+        Y.FROM.DATE = ENQ.SELECTION<4,POS,1>
+        Y.TO.DATE = ENQ.SELECTION<4,POS,2>
+        IF Y.TO.DATE NE "" AND Y.TO.DATE NE "" THEN
+            SEL.CMD :=" AND WITH ISSUE.DATE GE ":Y.FROM.DATE:" AND WITH ISSUE.DATE LE ":Y.TO.DATE
+        END
+
+        IF Y.TO.DATE EQ "" THEN
+            Y.TO.DATE=Y.FROM.DATE
+            SEL.CMD :=" AND WITH ISSUE.DATE GE ":Y.FROM.DATE:" AND WITH ISSUE.DATE LE ":Y.TO.DATE
+        END
+    END
+
+    LOCATE 'LC.NUMBER' IN Y.ENQ.SELECTION<1,1> SETTING POS THEN
+        IF ENQ.SELECTION<4,POS> THEN
+            SEL.CMD :=" AND WITH LC.NUMBER EQ ":ENQ.SELECTION<4,POS>
+        END
+    END
+    LOCATE 'CHARGES.ACCOUNT' IN Y.ENQ.SELECTION<1,1> SETTING POS THEN
+        IF ENQ.SELECTION<4,POS> THEN
+            SEL.CMD :=" AND WITH CHARGES.ACCOUNT EQ ":ENQ.SELECTION<4,POS>
+        END
+    END
+    LOCATE 'CATEGORY.CODE' IN Y.ENQ.SELECTION<1,1> SETTING POS THEN
+        IF ENQ.SELECTION<4,POS> THEN
+            SEL.CMD :=" AND WITH CATEGORY.CODE EQ ":ENQ.SELECTION<4,POS>
+        END
+    END
+    LOCATE 'CURRENCY' IN Y.ENQ.SELECTION<1,1> SETTING POS THEN
+        IF ENQ.SELECTION<4,POS> THEN
+            SEL.CMD :=" AND WITH LC.CURRENCY EQ ":ENQ.SELECTION<4,POS>
+        END
+    END
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,ERR.CODE)
+
+    LOOP
+        REMOVE Y.LC.ID FROM SEL.LIST SETTING POS
+    WHILE Y.LC.ID:POS
+
+        CALL F.READ(FN.LC,Y.LC.ID,R.LC,F.LC,Y.LC.ERR)
+
+        Y.LC.TYPE = R.LC<TF.LC.LC.TYPE>
+
+        CALL F.READ(FN.LC.TYPE,Y.LC.TYPE,R.LC.TYPE,F.LC.TYPE,Y.LC.TYPE.ERR)
+        Y.IMP.EXP = R.LC.TYPE<LC.TYP.IMPORT.EXPORT>
+        Y.CATEGORY.CODE = R.LC.TYPE<LC.TYP.CATEGORY.CODE>
+
+        IF Y.IMP.EXP EQ 'I' THEN
+            IF  Y.CATEGORY.CODE EQ 23040 OR Y.CATEGORY.CODE EQ 23045 OR Y.CATEGORY.CODE EQ 23060 OR Y.CATEGORY.CODE EQ 23065 OR Y.CATEGORY.CODE EQ 23081 OR Y.CATEGORY.CODE EQ 23080 OR Y.CATEGORY.CODE EQ 23086 OR Y.CATEGORY.CODE EQ 23085 OR Y.CATEGORY.CODE EQ 23091 OR Y.CATEGORY.CODE EQ 23072 OR Y.CATEGORY.CODE EQ 23070  OR Y.CATEGORY.CODE EQ 23090 OR Y.CATEGORY.CODE EQ 23095 OR Y.CATEGORY.CODE EQ 23078 OR Y.CATEGORY.CODE EQ 23075 THEN
+                Y.LC.APPLICANT = R.LC<TF.LC.APPLICANT,1>
+                Y.LC.NUMBER = R.LC<TF.LC.OLD.LC.NUMBER>
+                Y.LC.CURRENCY = R.LC<TF.LC.LC.CURRENCY>
+                Y.LC.AMOUNT = R.LC<TF.LC.LC.AMOUNT>
+                Y.MARGIN.CALC = R.LC<TF.LC.PRO.OUT.AMOUNT>
+                Y.LC.ORIG.RATE = R.LC<TF.LC.LC.ORIG.RATE>
+                Y.LC.LCL.AMOUNT = DROUND((Y.LC.AMOUNT * Y.LC.ORIG.RATE),2)
+                Y.LC.ORG.RATE = DROUND(Y.LC.ORIG.RATE,2)
+                Y.LC.APP.CUSTNO = R.LC<TF.LC.APPLICANT.CUSTNO>
+
+                IF Y.APPL.CUSTNO.CHECK EQ '' THEN
+                    Y.APPL.CUSTNO.CHECK = Y.LC.APP.CUSTNO
+                    Y.FLAG = '1'
+                END ELSE
+                    IF Y.LC.APP.CUSTNO EQ Y.APPL.CUSTNO.CHECK THEN
+                        Y.FLAG = '2'
+                    END ELSE
+                        Y.FLAG = '1'
+                        Y.APPL.CUSTNO.CHECK = Y.LC.APP.CUSTNO
+                    END
+                END
+                Y.LC.ISSUE.DATE = R.LC<TF.LC.ISSUE.DATE>
+
+                CALL F.READ(FN.LC.ACCT.BAL,Y.LC.ID,R.LC.ACCT.BAL,F.LC.ACCT.BAL,Y.LC.ACCT.BAL.ERR)
+
+                Y.COMM.CODE.ALL = R.LC.ACCT.BAL<LCAC.CHRG.CODE>
+                IF Y.COMM.CODE.ALL NE '' THEN
+                    Y.COMM.CODE.CNT = DCOUNT(Y.COMM.CODE.ALL,@VM)
+
+                    FOR I = 1 TO Y.COMM.CODE.CNT
+                        Y.VAT.AMT=0;
+                        Y.COMM.CODE = R.LC.ACCT.BAL<LCAC.CHRG.CODE,I>
+                        Y.COMM.AMT = R.LC.ACCT.BAL<LCAC.CHRG.ACC.AMT,I>
+
+                        LOCATE Y.COMM.CODE IN Y.COMM.CODE.ALL<1,1> SETTING POS THEN
+
+                            IF Y.COMM.CODE EQ 'LCSWCHGDET' OR Y.COMM.CODE EQ 'LCSWCHGFUL' OR Y.COMM.CODE EQ 'LCSWCHGAMD' OR Y.COMM.CODE EQ 'LCSWCHGAC' OR  Y.COMM.CODE EQ 'LCSWCHGMIS' THEN
+                                Y.SWIFT.VAT = Y.COMM.AMT * 0.15
+                                Y.SWIFT.CHG.TOTAL += Y.COMM.AMT
+                                Y.SWIFT.VAT.TOTAL += Y.SWIFT.VAT
+                                Y.COMM.AMT = 0;
+                            END
+                            ELSE IF Y.COMM.CODE MATCHES '...ST' THEN
+                                Y.VAT.AMT = Y.COMM.AMT * 0.15
+                                Y.SOURCE.TAX = Y.COMM.AMT
+                                Y.SOURCE.TAX.TOTAL+= Y.SOURCE.TAX;
+                                Y.COMM.AMT = 0
+                            END
+                            ELSE IF Y.COMM.CODE EQ 'LCLACFORM' THEN
+                                Y.LCAF= Y.COMM.AMT
+                                Y.LCAF.TOTAL+= Y.LCAF
+                                Y.COMM.AMT = 0
+                            END
+                            ELSE IF Y.COMM.CODE EQ 'LCIMPFORM' THEN
+                                Y.IMP= Y.COMM.AMT;
+                                Y.IMP.TOTAL+= Y.IMP
+                                Y.COMM.AMT = 0
+                            END
+                            ELSE IF Y.COMM.CODE EQ 'LCSTAMPCHG' OR Y.COMM.CODE EQ 'LCPOSTCHGA' OR Y.COMM.CODE EQ 'FCONFCHGAM' OR Y.COMM.CODE EQ 'FBNKCHGAC' OR Y.COMM.CODE EQ 'REMCHGAC' OR Y.COMM.CODE EQ 'PAYAUTHFEE' OR Y.COMM.CODE EQ 'FCONFREMCHG'  OR Y.COMM.CODE EQ 'LCCANCHG' OR Y.COMM.CODE EQ 'LCCANCHG' OR Y.COMM.CODE EQ 'COLPRTV' OR Y.COMM.CODE EQ 'COLPRTV.ST' OR Y.COMM.CODE EQ 'COLPRTV1' OR Y.COMM.CODE EQ 'COLCEANV' OR Y.COMM.CODE EQ 'COLCEANV.ST' OR Y.COMM.CODE EQ 'COLCEANV1' OR Y.COMM.CODE EQ 'COLDISCV' OR Y.COMM.CODE EQ 'COLDISCV.ST' OR Y.COMM.CODE EQ 'COLDISCV1' OR Y.COMM.CODE EQ 'COLNTLC' OR Y.COMM.CODE EQ 'COLNTLC.ST' OR Y.COMM.CODE EQ 'COLNTLC1' OR Y.COMM.CODE EQ 'LCDISCHGFEE'  OR Y.COMM.CODE EQ 'SOURCETAX' OR Y.COMM.CODE EQ 'LCCANCELCHG'  OR Y.COMM.CODE EQ 'LCPOSTCORL' OR Y.COMM.CODE EQ 'LCCOURFOR'  OR Y.COMM.CODE EQ 'STAMP' OR Y.COMM.CODE EQ 'LCOTHCERTIS' THEN
+                                Y.EXC.COMM= 0
+                                Y.EXC.COMM.TOTAL+= Y.EXC.COMM
+                                Y.COMM.AMT = 0
+                            END ELSE
+                                Y.COMM.AMT.TOTAL + = Y.COMM.AMT
+                                Y.VAT.AMT = Y.COMM.AMT * 0.15
+                            END
+                            Y.VAT.TOTAL + = Y.VAT.AMT
+                        END
+                    NEXT I
+
+                    IF Y.OUT EQ '' THEN
+                        Y.OUT = Y.LC.ISSUE.DATE:'*':Y.LC.APPLICANT:'*':Y.LC.ID:'*':Y.LC.NUMBER:'*':Y.LC.CURRENCY:'*':Y.LC.AMOUNT:'*':Y.LC.ORG.RATE:'*':Y.LC.LCL.AMOUNT:'*':Y.COMM.AMT.TOTAL:'*':Y.VAT.TOTAL:'*':Y.SOURCE.TAX.TOTAL:'*':Y.SWIFT.CHG.TOTAL:'*':Y.SWIFT.VAT.TOTAL:'*':Y.IMP.TOTAL:'*':Y.LCAF.TOTAL:'*':Y.MARGIN.CALC
+                    END ELSE
+                        Y.OUT :=FM:Y.LC.ISSUE.DATE:'*':Y.LC.APPLICANT:'*':Y.LC.ID:'*':Y.LC.NUMBER:'*':Y.LC.CURRENCY:'*':Y.LC.AMOUNT:'*'::Y.LC.ORG.RATE:'*':Y.LC.LCL.AMOUNT:'*':Y.COMM.AMT.TOTAL:'*':Y.VAT.TOTAL:'*':Y.SOURCE.TAX.TOTAL:'*':Y.SWIFT.CHG.TOTAL:'*':Y.SWIFT.VAT.TOTAL:'*':Y.IMP.TOTAL:'*':Y.LCAF.TOTAL:'*':Y.MARGIN.CALC
+                    END
+
+                    Y.OUT=SORT(Y.OUT)
+
+                    Y.SWIFT.CHG.TOTAL.ALL += Y.SWIFT.CHG.TOTAL
+                    Y.SWIFT.VAT.TOTAL.ALL += Y.SWIFT.VAT.TOTAL
+                    Y.SOURCE.TAX.TOTAL.ALL + = Y.SOURCE.TAX.TOTAL
+                    Y.LCAF.TOTAL.ALL+=Y.LCAF.TOTAL
+                    Y.IMP.TOTAL.ALL += Y.IMP.TOTAL
+                    Y.COMM.AMT.TOTAL.ALL + = Y.COMM.AMT.TOTAL
+                    Y.VAT.TOTAL.ALL + = Y.VAT.TOTAL
+                    Y.MARGIN.SUM.ALL += Y.MARGIN.CALC
+
+                    Y.COMM.AMT.TOTAL=0
+                    Y.VAT.TOTAL=0
+                    Y.SOURCE.TAX.TOTAL = 0
+                    Y.LCAF.TOTAL = 0
+                    Y.IMP.TOTAL = 0
+                    Y.SWIFT.CHG.TOTAL=0
+                    Y.SWIFT.VAT.TOTAL=0
+                END
+            END
+        END
+    REPEAT
+
+    IF Y.OUT NE '' THEN
+        Y.OUT :=FM:'':'*':'':'*':'':'*':'':'*':'':'*':'':'*':'':'*':'':'*':'':'*':'':'*':'':'*':'':'*':'':'*':'':'*':'':'*':'':'*':'TOTAL':'*':Y.COMM.AMT.TOTAL.ALL:'*':Y.VAT.TOTAL.ALL:'*':Y.SOURCE.TAX.TOTAL.ALL:'*':Y.SWIFT.CHG.TOTAL.ALL:'*':Y.SWIFT.VAT.TOTAL.ALL:'*':Y.IMP.TOTAL.ALL:'*':Y.LCAF.TOTAL.ALL:'*':Y.MARGIN.SUM.ALL
+    END ELSE
+
+        RETURN
+    END
+    RETURN

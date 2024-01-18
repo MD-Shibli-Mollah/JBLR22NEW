@@ -1,0 +1,21 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.DR.DOC.TYPE.SELECT
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.DRAWINGS
+
+    FN.DR = 'F.DRAWINGS'
+    F.DR = ''
+    CALL OPF(FN.DR,F.DR)
+
+    CALL GET.LOC.REF("DRAWINGS","DOC.TYPE",Y.DOC.TYPE.POS)
+    Y.DOC.TYPE = R.NEW(TF.DR.LOCAL.REF)<1,Y.DOC.TYPE.POS>
+    IF (Y.DOC.TYPE EQ '' OR Y.DOC.TYPE EQ 'COLLECTION') THEN
+        R.NEW(TF.DR.LOCAL.REF)<1,Y.DOC.TYPE.POS> = 'PURCHASE'
+!CALL REBUILD.SCREEN
+!RETURN
+    END
+    RETURN
+END

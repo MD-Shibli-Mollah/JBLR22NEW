@@ -1,0 +1,51 @@
+*
+*-----------------------------------------------------------------------------
+* <Rating>-33</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.CTR.THRESOLD.FIELD.DEFINITION
+*-----------------------------------------------------------------------------
+* Program Description
+*-----------------------------------------------------------------------------
+* Modification History :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT       ;* Other Inserts required for Checkfiles, etc.
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+
+    GOSUB DEFINE.FIELDS
+
+    RETURN
+*
+*-----------------------------------------------------------------------------
+DEFINE.FIELDS:
+
+    ID.F = "TRH.ID" ; ID.N = "6" ; ID.T = "A"
+*
+    Z=0
+*
+    Z+=1 ; F(Z) = "THRESOLD.LIMIT" ; N(Z) = "19.1" ; T(Z) = "AMT"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > CHECKFILE(Z) = CHK.ACCOUNT
+*
+    V = Z + 9
+
+    RETURN
+*
+*-----------------------------------------------------------------------------
+INITIALISE:
+
+    MAT F = "" ; MAT N = "" ; MAT T = ""
+    MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+    ID.CHECKFILE = "" ; ID.CONCATFILE = ""
+*
+* Define often used checkfile variables
+*
+    CHK.ACCOUNT = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+END 

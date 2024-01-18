@@ -1,0 +1,69 @@
+!PROGRAM BATCH.WR.TO.MICR
+    SUBROUTINE BATCH.WR.TO.MICR
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT BP I_F.JBL.MICR.MGT
+    $INSERT BP I_F.JBL.MICR.CHQ.BATCH
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+*------
+INIT:
+*------
+
+    FN.CHQ.ISS.NAU='F.JBL.MICR.MGT$NAU'
+    F.CHQ.ISS.NAU=''
+
+    Y.SOURCE="DM.OFS.SRC.VAL"
+    RETURN
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.CHQ.ISS.NAU,F.CHQ.ISS.NAU)
+
+    RETURN
+*-------
+PROCESS:
+*-------
+    Y.IDS=R.NEW(CHQ.BATCH.REQUEST.ID)
+
+    IF Y.IDS EQ "" AND V$FUNCTION EQ "A" THEN
+        ETEXT="REQUEST ID MISSING"
+        CALL STORE.END.ERROR
+    END
+
+    IF Y.IDS NE "" THEN
+
+!DEBUG
+        LOOP
+            REMOVE Y.ID FROM Y.IDS SETTING POS
+        WHILE Y.ID:POS
+            IF V$FUNCTION EQ "A" THEN
+                Y.MESSAGE="JBL.MICR.MGT,PRINTING/A/PROCESS,//,":Y.ID
+
+                RUNNING.UNDER.BATCH=1
+                CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.MESSAGE)
+
+                RUNNING.UNDER.BATCH=0
+                SENSITIVITY=''
+
+
+                Y.STATUS =FIELD(FIELD(Y.MESSAGE,"/",3,1),",",1)
+
+                R.NEW(CHQ.BATCH.STATUS) = "PRINTING"
+            END
+
+            IF V$FUNCTION EQ "D" THEN
+
+                CALL F.READ(FN.CHQ.ISS.NAU,Y.ID,REC.CHQ.REQ,F.CHQ.ISS.NAU,ERR.REQ)
+
+                REC.CHQ.REQ<MICR.BATCH.NO>=""
+                REC.CHQ.REQ<MICR.STATUS>="PROCESSING"
+                WRITE REC.CHQ.REQ TO F.CHQ.ISS.NAU,Y.ID
+            END
+        REPEAT
+    END
+    RETURN
+END

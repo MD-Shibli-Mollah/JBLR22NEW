@@ -1,0 +1,90 @@
+*-----------------------------------------------------------------------------
+* <Rating>189</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.B.BAL.CONF.LTR.LD.RTN.SELECT
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine will form the list of ID's and will passes them to the Record rouitne
+*-------------------------------------------------------------------------
+*Parameter Description: Not Applicable
+*--------- -----------
+*
+*-------------------------------------------------------------------------
+*Common Variable Description:- Not Applicable
+*------  ------- -----------
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:            Description:
+*BATCH.BUILD.LIST           Core             It's a core Globus subroutine that actually
+*                                              writes the list of ids on to the LIST file.
+*                                              It takes in 2 parameters, the name of the
+*                                              LIST file and the variable that holds the ids
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 10/02/2011 -                            New   - Shiva Shankar G
+*                                                 Thesys Technologies
+**************************************************************************
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INSERT JBL.BP I_BD.B.BAL.CONF.LTR.LD.RTN.COMMON
+    $INCLUDE JBL.BP I_F.BD.BAL.CONF.LETTER
+
+    GOSUB PROCESS
+
+    RETURN
+*-------------------------------------------------------------------------
+PROCESS:
+*-------------------------------------------------------------------------
+
+
+    SEL.CMD ='SELECT ':FN.LD.LOANS.AND.DEPOSITS
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,SEL.ERR)
+
+    CALL F.READ(FN.BD.BAL.CONF.LETTER,'SYSTEM',R.BD.BAL.CONF.LETTER,F.BD.BAL.CONF.LETTER,Y.BD.BAL.CONF.LETTER.ERR)
+    Y.CATEG.FORM = R.BD.BAL.CONF.LETTER<BD.BAL.CONF.INC.CATEG.FROM>
+    Y.CATEG.TO = R.BD.BAL.CONF.LETTER<BD.BAL.CONF.INC.CATEG.TO>
+    Y.INDV.CATEG = R.BD.BAL.CONF.LETTER<BD.BAL.CONF.INDV.CATEG>
+    Y.CATEG.FORM.CNT = DCOUNT(Y.CATEG.FORM,VM)
+    Y.INDV.CATEG.CNT = DCOUNT(Y.INDV.CATEG,VM)
+
+    LOOP
+        Y.INT.CNT = 1
+        REMOVE Y.LD.ID FROM SEL.LIST SETTING Y.LD.POS
+    WHILE Y.LD.ID:Y.LD.POS
+        CALL F.READ(FN.LD.LOANS.AND.DEPOSITS,Y.LD.ID,R.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS,Y.LD.LOANS.AND.DEPOSITS.ERR)
+        IF R.LD.LOANS.AND.DEPOSITS EQ '' THEN RETURN
+        Y.LD.CATEG = R.LD.LOANS.AND.DEPOSITS<LD.CATEGORY>
+        LOCATE Y.LD.CATEG IN Y.INDV.CATEG SETTING Y.POS THEN
+            IF Y.LD.ID.LIST THEN
+                Y.LD.ID.LIST:=FM:Y.LD.ID
+            END ELSE
+                Y.LD.ID.LIST = Y.LD.ID
+            END
+        END
+        LOOP
+        WHILE Y.INT.CNT LE Y.CATEG.FORM.CNT
+            Y.CATEG.FR = Y.CATEG.FORM<1,Y.INT.CNT>
+            Y.CAT.TO = Y.CATEG.TO<1,Y.INT.CNT>
+            IF Y.LD.CATEG GE Y.CATEG.FR AND Y.LD.CATEG LE Y.CAT.TO THEN
+                IF Y.LD.ID.LIST THEN
+                    Y.LD.ID.LIST:=FM:Y.LD.ID
+                END ELSE
+                    Y.LD.ID.LIST = Y.LD.ID
+                END
+            END
+            Y.INT.CNT++
+        REPEAT
+    REPEAT
+
+    CALL BATCH.BUILD.LIST('',Y.LD.ID.LIST)
+
+    RETURN
+END

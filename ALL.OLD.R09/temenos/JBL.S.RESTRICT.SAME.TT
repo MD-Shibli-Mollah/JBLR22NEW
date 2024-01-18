@@ -1,0 +1,26 @@
+*-----------------------------------------------------------------------------
+* <Rating>100</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.RESTRICT.SAME.TT
+!-----------------------------------------------------------------------------------------------------!
+!To restrict the cash teller to DD/TT/MT issue teller in order to fullfill the three tier stucture
+!------------------------------------------------------------------------------------------------------!
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.TELLER
+
+    TT.CUR.ID="CURRENT.ID"
+    TT.CUR.ID.POS=""
+    CALL GET.LOC.REF("TELLER",TT.CUR.ID,TT.CUR.ID.POS)
+
+    IF V$FUNCTION EQ 'D' THEN RETURN
+    IF R.NEW(TT.TE.LOCAL.REF)<1,TT.CUR.ID.POS> EQ R.NEW(TT.TE.TELLER.ID.2) THEN
+        AF=TT.TE.TELLER.ID.2
+        ETEXT="Same Teller Cannot Issue the Instrument"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    RETURN
+
+END

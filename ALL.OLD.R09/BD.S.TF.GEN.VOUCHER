@@ -1,0 +1,171 @@
+*-----------------------------------------------------------------------------
+* <Rating>-77</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.S.TF.GEN.VOUCHER
+!------------------------------------------------------------------------------------------------------!
+!This subroutine attached as authorisation routine in VERSION of CHEQUE.COLLECTION Application
+!to generate Return Voucher if any return in there
+!-------------------------------------------------------------------------------------------------------!
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CHEQUE.COLLECTION
+    $INSERT I_F.COMPANY
+    $INSERT I_F.DATES
+    $INSERT I_F.TELLER
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.LETTER.OF.CREDIT
+    $INSERT I_F.DRAWINGS
+
+
+    Y.CHQ.STATUS='CHQ.COLL.STATUS'
+    Y.CHQ.STATUS.POS = ''
+    CALL GET.LOC.REF("CHEQUE.COLLECTION",Y.CHQ.STATUS,Y.CHQ.STATUS.POS)
+
+    Y.CHQ.CURR.STATUS = ''
+    Y.CHQ.CURR.STATUS = R.NEW(CHQ.COL.LOCAL.REF)<1,Y.CHQ.STATUS.POS>
+
+    IF Y.CHQ.CURR.STATUS EQ 'RETURNED' THEN
+        GOSUB INIT
+        GOSUB OPENFILES
+        GOSUB GENERATE.VOUCHER
+    END
+
+
+    RETURN
+
+INIT:
+    PRT.ID=''
+
+    FN.COM="F.COMPANY"
+    F.COM=''
+    REC.COM=''
+
+    FN.AC="F.ACCOUNT"
+    F.AC=""
+    REC.AC=""
+    LNGVAR=""
+    TXTOUT=""
+
+    FN.TT="F.TELLER"
+    F.TT=""
+
+    FN.TT.HIS="F.TELLER$HIS"
+    F.TT.HIS=""
+    REC.TT=""
+    Y.TT.ID=""
+
+    Y.BB.ROUTE= "BB.ROUTE.CODE"
+    Y.BB.ROUTE.POS=""
+    CALL GET.LOC.REF("TELLER",Y.BB.ROUTE,Y.BB.ROUTE.POS)
+
+    Y.JUL.DATE = ''
+    Y.JUL.DATE = RIGHT(R.DATES(EB.DAT.JULIAN.DATE),5)
+
+    FN.LC = 'F.LETTER.OF.CREDIT'
+    F.LC = ''
+    R.LC.REC = ''
+    Y.LC.ERR = ''
+
+    FN.DR = 'F.DRAWINGS'
+    F.DR = ''
+    R.DR.REC = ''
+    Y.DR.ERR = ''
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.COM,F.COM)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.TT.HIS,F.TT.HIS)
+    CALL OPF(FN.LC,F.LC)
+    CALL OPF(FN.DR,F.DR)
+
+    RETURN
+
+GENERATE.VOUCHER:
+    CALL F.READ(FN.COM,ID.COMPANY,REC.COM,F.COM,ERR.COM)
+    CALL F.READ(FN.AC,R.NEW(CHQ.COL.CREDIT.ACC.NO),REC.AC,F.AC,ERR.AC)
+    Y.TT.ID=R.NEW(CHQ.COL.TXN.ID)
+
+    IF Y.TT.ID[3,5] EQ Y.JUL.DATE THEN
+        CALL F.READ(FN.TT,Y.TT.ID,REC.TT,F.TT,ERR.TT)
+    END
+    ELSE
+        CALL EB.READ.HISTORY.REC(F.TT.HIS,Y.TT.ID,REC.TT,YERROR)
+    END
+
+    LNGVAR=REC.TT<TT.TE.AMOUNT.LOCAL.1>
+    CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+
+    BEGIN CASE
+    CASE R.NEW(CHQ.COL.TXN.CODE) EQ '92'
+        PRT.ID = 'CHQ.RTN.VOUCHER.TD'
+    CASE R.NEW(CHQ.COL.TXN.CODE) EQ '93'
+        PRT.ID = 'CHQ.RTN.VOUCHER.SD'
+    CASE R.NEW(CHQ.COL.TXN.CODE) EQ '95'
+        PRT.ID = 'CHQ.RTN.VOUCHER.OD'
+    END CASE
+
+    CALL PRINTER.ON(PRT.ID,0)
+!    HEADING "                              JANATA BANK LIMITED"
+!    HEADING "                              ":REC.COM<EB.COM.COMPANY.NAME>
+!    HEADING "                              ":REC.COM<EB.COM.NAME.ADDRESS>
+    PRINT"                                 JANATA BANK LIMITED"
+    PRINT"                                ":REC.COM<EB.COM.COMPANY.NAME>
+    PRINT"                              ":REC.COM<EB.COM.NAME.ADDRESS>
+    PRINT
+    PRINT
+    PRINT"Debit Voucher"
+    PRINT
+    PRINT"Customer A/c   :":REC.AC<AC.ACCOUNT.TITLE.1>:" A/C No-(":R.NEW(CHQ.COL.CREDIT.ACC.NO):")"
+    PRINT"Batch No       :"
+    PRINT"Date           :":TODAY
+    PRINT"Transaction No :":R.NEW(CHQ.COL.TXN.ID)
+    PRINT"Amount         :":R.NEW(CHQ.COL.AMOUNT):" (":TXTOUT:")"
+    PRINT"Favouring      :":R.NEW(CHQ.COL.NARRATIVE)
+    PRINT"IBTTran Code   :"
+    PRINT"BrCode         :":REC.TT<TT.TE.LOCAL.REF,Y.BB.ROUTE.POS>
+    PRINT"Description    :Return Inst of Clearing on ":R.NEW(CHQ.COL.ORIG.VALUE.DATE)
+    PRINT
+    PRINT
+    PRINT
+    PRINT"______________                                                         _______________"
+    PRINT"Officer                                                                        Manager"
+    PRINT
+    PRINT
+    PRINT"__________________________________________________________________________________________________"
+
+!    CALL PRINTER.CLOSE(PRT.ID,'',0)
+!    CALL PRINTER.OFF
+!    CALL PRINTER.ON(PRT.ID,0)
+
+!    HEADING "                              JANATA BANK LIMITED"
+!    HEADING "                              ":REC.COM<EB.COM.COMPANY.NAME>
+!    HEADING "                              ":REC.COM<EB.COM.NAME.ADDRESS>
+    PRINT
+    PRINT"                                 JANATA BANK LIMITED"
+    PRINT"                                ":REC.COM<EB.COM.COMPANY.NAME>
+    PRINT"                              ":REC.COM<EB.COM.NAME.ADDRESS>
+    PRINT
+    PRINT
+    PRINT"Credit Voucher"
+    PRINT
+    PRINT"GL Head        : S/A CLEARING ADJUSTMENT A/C No-(":REC.TT<TT.TE.ACCOUNT.1>:")"
+    PRINT"Batch No       :"
+    PRINT"Date           :":TODAY
+    PRINT"Transaction No :":R.NEW(CHQ.COL.TXN.ID)
+    PRINT"Amount         :":R.NEW(CHQ.COL.AMOUNT):" (":TXTOUT:")"
+    PRINT"Favouring      :":R.NEW(CHQ.COL.NARRATIVE)
+    PRINT"IBTTran Code   :"
+    PRINT"BrCode         :":REC.TT<TT.TE.LOCAL.REF,Y.BB.ROUTE.POS>
+    PRINT"Description    : Return of Instrument Sent To Clearing of A/c No. ":R.NEW(CHQ.COL.CREDIT.ACC.NO)
+    PRINT
+    PRINT
+    PRINT
+    PRINT"______________                                                         _______________"
+    PRINT"Officer                                                                        Manager"
+    CALL PRINTER.CLOSE(PRT.ID,'',0)
+    CALL PRINTER.OFF
+    RETURN
+END

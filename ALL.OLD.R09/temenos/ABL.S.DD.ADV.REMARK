@@ -1,0 +1,42 @@
+
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.DD.ADV.REMARK
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT JBL.BP I_F.ABL.H.DD.DETAILS
+
+    Y.ADV.REF=FIELD(O.DATA,"*",1)
+    Y.DD.REF=FIELD(O.DATA,"*",2)
+    Y.ADV.REF.DATE=FIELD(O.DATA,"*",3)
+    Y.DD.REF.DATE=FIELD(O.DATA,"*",4)
+    Y.ADV.REF.TIME=FIELD(O.DATA,"*",5)
+    Y.DD.REF.TIME=FIELD(O.DATA,"*",6)
+
+    IF Y.DD.REF.DATE NE "" THEN
+        IF Y.ADV.REF.DATE EQ Y.DD.REF.DATE THEN
+            IF Y.ADV.REF.TIME LT Y.DD.REF.TIME THEN
+                O.DATA="B/P"
+            END
+            ELSE
+                O.DATA=""
+            END
+        END
+        ELSE
+            IF Y.ADV.REF.DATE LT Y.DD.REF.DATE THEN
+                O.DATA="B/P"
+            END
+            ELSE
+                O.DATA=""
+            END
+        END
+
+    END
+    ELSE
+        O.DATA="B/P"
+    END
+
+    RETURN
+END

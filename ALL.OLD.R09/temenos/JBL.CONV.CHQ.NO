@@ -1,0 +1,47 @@
+*-----------------------------------------------------------------------------
+* <Rating>-10</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.CONV.CHQ.NO
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.TELLER
+    $INSERT I_F.DATES
+
+
+    Y.TELLER.ID = O.DATA
+    Y.TELLER.ID.HIS = Y.TELLER.ID : ';1'
+    FN.TELLER = 'F.TELLER'
+    F.TELLER = ''
+
+    FN.TELLER.HIS = 'F.TELLER$HIS'
+    F.TELLER.HIS = ''
+
+
+    FN.DATES = 'F.DATES'
+    F.DATES = ''
+    R.TELLER = ''
+    R.TELLER.HIS = ''
+
+    Y.JUL.DATE = R.DATES(EB.DAT.JULIAN.DATE)
+    Y.ACT.JUL.DATE = SUBSTRINGS(Y.TELLER.ID,3,7)
+
+    CALL OPF(FN.TELLER,F.TELLER)
+    CALL OPF(FN.DATES,F.DATES)
+
+    IF Y.JUL.DATE EQ Y.ACT.JUL.DATE THEN
+        CALL F.READ(FN.TELLER,Y.TELLER.ID,R.TELLER,F.TELLER,TEL.ERR)
+        CALL GET.LOC.REF('TELLER','PR.CHEQUE.NO',Y.CHEQ.NO.POS)
+        Y.CHEQUE.NO = R.TELLER<TT.TE.LOCAL.REF,Y.CHEQ.NO.POS>
+        O.DATA = Y.CHEQUE.NO
+    END
+    ELSE
+        IF Y.JUL.DATE NE Y.ACT.JUL.DATE THEN
+            CALL F.READ(FN.TELLER.HIS,Y.TELLER.ID.HIS,R.TELLER.HIS,F.TELLER.HIS,TEL.ERR.HIS)
+            CALL GET.LOC.REF('TELLER','PR.CHEQUE.NO',Y.CHEQ.NO.POS)
+            Y.CHEQUE.NO.HIS = R.TELLER.HIS<TT.TE.LOCAL.REF,Y.CHEQ.NO.POS>
+            O.DATA = Y.CHEQUE.NO.HIS
+        END
+    END
+END

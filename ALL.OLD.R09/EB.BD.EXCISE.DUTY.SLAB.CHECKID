@@ -1,0 +1,47 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE EB.BD.EXCISE.DUTY.SLAB.CHECKID
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This ID Routine validates the id of table BD.EXCISE.DUTY.SLAB.
+*-------------------------------------------------------------------------
+* Project Name : National Bank Limited(Bangladesh)
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*  NA
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+* Variable name:   Insert file:          Description:
+* COMI             I_COMMON              Will hold the last entered value
+* E                I_COMMON              Used to store the error
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+* ERR                       CORE            Which displays the error
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 03/02/2011 -                            New   - Rashmitha M
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE JBL.BP I_F.BD.EXCISE.DUTY.SLAB
+
+    IF COMI NE 'SYSTEM' THEN
+        E="EB-INVALID.ID"
+        CALL ERR
+        MESSAGE='REPEAT'
+    END
+
+    RETURN
+**************************************************************************
+END

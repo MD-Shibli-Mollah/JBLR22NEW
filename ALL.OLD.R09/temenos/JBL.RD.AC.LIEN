@@ -1,0 +1,53 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.RD.AC.LIEN
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.TELLER
+
+    FN.AC='F.ACCOUNT'
+    F.AC=''
+    REC.AC=''
+    Y.AC.ID=''
+
+    Y.LIEN.MARK='LIEN.MARK'
+    Y.LIEN.MARK.POS=''
+    CALL GET.LOC.REF("ACCOUNT",Y.LIEN.MARK,Y.LIEN.MARK.POS)
+
+    CALL OPF(FN.AC,F.AC)
+
+
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        Y.AC.ID=R.NEW(FT.DEBIT.ACCT.NO)
+        CALL F.READ(FN.AC,Y.AC.ID,REC.AC,F.AC,ERR.AC)
+        IF REC.AC<AC.LOCAL.REF,Y.LIEN.MARK.POS> THEN
+            ETEXT="ACCOUNT ":Y.AC.ID:",ALREADY LIEN MARK"
+            CALL STORE.END.ERROR
+            RETURN
+        END
+
+    END
+
+    IF APPLICATION EQ 'TELLER' THEN
+        IF R.NEW(TT.TE.DR.CR.MARKER) EQ 'DEBIT' THEN
+            Y.AC.ID=R.NEW(TT.TE.ACCOUNT.1)
+        END
+        ELSE
+            Y.AC.ID=R.NEW(TT.TE.ACCOUNT.2)
+        END
+
+        CALL F.READ(FN.AC,Y.AC.ID,REC.AC,F.AC,ERR.AC)
+        IF REC.AC<AC.LOCAL.REF,Y.LIEN.MARK.POS> THEN
+            ETEXT="ACCOUNT ":Y.AC.ID:",ALREADY LIEN MARK"
+            CALL STORE.END.ERROR
+            RETURN
+        END
+
+    END
+
+    RETURN
+
+END

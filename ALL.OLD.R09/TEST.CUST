@@ -1,0 +1,49 @@
+*-----------------------------------------------------------------------------
+* <Rating>-11</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM TEST.CUST
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CUSTOMER
+
+
+    Y = 0
+    Z = 1
+    FN.CUST = "F.CUSTOMER"
+    F.CUST = ""
+    CALL OPF(FN.CUST,F.CUST)
+
+    SEL.CMD = "SELECT ":FN.CUST
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+
+    LOOP
+        REMOVE Y.REC.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.REC.ID:Y.POS
+        CRT "ID ":Y.REC.ID
+
+        CALL F.READ(FN.CUST,Y.REC.ID,R.CUST,F.CUST,Y.ERR)
+        Y = Y++
+        IF Y EQ 1000 THEN
+            GOSUB TIME.NOW
+            CRT Z
+            Z = Z++
+            Y = 0
+        END
+
+
+    REPEAT
+
+TIME.NOW:
+
+    F.SEQ = ''
+    ms = SYSTEM(12)
+    timenow = TIME()
+    MIL.SEC = INT(MOD(ms,1000))
+    MIL.SEC=FMT(MIL.SEC,"R%3")
+    TIME.IN.MIL.SEC = OCONV(timenow,'MTS'):':':MIL.SEC
+    CRT "TIME ": TIME.IN.MIL.SEC
+*    CRT "====="
+
+    RETURN
+END

@@ -1,0 +1,74 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+******************************************************************************
+*
+*Company Name   :
+*Developed By   : Huraira
+*
+*-----------------------------------------------------------------------------
+*Subroutine Type: convertion routine
+*
+*Attached To    : The Enquiry 'E.GTEE.SUMMRY.REPORT'
+*
+*Attached As    : Conversion Routine for the field 'EXCHG.RATE'
+*
+*In Parameter   : 'CCY' and 'CCY.MARKET'
+*
+*Out Parameter  : Buy Rate
+*-----------------------------------------------------------------------------
+*Description    : This Routine return Buy Rate value
+*
+*-----------------------------------------------------------------------------
+*Modification Details:
+*
+*-----------------------------------------------------------------------------
+*Modification History :
+*
+******************************************************************************
+
+    SUBROUTINE BD.CURR.EXCHG.RATE
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.CURRENCY
+    $INSERT I_F.COMPANY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    Y.DATA = O.DATA
+    FN.CURR = "F.CURRENCY"
+    F.CURR = ""
+
+    Y.CUR = ""
+    Y.CUR.MARKET = ""
+    Y.BUY.RATE = ""
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.CURR,F.CURR)
+
+    RETURN
+
+PROCESS:
+
+    Y.CUR = FIELD(Y.DATA,".",1,1)
+    Y.CUR.MARKET = FIELD(Y.DATA,".",2,1)
+
+    IF Y.CUR.MARKET EQ "" AND Y.CUR NE "" AND Y.CUR NE 'BDT' THEN
+        Y.CUR.MARKET = 1
+    END
+
+    CALL F.READ(FN.CURR,Y.CUR,R.CUR.REC,F.CURR,Y.ERR)
+    Y.BUY.RATE = R.CUR.REC<EB.CUR.BUY.RATE,Y.CUR.MARKET>
+
+    O.DATA = Y.BUY.RATE
+
+    RETURN 

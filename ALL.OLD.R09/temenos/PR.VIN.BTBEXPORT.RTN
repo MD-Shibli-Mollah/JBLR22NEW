@@ -1,0 +1,749 @@
+*-----------------------------------------------------------------------------
+* <Rating>4898</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VIN.BTBEXPORT.RTN
+
+*------------------------------------------------------------------------------------------
+
+
+
+*-----------------------
+*insert files includes
+*-----------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LETTER.OF.CREDIT
+    $INSERT I_F.PR.H.BTB.JOB.REGISTER
+    $INSERT I_F.COMPANY
+    $INSERT I_GTS.COMMON
+    $INSERT I_F.INTERCO.PARAMETER
+    $INSERT I_F.PR.T.BTB.SERIAL.NUMBER
+    $INSERT I_F.PR.T.BTB.REGISTER.LC.REF
+    $INSERT I_F.PR.H.ADCODES
+    $INSERT I_F.PR.T.BTB.JOB.NO.LC.REF
+    RUNNING.UNDER.BATCH=1
+    IF OFS.VAL.ONLY THEN RETURN
+!DEBUG
+    GOSUB INIT
+    GOSUB JOB.UPDATE
+    GOSUB DEL.JOB
+    RUNNING.UNDER.BATCH=0
+    RETURN
+
+INIT:
+*---------------------------
+*initialising and openfiles
+*----------------------------
+
+    Y.ID=ID.NEW
+    FN.CUSTOMER ="F.CUSTOMER"
+    F.CUSTOMER=''
+    CALL OPF(FN.CUSTOMER,F.CUSTOMER)
+
+    FN.PR.T.BTB.CUSTOMER.SEQ.NO="F.PR.T.BTB.CUSTOMER.SEQ.NO"
+    F.PR.T.BTB.CUSTOMER.SEQ.NO=''
+    CALL OPF(FN.PR.T.BTB.CUSTOMER.SEQ.NO,F.PR.T.BTB.CUSTOMER.SEQ.NO)
+
+    FN.PR.T.BTB.SERIAL.NUMBER="F.PR.T.BTB.SERIAL.NUMBER"
+    F.PR.T.BTB.SERIAL.NUMBER=''
+    CALL OPF(FN.PR.T.BTB.SERIAL.NUMBER,F.PR.T.BTB.SERIAL.NUMBER)
+
+    FN.PR.H.BTB.JOB.REGISTER="F.PR.H.BTB.JOB.REGISTER"
+    F.PR.H.BTB.JOB.REGISTER=""
+    CALL OPF(FN.PR.H.BTB.JOB.REGISTER,F.PR.H.BTB.JOB.REGISTER)
+
+    FN.PR.T.BTB.JOB.NO.LC.REF="F.PR.T.BTB.JOB.NO.LC.REF"
+    F.PR.T.BTB.JOB.NO.LC.REF=''
+    CALL OPF(FN.PR.T.BTB.JOB.NO.LC.REF,F.PR.T.BTB.JOB.NO.LC.REF)
+
+    FN.LETTER.OF.CREDIT = "F.LETTER.OF.CREDIT"
+    F.LETTER.OF.CREDIT = ""
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+
+    FN.PR.T.BTB.REGISTER.LC.REF="F.PR.T.BTB.REGISTER.LC.REF"
+    F.PR.T.BTB.REGISTER.LC.REF=""
+    CALL OPF(FN.PR.T.BTB.REGISTER.LC.REF,F.PR.T.BTB.REGISTER.LC.REF)
+
+    FN.PR.T.BTB.CUSTOMER.JOB.NO = "F.PR.T.BTB.CUSTOMER.JOB.NO"
+    F.PR.T.BTB.CUSTOMER.JOB.NO = ''
+    CALL OPF(FN.PR.T.BTB.CUSTOMER.JOB.NO,F.PR.T.BTB.CUSTOMER.JOB.NO)
+
+    FN.PR.T.BTB.SERIAL.NUMBER="F.PR.T.BTB.SERIAL.NUMBER"
+    F.PR.T.BTB.SERIAL.NUMBER=''
+    CALL OPF(FN.PR.T.BTB.SERIAL.NUMBER,F.PR.T.BTB.SERIAL.NUMBER)
+
+    FN.PR.H.ADCODES="F.PR.H.ADCODES"
+    F.PR.H.ADCODES=""
+    CALL OPF(FN.PR.H.ADCODES,F.PR.H.ADCODES)
+
+    RETURN
+*--------------------
+JOB.UPDATE:
+*--------------------
+!DEBUG
+*checking whether type eq btb
+    Y.TYPE=R.NEW(TF.LC.LC.TYPE)
+*this works onli if type eq btb and operation eq o or A
+    Y.OPERATION = R.NEW(TF.LC.OPERATION)
+    IF Y.TYPE NE " "  AND Y.OPERATION EQ "O" OR Y.OPERATION EQ "A" THEN
+*extracting job number from lc version
+
+        Y.ADV.POS=''
+        Y.JOB.VAL.POS=''
+        Y.JOB.ENT.POS=''
+        Y.NEW.EXIST.POS=''
+        Y.JOB.NO.POS=''
+        Y.DATE=''
+        Y.YEAR=''
+        Y.TEST=''
+
+        CALL GET.LOC.REF("LETTER.OF.CREDIT","JOB.NO",Y.JOB.NO.POS)
+        CALL GET.LOC.REF("LETTER.OF.CREDIT","ADVISE.REF.NO",Y.ADV.POS)
+        CALL GET.LOC.REF("LETTER.OF.CREDIT","JOB.VALUE",Y.JOB.VAL.POS)
+        CALL GET.LOC.REF("LETTER.OF.CREDIT","JOB.ENTITLEMENT",Y.JOB.ENT.POS)
+        CALL GET.LOC.REF("LETTER.OF.CREDIT","NEW.EXIST.JOBNO",Y.NEW.EXIST.POS)
+        CALL GET.LOC.REF("LETTER.OF.CREDIT","CONTRACT.NO",Y.EXP.SALE.NO.POS)
+        CALL GET.LOC.REF("LETTER.OF.CREDIT","ENTITLEMENT.PER",Y.ENT.PR.POS)
+        CALL GET.LOC.REF("LETTER.OF.CREDIT","LC.AMT.LCY",Y.LCY.POS)
+        CALL GET.LOC.REF("LETTER.OF.CREDIT","LC.AMT.LCY",Y.LC.AMT.LCY)
+
+        Y.JOB.NO = R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.NO.POS>
+        Y.TEST = R.NEW(TF.LC.LOCAL.REF)<1,Y.NEW.EXIST.POS>
+*        R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS> = ""
+
+        IF V$FUNCTION EQ 'I' OR V$FUNCTION EQ 'A' OR  V$FUNCTION EQ 'C' THEN
+!DEBUG
+            BEGIN CASE
+            CASE Y.JOB.NO EQ '' AND  R.NEW(TF.LC.LOCAL.REF)<1,Y.NEW.EXIST.POS> EQ "NEW"
+*extracting branch code from mnemonic
+                Y.MNEMONIC=R.COMPANY(EB.COM.MNEMONIC)
+                Y.FIN.MNEMONIC=R.INTERCO.PARAMETER<ST.ICP.FIN.MNEMONIC>
+                Y.BRANCH.CODE1=R.INTERCO.PARAMETER<ST.ICP.BRANCH.CODE>
+*converting sm to vm of branch code
+                CONVERT SM TO VM IN Y.BRANCH.CODE1
+
+
+!**********************NEW ADD BY RAYHAN **********************************************
+                Y.BRANCH.CODE = R.COMPANY(EB.COM.SUB.DIVISION.CODE)
+                CALL F.READ(FN.PR.H.ADCODES,Y.BRANCH.CODE,R.PR.H.ADCODES,F.PR.H.ADCODES,Y.ERR)
+                Y.ADCODE=R.PR.H.ADCODES<AD.ADCODE>
+!**************************************************************************************
+                Y.DATE=TODAY
+                Y.BTB="BTB"
+                Y.YEAR=Y.DATE[3,2]
+                Y.CUSNO=R.NEW(TF.LC.BENEFICIARY.CUSTNO)
+                Y.CUSNO1=Y.CUSNO:".":Y.YEAR
+
+*forming id for btb.serial.number
+                Y.BTB.SER.BTB.TYPE = Y.ADCODE:".":Y.BTB:".":Y.DATE
+*with that id checking whether record exist or not
+                CALL F.READ(FN.PR.T.BTB.SERIAL.NUMBER,Y.CUSNO1,R.PR.T.BTB.SERIAL.NUMBER,F.PR.T.BTB.SERIAL.NUMBER,Y.ERR)
+                GOSUB ID.FORMATION
+                CALL CONCAT.FILE.UPDATE(FN.PR.T.BTB.SERIAL.NUMBER,Y.CUSNO1,Y.SERIAL.NUMBER,'I','AL')
+*    END
+
+                Y.DATE.OF.CREATION=Y.DATE
+*calculating entitlement value
+*product of fob value and entitlment pr
+                CALL GET.LOC.REF("LETTER.OF.CREDIT","FOB.VALUE",Y.FOB.VAL.POS)
+                CALL GET.LOC.REF("LETTER.OF.CREDIT","ENTITLEMENT.PER",Y.ENT.PR.POS)
+                Y.ENTITLEMENT.VAL=R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS> * R.NEW(TF.LC.LOCAL.REF)<1,Y.ENT.PR.POS>
+*ID FOR BTB.JOB.REGISTER
+
+                Y.JOB.NO=Y.ADCODE:".":Y.CUSNO:".":Y.SERIAL.NUMBER:".":Y.YEAR
+                R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.NO.POS>=Y.JOB.NO
+                CALL F.READ(FN.PR.H.BTB.JOB.REGISTER,Y.JOB.NO,R.PR.H.BTB.JOB.REGISTER,F.PR.H.BTB.JOB.REGISTER,Y.ERR)
+                Y.CUS=FIELD(Y.JOB.NO,".",2)
+                CALL F.READ(FN.PR.T.BTB.REGISTER.LC.REF,Y.JOB.NO,R.PR.T.BTB.REGISTER.LC.REF,F.PR.T.BTB.REGISTER.LC.REF,Y.ERR)
+                IF NOT(R.PR.T.BTB.REGISTER.LC.REF) THEN
+                    Y.CONT.NO = Y.ID
+*updating the job register table
+                    CALL CONCAT.FILE.UPDATE(FN.PR.T.BTB.REGISTER.LC.REF,Y.JOB.NO,Y.CONT.NO,'I','AL')
+                END
+                CALL F.READ(FN.PR.T.BTB.JOB.NO.LC.REF,Y.JOB.NO,R.PR.T.BTB.JOB.NO.LC.REF,F.PR.T.BTB.JOB.NO.LC.REF,Y.ERR)
+                IF NOT(R.PR.T.BTB.JOB.NO.LC.REF) THEN
+                    Y.CONT.NO=Y.ID
+*updating the BTB.JOB.NO.LC.REF concat table
+                    CALL CONCAT.FILE.UPDATE(FN.PR.T.BTB.JOB.NO.LC.REF,Y.CONT.NO,Y.JOB.NO,'I','AL')
+                END
+                CALL F.READ(FN.PR.H.BTB.JOB.REGISTER,Y.JOB.NO,R.PR.H.BTB.JOB.REGISTER,F.PR.H.BTB.JOB.REGISTER,Y.ERR)
+                Y.ADV.NO=R.NEW(TF.LC.LOCAL.REF)<1,Y.ADV.POS>
+*currency amt1 amt2 are initialised
+
+!Y.CUS=FIELD(Y.JOB.NO,".",2) *** MARKED BY RAYHAN
+!Y.DATE=TODAY *** MARKED BY RAYHAN
+
+                Y.CCY=R.NEW(TF.LC.LC.CURRENCY)
+                GOSUB CHECK.CCY
+                Y.CUSNO=FIELD(Y.JOB.NO,".",2)
+*updating the customer job concat table
+                IF V$FUNCTION EQ 'I' OR V$FUNCTION EQ 'A' OR V$FUNCTION EQ 'C' THEN
+                    CALL CONCAT.FILE.UPDATE(FN.PR.T.BTB.CUSTOMER.JOB.NO,Y.CUSNO,Y.JOB.NO,'I','AL')
+                END
+                R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.VAL.POS>=R.NEW(TF.LC.LC.AMOUNT)
+                CALL GET.LOC.REF("LETTER.OF.CREDIT","LC.AMT.LCY",Y.LCY.POS)
+                CALL GET.LOC.REF("LETTER.OF.CREDIT","LC.AMT.LCY",Y.LC.AMT.LCY)
+                R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS>=R.NEW(TF.LC.LOCAL.REF)<1,Y.LC.AMT.LCY>
+*condition 2 checking if new and job no not null
+            CASE R.NEW(TF.LC.LOCAL.REF)<1,Y.NEW.EXIST.POS> EQ "NEW" AND R.NEW.LAST(TF.LC.LOCAL.REF)<1,Y.JOB.NO.POS> NE ''
+                CALL GET.LOC.REF("LETTER.OF.CREDIT","JOB.VALUE",Y.JOB.VAL.POS)
+                CALL GET.LOC.REF("LETTER.OF.CREDIT","ENTITLEMENT.PER",Y.ENT.PR.POS)
+                CALL GET.LOC.REF("LETTER.OF.CREDIT","FOB.VALUE",Y.FOB.VAL.POS)
+                CALL GET.LOC.REF("LETTER.OF.CREDIT","JOB.NO",Y.JOB.NO.POS)
+                CALL GET.LOC.REF("LETTER.OF.CREDIT","CONTRACT.NO",Y.EXP.SALE.NO.POS)
+                Y.JOB.NO = R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.NO.POS>
+                Y.CUS=FIELD(Y.JOB.NO,".",2)
+                Y.CCY=R.NEW(TF.LC.LC.CURRENCY)
+                Y.DATE=TODAY
+*reading job register table for that particular job
+                CALL F.READ(FN.PR.T.BTB.REGISTER.LC.REF,Y.JOB.NO,R.PR.T.BTB.REGISTER.LC.REF,F.PR.T.BTB.REGISTER.LC.REF,Y.ERR)
+                Y.CONT.NO = Y.ID
+*updating the concat file btb register
+                CALL CONCAT.FILE.UPDATE(FN.PR.T.BTB.REGISTER.LC.REF,Y.JOB.NO,Y.CONT.NO,'I','AL')
+                CALL F.READ(FN.PR.T.BTB.JOB.NO.LC.REF,Y.JOB.NO,R.PR.T.BTB.JOB.NO.LC.REF,F.PR.T.BTB.JOB.NO.LC.REF,Y.ERR)
+                Y.CONT.NO=Y.ID
+                CALL CONCAT.FILE.UPDATE(FN.PR.T.BTB.JOB.NO.LC.REF,Y.CONT.NO,Y.JOB.NO,'I','AL')
+*currency, amt1, amt2 are initialised
+*if currency is a foreign currency
+                IF Y.CCY NE LCCY THEN
+                    Y.CUS=FIELD(Y.JOB.NO,".",2)
+                    Y.DATE=TODAY
+                    AMT1=''
+                    AMT2=''
+                    Y.JOB.VALUE=R.NEW(TF.LC.LC.AMOUNT)
+*calculating entitlement value
+                    Y.JOB.ENT.VALUE1=Y.JOB.VALUE * R.NEW(TF.LC.LOCAL.REF)<1,Y.ENT.PR.POS>
+                    Y.JOB.ENT.VALUE= Y.JOB.ENT.VALUE1/100
+*calculating exchange rate
+                    R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.NO.POS>=Y.JOB.NO
+                    R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.VAL.POS>=Y.JOB.VALUE
+                    R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS>=Y.JOB.ENT.VALUE
+*converting local currency by exchange rate
+                    CALL EXCHRATE('1',Y.CCY,Y.JOB.VALUE,LCCY,AMT2,'','','','',RET.CODE)
+                    CALL EXCHRATE('1',Y.CCY,Y.JOB.ENT.VALUE,LCCY,AMT1,'','','','',RET.CODE)
+*updating the job register table
+                    Y.EXP.LC.NO=R.NEW(TF.LC.ISS.BANK.REF)
+*ADD BY RAYHAN START******
+                    IF Y.EXP.LC.NO EQ "" THEN
+                        Y.EXP.LC.NO=R.NEW(TF.LC.LOCAL.REF)<1,Y.EXP.SALE.NO.POS>
+                    END
+*END BY RAYHAN
+                    Y.ADV.NO=R.NEW(TF.LC.LOCAL.REF)<1,Y.ADV.POS>
+*** new update Y.ENT.PER
+                    Y.ENT.PER=TRIMBS(R.NEW(TF.LC.LOCAL.REF)<1,Y.ENT.PR.POS>)
+
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CUSTOMER.NO>=Y.CUS
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DATE.OF.CREATION>=Y.DATE
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.RF>=ID.NEW
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.ADV.NO>=Y.ADV.NO
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.NO>=Y.EXP.LC.NO
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.CY>=R.NEW(TF.LC.LC.CURRENCY)
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.LC.FOB.VALUE>=R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.PR>=Y.ENT.PER
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.VL>=R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS>
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPIRY.DATE>=R.NEW(TF.LC.ADVICE.EXPIRY.DATE)
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.LCY>=AMT1
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.CY>=AMT1
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.LCY>=AMT1
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.FC>=Y.JOB.ENT.VALUE
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.FC>=Y.JOB.ENT.VALUE
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CURR.NO> = '1'
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.INPUTTER> = R.NEW(TF.LC.INPUTTER)
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DATE.TIME> = R.NEW(TF.LC.DATE.TIME)
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AUTHORISER> = OPERATOR
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CO.CODE> = ID.COMPANY
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DEPT.CODE> = '1'
+
+!Y.SOURCE="BTB.JOB.REGISTER"
+!Y.MESSAGE = "PR.H.BTB.JOB.REGISTER,PR.BTB/I/PROCESS,,":Y.JOB.NO:",CUSTOMER.NO::=":Y.CUS:",DATE.OF.CREATION::=":Y.DATE:",EXPORT.LC.RF::=":ID.NEW:",EXPORT.LC.ADV.NO::=":Y.ADV.NO:",EXPORT.LC.NO::=":Y.EXP.LC.NO:",EXPORT.LC.CY::=":R.NEW(TF.LC.LC.CURRENCY):",LC.FOB.VALUE::=":R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>:",ENTITLMNT.PR::=":Y.ENT.PER:",ENTITLMNT.VL::=":R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS>:",EXPIRY.DATE::=":R.NEW(TF.LC.ADVICE.EXPIRY.DATE):",TOT.ENT.LCY::=":AMT1:",ENTITLMNT.CY::=":AMT1:",AVL.ENT.LCY::=":AMT1:",TOT.ENT.FC::=":Y.JOB.ENT.VALUE:",AVL.ENT.FC::=":Y.JOB.ENT.VALUE
+!GOSUB OFS.UPDATE
+
+                    CALL F.WRITE(FN.PR.H.BTB.JOB.REGISTER,Y.JOB.NO,R.PR.H.BTB.JOB.REGISTER)
+                END ELSE
+                    Y.CUS=FIELD(Y.JOB.NO,".",2)
+                    Y.DATE=TODAY
+                    Y.JOB.VALUE=R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>
+                    Y.JOB.ENT.VALUE1=Y.JOB.VALUE * R.NEW(TF.LC.LOCAL.REF)<1,Y.ENT.PR.POS>
+                    Y.JOB.ENT.VALUE=Y.JOB.ENT.VALUE1/100
+*updating job register
+                    R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.VAL.POS>=Y.JOB.VALUE
+                    R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS>=Y.JOB.ENT.VALUE
+                    Y.EXP.LC.NO=R.NEW(TF.LC.ISS.BANK.REF)
+                    Y.ADV.NO=R.NEW(TF.LC.LOCAL.REF)<1,Y.ADV.POS>
+                    Y.ENT.PER=TRIMBS(R.NEW(TF.LC.LOCAL.REF)<1,Y.ENT.PR.POS>)
+
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CUSTOMER.NO>=Y.CUS
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DATE.OF.CREATION>=Y.DATE
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.RF>=ID.NEW
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.ADV.NO>=Y.ADV.NO
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.NO>=Y.EXP.LC.NO
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.CY>=R.NEW(TF.LC.LC.CURRENCY)
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.LC.FOB.VALUE>=R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.PR>=Y.ENT.PER
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.VL>=Y.JOB.ENT.VALUE
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DATE.OF.CREATION>=R.NEW(TF.LC.ISSUE.DATE)
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPIRY.DATE>=R.NEW(TF.LC.ADVICE.EXPIRY.DATE)
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.LCY>=Y.JOB.ENT.VALUE
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.CY>=Y.JOB.ENT.VALUE
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.LCY>=Y.JOB.ENT.VALUE
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.FC>=Y.JOB.ENT.VALUE
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.FC>=Y.JOB.ENT.VALUE
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CURR.NO> = '1'
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.INPUTTER> = R.NEW(TF.LC.INPUTTER)
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DATE.TIME> = R.NEW(TF.LC.DATE.TIME)
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AUTHORISER> = OPERATOR
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CO.CODE> = ID.COMPANY
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DEPT.CODE> = '1'
+
+!Y.SOURCE="BTB.JOB.REGISTER"
+!Y.MESSAGE = "PR.H.BTB.JOB.REGISTER,PR.BTB/I/PROCESS,,":Y.JOB.NO:",CUSTOMER.NO::=":Y.CUS:",DATE.OF.CREATION::=":Y.DATE:",EXPORT.LC.RF::=":ID.NEW:",EXPORT.LC.ADV.NO::=":Y.ADV.NO:",EXPORT.LC.NO::=":Y.EXP.LC.NO:",EXPORT.LC.CY::=":R.NEW(TF.LC.LC.CURRENCY):",LC.FOB.VALUE::=":R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>:",ENTITLMNT.PR::=":Y.ENT.PER:",ENTITLMNT.VL::=":Y.JOB.ENT.VALUE:",DATE.OF.CREATION::=":R.NEW(TF.LC.ISSUE.DATE):",EXPIRY.DATE::=":R.NEW(TF.LC.ADVICE.EXPIRY.DATE):",TOT.ENT.LCY::=":Y.JOB.ENT.VALUE:",ENTITLMNT.CY::=":Y.JOB.ENT.VALUE:",AVL.ENT.LCY::=":Y.JOB.ENT.VALUE:",TOT.ENT.FC::=":Y.JOB.ENT.VALUE:",AVL.ENT.FC::=":Y.JOB.ENT.VALUE
+!GOSUB OFS.UPDATE
+
+                    CALL F.WRITE(FN.PR.H.BTB.JOB.REGISTER,Y.JOB.NO,R.PR.H.BTB.JOB.REGISTER)
+                END
+                Y.CUSNO=FIELD(Y.JOB.NO,".",2)
+                IF V$FUNCTION EQ 'I' OR V$FUNCTION 'A' OR V$FUNCTION EQ 'C' THEN
+                    CALL CONCAT.FILE.UPDATE(FN.PR.T.BTB.CUSTOMER.JOB.NO,Y.CUSNO,Y.JOB.NO,'I','AL')
+                END
+                Y.LC.AMT=R.NEW(TF.LC.LOCAL.REF)<1,Y.LCY.POS>
+                CALL EXCHRATE('1',Y.CCY,Y.JOB.VALUE,LCCY,AMT2,'','','','',RET.CODE)
+                Y.LC.AMT.LCY=AMT2
+                R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS>=Y.LC.AMT.LCY
+*condition:3 checking if exist and job number has value
+
+                CALL GET.LOC.REF("LETTER.OF.CREDIT","JOB.NO",Y.JOB.NO.POS)
+                CALL GET.LOC.REF("LETTER.OF.CREDIT","NEW.EXIST.JOBNO",Y.NEW.EXIST.POS)
+            CASE R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.NO.POS> NE '' AND R.NEW(TF.LC.LOCAL.REF)<1,Y.NEW.EXIST.POS>  EQ "EXIST"
+                CALL GET.LOC.REF("LETTER.OF.CREDIT","FOB.VALUE",Y.FOB.VAL.POS)
+                CALL GET.LOC.REF("LETTER.OF.CREDIT","ENTITLEMENT.PER",Y.ENT.PR.POS)
+                Y.JOB.NO = R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.NO.POS>
+                CALL F.READ(FN.PR.H.BTB.JOB.REGSITER,Y.JOB.NO,R.PR.H.BTB.JOB.REGISTER,F.PR.H.BTB.JOB.REGISTER,Y.ERR)
+                IF NOT(R.PR.H.BTB.JOB.REGISTER) THEN
+                    E="JOB NUMBER DOES NOT EXISTS IN JOB REGISTER TABLE"
+                    IF E THEN
+                        V$ERROR = 1
+                        CALL ERR
+                    END
+                    RETURN
+                END ELSE
+                    CALL F.READ(FN.PR.T.BTB.REGISTER.LC.REF,Y.JOB.NO,R.PR.T.BTB.REGISTER.LC.REF,F.PR.T.BTB.REGISTER.LC.REF,Y.ERR)
+                    Y.CONT.NO = Y.ID
+*updating the concat file job register table
+                    CALL CONCAT.FILE.UPDATE(FN.PR.T.BTB.REGISTER.LC.REF,Y.JOB.NO,Y.CONT.NO,'I','AL')
+                    CALL F.READ(FN.PR.T.BTB.JOB.NO.LC.REF,Y.JOB.NO,R.PR.T.BTB.JOB.NO.LC.REF,F.PR.T.BTB.JOB.NO.LC.REF,Y.ERR)
+*updating concat file
+                    Y.CONT.NO=Y.ID
+                    CALL CONCAT.FILE.UPDATE(FN.PR.T.BTB.JOB.NO.LC.REF,Y.CONT.NO,Y.JOB.NO,'I','AL')
+                    Y.CUS=FIELD(Y.JOB.NO,".",2)
+                    Y.DATE=TODAY
+                    Y.COUNT=DCOUNT(R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.RF>,VM)
+                    Y.COUNT1=Y.COUNT+1
+                    Y.CCY=R.NEW(TF.LC.LC.CURRENCY)
+*calculating the entitlement value
+                    Y.JOB.VAL.AMT=R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>
+                    Y.JOB.ENT.VALUE1=Y.JOB.VAL.AMT * R.NEW(TF.LC.LOCAL.REF)<1,Y.ENT.PR.POS>
+                    Y.JOB.ENT.VALUE2=Y.JOB.ENT.VALUE1/100
+
+*converting to local currency
+                    AMT2=""
+                    AMT3=''
+                    Y.JOB.ENT.FC=Y.JOB.ENT.VALUE2
+                    CALL EXCHRATE('1',Y.CCY,Y.JOB.ENT.VALUE2,LCCY,AMT3,'','','','',RET.CODE)
+                    Y.JOB.ENT.LCY=AMT3
+                    CALL EXCHRATE('1',Y.CCY,Y.JOB.VAL.AMT,LCCY,AMT2,'','','','',RET.CODE)
+                    Y.JOB.VAL.LCY=AMT2
+
+                    Y.JOB.VAL1=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.CY>
+                    Y.JOB.VL=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.VL>
+                    Y.JOB.ENT.VAL.FC=SUM(Y.JOB.VL) + Y.JOB.ENT.FC
+                    Y.JOB.ENT.VALUE=SUM(Y.JOB.VAL1) + Y.JOB.ENT.LCY
+                    Y.JOB.VAL2=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CON.FOB.VAL>
+                    Y.JOB.VAL=SUM(R.PR.H.BTB.JOB.REGISTER<BTB.JOB.LC.FOB.VALUE>)
+                    Y.JOB.VALUE=SUM(Y.JOB.VAL2) + Y.JOB.VAL + Y.JOB.VAL.AMT
+
+                    IF R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CON.FOB.VAL> NE '' THEN
+
+                        Y.JOB.VALUE1=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CON.FOB.VAL>
+                        Y.JOB.VALUE=SUM(Y.JOB.VALUE1)
+                        Y.VAL=SUM(R.PR.H.BTB.JOB.REGISTER<BTB.JOB.LC.FOB.VALUE>) + R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>
+                        R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.VAL.POS>=Y.VAL
+                        Y.JOB.ENT.VAL1=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CON.ENT.VAL>
+                        Y.JOB.ENT.VAL=SUM(Y.JOB.ENT.VAL1)
+*assigning to local ref added to lc version
+                        R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS>=Y.JOB.ENT.VAL + Y.JOB.ENT.VAL.FC
+                        R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.VAL.POS>=Y.VAL
+
+*calculating the tot.entitlemnt lcy
+                        Y.TOT.ENT.FC=Y.JOB.ENT.VAL.FC
+                        Y.TOT.ENT.LCY=Y.JOB.ENT.VALUE
+                    END ELSE
+                        Y.VAL=SUM(R.PR.H.BTB.JOB.REGISTER<BTB.JOB.LC.FOB.VALUE>) + R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>
+                        R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.VAL.POS>=Y.VAL
+                        R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS>=Y.JOB.ENT.VAL.FC
+                        Y.TOT.ENT.LCY=Y.JOB.ENT.VALUE
+                        Y.TOT.ENT.FC=Y.JOB.ENT.VAL.FC
+                    END
+                    Y.CCY=R.NEW(TF.LC.LC.CURRENCY)
+                    IF Y.CCY NE LCCY THEN
+                        Y.CUS=FIELD(Y.JOB.NO,".",2)
+                        Y.DATE=TODAY
+                        AMT1=''
+                        Y.VAL=SUM(R.PR.H.BTB.JOB.REGISTER<BTB.JOB.LC.FOB.VALUE>) + R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>
+
+*calculating total ent value
+                        R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.VAL.POS>=Y.VAL
+                        R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS>=Y.JOB.ENT.VAL.FC
+                        R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.NO.POS>=Y.JOB.NO
+                        IF R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.LCY> NE '' THEN
+*calculating entitlemnt value
+                            Y.AVL.ENT.LCY=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.LCY> + AMT3
+                            Y.AVL.ENT.FC=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.FC> +  Y.JOB.ENT.FC
+                        END
+                        R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS>=Y.AVL.ENT.FC
+*upadting the job register table
+                        Y.EXP.LC.NO=R.NEW(TF.LC.ISS.BANK.REF)
+                        Y.ADV.NO=R.NEW(TF.LC.LOCAL.REF)<1,Y.ADV.POS>
+                        Y.ENT.PER=TRIMBS(R.NEW(TF.LC.LOCAL.REF)<1,Y.ENT.PR.POS>)
+
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CUSTOMER.NO>=Y.CUS
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DATE.OF.CREATION>=Y.DATE
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.RF,Y.COUNT1>=ID.NEW
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.NO,Y.COUNT1>=Y.EXP.LC.NO
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.ADV.NO,Y.COUNT1>=Y.ADV.NO
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.CY,Y.COUNT1>=R.NEW(TF.LC.LC.CURRENCY)
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.LC.FOB.VALUE,Y.COUNT1>=R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.PR,Y.COUNT1>=Y.ENT.PER
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.VL,Y.COUNT1>=Y.JOB.ENT.VALUE2
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPIRY.DATE,Y.COUNT1>=R.NEW(TF.LC.ADVICE.EXPIRY.DATE)
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DATE.OF.CREATION>=R.NEW(TF.LC.ISSUE.DATE)
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.LCY>=Y.TOT.ENT.LCY
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.CY,Y.COUNT1>=AMT3
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.LCY>=Y.AVL.ENT.LCY
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.FC>=Y.JOB.ENT.VAL.FC
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.FC>=Y.AVL.ENT.FC
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CURR.NO> = '1'
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.INPUTTER> = R.NEW(TF.LC.INPUTTER)
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DATE.TIME> = R.NEW(TF.LC.DATE.TIME)
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AUTHORISER> = OPERATOR
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CO.CODE> = ID.COMPANY
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DEPT.CODE> = '1'
+
+!Y.SOURCE="BTB.JOB.REGISTER"
+!Y.MESSAGE = "PR.H.BTB.JOB.REGISTER,PR.BTB/I/PROCESS,,":Y.JOB.NO:",CUSTOMER.NO::=":Y.CUS:",DATE.OF.CREATION::=":Y.DATE:",EXPORT.LC.RF:":Y.COUNT1:":=":ID.NEW:",EXPORT.LC.NO:":Y.COUNT1:":=":Y.EXP.LC.NO:",EXPORT.LC.ADV.NO:":Y.COUNT1:":=":Y.ADV.NO:",EXPORT.LC.CY:":Y.COUNT1:":=":R.NEW(TF.LC.LC.CURRENCY):",LC.FOB.VALUE:":Y.COUNT1:":=":R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>:",ENTITLMNT.PR:":Y.COUNT1:":=":Y.ENT.PER:",ENTITLMNT.VL:":Y.COUNT1:":=":Y.JOB.ENT.VALUE2:",EXPIRY.DATE:":Y.COUNT1:":=":R.NEW(TF.LC.ADVICE.EXPIRY.DATE):",DATE.OF.CREATION::=":R.NEW(TF.LC.ISSUE.DATE):",TOT.ENT.LCY::=":Y.TOT.ENT.LCY:",ENTITLMNT.CY:":Y.COUNT1:":=":AMT3:",AVL.ENT.LCY::=":Y.AVL.ENT.LCY:",TOT.ENT.FC::=":Y.JOB.ENT.VAL.FC:",AVL.ENT.FC::=":Y.AVL.ENT.FC
+!GOSUB OFS.UPDATE
+                        CALL F.WRITE(FN.PR.H.BTB.JOB.REGISTER,Y.JOB.NO,R.PR.H.BTB.JOB.REGISTER)
+
+                    END ELSE
+                        Y.CUS=FIELD(Y.JOB.NO,".",2)
+                        Y.DATE=TODAY
+                        R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.VAL.POS>=Y.VAL
+                        R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS>=Y.JOB.ENT.VALUE
+                        IF R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.LCY> NE '' THEN
+*calculating available entitlemnt value
+                            Y.AVL.ENT.LCY=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.LCY> + Y.JOB.ENT.VALUE2
+                        END
+                        R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS>=Y.AVL.ENT.LCY
+                        Y.EXP.LC.NO=R.NEW(TF.LC.ISS.BANK.REF)
+                        Y.ADV.NO=R.NEW(TF.LC.LOCAL.REF)<1,Y.ADV.POS>
+                        Y.ENT.PER=TRIMBS(R.NEW(TF.LC.LOCAL.REF)<1,Y.ENT.PR.POS>)
+
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CUSTOMER.NO>=Y.CUS
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.RF,Y.COUNT1>=ID.NEW
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.ADV.NO,Y.COUNT1>=Y.ADV.NO
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.NO,Y.COUNT1>=Y.EXP.LC.NO
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.CY,Y.COUNT1>=R.NEW(TF.LC.LC.CURRENCY)
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.LC.FOB.VALUE,Y.COUNT1>=R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.PR,Y.COUNT1>=Y.ENT.PER
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.VL,Y.COUNT1>=Y.JOB.ENT.VALUE2
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPIRY.DATE,Y.COUNT1>=R.NEW(TF.LC.ADVICE.EXPIRY.DATE)
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DATE.OF.CREATION,Y.COUNT1>=R.NEW(TF.LC.ISSUE.DATE)
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.LCY>=Y.TOT.ENT.LCY
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.CY,Y.COUNT1>=Y.JOB.ENT.VALUE2
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.LCY>=Y.AVL.ENT.LCY
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.FC>=Y.JOB.ENT.VAL.FC
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.FC>=Y.AVL.ENT.FC
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CURR.NO> = '1'
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.INPUTTER> = R.NEW(TF.LC.INPUTTER)
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DATE.TIME> = R.NEW(TF.LC.DATE.TIME)
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AUTHORISER> = OPERATOR
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CO.CODE> = ID.COMPANY
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DEPT.CODE> = '1'
+
+!Y.SOURCE="BTB.JOB.REGISTER"
+!Y.MESSAGE = "PR.H.BTB.JOB.REGISTER,PR.BTB/I/PROCESS,,":Y.JOB.NO:",CUSTOMER.NO::=":Y.CUS:",EXPORT.LC.RF:":Y.COUNT1:":=":ID.NEW:",EXPORT.LC.ADV.NO:":Y.COUNT1:":=":Y.ADV.NO:",EXPORT.LC.NO:":Y.COUNT1:":=":Y.EXP.LC.NO:",EXPORT.LC.CY:":Y.COUNT1:":=":R.NEW(TF.LC.LC.CURRENCY):",LC.FOB.VALUE:":Y.COUNT1:":=":R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>:",ENTITLMNT.PR:":Y.COUNT1:":=":Y.ENT.PER:",ENTITLMNT.VL:":Y.COUNT1:":=":Y.JOB.ENT.VALUE2:",EXPIRY.DATE:":Y.COUNT1:":=":R.NEW(TF.LC.ADVICE.EXPIRY.DATE):",DATE.OF.CREATION:":Y.COUNT1:":=":R.NEW(TF.LC.ISSUE.DATE):",TOT.ENT.LCY::=":Y.TOT.ENT.LCY:",ENTITLMNT.CY:":Y.COUNT1:":=":Y.JOB.ENT.VALUE2:",AVL.ENT.LCY::=":Y.AVL.ENT.LCY:",TOT.ENT.FC::=":Y.JOB.ENT.VAL.FC:",AVL.ENT.FC::=":Y.AVL.ENT.FC
+!GOSUB OFS.UPDATE
+
+                        CALL F.WRITE(FN.PR.H.BTB.JOB.REGISTER,Y.JOB.NO,R.PR.H.BTB.JOB.REGISTER)
+                    END
+                    Y.CUSNO=FIELD(Y.JOB.NO,".",2)
+                    IF V$FUNCTION EQ 'I' OR V$FUNCTION 'A' OR V$FUNCTION EQ 'C' THEN
+                        CALL CONCAT.FILE.UPDATE(FN.PR.T.BTB.CUSTOMER.JOB.NO,Y.CUSNO,Y.JOB.NO,'I','AL')
+                    END
+                END
+            END CASE
+        END
+        RETURN
+*-----------------
+ID.FORMATION:
+*----------------
+        IF NOT(R.PR.T.BTB.SERIAL.NUMBER) THEN
+            Y.SER = "1"
+            Y.SERIAL.NUMBER="000":Y.SER
+*updating serial number concat file
+            CALL CONCAT.FILE.UPDATE(FN.PR.T.BTB.SERIAL.NUMBER,Y.CUSNO1,Y.SERIAL.NUMBER,'I','AL')
+        END ELSE
+            Y.COUNT=DCOUNT(R.PR.T.BTB.SERIAL.NUMBER,FM)
+            Y.SER=Y.COUNT + 1
+*updating serial numbr in serial number concat table
+            BEGIN CASE
+            CASE LEN(Y.SER) EQ 1
+                Y.SERIAL.NUMBER="000":Y.SER
+            CASE LEN(Y.SER) EQ 2
+                Y.SERIAL.NUMBER="00":Y.SER
+            CASE LEN(Y.SER) EQ 3
+                Y.SERIAL.NUMBER="0":Y.SER
+            CASE LEN(Y.SER) EQ 4
+                Y.SERIAL.NUMBER=Y.SER
+            END CASE
+*for delete function
+*-----------
+DEL.JOB:
+*-----------
+            IF V$FUNCTION EQ 'D' OR V$FUNCTION EQ 'R' THEN
+!IF V$FUNCTION EQ 'A' AND R.NEW(TF.LC.RECORD.STATUS) EQ 'RNAU' THEN
+*first if the field is set to new
+                IF R.NEW(TF.LC.LOCAL.REF)<1,Y.NEW.EXIST.POS> EQ "NEW" THEN
+                    Y.CONT.ID=ID.NEW
+*read btb.job.no.lc.ref file and job numbner for particular contract is taken
+                    CALL F.READ(FN.PR.T.BTB.JOB.NO.LC.REF,Y.CONT.ID,R.PR.T.BTB.JOB.NO.LC.REF,F.PR.T.BTB.JOB.NO.LC.REF,Y.ERR)
+                    Y.JOB.NUM = R.PR.T.BTB.JOB.NO.LC.REF<BTB.JOB.NO>
+*delete that record from concat file
+                    CALL CONCAT.FILE.UPDATE(FN.PR.T.BTB.JOB.NO.LC.REF,Y.CONT.ID,Y.JOB.NUM,'D','AL')
+*readr btb job register table
+                    CALL F.READ(FN.PR.H.BTB.JOB.REGISTER,Y.JOB.NUM,R.PR.H.BTB.JOB.REGISTER,F.PR.H.BTB.JOB.REGISTER,Y.ERR)
+*if the record exists delete it
+                    IF R.PR.T.BTB.JOB.NO.LC.REF THEN
+                        CMD = "DELETE ":FN.PR.H.BTB.JOB.REGISTER:" ":Y.JOB.NUM
+                        EXEC CMD
+                    END
+                END ELSE
+*if this field is set to exist
+!IF R.NEW(TF.LC.LOCAL.REF)<1,Y.NEW.EXIST.POS> EQ "EXIST" AND V$FUNCTION EQ 'D' OR 'R' THEN
+
+                    Y.CONT.ID=ID.NEW
+                    CALL F.READ(FN.PR.T.BTB.JOB.NO.LC.REF,Y.CONT.ID,R.PR.T.BTB.JOB.NO.LC.REF,F.PR.T.BTB.JOB.NO.LC.REF,Y.ERR)
+                    Y.JOB.NUM = R.PR.T.BTB.JOB.NO.LC.REF<BTB.JOB.NO>
+                    Y.ADV.NO=R.NEW(TF.LC.LOCAL.REF)<1,Y.ADV.POS>
+                    CALL CONCAT.FILE.UPDATE(FN.PR.T.BTB.JOB.NO.LC.REF,Y.CONT.ID,Y.JOB.NUM,'D','AL')
+                    CALL F.READ(FN.PR.H.BTB.JOB.REGISTER,Y.JOB.NUM,R.PR.H.BTB.JOB.REGISTER,F.PR.H.BTB.JOB.REGISTER,Y.ERR)
+                    FINDSTR Y.CONT.ID IN R.PR.H.BTB.JOB.REGISTER SETTING Y.CON.POS1,Y.CON.POS ELSE Y.CON.POS=0
+*calculating total and avilable lcy
+                    Y.TOT.ENT.FC=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.FC> - R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.VL,Y.CON.POS>
+                    Y.TOT.ENT.LCY=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.LCY> - R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.CY,Y.CON.POS>
+                    Y.AVL.ENT.LCY1=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.LCY>
+                    IF Y.AVL.ENT.LCY1 THEN
+                        Y.TOT.CON.LCY=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.CON.LCY>
+                        Y.TOT.CONT.LCY=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.CONT.LCY>
+                        Y.AVL.ENT.LCY=Y.TOT.ENT.LCY+Y.TOT.CON.LCY-Y.TOT.CONT.LCY
+                        Y.TOT.CON.FC=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.CON.FC>
+                        Y.TOT.ENT.FC=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.FC> - R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.VL,Y.CON.POS>
+                        Y.TOT.CONT.FC=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.CONT.FC>
+                        Y.AVL.ENT.FC=Y.TOT.ENT.FC+Y.TOT.CON.FC-Y.TOT.CONT.FC
+                    END
+*assigning to null respective deleted or reverse record
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.RF,Y.CON.POS>= ' '
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.CY,Y.CON.POS>= ' '
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.LC.FOB.VALUE,Y.CON.POS>= ' '
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.PR,Y.CON.POS>= ' '
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.VL,Y.CON.POS>= ' '
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPIRY.DATE,Y.CON.POS>= ' '
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.CY,Y.CON.POS>= ' '
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.ADV.NO,Y.CON.POS>= ' '
+                    Y.FOB.VAL=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.LC.FOB.VALUE,Y.CON.POS>
+                    Y.ENT.PR=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.PR,Y.CON.POS>
+                    Y.ENT.VAL=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.VL,Y.CON.POS>
+                    Y.CCY=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.CY,Y.CON.POS>
+                    Y.EXP.DATE=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPIRY.DATE,Y.CON.POS>
+                    Y.CONT.REF=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.RF,Y.CON.POS>
+                    Y.ENT.CY= R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.CY,Y.CON.POS>
+                    Y.EXPORT.LC.ADV.NO=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.ADV.NO,Y.CON.POS>
+                    Y.EXP.LC.NO=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.NO,Y.CON.POS>
+
+!------------------------------------------------------------------------------
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.RF,Y.CON.POS>=Y.CONT.REF
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.NO,Y.CON.POS>=Y.EXP.LC.NO
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.CY,Y.CON.POS>=Y.CCY
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.ADV.NO,Y.CON.POS>=Y.ADV.NO
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.LC.FOB.VALUE,Y.CON.POS>=Y.FOB.VAL
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.PR,Y.CON.POS>=Y.ENT.PR
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.VL,Y.CON.POS>=Y.ENT.VAL
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPIRY.DATE,Y.CON.POS>=Y.EXP.DATE
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.LCY>=Y.TOT.ENT.LCY
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.CY,Y.CON.POS>=Y.ENT.CY
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.FC>=Y.TOT.ENT.FC
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.ADV.NO,Y.CON.POS>=Y.EXPORT.LC.ADV.NO
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CURR.NO> = '1'
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.INPUTTER> = R.NEW(TF.LC.INPUTTER)
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DATE.TIME> = R.NEW(TF.LC.DATE.TIME)
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AUTHORISER> = OPERATOR
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CO.CODE> = ID.COMPANY
+                    R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DEPT.CODE> = '1'
+
+!Y.SOURCE="BTB.JOB.REGISTER"
+!Y.MESSAGE = "PR.H.BTB.JOB.REGISTER,PR.BTB/I/PROCESS,,":Y.JOB.NUM:",EXPORT.LC.RF:":Y.CON.POS:":=":Y.CONT.REF:",EXPORT.LC.NO:":Y.CON.POS:":=":Y.EXP.LC.NO:",EXPORT.LC.CY:":Y.CON.POS:":=":Y.CCY:",EXPORT.LC.ADV.NO:":Y.CON.POS:":=":Y.ADV.NO:",LC.FOB.VALUE:":Y.CON.POS:":=":Y.FOB.VAL:",ENTITLMNT.PR:":Y.CON.POS:":=":Y.ENT.PR:",ENTITLMNT.VL:":Y.CON.POS:":=":Y.ENT.VAL:",EXPIRY.DATE:":Y.CON.POS:":=":Y.EXP.DATE:",TOT.ENT.LCY::=":Y.TOT.ENT.LCY:",ENTITLMNT.CY:":Y.CON.POS:":=":Y.ENT.CY:",TOT.ENT.FC::=":Y.TOT.ENT.FC:",EXPORT.LC.ADV.NO:":Y.CON.POS:":=":Y.EXPORT.LC.ADV.NO
+                    IF Y.AVL.ENT.LCY THEN
+
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.RF,Y.CON.POS>=Y.CONT.REF
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.NO,Y.CON.POS>=Y.EXP.LC.NO
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.CY,Y.CON.POS>=Y.CCY
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.ADV.NO,Y.CON.POS>=Y.ADV.NO
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.LC.FOB.VALUE,Y.CON.POS>=Y.FOB.VAL
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.PR,Y.CON.POS>=Y.ENT.PR
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.VL,Y.CON.POS>=Y.ENT.VAL
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPIRY.DATE,Y.CON.POS>=Y.EXP.DATE
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.LCY>=Y.TOT.ENT.LCY
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.CY,Y.CON.POS>=Y.ENT.CY
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.FC>=Y.TOT.ENT.FC
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.ADV.NO,Y.CON.POS>=Y.EXPORT.LC.ADV.NO
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.LCY>=Y.AVL.ENT.LCY
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.FC>=Y.AVL.ENT.FC
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CURR.NO> = '1'
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.INPUTTER> = R.NEW(TF.LC.INPUTTER)
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DATE.TIME> = R.NEW(TF.LC.DATE.TIME)
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AUTHORISER> = OPERATOR
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CO.CODE> = ID.COMPANY
+                        R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DEPT.CODE> = '1'
+
+!Y.MESSAGE:=",AVL.ENT.LCY::=":Y.AVL.ENT.LCY:",AVL.ENT.FC::=":Y.AVL.ENT.FC
+                    END
+                    IF V$FUNCTION EQ 'D' OR V$FUNCTION EQ 'R' THEN
+                        OFS.MSG.ID=''
+!CALL OFS.POST.MESSAGE(Y.MESSAGE,OFS.MSG.ID,Y.SOURCE,'')
+!CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.MESSAGE)
+
+                        CALL F.WRITE(FN.PR.H.BTB.JOB.REGISTER,Y.JOB.NUM,R.PR.H.BTB.JOB.REGISTER)
+                        SENSITIVITY= ''
+                    END
+                END
+            END
+        END
+        RETURN
+*-----------------
+OFS.UPDATE:
+*----------------
+!DEBUG
+        IF V$FUNCTION EQ 'I'OR  V$FUNCTION EQ 'C' THEN
+            OFS.MSG.ID=''
+            CALL OFS.POST.MESSAGE(Y.MESSAGE,OFS.MSG.ID,Y.SOURCE,'')
+!CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.MESSAGE)
+            SENSITIVITY=''
+        END
+        RETURN
+*-------------
+CHECK.CCY:
+*-------------
+        BEGIN CASE
+*if ccy is a foreign currency
+
+        CASE Y.CCY NE LCCY
+            AMT1=''
+            AMT2=''
+            Y.JOB.VALUE=R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>
+            Y.NUM=R.NEW(TF.LC.LOCAL.REF)<1,Y.ENT.PR.POS>
+*calculating job entitlement value
+            Y.JOB.ENT.VALUE1=Y.JOB.VALUE * R.NEW(TF.LC.LOCAL.REF)<1,Y.ENT.PR.POS>
+            Y.JOB.ENT.VALUE=Y.JOB.ENT.VALUE1/100
+            R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.NO.POS>=Y.JOB.NO
+*converting foreign currency to local currency by exchange rates
+            CALL EXCHRATE('1',Y.CCY,Y.JOB.VALUE,LCCY,AMT2,'','','','',RET.CODE)
+            CALL EXCHRATE('1',Y.CCY,Y.JOB.ENT.VALUE,LCCY,AMT1,'','','','',RET.CODE)
+*updating btbjob register table
+            R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.VAL.POS>=Y.JOB.VALUE
+            R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS>=AMT1
+            Y.JOB=R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.VAL.POS>
+*updating btb job register table
+            Y.ADV.NO=R.NEW(TF.LC.LOCAL.REF)<1,Y.ADV.POS>
+            Y.EXP.LC.NO=R.NEW(TF.LC.ISS.BANK.REF)
+            Y.ENT.PER=TRIMBS(R.NEW(TF.LC.LOCAL.REF)<1,Y.ENT.PR.POS>)
+
+            IF Y.EXP.LC.NO EQ "" THEN
+                Y.EXP.LC.NO=R.NEW(TF.LC.LOCAL.REF)<1,Y.EXP.SALE.NO.POS>
+            END
+
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CUSTOMER.NO>=Y.CUS
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DATE.OF.CREATION>=Y.DATE
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.RF>=ID.NEW
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.ADV.NO>=Y.ADV.NO
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.NO>=Y.EXP.LC.NO
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.CY>=R.NEW(TF.LC.LC.CURRENCY)
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.LC.FOB.VALUE>=R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.PR>=Y.ENT.PER
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPIRY.DATE>=R.NEW(TF.LC.ADVICE.EXPIRY.DATE)
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.VL>=Y.JOB.ENT.VALUE
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.LCY>=AMT1
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.CY>=AMT1
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.LCY>=AMT1
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.FC>=Y.JOB.ENT.VALUE
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.FC>=Y.JOB.ENT.VALUE
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CURR.NO> = '1'
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.INPUTTER> = R.NEW(TF.LC.INPUTTER)
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DATE.TIME> = R.NEW(TF.LC.DATE.TIME)
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AUTHORISER> = OPERATOR
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CO.CODE> = ID.COMPANY
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DEPT.CODE> = '1'
+
+!Y.SOURCE="BTB.JOB.REGISTER"
+!Y.MESSAGE = "PR.H.BTB.JOB.REGISTER,PR.BTB/I/PROCESS,,":Y.JOB.NO:",CUSTOMER.NO::=":Y.CUS:",DATE.OF.CREATION::=":Y.DATE:",EXPORT.LC.RF::=":ID.NEW:",EXPORT.LC.ADV.NO::=":Y.ADV.NO:",EXPORT.LC.NO::=":Y.EXP.LC.NO:",EXPORT.LC.CY::=":R.NEW(TF.LC.LC.CURRENCY):",LC.FOB.VALUE::=":R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>:",ENTITLMNT.PR::=":Y.ENT.PER:",EXPIRY.DATE::=":R.NEW(TF.LC.ADVICE.EXPIRY.DATE):",ENTITLMNT.VL::=":Y.JOB.ENT.VALUE:",TOT.ENT.LCY::=":AMT1:",ENTITLMNT.CY::=":AMT1:",AVL.ENT.LCY::=":AMT1:",TOT.ENT.FC::=":Y.JOB.ENT.VALUE:",AVL.ENT.FC::=":Y.JOB.ENT.VALUE
+!OFS.MSG.ID=''
+!CALL OFS.POST.MESSAGE(Y.MESSAGE,OFS.MSG.ID,Y.SOURCE,'')
+!CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.MESSAGE)
+
+            CALL F.WRITE(FN.PR.H.BTB.JOB.REGISTER,Y.JOB.NO,R.PR.H.BTB.JOB.REGISTER)
+*this is a common variable used to avoid fatal error during updation thru ofs
+            SENSITIVITY=''
+*if currency is a local currency
+        CASE Y.CCY EQ LCCY
+            Y.CUS=FIELD(Y.JOB.NO,".",2)
+            Y.DATE=TODAY
+            Y.JOB.VALUE=R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>
+*calculating entitlement value
+            Y.JOB.ENT.VALUE1=Y.JOB.VALUE * R.NEW(TF.LC.LOCAL.REF)<1,Y.ENT.PR.POS>
+            Y.JOB.ENT.VALUE=Y.JOB.ENT.VALUE1/100
+            R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS>=Y.JOB.ENT.VALUE
+            R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.VAL.POS>=Y.JOB.VALUE
+*updating btbjobregister table
+            Y.ADV.NO=R.NEW(TF.LC.LOCAL.REF)<1,Y.ADV.POS>
+            Y.EXP.LC.NO=R.NEW(TF.LC.ISS.BANK.REF)
+            Y.ENT.PER=TRIMBS(R.NEW(TF.LC.LOCAL.REF)<1,Y.ENT.PR.POS>)
+
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CUSTOMER.NO>=Y.CUS
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DATE.OF.CREATION>=Y.DATE
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.RF>=ID.NEW
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.NO>=Y.EXP.LC.NO
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.ADV.NO>=Y.ADV.NO
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.CY>=R.NEW(TF.LC.LC.CURRENCY)
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.LC.FOB.VALUE>=R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.PR>=Y.ENT.PER
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.VL>=Y.JOB.ENT.VALUE
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPIRY.DATE>=R.NEW(TF.LC.ADVICE.EXPIRY.DATE)
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.LCY>=Y.JOB.ENT.VALUE
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.ENTITLMNT.CY>=Y.JOB.ENT.VALUE
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.LCY>=Y.JOB.ENT.VALUE
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.TOT.ENT.FC>=Y.JOB.ENT.VALUE
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.FC>=Y.JOB.ENT.VALUE
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CURR.NO> = '1'
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.INPUTTER> = R.NEW(TF.LC.INPUTTER)
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DATE.TIME> = R.NEW(TF.LC.DATE.TIME)
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AUTHORISER> = OPERATOR
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.CO.CODE> = ID.COMPANY
+            R.PR.H.BTB.JOB.REGISTER<BTB.JOB.DEPT.CODE> = '1'
+
+!Y.SOURCE="BTB.JOB.REGISTER"
+!Y.MESSAGE = "PR.H.BTB.JOB.REGISTER,PR.BTB/I/PROCESS,,":Y.JOB.NO:",CUSTOMER.NO::=":Y.CUS:",DATE.OF.CREATION::=":Y.DATE:",EXPORT.LC.RF::=":ID.NEW:",EXPORT.LC.NO::=":Y.EXP.LC.NO:",EXPORT.LC.ADV.NO::=":Y.ADV.NO:",EXPORT.LC.CY::=":R.NEW(TF.LC.LC.CURRENCY):",LC.FOB.VALUE::=":R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.VAL.POS>:",ENTITLMNT.PR::=":Y.ENT.PER:",ENTITLMNT.VL::=":Y.JOB.ENT.VALUE:",EXPIRY.DATE::=":R.NEW(TF.LC.ADVICE.EXPIRY.DATE):",TOT.ENT.LCY::=":Y.JOB.ENT.VALUE:",ENTITLMNT.CY::=":Y.JOB.ENT.VALUE:",AVL.ENT.LCY::=":Y.JOB.ENT.VALUE:",TOT.ENT.FC::=":Y.JOB.ENT.VALUE:",AVL.ENT.FC::=":Y.JOB.ENT.VALUE
+!GOSUB OFS.UPDATE
+
+            CALL F.WRITE(FN.PR.H.BTB.JOB.REGISTER,Y.JOB.NO,R.PR.H.BTB.JOB.REGISTER)
+        END CASE
+        RETURN
+    END

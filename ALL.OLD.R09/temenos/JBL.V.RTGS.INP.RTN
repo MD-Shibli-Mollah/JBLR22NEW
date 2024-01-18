@@ -1,0 +1,54 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+****************************************************************************************
+*Developed By: Mohammad Kabir Hossain-PO(IT)                                     *
+*This routine is attachted to FUNDS.TRANSFER,RTGS.OUTW.TXN VERSION as a INPUT ROUTINE, *
+*it is used to validation purpose.                                                     *
+*Date:2018/05/28                                                                      *
+****************************************************************************************
+    SUBROUTINE JBL.V.RTGS.INP.RTN
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+
+!*********************************VALIDATION FOR SPECIAL CHARACTER START***************************
+
+    CALL GET.LOC.REF('FUNDS.TRANSFER','BENEFI.NAME',BENEFI.NAME.POS)
+    Y.BENEFI.NAME =  R.NEW(FT.LOCAL.REF)<1,BENEFI.NAME.POS>
+
+    Y.COUNT=DCOUNT(Y.BENEFI.NAME," ")
+    FOR I=1 TO Y.COUNT
+        IF NOT(ALPHA(FIELD(Y.BENEFI.NAME," ",I))) THEN
+!AF = 'LOCAL.REF'
+!AV = 'BENEFI.NAME'
+            ETEXT ="PLEASE REMOVE SPECIAL CHARACTER FROM BENEFICIARY NAME"
+            CALL STORE.END.ERROR
+        END
+    NEXT I
+
+    CALL GET.LOC.REF('FUNDS.TRANSFER','REMARKS',REMARKS.POS)
+    Y.REMARKS = R.NEW(FT.LOCAL.REF)<1,REMARKS.POS>
+
+    Y.COUNT=DCOUNT(Y.REMARKS," ")
+    FOR I=1 TO Y.COUNT
+        IF NOT(ISALNUM(FIELD(Y.REMARKS," ",I))) THEN
+!AF = 'LOCAL.REF'
+!AV = 'REMARKS'
+            ETEXT ="PLEASE REMOVE SPECIAL CHARACTER FROM PAYMENT INFORMATION"
+            CALL STORE.END.ERROR
+        END
+    NEXT I
+
+    CALL GET.LOC.REF('FUNDS.TRANSFER','ACCT.NO',ACCT.NO.POS)
+    Y.ACCT.NO =  R.NEW(FT.LOCAL.REF)<1,ACCT.NO.POS>
+
+    Y.IS.DIGIT=ISDIGIT(Y.ACCT.NO)
+
+    IF Y.IS.DIGIT EQ 0 THEN
+        ETEXT ="PLEASE CHECK BENEFICIARY A/C NUMBER"
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+END

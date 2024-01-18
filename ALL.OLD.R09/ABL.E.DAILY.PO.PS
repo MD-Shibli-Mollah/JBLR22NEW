@@ -1,0 +1,225 @@
+*-----------------------------------------------------------------------------
+* <Rating>346</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.E.DAILY.PO.PS(Y.RETURN)
+!    PROGRAM ABL.E.DAILY.PO.PS
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.PR.H.INSTR.ISSUED
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.INSTR='F.PR.H.INSTR.ISSUED'
+    F.INSTR=''
+    Y.ID=''
+    R.INSTR=''
+    Y.ERR=''
+
+    FN.FT='F.FUNDS.TRANSFER'
+    F.FT=''
+    R.FT=''
+    Y.FT.ERR=''
+    R.FT.COL=''
+    Y.FT.COL.ERR=''
+
+    FN.TT='F.TELLER'
+    F.TT=''
+    R.TT=''
+    Y.TT.ERR=''
+
+
+!---------------TIPU.20170720-----------------
+!Y.DATE=ENQ.SELECTION<4,1>
+
+    LOCATE "DATE" IN ENQ.SELECTION<2,1> SETTING Y.DATE.POS THEN
+        Y.DATE = ENQ.SELECTION<4,Y.DATE.POS>
+    END
+    LOCATE "CHQ.TYPE" IN ENQ.SELECTION<2,1> SETTING Y.CHQ.POS THEN
+        Y.CHQ.TYPE = ENQ.SELECTION<4,Y.CHQ.POS>
+    END
+!---------------------------------------------
+
+    Y.PO.ISSUE.COUNT='0'
+    Y.PS.ISSUE.COUNT='0'
+    Y.PO.COLL.COUNT='0'
+    Y.PS.COLL.COUNT='0'
+    Y.TOT.PO.ISSUE='0'
+    Y.TOT.PS.ISSUE='0'
+    Y.TOT.PO.COLL='0'
+    Y.TOT.PS.COLL='0'
+
+    Y.TOT.PO.ISSUE=''
+    Y.TOT.PS.ISSUE=''
+
+    Y.SDR.ISSUE.COUNT=''
+    Y.SDR.COLL.COUNT=''
+    Y.TOT.SDR.ISSUE=''
+    Y.TOT.SDR.COLL=''
+
+    Y.RETURN=''
+    Y.DR.AC=''
+    Y.DR.AMT=''
+    Y.STATUS=''
+    Y.ISSUE.COUNT=''
+    Y.COLL.COUNT=''
+
+    Y.FT.STATUS="PO.PS.DD.STATUS"
+    Y.FT.STATUS.POS=''
+    CALL GET.LOC.REF("FUNDS.TRANSFER",Y.FT.STATUS,Y.FT.STATUS.POS)
+
+    Y.TT.STATUS="PO.PS.DD.STATUS"
+    Y.TT.STATUS.POS=''
+    CALL GET.LOC.REF("TELLER",Y.TT.STATUS,Y.TT.STATUS.POS)
+
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.INSTR,F.INSTR)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.TT,F.TT)
+    RETURN
+
+PROCESS:
+!   DEBUG
+!    SEL.CMD = "SELECT ":FN.INSTR:" WITH COLL.TXN.REF EQ FT1024318256 TT1024325802 "
+!SEL.CMD = "SELECT ":FN.INSTR:" WITH (CHEQUE.TYPE EQ 'PO' OR CHEQUE.TYPE EQ 'PS' OR CHEQUE.TYPE EQ 'SDR') AND (DATE.OF.ISSUE EQ ":Y.DATE:" OR DATE.OF.PRESENTED EQ ":Y.DATE:" ) AND CO.CODE EQ ":ID.COMPANY:" BY CHEQUE.TYPE BY CHEQUE.NUMBER "
+
+!------------------TIPU.20170720----------------
+!SEL.CMD = "SELECT ":FN.INSTR:" WITH (CHEQUE.TYPE EQ 'PO' OR CHEQUE.TYPE EQ 'PS' OR CHEQUE.TYPE EQ 'SDR') AND (DATE.OF.ISSUE EQ ":Y.DATE:" OR DATE.OF.PRESENTED EQ ":Y.DATE:" ) AND CO.CODE EQ ":ID.COMPANY:" BY CHEQUE.TYPE "
+    IF Y.CHQ.TYPE EQ "" THEN
+        SEL.CMD = "SELECT ":FN.INSTR:" WITH DATE.OF.ISSUE EQ ":Y.DATE:" AND CO.CODE EQ ":ID.COMPANY:" OR DATE.OF.PRESENTED EQ ":Y.DATE:" AND CO.CODE EQ ":ID.COMPANY
+    END ELSE
+        SEL.CMD = "SELECT ":FN.INSTR:" WITH CHEQUE.TYPE EQ ":Y.CHQ.TYPE:" AND DATE.OF.ISSUE EQ ":Y.DATE:" AND CO.CODE EQ ":ID.COMPANY:" OR CHEQUE.TYPE EQ ":Y.CHQ.TYPE:" AND DATE.OF.PRESENTED EQ ":Y.DATE:" AND CO.CODE EQ ":ID.COMPANY
+    END
+!-----------------------------------------------
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',REC.NO,RET.CODE)
+
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+        CALL F.READ(FN.INSTR,Y.ID,R.INSTR,F.INSTR,Y.ERR)
+
+        Y.CHEQUE.TYPE=R.INSTR<INS.CHEQUE.TYPE>
+        Y.DATE.OF.ISSUE=R.INSTR<INS.DATE.OF.ISSUE>
+        Y.CHEQUE.NUMBER=R.INSTR<INS.CHEQUE.NUMBER>
+        Y.PAY.TO=R.INSTR<INS.PAY.TO>
+        Y.ISSUE.AMOUNT=R.INSTR<INS.ISSUE.AMOUNT>
+        Y.ISSUE.TXN.REF=R.INSTR<INS.ISSUE.TXN.REF>
+        Y.DATE.OF.PRESENTED=R.INSTR<INS.DATE.OF.PRESENTED>
+        Y.COLL.TXN.REF=R.INSTR<INS.COLL.TXN.REF>
+
+!**********ISSUED***********************!
+
+        IF Y.DATE.OF.ISSUE EQ Y.DATE THEN
+            Y.CR.AMT=Y.ISSUE.AMOUNT
+            Y.CR.CUS.CHECK=Y.ISSUE.TXN.REF[1,2]
+
+            IF Y.CHEQUE.TYPE EQ 'PO' THEN
+                Y.PO.ISSUE.COUNT=Y.PO.ISSUE.COUNT+1
+                Y.TOT.PO.ISSUE=Y.TOT.PO.ISSUE+Y.CR.AMT
+                Y.ISSUE.COUNT=Y.PO.ISSUE.COUNT
+            END
+            IF Y.CHEQUE.TYPE EQ 'PS' THEN
+                Y.PS.ISSUE.COUNT=Y.PS.ISSUE.COUNT+1
+                Y.TOT.PS.ISSUE=Y.TOT.PS.ISSUE+Y.CR.AMT
+                Y.ISSUE.COUNT=Y.PS.ISSUE.COUNT
+            END
+
+            IF Y.CHEQUE.TYPE EQ 'SDR' THEN
+                Y.SDR.ISSUE.COUNT=Y.SDR.ISSUE.COUNT+1
+                Y.TOT.SDR.ISSUE=Y.TOT.SDR.ISSUE+Y.CR.AMT
+                Y.ISSUE.COUNT=Y.SDR.ISSUE.COUNT
+            END
+
+!*********
+!           Y.ISSUE.COUNT=Y.PO.ISSUE.COUNT
+!            Y.ISSUE.COUNT=Y.PS.ISSUE.COUNT
+!*********
+
+
+            IF Y.CR.CUS.CHECK EQ 'FT' THEN
+                CALL F.READ(FN.FT,Y.ISSUE.TXN.REF,R.FT,F.FT,Y.FT.ERR)
+                Y.CR.AC=R.FT<FT.DEBIT.ACCT.NO>
+            END ELSE
+                Y.CR.AC=''
+            END
+        END
+!***********************END**************************!
+
+
+!*******************COLLECTED************************!
+
+        IF Y.DATE.OF.PRESENTED EQ Y.DATE THEN
+            Y.DR.AMT=Y.ISSUE.AMOUNT
+            Y.DR.CUS.CHECK=Y.COLL.TXN.REF[1,2]
+
+            IF Y.CHEQUE.TYPE EQ 'PO' THEN
+                Y.PO.COLL.COUNT=Y.PO.COLL.COUNT+1
+                Y.TOT.PO.COLL=Y.TOT.PO.COLL+Y.DR.AMT
+                Y.COLL.COUNT=Y.PO.COLL.COUNT
+            END
+            IF Y.CHEQUE.TYPE EQ 'PS' THEN
+                Y.PS.COLL.COUNT=Y.PS.COLL.COUNT+1
+                Y.TOT.PS.COLL=Y.TOT.PS.COLL+Y.DR.AMT
+                Y.COLL.COUNT=Y.PS.COLL.COUNT
+            END
+
+            IF Y.CHEQUE.TYPE EQ 'SDR' THEN
+                Y.SDR.COLL.COUNT=Y.SDR.COLL.COUNT+1
+                Y.TOT.SDR.COLL=Y.TOT.SDR.COLL+Y.DR.AMT
+                Y.COLL.COUNT=Y.SDR.COLL.COUNT
+            END
+
+
+!**************
+!            Y.COLL.COUNT=Y.PO.COLL.COUNT
+!            Y.COLL.COUNT=Y.PS.COLL.COUNT
+!**************
+
+            IF Y.DR.CUS.CHECK EQ 'FT' THEN
+                CALL F.READ(FN.FT,Y.COLL.TXN.REF,R.FT.COL,F.FT,Y.FT.COL.ERR)
+                Y.DR.AC=R.FT.COL<FT.CREDIT.ACCT.NO>
+                Y.STATUS=R.FT.COL<FT.LOCAL.REF,Y.FT.STATUS.POS>
+            END ELSE
+                Y.DR.AC=''
+                CALL F.READ(FN.TT,Y.COLL.TXN.REF,R.TT,F.TT,Y.TT.ERR)
+                Y.STATUS=R.TT<TT.TE.LOCAL.REF,Y.TT.STATUS.POS>
+            END
+
+        END
+
+
+        Y.RETURN<-1>=Y.CHEQUE.TYPE:"*":Y.CHEQUE.NUMBER:"*":Y.CR.AC:"*":Y.DR.AC:"*":Y.PAY.TO:"*":Y.CR.AMT:"*":Y.DR.AMT:"*":Y.STATUS:"*":Y.ISSUE.COUNT:"*":Y.COLL.COUNT
+!        Y.RETURN<-1>=Y.CHEQUE.TYPE:"*":Y.CHEQUE.NUMBER:"*":Y.CR.AC:"*":Y.DR.AC:"*":Y.PAY.TO:"*":Y.CR.AMT:"*":Y.DR.AMT:"*":Y.STATUS:"*":Y.TOT.PO.ISSUE:"*":Y.TOT.PO.COLL:"*":Y.PO.ISSUE.COUNT:"*":Y.PO.COLL.COUNT:"*":Y.TOT.PS.ISSUE:"*":Y.TOT.PS.COLL:"*":Y.PS.ISSUE.COUNT:"*":Y.PS.COLL.COUNT
+
+
+        Y.CHEQUE.TYPE=''
+        Y.DATE.OF.ISSUE=''
+        Y.CHEQUE.NUMBER=''
+        Y.PAY.TO=''
+        Y.ISSUE.AMOUNT=''
+        Y.ISSUE.TXN.REF=''
+        Y.DATE.OF.PRESENTED=''
+        Y.COLL.TXN.REF=''
+        Y.CR.AC=''
+        Y.DR.AC=''
+        Y.CR.AMT=''
+        Y.DR.AMT=''
+        Y.STATUS=''
+
+    REPEAT
+    Y.RETURN = SORT(Y.RETURN)
+!    PRINT Y.RETURN
+    RETURN
+
+END

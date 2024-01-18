@@ -1,0 +1,79 @@
+*-----------------------------------------------------------------------------
+* <Rating>60</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.UPDATE.PUR.REAL.DR
+!PROGRAM BD.UPDATE.PUR.REAL.DR
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This auth routine is update DR Purchase Realization FT
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20/04/2012 - New - Rayhan
+*
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.DRAWINGS
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.FUNDS.TRANSFER
+
+    IF V$FUNCTION = "A" THEN
+        GOSUB INITIALISE
+        GOSUB PROCESS
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+    CALL OPF(FN.FT,F.FT)
+    R.FT.REC = ''
+    Y.FT.ERR = ''
+
+    FN.DR = 'F.DRAWINGS'
+    F.DR = ''
+    CALL OPF(FN.DR,F.DR)
+    R.DR.REC = ''
+    Y.DR.ERR = ''
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    CALL OPF(FN.AC,F.AC)
+    R.AC.REC = ''
+    Y.AC.ERR = ''
+
+    Y.CNTNO.POS = ''
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+    GOSUB GET.LOC.REF.POS
+    GOSUB UPDATE.PUR.REAL.DR
+    RETURN
+
+*-----------------------------------------------------------------------------
+UPDATE.PUR.REAL.DR:
+*-----------------
+    Y.DR.ID =  R.NEW(FT.LOCAL.REF)<1,Y.FT.DRNO.POS>
+    Y.FT.ID =ID.NEW
+    IF Y.DR.ID EQ '' THEN RETURN
+    CALL F.READ(FN.DR,Y.DR.ID,R.DR.REC,F.DR,Y.DR.ERR)
+    Y.CNTNO.POS = DCOUNT(R.DR.REC<TF.DR.LOCAL.REF,Y.DR.FTNO.POS>,@VM) + 1
+    R.DR.REC<TF.DR.LOCAL.REF,Y.DR.FTNO.POS,Y.CNTNO.POS> = Y.FT.ID
+    R.DR.REC<TF.DR.LOCAL.REF,Y.DR.RELAMT.POS,Y.CNTNO.POS> = R.NEW(FT.DEBIT.AMOUNT)
+    CALL F.WRITE(FN.DR,Y.DR.ID,R.DR.REC)
+    RETURN
+*-----------------------------------------------------------------------------
+GET.LOC.REF.POS:
+*--------------
+    CALL GET.LOC.REF("FUNDS.TRANSFER","LINKED.TFDR.REF",Y.FT.DRNO.POS)
+    CALL GET.LOC.REF("DRAWINGS","FTT.NUMBER",Y.DR.FTNO.POS)
+    CALL GET.LOC.REF("DRAWINGS","PUR.REAL.AMT",Y.DR.RELAMT.POS)
+    RETURN
+END

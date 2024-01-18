@@ -1,0 +1,17 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.PRECLOSE.VERSION
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    Y.REPAY.TYPE = O.DATA
+
+    IF Y.REPAY.TYPE EQ 'SAVINGS-PLAN' THEN
+        O.DATA='AZ,RD.PRECLOSE'
+    END
+    ELSE
+        O.DATA='AZ,FD.PRECLOSE'
+    END
+    RETURN
+END

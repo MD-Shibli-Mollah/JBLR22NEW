@@ -1,0 +1,201 @@
+*-----------------------------------------------------------------------------
+* <Rating>-6</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.BTB.JOB.REGISTER.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine YOURAPPLICATION.FIELDS
+*
+* @author tcoleman@temenos.com
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* Modification History :
+*
+* 19/10/07 - EN_10003543
+*            New Template changes
+*
+* 14/11/07 - BG_100015736
+*            Exclude routines that are not released
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT T24.BP I_COMMON
+    $INSERT T24.BP I_EQUATE
+    $INSERT T24.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("BTB.JOB.NO", T24_String) ;* Define Table id
+*-----------------------------------------------------------------------------
+    CALL Table.addFieldDefinition("CUSTOMER.NO","15","","")
+    CALL Field.setCheckFile("CUSTOMER")
+    CALL Table.addFieldDefinition("JOB.CREATE.DATE","12","D","")
+    CALL Table.addFieldDefinition("JOB.CURRENCY","3","A","")
+
+    CALL Table.addFieldDefinition("XX<CON.TF.REF.NO","20","A","")
+    CALL Table.addFieldDefinition("XX-CON.CONTACT.NO","65","A","")
+    CALL Table.addFieldDefinition("XX-CON.CONT.CURR","3","A","")
+    CALL Table.addAmountField('XX-CON.CONT.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("XX-CON.ISSUE.DATE","12","D","")
+    CALL Table.addOptionsField('XX-CON.LC.OR.CONT','EXPORTLC_CONTRACT','','')
+    CALL Table.addOptionsField('XX-CON.REP.ALLOW','YES_NO','','')
+    CALL Table.addOptionsField('XX-CON.REPLACE','FULL_PART','','')
+    CALL Table.addOptionsField('XX-CON.REP.STATS','OWN_SPLIT','','')
+    CALL Table.addAmountField('XX-CON.REPLAC.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addAmountField('XX-CON.OUTST.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addAmountField('XX-CON.NET.FOB.VALUE','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("XX-CON.BTB.ENT.PER","5","A","")
+    CALL Table.addAmountField('XX-CON.BTB.ENT.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("XX-CON.PC.ENT.PER","5","A","")
+    CALL Table.addAmountField('XX-CON.PC.ENT.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("XX-XX<CON.REP.BYLC","40","A","")
+    CALL Field.setCheckFile("LETTER.OF.CREDIT")
+    CALL Table.addAmountField('XX-XX>CON.REP.LC.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("XX-XX<CON.DR.ID","20","A","")
+    CALL Field.setCheckFile("DRAWINGS")
+    CALL Table.addFieldDefinition("XX-XX-CON.DR.REF.NO","35","A","")
+    CALL Table.addFieldDefinition("XX-XX-CON.DR.DATE","12","D","")
+    CALL Table.addFieldDefinition("XX-XX-CON.DR.TYPE","15","A","")
+    CALL Table.addAmountField('XX-XX-CON.DR.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("XX-XX-CON.PUR.ID","20","A","")
+    CALL Table.addFieldDefinition("XX-XX-CON.PUR.REF.NO","35","A","")
+    CALL Table.addFieldDefinition("XX-XX-CON.PUR.LI.PROD","10","A","")
+    CALL Table.addFieldDefinition("XX-XX-CON.PUR.STAT.DT","12","D","")
+    CALL Table.addFieldDefinition("XX-XX-CON.PUR.MAT.DT","12","D","")
+    CALL Table.addFieldDefinition("XX-XX-CON.PUR.FC.CUR","3","A","")
+    CALL Table.addAmountField('XX-XX-CON.PUR.AMT.FCY','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("XX-XX-CON.PUR.EX.RT","7","A","")
+    CALL Table.addAmountField('XX-XX>CON.PUR.AMT.LCY','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addReservedField('XX-RESERVED.35')
+    CALL Table.addReservedField('XX-RESERVED.34')
+    CALL Table.addReservedField('XX-RESERVED.33')
+    CALL Table.addReservedField('XX-RESERVED.32')
+    CALL Table.addReservedField('XX-RESERVED.31')
+    CALL Table.addFieldDefinition("XX>CON.EXP.DATE","12","D","")
+
+    CALL Table.addFieldDefinition("XX<EX.TF.REF","20","A","")
+    CALL Field.setCheckFile("LETTER.OF.CREDIT")
+    CALL Table.addFieldDefinition("XX-EX.ISSUE.DATE","12","D","")
+    CALL Table.addFieldDefinition("XX-EX.LC.NUMBER","40","A","")
+    CALL Table.addFieldDefinition("XX-EX.LC.CURRENCY","3","A","")
+    CALL Table.addAmountField('XX-EX.LC.AMOUNT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addAmountField('XX-EX.NET.FOB.VALUE','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("XX-EX.BTB.ENT.PER","5","A","")
+    CALL Table.addAmountField('XX-EX.BTB.ENT.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addAmountField('XX-EX.BTB.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addAmountField('XX-EX.BTB.AVL.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("XX-EX.PC.ENT.PER","5","A","")
+    CALL Table.addAmountField('XX-EX.PC.ENT.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addAmountField('XX-EX.PC.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addAmountField('XX-EX.PC.AVL.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("XX-XX<LC.REP.BYCONT","40","A","")
+    CALL Table.addAmountField('XX-XX>LC.REP.CONT.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("XX-XX<EX.DR.ID","20","A","")
+    CALL Field.setCheckFile("DRAWINGS")
+    CALL Table.addFieldDefinition("XX-XX-EX.DR.REF.NO","35","A","")
+    CALL Table.addFieldDefinition("XX-XX-EX.DR.DATE","12","D","")
+    CALL Table.addFieldDefinition("XX-XX-EX.DR.TYPE","15","A","")
+    CALL Table.addAmountField('XX-XX-EX.DR.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("XX-XX-EX.PUR.ID","20","A","")
+    CALL Table.addFieldDefinition("XX-XX-EX.PUR.REF.NO","35","A","")
+    CALL Table.addFieldDefinition("XX-XX-EX.PUR.LI.PROD","10","A","")
+    CALL Table.addFieldDefinition("XX-XX-EX.PUR.STAT.DT","12","D","")
+    CALL Table.addFieldDefinition("XX-XX-EX.PUR.MAT.DT","12","D","")
+    CALL Table.addFieldDefinition("XX-XX-EX.PUR.FC.CUR","3","A","")
+    CALL Table.addAmountField('XX-XX-EX.PUR.AMT.FCY','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("XX-XX-EX.PUR.EX.RT","7","A","")
+    CALL Table.addAmountField('XX-XX>EX.PUR.AMT.LCY','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addReservedField('XX-RESERVED.30')
+    CALL Table.addReservedField('XX-RESERVED.29')
+    CALL Table.addReservedField('XX-RESERVED.28')
+    CALL Table.addReservedField('XX-RESERVED.27')
+    CALL Table.addReservedField('XX-RESERVED.26')
+    CALL Table.addFieldDefinition("XX>EX.EXPIRY.DATE","12","D","")
+
+    CALL Table.addFieldDefinition("XX<IM.TF.REF","20","A","")
+    CALL Field.setCheckFile("LETTER.OF.CREDIT")
+    CALL Table.addFieldDefinition("XX-IM.ISSUE.DATE","12","D","")
+    CALL Table.addFieldDefinition("XX-IM.BB.LC.NO","25","A","")
+    CALL Table.addFieldDefinition("XX-IM.LC.CURRENCY","3","A","")
+    CALL Table.addAmountField('XX-IM.LC.AMOUNT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("XX-XX<IM.DR.ID","20","A","")
+    CALL Field.setCheckFile("DRAWINGS")
+    CALL Table.addFieldDefinition("XX-XX-IM.DR.REF.NO","35","A","")
+    CALL Table.addFieldDefinition("XX-XX-IM.DR.DATE","12","D","")
+    CALL Table.addFieldDefinition("XX-XX-IM.DR.TYPE","15","A","")
+    CALL Table.addAmountField('XX-XX-IM.DR.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("XX-XX-IM.PAD.ID","20","A","")
+    CALL Table.addFieldDefinition("XX-XX-IM.PAD.REF.NO","35","A","")
+    CALL Table.addFieldDefinition("XX-XX-IM.PAD.LI.PROD","10","A","")
+    CALL Table.addFieldDefinition("XX-XX-IM.PAD.STAT.DT","12","D","")
+    CALL Table.addFieldDefinition("XX-XX-IM.PAD.MAT.DT","12","D","")
+    CALL Table.addFieldDefinition("XX-XX-IM.PAD.FC.CUR","3","A","")
+    CALL Table.addAmountField('XX-XX-IM.PAD.AMT.FCY','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("XX-XX-IM.PAD.EX.RT","7","A","")
+    CALL Table.addAmountField('XX-XX>IM.PAD.AMT.LCY','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addReservedField('XX-RESERVED.25')
+    CALL Table.addReservedField('XX-RESERVED.24')
+    CALL Table.addReservedField('XX-RESERVED.23')
+    CALL Table.addReservedField('XX-RESERVED.22')
+    CALL Table.addReservedField('XX-RESERVED.21')
+    CALL Table.addFieldDefinition("XX>IM.EXPIRY.DATE","12","D","")
+
+    CALL Table.addFieldDefinition("XX<PCECC.LOAN.ID","20","A","")
+    CALL Table.addFieldDefinition("XX-LOAN.REF.NO","35","A","")
+    CALL Table.addFieldDefinition("XX-LOAN.LI.PROD","10","A","")
+    CALL Table.addFieldDefinition("XX-LOAN.STAT.DT","12","D","")
+    CALL Table.addFieldDefinition("XX-LOAN.FC.CUR","3","A","")
+    CALL Table.addAmountField('XX-LOAN.AMT.FCY','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("XX-LOAN.EX.RT","7","A","")
+    CALL Table.addAmountField('XX-LOAN.AMT.LCY','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addReservedField('XX-RESERVED.20')
+    CALL Table.addReservedField('XX-RESERVED.19')
+    CALL Table.addReservedField('XX-RESERVED.18')
+    CALL Table.addReservedField('XX-RESERVED.17')
+    CALL Table.addReservedField('XX-RESERVED.16')
+    CALL Table.addFieldDefinition("XX>LOAN.MAT.DT","12","D","")
+
+    CALL Table.addField('XX<TF.PARK.ACID',T24_Account,'','')
+    CALL Table.addFieldDefinition('XX-TF.PARK.CURR','3','A','')
+    CALL Table.addOptionsField('XX-TF.PARK.TYPE','SETTLE_FCHELD','','')
+    CALL Table.addReservedField('XX-RESERVED.15')
+    CALL Table.addReservedField('XX-RESERVED.14')
+    CALL Table.addReservedField('XX-RESERVED.13')
+    CALL Table.addReservedField('XX-RESERVED.12')
+    CALL Table.addReservedField('XX-RESERVED.11')
+    CALL Table.addAmountField('XX>TF.PARK.OUT.AMT','CURRENCY',Field_AllowNegative,'')
+
+    CALL Table.addReservedField('XX.RESERVED.10')
+    CALL Table.addReservedField('XX.RESERVED.09')
+    CALL Table.addReservedField('XX.RESERVED.08')
+    CALL Table.addReservedField('XX.RESERVED.07')
+    CALL Table.addReservedField('XX.RESERVED.06')
+
+    CALL Table.addAmountField('TOT.PC.ENT.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addAmountField('TOT.PC.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addAmountField('TOT.PC.AVL.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addAmountField('TOT.BTB.ENT.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addAmountField('TOT.BTB.AMT','CURRENCY',Field_AllowNegative,'')
+    CALL Table.addAmountField('TOT.BTB.AVL.AMT','CURRENCY',Field_AllowNegative,'')
+
+    CALL Table.addLocalReferenceField('XX.LOCAL.REF')
+
+    CALL Table.addReservedField('XX.RESERVED.05')
+    CALL Table.addReservedField('XX.RESERVED.04')
+    CALL Table.addReservedField('XX.RESERVED.03')
+    CALL Table.addReservedField('XX.RESERVED.02')
+    CALL Table.addReservedField('XX.RESERVED.01')
+
+
+*  CALL Table.addFieldWithEbLookup(fieldName,virtualTableName,neighbour)       ;* Specify Lookup values
+*  CALL Field.setDefault(defaultValue) ;* Assign default value
+*-----------------------------------------------------------------------------
+    CALL Table.addOverrideField
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

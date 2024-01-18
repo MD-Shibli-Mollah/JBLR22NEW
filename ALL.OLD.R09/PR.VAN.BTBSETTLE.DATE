@@ -1,0 +1,16 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+*************************************************************************
+* This routine is auto populate system date when the record is opened.
+*
+
+*************************************************************************
+    SUBROUTINE PR.VAN.BTBSETTLE.DATE
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.DRAWINGS
+    CALL GET.LOC.REF("DRAWINGS","DATE.OF.PAYMENT",POS.DATE.OF.PAYMENT)
+    R.NEW(TF.DR.LOCAL.REF)<1,POS.DATE.OF.PAYMENT> = TODAY
+    RETURN
+END

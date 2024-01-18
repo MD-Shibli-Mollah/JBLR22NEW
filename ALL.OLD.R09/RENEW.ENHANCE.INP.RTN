@@ -1,0 +1,114 @@
+****************************************************************************************
+*Purpose: This routine attachted to VERSION LIMIT,MAINT as a INPUT ROUTINE and is used *
+*to check the renwal & enhancement related validation, it also calculate the no of     *
+*enhancement & no of renewal                                                           *
+*Developed By: Md. Aminul Islam(Datasoft Systems Ltd.)                                 *
+****************************************************************************************
+    SUBROUTINE RENEW.ENHANCE.INP.RTN
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.LIMIT
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*********
+INIT:
+*********
+    Y.APPLICATION       = 'LIMIT'
+    FIELD.NAME          = 'RENEW.REF.NO':VM:'RENEW.REF.DATE':VM:'NO.OF.RENEW':VM:'ENHANCE.REF.NO':VM:'ENHANC.REF.DATE':VM:'NO.OF.ENHANCE'
+    FIELD.POS           = ''
+    CALL MULTI.GET.LOC.REF(Y.APPLICATION,FIELD.NAME,FIELD.POS)
+    RENEW.REF.NO.POS  = FIELD.POS<1,1>
+    RENEW.REF.DATE.POS  = FIELD.POS<1,2>
+    NO.OF.RENEW.POS = FIELD.POS<1,3>
+    ENHANCE.REF.NO.POS = FIELD.POS<1,4>
+    ENHANC.REF.DATE.POS = FIELD.POS<1,5>
+    NO.OF.ENHANCE.POS = FIELD.POS<1,6>
+    IF (R.NEW(LI.INTERNAL.AMOUNT) GT R.OLD(LI.INTERNAL.AMOUNT)) THEN
+        CASE.OPTION = 1
+    END
+    ELSE
+        IF R.NEW(LI.EXPIRY.DATE) GT R.OLD(LI.EXPIRY.DATE) THEN
+            CASE.OPTION = 2
+        END
+    END
+    R.NEW(LI.LOCAL.REF)<1,NO.OF.ENHANCE.POS> = R.OLD(LI.LOCAL.REF)<1,NO.OF.ENHANCE.POS>
+    R.NEW(LI.LOCAL.REF)<1,NO.OF.RENEW.POS> = R.OLD(LI.LOCAL.REF)<1,NO.OF.RENEW.POS>
+    RETURN
+
+*************
+OPENFILES:
+*************
+
+    RETURN
+
+*************
+PROCESS:
+*************
+
+    BEGIN CASE
+*******************Renewal & Enhancement Vlidation & No Update Start********************************
+
+
+    CASE CASE.OPTION EQ '1'
+
+        IF R.NEW(LI.LOCAL.REF)<1,RENEW.REF.NO.POS> EQ R.OLD(LI.LOCAL.REF)<1,RENEW.REF.NO.POS> THEN
+            AF = LI.LOCAL.REF
+            AV = RENEW.REF.NO.POS
+            ETEXT = 'REQUIRED.RENEW.REF.NO'
+            CALL STORE.END.ERROR
+            RETURN
+        END
+        ELSE
+            IF R.NEW(LI.LOCAL.REF)<1,RENEW.REF.DATE.POS> EQ R.OLD(LI.LOCAL.REF)<1,RENEW.REF.DATE.POS> THEN
+                AF = LI.LOCAL.REF
+                AV = RENEW.REF.DATE.POS
+                ETEXT = 'REQUIRED.RENEW.DATE'
+                CALL STORE.END.ERROR
+                RETURN
+            END
+            ELSE
+                IF R.NEW(LI.LOCAL.REF)<1,ENHANCE.REF.NO.POS> EQ R.OLD(LI.LOCAL.REF)<1,ENHANCE.REF.NO.POS> THEN
+                    AF = LI.LOCAL.REF
+                    AV = ENHANCE.REF.NO.POS
+                    ETEXT = 'REQUIRED.ENHANCE.REF.NO'
+                    CALL STORE.END.ERROR
+                    RETURN
+                END
+                IF R.NEW(LI.LOCAL.REF)<1,ENHANC.REF.DATE.POS> EQ R.OLD(LI.LOCAL.REF)<1,ENHANC.REF.DATE.POS> THEN
+                    AF = LI.LOCAL.REF
+                    AV = ENHANC.REF.DATE.POS
+                    ETEXT = 'REQUIRED.ENHANCE.REF.DATE'
+                    CALL STORE.END.ERROR
+                    RETURN
+                END
+                R.NEW(LI.LOCAL.REF)<1,NO.OF.ENHANCE.POS> = R.OLD(LI.LOCAL.REF)<1,NO.OF.ENHANCE.POS> + 1
+                R.NEW(LI.LOCAL.REF)<1,NO.OF.RENEW.POS> = R.OLD(LI.LOCAL.REF)<1,NO.OF.RENEW.POS> + 1
+            END
+        END
+
+*******************Renewal & Enhancement Vlidation & No Update End**********************************
+
+*******************Enhancement Vlidation & No Update Start******************************************
+    CASE CASE.OPTION EQ '2'
+        IF R.NEW(LI.LOCAL.REF)<1,RENEW.REF.NO.POS>  EQ R.OLD(LI.LOCAL.REF)<1,RENEW.REF.NO.POS> THEN
+            AF = LI.LOCAL.REF
+            AV = RENEW.REF.NO.POS
+            ETEXT = 'REQUIRED.RENEW.REF.NO'
+            CALL STORE.END.ERROR
+            RETURN
+        END
+        IF R.NEW(LI.LOCAL.REF)<1,RENEW.REF.DATE.POS> EQ R.OLD(LI.LOCAL.REF)<1,RENEW.REF.DATE.POS> THEN
+            AF = LI.LOCAL.REF
+            AV = RENEW.REF.DATE.POS
+            ETEXT = 'REQUIRED.RENEW.DATE'
+            CALL STORE.END.ERROR
+            RETURN
+        END
+        R.NEW(LI.LOCAL.REF)<1,NO.OF.RENEW.POS> = R.OLD(LI.LOCAL.REF)<1,NO.OF.RENEW.POS> + 1
+*******************Enhancement Vlidation & No Update End*******************************************
+    END CASE
+    RETURN
+END

@@ -1,0 +1,15 @@
+    SUBROUTINE JBL.PORT.COUNTER.INFO.ID
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    Y.COM=COMI
+    Y.LEN=LEN(Y.COM)
+
+    Y.REQUEST="JBL.PORT.COUNTER.INFO":PGM.VERSION
+    IF Y.REQUEST EQ "JBL.PORT.COUNTER.INFO,ISSUE" AND V$FUNCTION EQ 'I' AND Y.LEN GT 3 THEN
+        E="Please Click New Deal for create new request"
+        CALL STORE.END.ERROR
+    END
+    IF NOT(ISDIGIT(Y.COM)) THEN
+        E="Please Click New Deal for create new request"
+        CALL STORE.END.ERROR
+    END

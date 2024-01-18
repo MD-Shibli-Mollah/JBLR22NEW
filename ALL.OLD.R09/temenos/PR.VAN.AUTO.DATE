@@ -1,0 +1,17 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VAN.AUTO.DATE
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.FUNDS.TRANSFER
+
+**************************************************************
+******CREATED BY: MD.SHOHEL AHMED
+******CREATION DATE: 06/11/2006
+******PURPOSE:AUTO GENERATION OF TODAY'S DATE
+**************************************************************
+    IF ID.NEW NE '' THEN
+        R.NEW(FT.CREDIT.VALUE.DATE) = TODAY
+    END
+    RETURN

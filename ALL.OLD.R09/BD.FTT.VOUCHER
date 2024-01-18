@@ -1,0 +1,283 @@
+*-----------------------------------------------------------------------------
+* <Rating>207</Rating>
+* Developed By: Kamran Mallick
+* Organization: Datasoft
+* Development Date: 14th Nov 2019
+* Purpose: For FTT Voucher
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.FTT.VOUCHER(Y.ARR)
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.FT.COMMISSION.TYPE
+    $INSERT GLOBUS.BP I_F.TAX
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.CATEGORY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+*------
+INIT:
+*------
+    FN.FT.NAU = 'F.FUNDS.TRANSFER$NAU'
+    F.FT.NAU = ''
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+    FN.AC = 'FBNK.ACCOUNT'
+    F.AC = ''
+    FN.COMM.TYPE='F.FT.COMMISSION.TYPE'
+    F.COMM.TYPE=''
+    FN.TAX='F.TAX'
+    F.TAX=''
+    FN.COMP = 'F.COMPANY'
+    F.COMP = ''
+    FN.CAT = 'F.CATEGORY'
+    F.CAT = ''
+    Y.COMP = ID.COMPANY
+    RETURN
+
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.COMM.TYPE,F.COMM.TYPE)
+    CALL OPF(FN.TAX,F.TAX)
+    CALL OPF(FN.COMP,F.COMP)
+    CALL OPF(FN.CAT,F.CAT)
+    RETURN
+
+*-------
+PROCESS:
+*-------
+******************Debit Account Information *************************
+!DEBUG
+    LOCATE 'FT.REF' IN ENQ.SELECTION<2,1> SETTING FT.REF.POS THEN
+        Y.FT.REF = ENQ.SELECTION<4,FT.REF.POS>
+    END
+    CALL F.READ(FN.COMP,Y.COMP,R.COMP,F.COMP,Y.F.COMP.ERR)
+    Y.CO.CODE = FIELD(ID.COMPANY,6,4)
+    Y.COMP.NAME = R.COMP<EB.COM.COMPANY.NAME>
+    Y.COMP.ADD = R.COMP<EB.COM.NAME.ADDRESS>
+    Y.FULL.ADD = Y.COMP.NAME : Y.CO.CODE
+    CALL F.READ(FN.FT.NAU,Y.FT.REF,R.FT.REF,F.FT.NAU,Y.FT.REF.ERR)
+    IF R.FT.REF EQ '' THEN
+        CALL F.READ(FN.FT,Y.FT.REF,R.FT.REF,F.FT,Y.FT.REF.ERR)
+    END
+    Y.T24.ID= R.FT.REF<FT.DEBIT.ACCT.NO>
+    Y.FT.INP = R.FT.REF<FT.INPUTTER>
+    Y.INPUTTER = FIELD(Y.FT.INP,'_',2,1)
+    Y.FT.AUTH = R.FT.REF<FT.AUTHORISER>
+    Y.AUTH = FIELD(Y.FT.AUTH,'_',2,1)
+    IF ISDIGIT(Y.T24.ID) THEN
+        CALL F.READ(FN.AC, Y.T24.ID, R.DR.AC, F.AC, AC.DR.ERR)
+        Y.LEG.ID=R.DR.AC<AC.ALT.ACCT.ID>
+        Y.CATEGORY=R.DR.AC<AC.CATEGORY>
+        CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.CAT.ERR)
+        Y.AC.TYPE = R.CAT<EB.CAT.DESCRIPTION>
+        Y.AC.TITLE=R.DR.AC<AC.ACCOUNT.TITLE.1>
+    END ELSE
+        IF LEFT(Y.T24.ID,2) EQ "PL" THEN
+            Y.CATEGORY=RIGHT(Y.T24.ID,5)
+            CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.CAT.ERR)
+            Y.AC.TYPE = R.CAT<EB.CAT.DESCRIPTION>
+            Y.CLS="PL"
+        END ELSE
+            CALL F.READ(FN.AC, Y.T24.ID, R.DR.AC, F.AC, AC.DR.ERR)
+            Y.AC.TITLE=R.DR.AC<AC.ACCOUNT.TITLE.1>
+            Y.CATEGORY=R.DR.AC<AC.CATEGORY>
+            CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.CAT.ERR)
+            Y.AC.TYPE = R.CAT<EB.CAT.DESCRIPTION>
+            Y.CLS="GL"
+        END
+    END
+    Y.DR.AMT = TRIM(EREPLACE(R.FT.REF<FT.AMOUNT.DEBITED>,"BDT",''))
+    LNGVAR=Y.DR.AMT
+    CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+    Y.PROCESS.DATE = R.FT.REF<FT.PROCESSING.DATE>
+    Y.DR.AMT.1 = FMT(Y.DR.AMT,'R2,#15')
+    INT.DATE = ICONV(Y.PROCESS.DATE,"D")
+    DISP.DATE = OCONV(INT.DATE, 'DD') "R%2":" ":OCONV(INT.DATE, 'DMA'):" ":OCONV(INT.DATE, 'DY4')
+    Y.FINAL.TXT<-1> = "JANATA BANK LIMITED":"*":""
+    Y.FINAL.TXT<-1> = Y.FULL.ADD:"*":""
+    Y.FINAL.TXT<-1> = Y.COMP.ADD:"*":""
+    Y.FINAL.TXT<-1> = " ~~~~~~~ Debit Voucher ~~~~~~~":"*":""
+    Y.FINAL.TXT<-1> = "Account No.: ":"*":Y.T24.ID
+    Y.FINAL.TXT<-1> = "Account Title: ":"*":Y.AC.TITLE
+    Y.FINAL.TXT<-1> = "A/C Type: ":"*":Y.AC.TYPE
+    Y.FINAL.TXT<-1> = "FT Ref: ":"*":Y.FT.REF
+    Y.FINAL.TXT<-1> = "Date: ":"*":DISP.DATE
+    Y.FINAL.TXT<-1> = "Amount: ":"*":Y.DR.AMT.1
+    Y.FINAL.TXT<-1> = "Amount In Words: ":"*":TXTOUT:" Only"
+    Y.FINAL.TXT<-1> = "Inputter: ":Y.INPUTTER:"*":"Authorizer: ":Y.AUTH
+    Y.FINAL.TXT<-1> = " ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" "
+    Y.FINAL.TXT<-1> = "______________             ":"*":"                   ______________"
+    Y.FINAL.TXT<-1> = "  Officer                  ":"*":"                    Manager      "
+    Y.FINAL.TXT<-1> = " ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" "
+    Y.FINAL.TXT<-1> ="            --------------------------":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" "
+****************Credit Account Information ****************************
+    Y.T24.ID= R.FT.REF<FT.CREDIT.ACCT.NO>
+    IF ISDIGIT(Y.T24.ID) THEN
+        CALL F.READ(FN.AC, Y.T24.ID, R.CR.AC, F.AC, AC.ERR)
+        Y.LEG.ID=R.CR.AC<AC.ALT.ACCT.ID>
+        Y.CATEGORY=R.CR.AC<AC.CATEGORY>
+        CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.CAT.ERR)
+        Y.AC.TYPE = R.CAT<EB.CAT.DESCRIPTION>
+        Y.AC.TITLE=R.CR.AC<AC.ACCOUNT.TITLE.1>
+    END ELSE
+        IF LEFT(Y.T24.ID,2) EQ "PL" THEN
+            Y.CATEGORY=RIGHT(Y.T24.ID,5)
+            CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.CAT.ERR)
+            Y.AC.TYPE = R.CAT<EB.CAT.DESCRIPTION>
+            Y.CLS="PL"
+        END ELSE
+
+            CALL F.READ(FN.AC,Y.T24.ID,R.CR.AC,F.AC,AC.CR.ERR)
+            IF R.CR.AC EQ "" THEN
+                CALL EB.READ.HISTORY.REC(F.AC.HIS, Y.T24.ID, R.CR.AC,'')
+            END
+            Y.CATEGORY=R.CR.AC<AC.CATEGORY>
+            CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.CAT.ERR)
+            Y.AC.TYPE = R.CAT<EB.CAT.DESCRIPTION>
+            Y.AC.TITLE=R.CR.AC<AC.ACCOUNT.TITLE.1>
+            Y.CLS="GL"
+        END
+    END
+    Y.CR.AMT = TRIM(EREPLACE(R.FT.REF<FT.AMOUNT.CREDITED>,"BDT",''))
+    LNGVAR=Y.CR.AMT
+    CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+    Y.CR.AMT.1 = FMT(Y.CR.AMT,'R2,#15')
+    Y.FINAL.TXT<-1> = "JANATA BANK LIMITED":"*":""
+    Y.FINAL.TXT<-1> = Y.FULL.ADD:"*":""
+    Y.FINAL.TXT<-1> = Y.COMP.ADD:"*":""
+    Y.FINAL.TXT<-1> = "~~~~~~~ Credit Voucher ~~~~~~":"*":""
+    Y.FINAL.TXT<-1> = "Account No.: ":"*":Y.T24.ID
+    Y.FINAL.TXT<-1> = "Account Title: ":"*":Y.AC.TITLE
+    Y.FINAL.TXT<-1> = "A/C Type: ":"*":Y.AC.TYPE
+    Y.FINAL.TXT<-1> = "FT Ref: ":"*":Y.FT.REF
+    Y.FINAL.TXT<-1> = "Date: ":"*":DISP.DATE
+    Y.FINAL.TXT<-1> = "Amount: ":"*":Y.CR.AMT.1
+    Y.FINAL.TXT<-1> = "Amount In Words: ":"*":TXTOUT:" Only"
+    Y.FINAL.TXT<-1> = "Inputter: ":Y.INPUTTER:"*":"Authorizer: ":Y.AUTH
+    Y.FINAL.TXT<-1> = " ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" "
+    Y.FINAL.TXT<-1> = "______________             ":"*":"                   ______________"
+    Y.FINAL.TXT<-1> = "  Officer                  ":"*":"                    Manager      "
+    Y.FINAL.TXT<-1> = " ":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" "
+    Y.FINAL.TXT<-1> ="            --------------------------":"*":" "
+    Y.FINAL.TXT<-1> = " ":"*":" "
+***********************Commission & Vat*******************
+    Y.COMM.CODE= R.FT.REF<FT.COMMISSION.TYPE>
+    IF Y.COMM.CODE NE "" THEN
+        FOR I=1 TO DCOUNT(Y.COMM.CODE,@VM)
+            Y.TXN.AMT=TRIM(EREPLACE(FIELD(R.FT.REF<FT.COMMISSION.AMT>,@VM,I),"BDT",''))
+            LNGVAR= Y.TXN.AMT
+            CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+            Y.TXN.AMT.1 = FMT(Y.TXN.AMT,'R2,#15')
+            Y.CHG.CODE=FIELD(Y.COMM.CODE,@VM,I)
+            CALL F.READ(FN.COMM.TYPE,Y.CHG.CODE,REC.COMM,F.COMM.TYPE,COMM.ERR)
+            Y.CHG.CATEG=REC.COMM<FT4.CATEGORY.ACCOUNT>
+            Y.AC.TITLE = REC.COMM<FT4.DESCRIPTION>
+            IF ISDIGIT(Y.CHG.CATEG) THEN
+                Y.CATEGORY=Y.CHG.CATEG
+                CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.CAT.ERR)
+                Y.AC.TYPE = R.CAT<EB.CAT.DESCRIPTION>
+                Y.T24.ID="PL":Y.CATEGORY
+                Y.CLS="PL"
+            END ELSE
+                Y.CATGEORY=RIGHT(LEFT(Y.CHG.CATEG,8),5)
+                CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.CAT.ERR)
+                Y.AC.TYPE = R.CAT<EB.CAT.DESCRIPTION>
+                Y.T24.ID=LEFT(Y.CHG.CATEG,8):"0001":RIGHT(ID.COMPANY,4)
+                Y.CLS="GL"
+            END
+            Y.FINAL.TXT<-1> = "JANATA BANK LIMITED":"*":""
+            Y.FINAL.TXT<-1> = Y.FULL.ADD:"*":""
+            Y.FINAL.TXT<-1> = Y.COMP.ADD:"*":""
+            IF LEFT(Y.T24.ID,2) EQ 'PL' THEN
+                Y.FINAL.TXT<-1> = "~~~~ Credit Voucher(Income) ~~~~":"*":""
+            END ELSE
+                Y.FINAL.TXT<-1> = "~~~~ Credit Voucher ~~~~":"*":""
+            END
+            Y.FINAL.TXT<-1> = "Account No.: ":"*":Y.T24.ID
+            Y.FINAL.TXT<-1> = "Account Title: ":"*":Y.AC.TITLE
+            Y.FINAL.TXT<-1> = "A/C Type: ":"*":Y.AC.TYPE
+            Y.FINAL.TXT<-1> = "FT Ref: ":"*":Y.FT.REF
+            Y.FINAL.TXT<-1> = "Date: ":"*":DISP.DATE
+            Y.FINAL.TXT<-1> = "Amount":"*":Y.TXN.AMT.1
+            Y.FINAL.TXT<-1> = "Amount In Words: ":"*":TXTOUT:" Only"
+            Y.FINAL.TXT<-1> = "Inputter: ":Y.INPUTTER:"*":"Authorizer: ":Y.AUTH
+            Y.FINAL.TXT<-1> = " ":"*":" "
+            Y.FINAL.TXT<-1> = " ":"*":" "
+            Y.FINAL.TXT<-1> = " ":"*":" "
+            Y.FINAL.TXT<-1> = " ":"*":" "
+            Y.FINAL.TXT<-1> = " ":"*":" "
+            Y.FINAL.TXT<-1> = " ":"*":" "
+            Y.FINAL.TXT<-1> = "______________             ":"*":"                   ______________"
+            Y.FINAL.TXT<-1> = "  Officer                  ":"*":"                    Manager      "
+            Y.FINAL.TXT<-1> = " ":"*":" "
+            Y.FINAL.TXT<-1> = " ":"*":" "
+            Y.FINAL.TXT<-1> ="            --------------------------":"*":" "
+            Y.FINAL.TXT<-1> = " ":"*":" "
+        NEXT I
+    END
+    Y.TAX.CODE= R.FT.REF<FT.TAX.TYPE>
+    IF Y.TAX.CODE NE "" THEN
+        FOR J = 1 TO DCOUNT(Y.TAX.CODE,@VM)
+            Y.TAX.CODE.1 = FIELD(Y.TAX.CODE,@VM,J)
+            Y.TXN.AMT=TRIM(EREPLACE(FIELD(R.FT.REF<FT.TAX.AMT>,@VM,J),"BDT",''))
+            LNGVAR=Y.TXN.AMT
+            CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+            Y.TXN.AMT.1 = FMT(Y.TXN.AMT,'R2,#15')
+            SEL.TAX="SELECT ":FN.TAX:" WITH @ID LIKE ":Y.TAX.CODE.1:".... BY-DSND @ID"
+            CALL EB.READLIST(SEL.TAX,TAX.LIST,'',NO.OF.TAX,TAX.ERR)
+            Y.TAX.ID=TAX.LIST<1>
+            CALL F.READ(FN.TAX,Y.TAX.ID,REC.TAX,F.TAX,TAX.ERR)
+            Y.CATEGORY=REC.TAX<EB.TAX.CATEGORY>
+            CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.CAT.ERR)
+            Y.AC.TYPE = R.CAT<EB.CAT.DESCRIPTION>
+            Y.AC.TITLE = REC.TAX<EB.TAX.DESCRIPTION>
+            Y.T24.ID="BDT":Y.CATEGORY:"0001":RIGHT(ID.COMPANY,4)
+            Y.CLS="GL"
+            Y.FINAL.TXT<-1> = "JANATA BANK LIMITED":"*":""
+            Y.FINAL.TXT<-1> = Y.FULL.ADD:"*":""
+            Y.FINAL.TXT<-1> = Y.COMP.ADD:"*":""
+            Y.FINAL.TXT<-1> = "~~~ Credit Voucher(VAT) ~~~":"*":""
+            Y.FINAL.TXT<-1> = "Account No.: ":"*":Y.T24.ID
+            Y.FINAL.TXT<-1> = "Account Title: ":"*":Y.AC.TITLE
+            Y.FINAL.TXT<-1> = "A/C Type: ":"*":Y.AC.TYPE
+            Y.FINAL.TXT<-1> = "FT Ref":"*":Y.FT.REF
+            Y.FINAL.TXT<-1> = "Date: ":"*":DISP.DATE
+            Y.FINAL.TXT<-1> = "Amount: ":"*":Y.TXN.AMT.1
+            Y.FINAL.TXT<-1> = "Amount In Words: ":"*":TXTOUT:" Only"
+            Y.FINAL.TXT<-1> = "Inputter: ":Y.INPUTTER:"*":"Authorizer: ":Y.AUTH
+            Y.FINAL.TXT<-1> = " ":"*":" "
+            Y.FINAL.TXT<-1> = " ":"*":" "
+            Y.FINAL.TXT<-1> = " ":"*":" "
+            Y.FINAL.TXT<-1> = " ":"*":" "
+            Y.FINAL.TXT<-1> = " ":"*":" "
+            Y.FINAL.TXT<-1> = " ":"*":" "
+            Y.FINAL.TXT<-1> = "______________             ":"*":"                   ______________"
+            Y.FINAL.TXT<-1> = "  Officer                  ":"*":"                    Manager      "
+            Y.FINAL.TXT<-1> ="            --------------------------":"*":" "
+            Y.FINAL.TXT<-1> = " ":"*":" "
+        NEXT J
+    END
+    Y.ARR = Y.FINAL.TXT
+    RETURN

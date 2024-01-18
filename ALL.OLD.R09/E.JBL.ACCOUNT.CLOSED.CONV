@@ -1,0 +1,63 @@
+*-----------------------------------------------------------------------------
+* <Rating>-43</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE E.JBL.ACCOUNT.CLOSED.CONV
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB GET.DATA
+****************
+INIT:
+*****************
+
+    FN.AC.HIS = "F.ACCOUNT$HIS"
+    F.AC.HIS = ""
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+
+    FN.AC = "F.ACCOUNT" ; F.AC = ''
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    Y.CURR.NO = 0
+    Y.ID = O.DATA
+    RETURN
+
+*****************
+GET.DATA:
+*****************
+
+    Y.SEL = "SELECT ":FN.AC.HIS: " WITH @ID LIKE ":Y.ID:"..."
+    CALL EB.READLIST(Y.SEL,Y.SEL.LIST,'',Y.SEL.CNT,ERR)
+
+    LOOP
+        REMOVE Y.AC.ID FROM Y.SEL.LIST SETTING Y.AC.POS
+    WHILE Y.AC.ID:Y.AC.POS
+        CALL F.READ(FN.AC.HIS,Y.AC.ID,R.AC.REC,F.AC.HIS,ERR1)
+        IF Y.CURR.NO = 0 THEN
+            Y.CURR.NO = R.AC.REC<AC.CURR.NO>
+        END
+        ELSE
+            Y.TEMP.CURR = R.AC.REC<AC.CURR.NO>
+            IF Y.TEMP.CURR GT Y.CURR.NO THEN
+                Y.CURR.NO = Y.TEMP.CURR
+            END
+        END
+        Y.AC.NO = Y.ID:";":Y.CURR.NO
+*Y.HIS.ID = Y.SEL.LIST<Y.SEL.CNT>
+*          CALL F.READ(FN.AC.HIS,Y.AC.NO,R.AC.REC,F.AC.HIS,ERR1)
+        Y.ACCOUNT.TITLE = R.AC.REC<AC.ACCOUNT.TITLE.1>
+        Y.ACCOUNT.OPNING.DATE = R.AC.REC<AC.OPENING.DATE>
+        Y.ACCOUNT.WORKNG.BAL =  R.AC.REC<AC.WORKING.BALANCE>
+        Y.ARR<-1> = Y.ACCOUNT.TITLE:"*":Y.ACCOUNT.OPNING.DATE:"*":Y.ACCOUNT.OPNING.DATE:"*":Y.ACCOUNT.WORKNG.BAL
+        O.DATA = Y.ARR
+        GOSUB UPDATE
+    REPEAT
+    RETURN
+
+*****************
+UPDATE:
+*****************
+    Y.ARR<-1> = Y.ACCOUNT.TITLE:"*":Y.ACCOUNT.OPNING.DATE:"*":Y.ACCOUNT.WORKNG.BAL
+    RETURN
+END

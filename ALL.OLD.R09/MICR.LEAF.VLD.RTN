@@ -1,0 +1,98 @@
+    SUBROUTINE MICR.LEAF.VLD.RTN
+!    PROGRAM MICR.LEAF.VLD.RTN
+*-----
+* Description : INPUT Leaf Category Wise
+* Author      : AVIJIT SAHA
+* Date        : 09.01.2022
+*-----
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.CHEQUE.TYPE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT  BP I_F.JBL.MICR.MGT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*------
+INIT:
+*------
+    FN.CHQ.TYPE='F.CHEQUE.TYPE'
+    F.CHQ.TYPE=''
+
+    FN.ACCT  = "F.ACCOUNT"
+    F.ACCT   = ''
+
+    FN.MICR = 'F.JBL.MICR.MGT'
+    F.MICR = ''
+*
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.CHQ.TYPE, F.CHQ.TYPE)
+    CALL OPF(FN.ACCT, F.ACCT)
+    CALL OPF(FN.MICR, F.MICR)
+    RETURN
+*
+*--------
+PROCESS:
+*--------
+!   DEBUG
+    IF V$FUNCTION EQ "I" THEN
+
+        Y.TR.TYPE = R.NEW(MICR.TR.TYPE)
+        Y.CHQ.ISS = R.NEW(MICR.LEAF.TYPE)
+        Y.T24.AC = R.NEW(MICR.ACCOUNT)
+        Y.CHQ.TYPE = R.NEW(MICR.CHQ.TYPE)
+
+
+*------------------------Leaf Number Validation----------------------------------*
+
+        SEL.CMD = "SELECT ": FN.CHQ.TYPE :" WITH TR.TYPE EQ ": Y.TR.TYPE
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+        CALL F.READ(FN.CHQ.TYPE,SEL.LIST,REC.CHQ.REQ,F.CHQ.TYPE,ERR.REQ)
+        CALL GET.LOC.REF('CHEQUE.TYPE','LEAF.TYPE',Y.PRE.NO)
+
+        Y.LEAF = REC.CHQ.REQ<CHEQUE.TYPE.LOCAL.REF,Y.PRE.NO>
+        FIND Y.CHQ.ISS IN Y.LEAF SETTING Ap, Vp ELSE
+            ETEXT="Invalid leaf number"
+            CALL STORE.END.ERROR
+            RETURN
+        END
+
+*-------------Account Balance Checking Validation --------------*
+
+        CALL F.READ(FN.ACCT, Y.T24.AC, ACC.REC, F.ACCT, ERR)
+
+        IF ACC.REC<AC.CATEGORY> NE '1111' AND ACC.REC<AC.CATEGORY> NE '1114' THEN
+
+            Y.AC.BALANCE = ACC.REC<AC.WORKING.BALANCE>
+            Y.TOTAL.LEAF = Y.CHQ.ISS * R.NEW(MICR.NO.OF.BOOK)
+            Y.LEAF.COST = Y.TOTAL.LEAF * 2.5
+            Y.VAT = Y.LEAF.COST * 0.15
+            Y.TOT.COST = Y.LEAF.COST + Y.VAT
+
+            IF Y.AC.BALANCE LE 100 OR Y.AC.BALANCE LE Y.TOT.COST THEN
+                ETEXT="Account Balance is not Sufficient"
+                CALL STORE.END.ERROR
+                RETURN
+            END
+        END
+*-------------Duplicate Request Checking Validation --------------*
+        Y.MICR.PART.ID = Y.CHQ.TYPE:".":Y.T24.AC
+
+        SEL.CMD.MICR = "SELECT ": FN.MICR : " WITH @ID LIKE '":Y.MICR.PART.ID:"...'"
+        CALL EB.READLIST(SEL.CMD.MICR,SEL.LIST.MICR,'',NO.OF.REC.MICR,RET.CODE.MICR)
+        CALL F.READ(FN.MICR,SEL.LIST.MICR<NO.OF.REC.MICR>,REC.REQ,F.MICR,ERR.REQ.MICR)
+
+        IF REC.REQ NE '' THEN
+            ETEXT="Already given another request. Status is ":REC.REQ<MICR.STATUS>
+            CALL STORE.END.ERROR
+        END
+    END
+    RETURN
+END

@@ -1,0 +1,379 @@
+*-----------------------------------------------------------------------------
+* <Rating>2230</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE SDSA.BK.CHECK
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.LOCKING
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT BP I_F.BD.BREAKUP
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    IF V$FUNCTION EQ 'D' THEN RETURN
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+INIT:
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+
+    FN.FT.NAU = 'FBNK.FUNDS.TRANSFER$NAU'
+    F.FT.NAU = ''
+
+    FN.TT = 'F.TELLER'
+    F.TT = ''
+
+    FN.TT.NAU = 'FBNK.TELLER$NAU'
+    F.TT.NAU = ''
+
+    FN.CAT = 'F.CATEGORY'
+    F.CAT = ''
+
+    FN.SDSA = 'F.BD.BREAKUP'
+    F.SDSA = ''
+
+    FN.ACC = 'F.ACCOUNT'
+    F.ACC = ''
+
+    Y.BR.CODE  = ID.COMPANY[6,4]
+    Y.YEAR = TODAY[3,2]
+
+    Y.APP.VER.NAME = APPLICATION : PGM.VERSION
+
+    CALL GET.LOC.REF("FUNDS.TRANSFER","ORG.ADJ",Y.FT.ORGADJ.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","A.L",Y.FT.AL.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","FT.DR.DETAILS",Y.FT.DR.DETAILS.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","FT.CR.DETAILS",Y.FT.CR.DETAILS.POS)
+    CALL GET.LOC.REF('FUNDS.TRANSFER','L.PURCHASE.NAME',Y.PAYEE.POS)
+    CALL GET.LOC.REF("TELLER","ORG.ADJ",Y.TT.ORGADJ.POS)
+    CALL GET.LOC.REF("TELLER","A.L",Y.TT.AL.POS)
+    CALL GET.LOC.REF('TELLER','PAYEE.NAME',Y.PAYEE.POS)
+    CALL GET.LOC.REF("CATEGORY","A.L",Y.CAT.AL.POS)
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.CAT,F.CAT)
+    CALL OPF(FN.FT.NAU,F.FT.NAU)
+    CALL OPF(FN.TT.NAU,F.TT.NAU)
+    CALL OPF(FN.SDSA,F.SDSA)
+    CALL OPF(FN.ACC,F.ACC)
+    RETURN
+PROCESS:
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        GOSUB FT.VAL.PROCESS
+    END
+    IF APPLICATION EQ 'TELLER' THEN
+        GOSUB TT.VAL.PROCESS
+    END
+    RETURN
+
+FT.VAL.PROCESS:
+    IF COUNT(R.NEW(FT.LOCAL.REF)<1,Y.FT.DR.DETAILS.POS>,'*') GT 0 OR COUNT(R.NEW(FT.LOCAL.REF)<1,Y.FT.CR.DETAILS.POS>,'*') GT 0 THEN
+        AF = 0
+        ETEXT = "Invalid Swift character(Not allow * for payment details)"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    AC.NO = ''
+    Y.REV = 0
+    Y.REF.NO = R.NEW(FT.PAYMENT.DETAILS)
+    AF = FT.DEBIT.ACCT.NO
+    Y.ACC = R.NEW(FT.DEBIT.ACCT.NO)
+    CALL F.READ(FN.ACC, Y.ACC, R.ACC, F.ACC, ERR.ACC)
+    IF R.ACC<AC.CO.CODE> NE ID.COMPANY AND Y.ACC[1,2] NE 'PL' THEN
+        ETEXT = "Account: ":Y.ACC:" doesn't belongs to this company."
+        CALL STORE.END.ERROR
+    END
+    AF = FT.CREDIT.ACCT.NO
+    Y.ACC = R.NEW(FT.CREDIT.ACCT.NO)
+    CALL F.READ(FN.ACC, Y.ACC, R.ACC, F.ACC, ERR.ACC)
+    IF R.ACC<AC.CO.CODE> NE ID.COMPANY AND Y.ACC[1,2] NE 'PL' THEN
+        ETEXT = "Account: ":Y.ACC:" doesn't belongs to this company."
+        CALL STORE.END.ERROR
+    END
+    BEGIN CASE
+    CASE R.NEW(FT.LOCAL.REF)<1,Y.FT.ORGADJ.POS> EQ 'ORG' AND R.NEW(FT.LOCAL.REF)<1,Y.FT.AL.POS> EQ 'A'
+        Y.AL = R.NEW(FT.LOCAL.REF)<1,Y.FT.AL.POS>
+        IF Y.AL EQ 'A' OR Y.AL EQ 'L' THEN
+        END
+        ELSE R.NEW(FT.LOCAL.REF)<1,Y.PAYEE.POS> = ''
+        GOSUB CHECK.REF
+        IF Y.REF.CK EQ 0 THEN RETURN
+        Y.AC.CAT = R.NEW(FT.DEBIT.ACCT.NO)[4,5]
+        CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+        IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'A' THEN
+            AF = FT.DEBIT.ACCT.NO
+            AV = 1
+            ETEXT = "Is Not Asset Account"
+            CALL STORE.END.ERROR
+            RETURN
+        END
+        IF V$FUNCTION EQ 'R' THEN
+            Y.REV = 1
+            AC.NO = R.NEW(FT.DEBIT.ACCT.NO)
+            GOSUB CHECK.OUT.BALANCE
+        END
+    CASE R.NEW(FT.LOCAL.REF)<1,Y.FT.ORGADJ.POS> EQ 'ADJ' AND R.NEW(FT.LOCAL.REF)<1,Y.FT.AL.POS> EQ 'A'
+        Y.AL = R.NEW(FT.LOCAL.REF)<1,Y.FT.AL.POS>
+        IF Y.AL EQ 'A' OR Y.AL EQ 'L' THEN
+        END
+        ELSE R.NEW(FT.LOCAL.REF)<1,Y.PAYEE.POS> = ''
+        GOSUB CHECK.REF
+        IF Y.REF.CK EQ 0 THEN RETURN
+        Y.AC.CAT = R.NEW(FT.CREDIT.ACCT.NO)[4,5]
+        CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+        IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'A' THEN
+            AF = FT.CREDIT.ACCT.NO
+            AV = 1
+            ETEXT = "Is Not Asset Account"
+            CALL STORE.END.ERROR
+            RETURN
+        END
+        IF R.NEW(FT.DEBIT.ACCT.NO)[1,3] EQ 'BDT' THEN
+            Y.AC1.CAT = R.NEW(FT.DEBIT.ACCT.NO)[4,5]
+            CALL F.READ(FN.CAT,Y.AC1.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+            IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> EQ 'A' OR R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> EQ 'L' THEN
+                AF = FT.DEBIT.ACCT.NO
+                AV = 1
+                ETEXT = "Breakup Ref. Number is Mendatory for ":R.NEW(FT.DEBIT.ACCT.NO)
+                CALL STORE.END.ERROR
+                RETURN
+            END
+        END
+        IF V$FUNCTION EQ 'I' THEN
+            AC.NO = R.NEW(FT.CREDIT.ACCT.NO)
+            GOSUB CHECK.OUT.BALANCE
+        END
+    CASE R.NEW(FT.LOCAL.REF)<1,Y.FT.ORGADJ.POS> EQ 'ORG' AND R.NEW(FT.LOCAL.REF)<1,Y.FT.AL.POS> EQ 'L'
+        Y.AL = R.NEW(FT.LOCAL.REF)<1,Y.FT.AL.POS>
+        IF Y.AL EQ 'A' OR Y.AL EQ 'L' THEN
+        END
+        ELSE R.NEW(FT.LOCAL.REF)<1,Y.PAYEE.POS> = ''
+        GOSUB CHECK.REF
+        IF Y.REF.CK EQ 0 THEN RETURN
+        Y.AC.CAT = R.NEW(FT.CREDIT.ACCT.NO)[4,5]
+        CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+        IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'L' THEN
+            AF = FT.CREDIT.ACCT.NO
+            ETEXT = "Is Not Liability Account"
+            CALL STORE.END.ERROR
+            RETURN
+        END
+        IF V$FUNCTION EQ 'R' THEN
+            Y.REV = 1
+            AC.NO = R.NEW(FT.CREDIT.ACCT.NO)
+            GOSUB CHECK.OUT.BALANCE
+        END
+    CASE R.NEW(FT.LOCAL.REF)<1,Y.FT.ORGADJ.POS> EQ 'ADJ' AND R.NEW(FT.LOCAL.REF)<1,Y.FT.AL.POS> EQ 'L'
+        Y.AL = R.NEW(FT.LOCAL.REF)<1,Y.FT.AL.POS>
+        IF Y.AL EQ 'A' OR Y.AL EQ 'L' THEN
+        END
+        ELSE R.NEW(FT.LOCAL.REF)<1,Y.PAYEE.POS> = ''
+        GOSUB CHECK.REF
+        IF Y.REF.CK EQ 0 THEN RETURN
+        Y.AC.CAT = R.NEW(FT.DEBIT.ACCT.NO)[4,5]
+        CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+        IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'L' THEN
+            AF = FT.DEBIT.ACCT.NO
+            ETEXT = "Is Not Liability Account"
+            CALL STORE.END.ERROR
+            RETURN
+        END
+        IF R.NEW(FT.CREDIT.ACCT.NO)[1,3] EQ 'BDT' THEN
+            Y.AC1.CAT = R.NEW(FT.CREDIT.ACCT.NO)[4,5]
+            CALL F.READ(FN.CAT,Y.AC1.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+            IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> EQ 'A' OR R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> EQ 'L' THEN
+                AF = FT.CREDIT.ACCT.NO
+                AV = 1
+                ETEXT = "Breakup Ref. Number is Mendatory for ":R.NEW(FT.CREDIT.ACCT.NO)
+                CALL STORE.END.ERROR
+                RETURN
+            END
+        END
+        IF V$FUNCTION EQ 'I' THEN
+            AC.NO = R.NEW(FT.DEBIT.ACCT.NO)
+            GOSUB CHECK.OUT.BALANCE
+        END
+    END CASE
+    RETURN
+
+CHECK.REF:
+    Y.REF.CK = 1
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        AF = FT.PAYMENT.DETAILS
+    END
+    IF APPLICATION EQ 'TELLER' THEN
+        AF = TT.TE.NARRATIVE.2
+    END
+    IF Y.REF.NO EQ ''  THEN
+        ETEXT = "Ref.No Should Not be Null"
+    END
+
+    FOR Z = 1 TO LEN(Y.REF.NO)
+        Y.CH = Y.REF.NO[Z,1]
+        IF ISALNUM(Y.CH) EQ 1 OR Y.CH EQ '.' THEN
+        END
+        ELSE ETEXT = "Invalid character in Ref.No"
+    NEXT Z
+    IF LEN(Y.REF.NO) GT 35 THEN
+        ETEXT = "Maximum length of Ref. no. is 35"
+    END
+    IF ETEXT NE '' THEN
+        CALL STORE.END.ERROR
+        Y.REF.CK = 0
+    END
+    RETURN
+
+CHECK.OUT.BALANCE:
+    Y.BAL=0
+    SEL.CMD = 'SELECT ':FN.SDSA:' WITH @ID LIKE ':AC.NO:'*...'
+    CALL EB.READLIST(SEL.CMD, SEL.REF.LIST, F.SDSA, NO.OF.REC.REF, RET.CODE.SUB)
+    SEL.REF.LIST = SORT(SEL.REF.LIST)
+    FOR K = 1 TO NO.OF.REC.REF
+        Y.CUR.ID = SEL.REF.LIST<K>
+        IF FIELD(Y.CUR.ID,'*',2) EQ Y.REF.NO AND DCOUNT(Y.CUR.ID,'*') EQ 10 AND SEL.REF.LIST<K+1> NE Y.CUR.ID:'*REV' THEN
+            IF FIELD(Y.CUR.ID,'*',10) EQ 'ORG' THEN
+                Y.BAL = Y.BAL + FIELD(Y.CUR.ID,'*',9)
+            END
+            IF FIELD(Y.CUR.ID,'*',10) EQ 'ADJ' THEN
+                Y.BAL = Y.BAL - FIELD(Y.CUR.ID,'*',9)
+            END
+        END
+    NEXT K
+    Y.CUR.AMT = 0
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        Y.CUR.AMT = R.NEW(FT.DEBIT.AMOUNT)
+        AF = FT.DEBIT.AMOUNT
+    END
+    IF APPLICATION EQ 'TELLER' THEN
+        Y.CUR.AMT = R.NEW(TT.TE.AMOUNT.LOCAL.1)
+        AF = TT.TE.AMOUNT.LOCAL.1
+    END
+
+    Y.NAU.BAL=0
+    Y.TT.NAU.BAL=0
+    Y.FT.NAU.BAL=0
+    IF Y.REV EQ 0 AND Y.CUR.AMT LE Y.BAL THEN
+        SEL.CMD = 'SELECT ':FN.FT.NAU:' WITH CO.CODE EQ ':ID.COMPANY:' AND TRANSACTION.TYPE EQ ACAL'
+        CALL EB.READLIST(SEL.CMD, SEL.FT.LIST, F.SDSA, NO.OF.FT, RET.CODE.FT)
+        FOR L = 1 TO NO.OF.FT
+            CALL F.READ(FN.FT.NAU,SEL.FT.LIST<L>,R.FT.DETAILS,F.FT.NAU,RET.CODE.FT.DETAILS)
+            IF R.FT.DETAILS<FT.LOCAL.REF,Y.FT.AL.POS> EQ 'A' AND R.FT.DETAILS<FT.PAYMENT.DETAILS> EQ Y.REF.NO AND R.FT.DETAILS<FT.CREDIT.ACCT.NO> EQ AC.NO THEN
+                Y.FT.NAU.BAL = Y.FT.NAU.BAL + R.FT.DETAILS<FT.DEBIT.AMOUNT>
+            END
+            IF R.FT.DETAILS<FT.LOCAL.REF,Y.FT.AL.POS> EQ 'L' AND R.FT.DETAILS<FT.PAYMENT.DETAILS> EQ Y.REF.NO AND R.FT.DETAILS<FT.DEBIT.ACCT.NO> EQ AC.NO THEN
+                Y.FT.NAU.BAL = Y.FT.NAU.BAL + R.FT.DETAILS<FT.DEBIT.AMOUNT>
+            END
+        NEXT L
+        SEL.CMD = 'SELECT ':FN.TT.NAU:' WITH CO.CODE EQ ':ID.COMPANY:' AND TRANSACTION.CODE EQ 10'
+        CALL EB.READLIST(SEL.CMD, SEL.TT.LIST, F.SDSA, NO.OF.TT, RET.CODE.TT)
+        FOR M = 1 TO NO.OF.TT
+            CALL F.READ(FN.TT.NAU,SEL.TT.LIST<L>,R.TT.DETAILS,F.TT.NAU,RET.CODE.TT.DETAILS)
+            IF R.TT.DETAILS<TT.TE.LOCAL.REF,Y.TT.AL.POS> EQ 'A' AND R.TT.DETAILS<TT.TE.NARRATIVE.2> EQ Y.REF.NO AND R.TT.DETAILS<TT.TE.ACCOUNT.2> EQ AC.NO THEN
+                Y.TT.NAU.BAL = Y.TT.NAU.BAL + R.TT.DETAILS<TT.TE.AMOUNT.LOCAL.1>
+            END
+            IF R.TT.DETAILS<TT.TE.LOCAL.REF,Y.TT.AL.POS> EQ 'L' AND R.TT.DETAILS<TT.TE.NARRATIVE.2> EQ Y.REF.NO AND R.TT.DETAILS<TT.TE.ACCOUNT.2> EQ AC.NO THEN
+                Y.TT.NAU.BAL = Y.TT.NAU.BAL + R.TT.DETAILS<TT.TE.AMOUNT.LOCAL.1>
+            END
+        NEXT M
+    END
+
+    Y.NAU.BAL = Y.NAU.BAL + Y.FT.NAU.BAL + Y.TT.NAU.BAL
+
+    IF (Y.BAL - Y.CUR.AMT - Y.NAU.BAL) LT 0 THEN
+        IF Y.REV EQ 0 THEN
+            ETEXT = "Oustanding Amount: ":Y.BAL:" Un-Auth Amount: ":Y.NAU.BAL:" Current Amount: ":Y.CUR.AMT
+        END
+        IF Y.REV EQ 1 OR Y.CUR.AMT GT Y.BAL THEN
+            ETEXT = "Oustanding Amount: ":Y.BAL:" Current Amount: ":Y.CUR.AMT
+        END
+        CALL STORE.END.ERROR
+    END
+    RETURN
+
+TT.VAL.PROCESS:
+    IF COUNT(R.NEW(TT.TE.NARRATIVE.2),'*') GT 0 THEN
+        AF = TT.TE.NARRATIVE.2
+        ETEXT = "Invalid Swift character(Not allow *)"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    Y.AL = R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.AL.POS>
+    IF Y.AL EQ 'A' OR Y.AL EQ 'L' THEN
+    END
+    ELSE
+        R.NEW(TT.TE.LOCAL.REF)<1,Y.PAYEE.POS> = ''
+        R.NEW(TT.TE.NARRATIVE.2) = ''
+    END
+    Y.REF.NO = R.NEW(TT.TE.NARRATIVE.2)
+    AC.NO = R.NEW(TT.TE.ACCOUNT.2)
+    Y.REV = 0
+    BEGIN CASE
+    CASE R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.ORGADJ.POS> EQ 'ORG' AND R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.AL.POS> EQ 'A'
+        GOSUB CHECK.REF
+        IF Y.REF.CK EQ 0 THEN RETURN
+        Y.AC.CAT = AC.NO[4,5]
+        CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+        IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'A' THEN
+            AF = TT.TE.ACCOUNT.2
+            ETEXT = "Is Not Asset Account"
+            CALL STORE.END.ERROR
+        END
+        IF V$FUNCTION EQ 'R' THEN
+            Y.REV = 1
+            GOSUB CHECK.OUT.BALANCE
+        END
+    CASE R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.ORGADJ.POS> EQ 'ADJ' AND R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.AL.POS> EQ 'A'
+        GOSUB CHECK.REF
+        IF Y.REF.CK EQ 0 THEN RETURN
+        Y.AC.CAT = AC.NO[4,5]
+        CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+        IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'A' THEN
+            AF = TT.TE.ACCOUNT.2
+            ETEXT = "Is Not Asset Account"
+            CALL STORE.END.ERROR
+        END
+        IF V$FUNCTION EQ 'I' THEN
+            GOSUB CHECK.OUT.BALANCE
+        END
+    CASE R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.ORGADJ.POS> EQ 'ORG' AND R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.AL.POS> EQ 'L'
+        GOSUB CHECK.REF
+        IF Y.REF.CK EQ 0 THEN RETURN
+        Y.AC.CAT = AC.NO[4,5]
+        CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+        IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'L' THEN
+            AF = TT.TE.ACCOUNT.2
+            ETEXT = "Is Not Liability Account"
+            CALL STORE.END.ERROR
+        END
+        IF V$FUNCTION EQ 'R' THEN
+            Y.REV = 1
+            GOSUB CHECK.OUT.BALANCE
+        END
+    CASE R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.ORGADJ.POS> EQ 'ADJ' AND R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.AL.POS> EQ 'L'
+        GOSUB CHECK.REF
+        IF Y.REF.CK EQ 0 THEN RETURN
+        Y.AC.CAT = AC.NO[4,5]
+        CALL F.READ(FN.CAT,Y.AC.CAT,R.FT.REC,F.CAT,Y.FT.ERR)
+        IF R.FT.REC<EB.CAT.LOCAL.REF,Y.CAT.AL.POS> NE 'L' THEN
+            AF = TT.TE.ACCOUNT.2
+            ETEXT = "Is Not Liability Account"
+            CALL STORE.END.ERROR
+        END
+        IF V$FUNCTION EQ 'I' THEN
+            GOSUB CHECK.OUT.BALANCE
+        END
+    END CASE
+    RETURN
+END

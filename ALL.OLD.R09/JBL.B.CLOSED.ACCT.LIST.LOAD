@@ -1,0 +1,72 @@
+*-----------------------------------------------------------------------------
+* <Rating>-21</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.CLOSED.ACCT.LIST.LOAD
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine will opens all necessary files and will initialise s the variables
+* required.
+*-------------------------------------------------------------------------
+*Parameter Description -- Not Applicable
+*--------- -----------
+*
+*-------------------------------------------------------------------------
+*Common Variable Description  -- Not Applicable
+*------  ------- -----------
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:            Description:
+* MULTI.GET.LOC.REF           Core             This core routine will gives the
+*                                               position for the local reference fields
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 01/02/2011 -                            New   - Shiva Shankar G
+*                                                 Thesys Technologies
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT.CLOSURE
+    $INCLUDE JBL.BP I_F.JBL.H.GEN.PARAMETER
+    $INCLUDE JBL.BP I_JBL.B.CLOSED.ACCT.LIST.COMMON
+
+    GOSUB INITIALISE
+    GOSUB OPENFILES
+
+    RETURN
+*--------------------------------------------------------------------------
+INITIALISE:
+*--------------------------------------------------------------------------
+
+!Initialising all the File variable and user defined variables
+
+    FN.ACCOUNT.CLOSURE = 'F.ACCOUNT.CLOSURE'
+    F.ACCOUNT.CLOSURE = ''
+
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+
+    FN.ACCOUNT.HIS = 'F.ACCOUNT$HIS'
+    F.ACCOUNT.HIS = ''
+
+    FN.JBL.H.GEN.PARAMETER = 'F.JBL.H.GEN.PARAMETER'
+    F.JBL.H.GEN.PARAMETER = ''
+
+    RETURN
+*--------------------------------------------------------------------------
+OPENFILES:
+*--------------------------------------------------------------------------
+    CALL OPF(FN.ACCOUNT.CLOSURE,F.ACCOUNT.CLOSURE)
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    CALL OPF(FN.ACCOUNT.HIS,F.ACCOUNT.HIS)
+    CALL OPF(FN.JBL.H.GEN.PARAMETER,F.JBL.H.GEN.PARAMETER)
+
+    RETURN
+*--------------------------------------------------------------------------
+END

@@ -1,0 +1,33 @@
+****************************************************************************************
+*Purpose: This routine is attachted to VERSIONS ACCOUNT,CL.STATUS.STANDARD             *
+*ACCOUNT,CL.STATUS.SMA ACCOUNT,CL.STATUS.SS ACCOUNT,CL.STATUS.DF ACCOUNT,CL.STATUS.BL  *
+*as a INPUT ROUTINE and is used to assign status of PR.ASSET.CLASS and INT.NO.BOOKING  *
+*fields                                                                                *
+*Developed By: Md. Aminul Islam(Datasoft Systems Ltd.)                                 *
+****************************************************************************************
+    SUBROUTINE CL.STATUS.CHANGE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    CALL GET.LOC.REF('ACCOUNT','PR.ASSET.CLASS',PR.ASSET.CLASS.POS)
+    BEGIN CASE
+    CASE PGM.VERSION EQ ',CL.STATUS.STANDARD'
+        R.NEW(AC.LOCAL.REF)<1,PR.ASSET.CLASS.POS> = '10'
+        R.NEW(AC.INT.NO.BOOKING) = ''
+    CASE PGM.VERSION EQ ',CL.STATUS.SMA'
+        R.NEW(AC.LOCAL.REF)<1,PR.ASSET.CLASS.POS> = '20'
+        R.NEW(AC.INT.NO.BOOKING) = ''
+    CASE PGM.VERSION EQ ',CL.STATUS.SS'
+        R.NEW(AC.LOCAL.REF)<1,PR.ASSET.CLASS.POS> = '30'
+        R.NEW(AC.INT.NO.BOOKING) = 'SUSPENSE'
+    CASE PGM.VERSION EQ ',CL.STATUS.DF'
+        R.NEW(AC.LOCAL.REF)<1,PR.ASSET.CLASS.POS> = '40'
+        R.NEW(AC.INT.NO.BOOKING) = 'SUSPENSE'
+    CASE PGM.VERSION EQ ',CL.STATUS.BL'
+        R.NEW(AC.LOCAL.REF)<1,PR.ASSET.CLASS.POS> = '50'
+        R.NEW(AC.INT.NO.BOOKING) = 'SUSPENSE'
+    END CASE
+
+    RETURN
+END

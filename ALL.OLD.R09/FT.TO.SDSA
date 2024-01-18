@@ -1,0 +1,77 @@
+    PROGRAM TEST1
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+
+    $INSERT JBL.BP I_F.BD.SDSA.ENTRY.DETAILS
+
+
+    FN.SD.DET = 'F.BD.SDSA.ENTRY.DETAILS'
+    F.SD.DET = ''
+
+    FN.FT='F.FUNDS.TRANSFER'
+    F.FT=''
+
+    CALL GET.LOC.REF("FUNDS.TRANSFER","FT.DR.DETAILS",Y.FT.DR.DETAILS.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","FT.CR.DETAILS",Y.FT.CR.DETAILS.POS)
+
+
+    CALL OPF(FN.FT,F.FT)
+
+
+    CALL OPF(FN.SD.DET,F.SD.DET)
+
+    SEL.CMD ="SELECT ":FN.FT:' WITH TRANSACTION.TYPE EQ ACAL'
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+
+
+        CALL F.READ(FN.FT,Y.ID,R.FT,F.FT,Y.ERR.FT)
+        Y.REF.ID=''
+
+        IF R.FT<FT.LOCAL.REF,Y.FT.DR.DETAILS.POS> NE '' THEN
+            Y.REF.ID=R.FT<FT.LOCAL.REF,Y.FT.DR.DETAILS.POS>
+        END ELSE
+            Y.REF.ID=R.FT<FT.LOCAL.REF,Y.FT.CR.DETAILS.POS>
+        END
+
+
+        CALL F.READ(FN.SD.DET,Y.REF.ID,R.DET,F.SD.DET,Y.ERR.SD.DET)
+        Y.ORG.TXN.REF = R.DET<BD.SDSA.ORG.TRANS.REF.NO>
+        Y.ADJ.TXN.REF = R.DET<BD.SDSA.ADJ.TRANS.REF.NO>
+
+        Y.CNT.REF = DCOUNT(Y.ORG.TXN.REF,@VM)
+        Y.ST=0
+        FOR I = 1 TO Y.CNT.REF
+            Y.TXN.ID=FIELD(Y.ORG.TXN.REF,@VM,I)
+            IF Y.TXN.ID EQ Y.ID THEN
+                Y.ST=1
+                BREAK
+            END
+        NEXT I
+
+        IF Y.ST THEN
+
+            CRT  Y.ID:'*':Y.REF.ID:'*':Y.TXN.ID:'*':R.FT<FT.DEBIT.AMOUNT>
+        END ELSE
+            Y.CNT.REF = DCOUNT(Y.ADJ.TXN.REF,@VM)
+            Y.ST=0
+            FOR I = 1 TO Y.CNT.REF
+                Y.TXN.ID=FIELD(Y.ADJ.TXN.REF,@VM,I)
+                IF Y.TXN.ID EQ Y.ID THEN
+                    Y.ST=1
+                    BREAK
+                END
+            NEXT I
+            IF Y.ST THEN
+                CRT  Y.ID:'*':Y.REF.ID:'*':Y.TXN.ID:'*':R.FT<FT.DEBIT.AMOUNT>
+            END ELSE
+                CRT  Y.ID:'*':Y.REF.ID:'*NA':'*':R.FT<FT.DEBIT.AMOUNT>
+            END
+        END
+    REPEAT
+
+END

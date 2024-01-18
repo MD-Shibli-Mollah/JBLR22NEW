@@ -1,0 +1,105 @@
+***********************************************************************************************
+*This routine  return branch wise debit interest provision data into PROVISION.DIR            *
+*Developed By: Md. Aminul Islam(Datasoft Systems)                                             *
+*Date:01/12/2014                                                                              *
+***********************************************************************************************
+    PROGRAM DEBIT.SIDE.PROV.LIST.BW
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_F.ACCR.ACCT.DR
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    GOSUB WRITE.TO.FILE
+*------
+INIT:
+*------
+    PRINT 'ENTER BRANCH CODE'
+    INPUT Y.CO.CODE
+    OPEN "PROVISION.DIR" TO F.PROVISION.DIR ELSE
+        CMD = "CREATE.FILE PROVISION.DIR TYPE=UD"
+        EXECUTE CMD
+        OPEN "PROVISION.DIR" TO F.PROVISION.DIR ELSE
+            CRT "OPENING OF PROVISION.DIR FAILED"
+        END
+    END
+
+    Y.FILE.NAME = 'DEBIT.PROVISION.LIST.':Y.CO.CODE:'.':TODAY:'.csv'
+    Y.FILE.DIR = 'PROVISION.DIR'
+    Y.FILE.PATH = Y.FILE.DIR:'/':Y.FILE.NAME
+
+    FN.ACCR.ACCT.DR = 'F.ACCR.ACCT.DR'
+    F.ACCR.ACCT.DR = ''
+
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = 'ACCOUNT'
+
+    Y.DATA = 'ACCOUNT.NO~LEGECY.AC.NO~CATEGORY~DR.INT.DATE~DR.INT.RATE~TOTAL.INTEREST~BRANCH.CODE'
+    RETURN
+
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.ACCR.ACCT.DR,F.ACCR.ACCT.DR)
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    RETURN
+
+*-------
+PROCESS:
+*-------
+!DEBUG
+    SEL.CMD = 'SELECT ':FN.ACCOUNT:' WITH CO.CODE EQ ':Y.CO.CODE
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+    FOR I = 1 TO NO.OF.REC
+        Y.ACCR.ID = FIELD(SEL.LIST,@FM,I)
+
+        CALL F.READ(FN.ACCOUNT, Y.ACCR.ID, R.ACCOUNT, F.ACCOUNT , Y.ACCOUNT.ERR)
+        IF R.ACCOUNT THEN
+            CALL F.READ(FN.ACCR.ACCT.DR, Y.ACCR.ID , R.ACCR, F.ACCR.ACCT.DR , Y.ACCR.ERR)
+            IF R.ACCR THEN
+                Y.COMPANY = R.ACCOUNT<AC.CO.CODE>
+                Y.ALT.ACCT.ID = R.ACCOUNT<AC.ALT.ACCT.ID>
+                Y.CATEGORY = R.ACCOUNT<AC.CATEGORY>
+                Y.DR.INT.DATE = R.ACCR<IC.ACRDR.DR.INT.DATE>
+                Y.DR.INT.RATE = R.ACCR<IC.ACRDR.DR.INT.RATE>
+                Y.TOTAL.INTEREST = R.ACCR<IC.ACRDR.TOTAL.INTEREST>
+                IF Y.DR.INT.RATE NE 0 THEN
+                    Y.DATA<-1> = Y.ACCR.ID:'~':Y.ALT.ACCT.ID:'~':Y.CATEGORY:'~':Y.DR.INT.DATE:'~':Y.DR.INT.RATE:'~':Y.TOTAL.INTEREST:'~':Y.COMPANY
+                END
+            END
+        END
+        Y.PROGRESS = MOD(I,5000)
+        IF Y.PROGRESS EQ 0 THEN
+            Y.PERCENT = I*100/NO.OF.REC
+            PRINT DROUND(Y.PERCENT,0):'% IS DONE.'
+        END
+    NEXT I
+    IF NO.OF.REC NE 0 THEN
+        PRINT '100% IS DONE.'
+    END
+    ELSE
+        PRINT 'NO RECORD FOUND.'
+    END
+    RETURN
+*-------------
+WRITE.TO.FILE:
+*-------------
+    IF NOT(Y.FILE.NAME) THEN
+        CRT "No file name found to write DEBIT PROVISION data"
+    END
+    ELSE
+        WRITE Y.DATA TO F.PROVISION.DIR,Y.FILE.NAME
+    END
+    IF DCOUNT(Y.DATA,@FM) EQ 1 THEN
+        PRINT 'NO PROVISIONIG DATA IS FOUND.'
+    END
+    ELSE
+        PRINT (DCOUNT(Y.DATA,@FM) -1):' PROVISIONIG DATA IS FOUND.'
+    END
+!RETURN
+END

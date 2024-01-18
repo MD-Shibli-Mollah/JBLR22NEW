@@ -1,0 +1,29 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.E.TF.TOT.TRANS.AMT
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.LETTER.OF.CREDIT
+
+    FN.LC = "F.LETTER.OF.CREDIT"
+    F.LC = ""
+
+    Y.TRAN.PORT.AMT = ""
+    Y.TOT.TRAN.PORT.AMT = 0
+
+    Y.LC.ID = O.DATA
+
+    CALL OPF(FN.LC,F.LC)
+
+    CALL F.READ(FN.LC,Y.LC.ID,R.LC.REC,F.LC,Y.ERR)
+    Y.TRAN.PORT.AMT = R.LC.REC<TF.LC.TRAN.PORT.AMT>
+
+    FOR I = 1 TO DCOUNT(Y.TRAN.PORT.AMT,@VM)
+        Y.TOT.TRAN.PORT.AMT = Y.TOT.TRAN.PORT.AMT + Y.TRAN.PORT.AMT<1,I>
+    NEXT
+
+    O.DATA = Y.TOT.TRAN.PORT.AMT
+    RETURN
+END

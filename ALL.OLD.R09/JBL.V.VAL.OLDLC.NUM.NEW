@@ -1,0 +1,157 @@
+**************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>175</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VAL.OLDLC.NUM.NEW
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This Validate Routine is used to generate the unique sequential number for
+* the LC contract & to update the new sequentail number in the sequntial
+* number file LC.BD.SERIAL.NUMBER
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*  NA
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+* Variable name:   Insert file:          Description:
+* COMI             I_COMMON              Will hold the last entered value
+*
+*-------------------------------------------------------------------------
+*Called Subroutines: N/A
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 27/01/2011 -                            New   - Naveen Kumar BN
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INCLUDE GLOBUS.BP I_F.COMPANY
+    $INCLUDE GLOBUS.BP I_F.LC.TYPES
+    $INCLUDE JBL.BP I_F.BD.SERIAL.NUMBER
+
+    IF R.NEW(TF.LC.RECORD.STATUS) EQ 'IHLD' THEN RETURN
+    IF MESSAGE EQ "VAL" THEN RETURN
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*------------
+INITIALISE:
+*------------
+    FN.LETTER.OF.CREDIT = 'F.LETTER.OF.CREDIT'
+    F.LETTER.OF.CREDIT = ''
+    R.LETTER.OF.CREDIT = ''
+    E.LETTER.OF.CREDIT = ''
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+
+    FN.LC.BD.SERIAL.NUMBER = 'F.LC.BD.SERIAL.NUMBER'
+    F.LC.BD.SERIAL.NUMBER = ''
+    R.LC.BD.SERIAL.NUMBER = ''
+    E.LC.BD.SERIAL.NUMBER = ''
+    CALL OPF(FN.LC.BD.SERIAL.NUMBER,F.LC.BD.SERIAL.NUMBER)
+
+    FN.COM = 'F.COMPANY'
+    F.COM = ''
+    R.COM.REC = ''
+    E.COM.ERR = ''
+    CALL OPF(FN.COM,F.COM)
+
+    FN.LC.TYPES = 'F.LC.TYPES'
+    F.LC.TYPES = ''
+    R.LC.TYPES = ''
+    E.LC.TYPES = ''
+    CALL OPF(FN.LC.TYPES,F.LC.TYPES)
+
+    Y.POS = ''
+    Y.POS.TYP = ''
+
+    RETURN
+*-----------
+PROCESS:
+*---------
+    CALL GET.LOC.REF("COMPANY","AD.BRANCH.CODE",Y.ADCODE.POS)
+    CALL GET.LOC.REF("LC.TYPES","BB.LCTYPE.CODE",Y.BDLCTCODE.POS)
+
+!Y.CB.LC.NUM = COMI
+!Y.BRANCH = Y.CB.LC.NUM[1,4]
+!Y.YEAR = Y.CB.LC.NUM[5,2]
+!Y.LC.TYPE = Y.CB.LC.NUM[2]
+! Y.YR.LC = 20:Y.YEAR ----EQ Y.YEAR
+
+    Y.LC.TYPE.ID = COMI
+    Y.YEAR = TODAY[1,4]
+    Y.YEAR.CODE = TODAY[3,2]
+    CALL F.READ(FN.COM,ID.COMPANY,R.COM.REC,F.COM,E.COM.ERR)
+    IF NOT(R.COM.REC<EB.COM.LOCAL.REF,Y.ADCODE.POS>) THEN
+        E = "AD CODE DOES NOT EXIST FOR THIS COMPANY"
+        CALL STORE.END.ERROR
+        RETURN
+    END ELSE
+        Y.ADBR.CODE = R.COM.REC<EB.COM.LOCAL.REF,Y.ADCODE.POS>
+    END
+    CALL F.READ(FN.LC.TYPES,Y.LC.TYPE.ID,R.LC.TYPES,F.LC.TYPES,E.LC.TYPES)
+    IF NOT(R.LC.TYPES<LC.TYP.LOCAL.REF,Y.BDLCTCODE.POS>) THEN
+        E = "BB LC TYPE CODE NOT FOUND"
+        CALL STORE.END.ERROR
+        RETURN
+    END ELSE
+        Y.BB.LCTYPE.CODE = R.LC.TYPES<LC.TYP.LOCAL.REF,Y.BDLCTCODE.POS>
+    END
+
+    CALL F.READ(FN.LC.BD.SERIAL.NUMBER,Y.YEAR,R.LC.BD.SERIAL.NUMBER,F.LC.BD.SERIAL.NUMBER,E.LC.BD.SERIAL.NUMBER)
+    IF NOT(R.LC.BD.SERIAL.NUMBER) THEN
+        Y.LC.TWISE.SEQNO = "0001"
+        Y.BB.LC.NUMBER = Y.ADBR.CODE : Y.YEAR.CODE : Y.BB.LCTYPE.CODE : Y.LC.TWISE.SEQNO
+        R.LC.BD.SERIAL.NUMBER<LC.BD.10.BRANCH.CODE,1> = Y.ADBR.CODE
+        R.LC.BD.SERIAL.NUMBER<LC.BD.10.LC.TYPE,1,1> = Y.BB.LCTYPE.CODE
+        R.LC.BD.SERIAL.NUMBER<LC.BD.10.LC.SERIAL.NUM,1,1> = Y.LC.TWISE.SEQNO
+        WRITE R.LC.BD.SERIAL.NUMBER ON F.LC.BD.SERIAL.NUMBER,Y.YEAR
+        R.NEW(TF.LC.OLD.LC.NUMBER) = Y.BB.LC.NUMBER
+    END ELSE
+        LOCATE Y.ADBR.CODE IN R.LC.BD.SERIAL.NUMBER<LC.BD.10.BRANCH.CODE,1> SETTING Y.POS THEN
+            LOCATE Y.BB.LCTYPE.CODE IN R.LC.BD.SERIAL.NUMBER<LC.BD.10.LC.TYPE,Y.POS,1> SETTING Y.POS.TYP THEN
+                Y.LC.TWISE.SEQNO = FMT(R.LC.BD.SERIAL.NUMBER<LC.BD.10.LC.SERIAL.NUM,Y.POS,Y.POS.TYP>,'R%4') + 1
+                R.LC.BD.SERIAL.NUMBER<LC.BD.10.LC.SERIAL.NUM,Y.POS,Y.POS.TYP> = Y.LC.TWISE.SEQNO
+                WRITE R.LC.BD.SERIAL.NUMBER ON F.LC.BD.SERIAL.NUMBER,Y.YEAR
+            END ELSE
+                Y.TYPE.CNT = DCOUNT(R.LC.BD.SERIAL.NUMBER<LC.BD.10.LC.TYPE,Y.POS>,@FM) + 1
+                Y.LC.TWISE.SEQNO = "0001"
+                R.LC.BD.SERIAL.NUMBER<LC.BD.10.LC.TYPE,Y.POS,Y.TYPE.CNT> = Y.BB.LCTYPE.CODE
+                R.LC.BD.SERIAL.NUMBER<LC.BD.10.LC.SERIAL.NUM,Y.POS,Y.TYPE.CNT> = Y.LC.TWISE.SEQNO
+                WRITE R.LC.BD.SERIAL.NUMBER ON F.LC.BD.SERIAL.NUMBER,Y.YEAR
+            END
+        END ELSE
+            Y.BR.CNT = DCOUNT(R.LC.BD.SERIAL.NUMBER<LC.BD.10.BRANCH.CODE>,@FM) + 1
+            Y.LC.TWISE.SEQNO = "0001"
+            R.LC.BD.SERIAL.NUMBER<LC.BD.10.BRANCH.CODE,Y.BR.CNT> = Y.ADBR.CODE
+            R.LC.BD.SERIAL.NUMBER<LC.BD.10.LC.TYPE,Y.BR.CNT,1> = Y.BB.LCTYPE.CODE
+            R.LC.BD.SERIAL.NUMBER<LC.BD.10.LC.SERIAL.NUM,Y.BR.CNT,1> = Y.LC.TWISE.SEQNO
+            WRITE R.LC.BD.SERIAL.NUMBER ON F.LC.BD.SERIAL.NUMBER,Y.YEAR
+        END
+        BEGIN CASE
+        CASE LEN(Y.LC.TWISE.SEQNO) EQ 1
+            Y.LC.TWISE.SEQNO1 = "000":Y.LC.TWISE.SEQNO
+        CASE LEN(Y.LC.TWISE.SEQNO) EQ 2
+            Y.LC.TWISE.SEQNO1 = "00":Y.LC.TWISE.SEQNO
+        CASE LEN(Y.LC.TWISE.SEQNO) EQ 3
+            Y.LC.TWISE.SEQNO1 = "0":Y.LC.TWISE.SEQNO
+        CASE LEN(Y.LC.TWISE.SEQNO) EQ 4
+            Y.LC.TWISE.SEQNO1 = Y.LC.TWISE.SEQNO
+        END CASE
+        Y.BB.LC.NUMBER = Y.ADBR.CODE : Y.YEAR.CODE : Y.BB.LCTYPE.CODE : Y.LC.TWISE.SEQNO1
+        R.NEW(TF.LC.OLD.LC.NUMBER) = Y.BB.LC.NUMBER
+    END
+    RETURN
+    CALL REFRESH.FIELD(AF,"")
+*--------------------------------------------------------------------------------------------
+END

@@ -1,0 +1,21 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+!**
+* Public API for T24 logging
+* @public
+* @link Logger.trace
+* @link Logger.debug
+* @link Logger.info
+* @link Logger.warn
+* @link Logger.error
+* @link Logger.fatal
+*!
+    DEFFUN Logger.trace()
+    DEFFUN Logger.debug()
+    DEFFUN Logger.info()
+    DEFFUN Logger.warn()
+    DEFFUN Logger.error()
+    DEFFUN Logger.fatal()
+    DEFFUN Logger.isDebugEnabled()
+    DEFFUN Logger.log()

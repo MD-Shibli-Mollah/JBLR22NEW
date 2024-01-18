@@ -1,0 +1,44 @@
+
+*-----------------------------------------------------------------------------
+* <Rating>-40</Rating>
+*-----------------------------------------------------------------------------
+SUBROUTINE JBL.V.DP.STK.UPD
+
+$INCLUDE GLOBUS.BP I_COMMON
+$INCLUDE GLOBUS.BP I_EQUATE
+$INCLUDE GLOBUS.BP I_F.COLLATERAL
+
+GOSUB INITIALISE
+GOSUB GET.LOC.MULTI.REF
+GOSUB PROCESS
+
+INITIALISE:
+**********
+DP.QTY = ''
+DP.UNIT = ''
+
+RETURN
+
+GET.LOC.MULTI.REF:
+******************
+     Y.APPLICATION       = "COLLATERAL"
+     FIELD.NAME          = "QUANTITY":VM:"VALUE.PER.UNIT":VM:"TOTAL.PER.STOCK"
+     FIELD.POS           = ""
+     CALL MULTI.GET.LOC.REF(Y.APPLICATION,FIELD.NAME,FIELD.POS)
+     QUANTITY.POS  = FIELD.POS<1,1>
+     VALUE.PER.UNIT.POS = FIELD.POS<1,2>
+     TOTAL.PER.STOCK.POS  = FIELD.POS<1,3>
+
+
+     RETURN
+
+ PROCESS:
+ ********
+
+DP.QTY =  R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,AS>
+DP.UNIT = COMI
+R.NEW(COLL.LOCAL.REF)<1,TOTAL.PER.STOCK.POS,AS>  = DP.QTY*DP.UNIT
+CALL REBUILD.SCREEN
+RETURN
+
+END

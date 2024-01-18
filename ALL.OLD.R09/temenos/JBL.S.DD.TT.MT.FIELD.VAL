@@ -1,0 +1,22 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.DD.TT.MT.FIELD.VAL
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.TELLER
+    $INSERT I_F.FUNDS.TRANSFER
+
+    OE.RE="OE.RE"
+    OE.RE.POS.TT=""
+    CALL GET.LOC.REF("TELLER",OE.RE,OE.RE.POS.TT)
+    IF R.NEW(TT.TE.LOCAL.REF)<1,OE.RE.POS.TT> EQ "" THEN
+        AF=TT.TE.LOCAL.REF
+        AV=OE.RE.POS.TT
+        ETEXT="NEED FILLUP EXTRACT AND INSTRUMENT DETAILS"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    RETURN
+END

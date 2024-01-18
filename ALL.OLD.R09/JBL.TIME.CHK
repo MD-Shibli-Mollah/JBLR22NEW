@@ -1,0 +1,276 @@
+*-----------------------------------------------------------------------------
+* <Rating>-120</Rating>
+*-----------------------------------------------------------------------------
+**************************************************************************
+*-------------For Restrict Inter Branch Transaction--------------------
+*Company Name   : Datasoft
+*Developed By   : Mehedi
+*
+*----------------------------------------------------------------------
+*Subroutine Type:
+*
+*Attached To    :
+*
+*Attached As    : Attached as a INPUT ROUTINE in VERSION.CONTROL of FT & TT
+*
+*In Parameter   : N/A
+*
+*Out Parameter  : N/A
+*---------------------------------------------------------------------------------------
+*Description    : This routine restrict inter branch transaction after transaction time
+*
+*---------------------------------------------------------------------------------------
+*Modification Details:
+*New:
+*
+*-------------------------------------------------------------------------
+*Modification History :
+*
+*-------------------------------------------------------------------------
+*Info :
+**************************************************************************
+    SUBROUTINE JBL.TIME.CHK
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT JBL.BP I_F.ABL.H.MUL.CR
+    $INSERT JBL.BP I_F.ABL.H.MUL.DR
+    $INSERT JBL.BP I_F.ABL.H.MUL.MCD
+    $INSERT JBL.BP I_F.ABL.H.MUL.PRM
+
+******For delete any OIBTA Txn System will be skipped any Time******
+    IF V$FUNCTION NE 'D' THEN
+        GOSUB INIT
+        GOSUB OPENFILES
+        GOSUB PROCESS
+    END
+
+    RETURN
+
+*-----------
+INIT:
+*-----------
+    FN.FT='FBNK.FUNDS.TRANSFER'
+    F.FT=''
+    FN.TT='FBNK.TELLER'
+    F.TT=''
+    FN.ACC='FBNK.ACCOUNT'
+    F.ACC=''
+    FN.MUL.PARAM = 'F.ABL.H.MUL.PRM'
+    F.MUL.PARAM = ''
+    Y.TIME.SYS=''
+    Y.MUL.PARAM.VAL='SYSTEM'
+    Y.ACC.DR=''
+    Y.ACC.CR=''
+    Y.COMPANY.ID = ID.COMPANY
+
+    FLAG = 0
+    RETURN
+*-----------
+OPENFILES:
+*-----------
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.ACC,F.ACC)
+    CALL OPF(FN.MUL.PARAM,F.MUL.PARAM)
+    RETURN
+
+*-----------
+PROCESS:
+*-----------
+    CALL F.READ(FN.MUL.PARAM,Y.MUL.PARAM.VAL,R.MUL.PARAM.VAL,F.MUL.PARAM,Y.ABL.H.MUL.PRM.ERR)
+    Y.TIME.SYS.START=R.MUL.PARAM.VAL<MPM.LOCAL.REF,1>
+    Y.TIME.SYS=R.MUL.PARAM.VAL<MPM.LOCAL.REF,2>
+    Y.BR.LIST = R.MUL.PARAM.VAL<MPM.LOCAL.REF,3>
+    Y.BR.LIST.CNT = DCOUNT(R.MUL.PARAM.VAL<MPM.LOCAL.REF,3>,@SM)
+
+    FOR Z=1 TO Y.BR.LIST.CNT
+        Y.BRANCH.LIST<-1> = R.MUL.PARAM.VAL<MPM.LOCAL.REF,3,Z>
+    NEXT Z
+
+    IF Y.BR.LIST EQ '' THEN
+        GOSUB GET.MAIN.PROCESS
+    END ELSE
+        LOCATE Y.COMPANY.ID IN Y.BRANCH.LIST SETTING POS.1 THEN
+            GOSUB GET.MAIN.PROCESS
+        END
+    END
+
+*----------------
+GET.MAIN.PROCESS:
+*----------------
+    IF Y.TIME.SYS NE '' THEN
+        IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+            GOSUB GET.FT.CHK
+        END
+
+        IF APPLICATION EQ 'TELLER' THEN
+            GOSUB GET.TT.CHK
+        END
+
+        IF APPLICATION EQ 'ABL.H.MUL.CR' THEN
+            GOSUB GET.SINGLE.DR.MUL.CR
+        END
+
+        IF APPLICATION EQ 'ABL.H.MUL.DR' THEN
+            GOSUB GET.SINGLE.CR.MUL.DR
+        END
+
+        IF APPLICATION EQ 'ABL.H.MUL.MCD' THEN
+            GOSUB GET.MUL.CR.MUL.DR
+        END
+        RETURN
+    END  ELSE
+        RETURN
+    END
+
+*------------
+GET.FT.CHK:
+*------------
+    Y.ACC.DR.FT = R.NEW(FT.DEBIT.ACCT.NO)
+    Y.ACC.CR.FT = R.NEW(FT.CREDIT.ACCT.NO)
+
+    CALL F.READ(FN.ACC,Y.ACC.DR.FT,R.DR.ACC.FT,F.ACC,Y.DR.FT.ERR)
+    Y.COMPANY.ID.DR=R.DR.ACC.FT<AC.CO.CODE>
+    IF Y.COMPANY.ID.DR NE '' THEN
+        GOSUB CHECK.DR.AC.CO.CODE
+    END
+    CALL F.READ(FN.ACC,Y.ACC.CR.FT,R.CR.ACC.FT,F.ACC,Y.CR.FT.ERR)
+    Y.COMPANY.ID.CR=R.CR.ACC.FT<AC.CO.CODE>
+    IF Y.COMPANY.ID.CR NE '' THEN
+        GOSUB CHECK.CR.AC.CO.CODE
+    END
+    RETURN
+*------------
+GET.TT.CHK:
+*------------
+    Y.ACC.CR.TT = R.NEW(TT.TE.ACCOUNT.2)
+
+    CALL F.READ(FN.ACC,Y.ACC.CR.TT,R.CR.ACC.TT,F.ACC,Y.CR.TT.ERR)
+    Y.COMPANY.ID.CR=R.CR.ACC.TT<AC.CO.CODE>
+    IF Y.COMPANY.ID.CR NE '' THEN
+        GOSUB CHECK.CR.AC.CO.CODE
+    END
+
+    RETURN
+
+*---------------------
+GET.SINGLE.DR.MUL.CR:
+*---------------------
+    Y.ACC.CR.CNT = DCOUNT(R.NEW(MULCR.CREDIT.ACCT.NO),@VM)
+    Y.ACC.DR.SDMC = R.NEW(MULCR.DEBIT.ACCT.NO)
+    CALL F.READ(FN.ACC,Y.ACC.DR.SDMC,R.DR.ACC.SDMC,F.ACC,Y.DR.SDMC.ERR)
+    Y.COMPANY.ID.DR=R.DR.ACC.SDMC<AC.CO.CODE>
+    IF Y.COMPANY.ID.DR NE '' THEN
+        GOSUB CHECK.DR.AC.CO.CODE
+    END
+    FOR I=1 TO Y.ACC.CR.CNT
+        Y.ACC.CR.SDMC = R.NEW(MULCR.CREDIT.ACCT.NO)<1,I>
+        CALL F.READ(FN.ACC,Y.ACC.CR.SDMC,R.CR.ACC.SDMC,F.ACC,Y.CR.SDMC.ERR)
+        Y.COMPANY.ID.CR=R.CR.ACC.SDMC<AC.CO.CODE>
+        IF Y.COMPANY.ID.CR NE '' THEN
+            GOSUB CHECK.CR.AC.CO.CODE
+        END
+        Y.ACC.CR.SDMC = ''
+    NEXT
+    RETURN
+*---------------------
+GET.SINGLE.CR.MUL.DR:
+*---------------------
+    Y.ACC.DR.CNT = DCOUNT(R.NEW(MULDR.DEBIT.ACCT.NO),@VM)
+    Y.ACC.CR.SCMD = R.NEW(MULDR.CREDIT.ACCT.NO)
+    CALL F.READ(FN.ACC,Y.ACC.CR.SCMD,R.CR.ACC.SCMD,F.ACC,Y.CR.SCMD.ERR)
+    Y.COMPANY.ID.CR=R.CR.ACC.SCMD<AC.CO.CODE>
+    IF Y.COMPANY.ID.CR NE '' THEN
+        GOSUB CHECK.CR.AC.CO.CODE
+    END
+
+    FOR J=1 TO Y.ACC.DR.CNT
+        Y.ACC.DR.SCMD = R.NEW(MULDR.DEBIT.ACCT.NO)<1,J>
+        CALL F.READ(FN.ACC,Y.ACC.DR.SCMD,R.DR.ACC.SCMD,F.ACC,Y.DR.SCMD.ERR)
+        Y.COMPANY.ID.DR=R.DR.ACC.SCMD<AC.CO.CODE>
+        IF Y.COMPANY.ID.DR NE '' THEN
+            GOSUB CHECK.DR.AC.CO.CODE
+        END
+        Y.ACC.DR.SCMD = ''
+    NEXT
+    RETURN
+*------------------
+GET.MUL.CR.MUL.DR:
+*------------------
+    Y.ACC.DR.CNT = DCOUNT(R.NEW(MCD.DEBIT.ACCT.NO),@VM)
+    Y.ACC.CR.CNT = DCOUNT(R.NEW(MCD.CREDIT.ACCT.NO),@VM)
+
+    FOR K=1 TO Y.ACC.DR.CNT
+        Y.ACC.DR.MCMD = R.NEW(MCD.DEBIT.ACCT.NO)<1,K>
+        CALL F.READ(FN.ACC,Y.ACC.DR.MCMD,R.DR.ACC.MCMD,F.ACC,Y.DR.MCMD.ERR)
+        Y.COMPANY.ID.DR=R.DR.ACC.MCMD<AC.CO.CODE>
+        IF Y.COMPANY.ID.DR NE '' THEN
+            GOSUB CHECK.DR.AC.CO.CODE
+        END
+        Y.ACC.DR.MCMD = ''
+    NEXT
+
+    FOR L=1 TO Y.ACC.CR.CNT
+        Y.ACC.CR.MCMD = R.NEW(MCD.CREDIT.ACCT.NO)<1,L>
+        CALL F.READ(FN.ACC,Y.ACC.CR.MCMD,R.CR.ACC.MCMD,F.ACC,Y.CR.MCMD.ERR)
+        Y.COMPANY.ID.CR=R.CR.ACC.MCMD<AC.CO.CODE>
+        IF Y.COMPANY.ID.CR NE '' THEN
+            GOSUB CHECK.CR.AC.CO.CODE
+        END
+        Y.ACC.CR.MCDC = ''
+    NEXT
+
+    RETURN
+
+*--------------------
+CHECK.CR.AC.CO.CODE:
+*--------------------
+    LOCATE Y.COMPANY.ID.CR IN Y.BRANCH.LIST SETTING POS.1 THEN
+        FLAG = 0
+    END ELSE
+        IF (Y.COMPANY.ID NE Y.COMPANY.ID.CR) THEN
+            FLAG = 1
+        END ELSE
+            FLAG = 0
+        END
+    END
+    GOSUB GET.CHECK.TIME
+    RETURN
+
+*--------------------
+CHECK.DR.AC.CO.CODE:
+*--------------------
+    LOCATE Y.COMPANY.ID.DR IN Y.BRANCH.LIST SETTING POS.1 THEN
+        FLAG = 0
+    END ELSE
+        IF (Y.COMPANY.ID NE Y.COMPANY.ID.DR) THEN
+            FLAG = 1
+        END ELSE
+            FLAG = 0
+        END
+    END
+    GOSUB GET.CHECK.TIME
+    RETURN
+
+*---------------
+GET.CHECK.TIME:
+*---------------
+    IF FLAG EQ '1' THEN
+        Y.TIME.STAMP = TIMEDATE()
+        Y.HR=Y.TIME.STAMP[1,2]
+        Y.MIN=Y.TIME.STAMP[4,2]
+        Y.HR.MIN=Y.HR:".":Y.MIN
+        IF Y.HR.MIN GE Y.TIME.SYS THEN
+            ETEXT = "Today time is over for inter branch transaction"
+            CALL STORE.END.ERROR
+        END
+        IF Y.HR.MIN LE Y.TIME.SYS.START THEN
+            ETEXT="Still now inter branch transaction not open"
+            CALL STORE.END.ERROR
+        END
+    END
+    RETURN

@@ -1,0 +1,162 @@
+*********************************************
+*Developed :15.04.2018
+* Developer:Fairooz Chowdhury
+* All type of 12820 acc opening balance added dateiwse
+* rest  of the fields are as per rule
+
+*Modified By:Fairooz Chowdhury
+*Date :07.05.2018
+*first selecting 12810 acc then from stmt list matching it with ABL.H.NM.ER
+******************************************
+    SUBROUTINE EXT.SUMMARY.IBFTA(Y.RETURN)
+!    PROGRAM EXT.SUMMARY.IBFTA
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.ABL.H.NM.ER
+    $INSERT JBL.BP I_F.ABL.H.BRANCH.CODE
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.NM = "F.ABL.H.NM.ER";        F.NM = ""
+    FN.NM.BR="F.ABL.H.BRANCH.CODE"; F.NM.BR=""
+    FN.AC = "F.ACCOUNT";            F.AC = ""
+    FN.STMT.ENTRY = "F.STMT.ENTRY"; F.STMT.ENTRY = ""
+    Y.CATEGORY = '12820'
+
+    LOCATE 'START.DATE' IN ENQ.SELECTION<2,1> SETTING START.DATE.POS THEN
+        Y.START.DATE =  ENQ.SELECTION<4,START.DATE.POS>
+    END
+
+    LOCATE 'END.DATE' IN ENQ.SELECTION<2,1> SETTING END.DATE.POS THEN
+        Y.END.DATE =  ENQ.SELECTION<4,END.DATE.POS>
+    END
+
+    Y.OE.DEBIT = "";Y.OE.CRDT = "";
+    DR.CR.MARK = ""; OE.RE.REM = "";
+    Y.OPEN.BAL = '0'; Y.OPENING.AMT.DBT = "0"; Y.OPENING.AMT.CRDT = "0";
+    Y.CLOSING.AMT.DBT = "0"; Y.CLOSING.AMT.CRDT = "0";
+    Y.OE.DBT.TOT = "0"; Y.OE.CRDT.TOT = "0";
+    Y.RE.DBT.TOT = "0"; Y.RE.CRDT.TOT = "0";
+    Y.DBT.GRND.TOT = "0"; Y.CRDT.GRND.TOT = "0"
+
+!   Y.START.DATE='20170314'; Y.END.DATE='20170315'
+    Y.FROM.DATE=Y.START.DATE; Y.TO.DATE=Y.FROM.DATE
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.NM,F.NM)
+    CALL OPF(FN.NM.BR,F.NM.BR)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.STMT.ENTRY,F.STMT.ENTRY)
+    RETURN
+
+PROCESS:
+    CALL CDD('', Y.START.DATE, Y.END.DATE, Y.DAYS)
+    CO.CODE.2=RIGHT(ID.COMPANY,4)
+    CALL F.READ(FN.NM.BR,CO.CODE.2,R.ZONE,F.NM.BR,Y.ERR)
+    Y.ZONE=R.ZONE<BRN.ZONAL.CODE>
+
+    FOR J = 1 TO Y.DAYS+1
+        SEL.CMD.AC = "SELECT ":FN.AC:" WITH CO.CODE EQ ":ID.COMPANY:" AND CATEGORY EQ ":Y.CATEGORY
+        CALL EB.READLIST(SEL.CMD.AC,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+        LOOP
+            REMOVE Y.ID FROM SEL.LIST SETTING POS
+        WHILE Y.ID:POS
+            CALL EB.ACCT.ENTRY.LIST(Y.ID,Y.FROM.DATE,Y.TO.DATE,Y.AC.STMT.LIST,Y.AC.OPEN.BAL,Y.AC.ER)
+            Y.AC.CLOSE.BAL=Y.AC.OPEN.BAL
+            Y.FT.C=DCOUNT(Y.AC.STMT.LIST,@FM)
+
+            FOR I = 1 TO Y.FT.C
+                Y.STMT.ID = FIELD(Y.AC.STMT.LIST,@FM,I)
+                CALL F.READ(FN.STMT.ENTRY, Y.STMT.ID , R.STMT, F.STMT.ENTRY , Y.ERR)
+                Y.TR.REF = R.STMT<AC.STE.TRANS.REFERENCE>
+                Y.TR.ARR<-1>=Y.TR.REF
+
+            NEXT I
+!---------------------------ADDING OPEN & CLOSE----------
+            Y.INDV.DATA<-1>=Y.ID:"*":Y.FROM.DATE:"*":Y.AC.OPEN.BAL:"*":Y.AC.CLOSE.BAL
+            Y.TOTAL.OPEN=Y.TOTAL.OPEN+Y.AC.OPEN.BAL
+            Y.AC.OPEN.BAL=0; Y.AC.CLOSE.BAL=0;
+        REPEAT
+!----------------ADDING ALL 12810 ACC BAL---------
+!--------------OE & RE----------------------------
+        SEL.CMD = "SELECT ":FN.NM:" WITH CO.CODE EQ ":ID.COMPANY:" AND VALUE.DATE EQ ":Y.FROM.DATE:"  AND RECORD.STATUS NE 'REVE' BY OE.RE BY BRANCH.CODE BY ADVICE.NO"
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+        LOOP
+            REMOVE Y.ID FROM SEL.LIST SETTING POS2
+        WHILE Y.ID:POS2
+            CALL F.READ(FN.NM,Y.ID,R.REC,F.NM,Y.ERR)
+
+            LOCATE  Y.ID IN Y.TR.ARR SETTING Y.POS THEN
+                OE.RE.REM = R.REC<NM.OE.RE>
+                DR.CR.MARK = R.REC<NM.DR.CR.MARKER>
+                IF OE.RE.REM EQ 'OE' THEN
+                    IF DR.CR.MARK EQ 'DR' THEN
+                        Y.OE.DBT.TOT = Y.OE.DBT.TOT + ABS(R.REC<NM.AMOUNT>)
+                    END ELSE
+                        Y.OE.CRDT.TOT = Y.OE.CRDT.TOT + R.REC<NM.AMOUNT>
+                    END
+                END ELSE
+                    IF DR.CR.MARK EQ 'DR' THEN
+                        Y.RE.DBT.TOT = Y.RE.DBT.TOT + ABS(R.REC<NM.AMOUNT>)
+                    END ELSE
+                        Y.RE.CRDT.TOT = Y.RE.CRDT.TOT + R.REC<NM.AMOUNT>
+                    END
+                END
+                OE.RE.REM = ""; DR.CR.MARK = ""
+            END
+        REPEAT
+!----------------------OE & RE-----------------------------------------------
+!--------------CALCULATION----------------------
+        IF Y.TOTAL.OPEN LT '0' THEN
+            Y.OPENING.AMT.DBT = ABS(Y.TOTAL.OPEN)
+            Y.OPENING.AMT.CRDT=0
+            Y.CLOSE.RESULT= (Y.OPENING.AMT.DBT + Y.OE.DBT.TOT + Y.RE.DBT.TOT) - (Y.OE.CRDT.TOT + Y.RE.CRDT.TOT)
+            IF Y.CLOSE.RESULT<0 THEN
+                Y.CLOSING.AMT.DBT=Y.CLOSE.RESULT
+                Y.CLOSING.AMT.CRDT=0
+            END ELSE
+                Y.CLOSING.AMT.CRDT=Y.CLOSE.RESULT
+                Y.CLOSING.AMT.DBT=0
+            END
+            Y.CRDT.GRND.TOT = Y.OPENING.AMT.CRDT + Y.OE.CRDT.TOT + Y.RE.CRDT.TOT+Y.CLOSING.AMT.CRDT
+            Y.DBT.GRND.TOT = Y.OPENING.AMT.DBT + Y.OE.DBT.TOT + Y.RE.DBT.TOT+Y.CLOSING.AMT.DBT
+        END ELSE
+            Y.OPENING.AMT.CRDT = Y.TOTAL.OPEN
+            Y.OPENING.AMT.DBT=0
+            Y.CLOSE.RESULT= (Y.OPENING.AMT.CRDT + Y.OE.CRDT.TOT + Y.RE.CRDT.TOT) - (Y.OE.DBT.TOT + Y.RE.DBT.TOT)
+            IF Y.CLOSE.RESULT <0 THEN
+                Y.CLOSING.AMT.CRDT=(-1)*Y.CLOSE.RESULT
+                Y.CLOSING.AMT.DBT=0
+            END ELSE
+                Y.CLOSING.AMT.DBT=Y.CLOSE.RESULT
+                Y.CLOSING.AMT.CRDT=0
+            END
+            Y.CRDT.GRND.TOT = Y.OPENING.AMT.CRDT + Y.OE.CRDT.TOT + Y.RE.CRDT.TOT+Y.CLOSING.AMT.CRDT
+            Y.DBT.GRND.TOT = Y.OPENING.AMT.DBT + Y.OE.DBT.TOT + Y.RE.DBT.TOT+Y.CLOSING.AMT.DBT
+        END
+!-------------------------------------------------
+        Y.RETURN<-1>=Y.ZONE:"*":CO.CODE.2:"*":Y.FROM.DATE:"*":Y.OPENING.AMT.DBT:"*":Y.OPENING.AMT.CRDT:"*":Y.OE.DBT.TOT:"*":Y.OE.CRDT.TOT:"*": Y.RE.DBT.TOT :"*":Y.RE.CRDT.TOT:"*":Y.CLOSING.AMT.DBT:"*":Y.CLOSING.AMT.CRDT:"*":Y.DBT.GRND.TOT:"*":Y.CRDT.GRND.TOT
+!                      1          2             3             4                       5                   6                 7                    8                9                      10              11                      12                   13
+        Y.TOTAL.OPEN=0;Y.TOTAL.CLOSE=0;
+        Y.OE.DBT.TOT=0; Y.OE.CRDT.TOT=0;
+        Y.RE.DBT.TOT=0; Y.RE.CRDT.TOT=0 ;
+!-------------------------DATE--------------------
+        CALL CDT('', Y.FROM.DATE, '+1W')
+        CALL CDT('', Y.TO.DATE, '+1W')
+
+!----------------------------------------
+    NEXT J
+
+!   PRINT Y.RETURN
+    RETURN
+END

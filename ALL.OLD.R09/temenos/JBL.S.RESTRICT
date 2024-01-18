@@ -1,0 +1,20 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.RESTRICT
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT DM.BP I_F.DM.MAPPING.DEFINITION
+    FN.DM="F.DM.MAPPING.DEFINITION"
+    F.DM=""
+    REC.DM=""
+    CALL OPF(FN.DM,F.DM)
+    CALL F.READ(FN.DM,ID.NEW,REC.DM,F.DM,ERR.DM)
+    IF REC.DM<DM.MD.APPLICATION.NAME> NE 'FUNDS.TRANSFER' THEN
+        TEXT="PLEASE CONTRACT WITH TEMENOS"
+        CALL FATAL.ERROR("")
+        RETURN
+    END
+    RETURN
+END

@@ -1,0 +1,89 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+**************************************************************************
+*
+*Company Name   :
+*Developed By   : Huraira
+*
+*----------------------------------------------------------------------
+*Subroutine Type:
+*
+*Attached To    : The Enquiry E.PAD.REGISTER
+*
+*Attached As    : Conversion Routine for the field GRP.INT.RATE
+*
+*In Parameter   :
+*
+*Out Parameter  :
+*------------------------------------------------------------------------------
+*Description    : This Routine return Group Debit Interest Rate for the account
+*
+*------------------------------------------------------------------------------
+*Modification Details:
+*New:
+*
+*-------------------------------------------------------------------------
+*Modification History :
+*
+**************************************************************************
+
+    SUBROUTINE PAD.AC.INT.RATE
+!PROGRAM PAD.AC.INT.RATE
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.GROUP.DATE
+    $INSERT I_F.GROUP.DEBIT.INT
+    $INSERT I_F.COMPANY
+    $INSERT I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.GDT = "F.GROUP.DATE"
+    F.GDT = ""
+
+    FN.GDI = "F.GROUP.DEBIT.INT"
+    F.GDI = ""
+
+    Y.GROUP.DATE.ID = O.DATA
+
+    Y.GD.DATE = ""
+    Y.DR.DATE = ""
+    Y.LAST.GDT = ""
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.GDT,F.GDT)
+    CALL OPF(FN.GDI,F.GDI)
+
+    RETURN
+
+PROCESS:
+
+    CALL F.READ(FN.GDT,Y.GROUP.DATE.ID,R.GDT.REC,F.GDT,Y.ERR)
+    Y.GD.DATE =  DCOUNT(R.GDT.REC<AC.GRD.DEBIT.DATES>,@VM)
+
+    FOR I = 1 TO Y.GD.DATE
+        Y.DR.DATE = R.GDT.REC<AC.GRD.DEBIT.DATES,I>
+        IF Y.DR.DATE LE TODAY THEN
+            Y.LAST.GDT = Y.DR.DATE
+        END
+    NEXT
+
+    Y.GDI.ID = Y.GROUP.DATE.ID:Y.LAST.GDT
+
+    CALL F.READ(FN.GDI,Y.GDI.ID,R.GDI.REC,F.GDI,Y.ERR)
+    Y.DR.INT.RATE = R.GDI.REC<IC.GDI.DR.INT.RATE>
+
+    O.DATA = Y.DR.INT.RATE
+
+    RETURN
+END

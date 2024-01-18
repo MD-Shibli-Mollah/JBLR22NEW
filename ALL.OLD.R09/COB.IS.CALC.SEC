@@ -1,0 +1,487 @@
+*-----------------------------------------------------------------------------
+* <Rating>3807</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE COB.IS.CALC.SEC(Y.CUS.ID)
+*PROGRAM COB.AB.CALC.SEC
+*-------------------------------------------------------------------------
+* COB multithreaded routine to calculate security amount for a definite
+* liable customer's and and his sister customer's PD
+* routine written by Md. Omar Faruque,Software Engineer,Datasoft Systems BD Ltd
+*                 and Md. Zahid Hasan,Software Engineer,Datasoft Systems BD Ltd
+* Last updated on May 26,2009
+*--------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.PD.PAYMENT.DUE
+    $INSERT I_F.COLLATERAL
+    $INSERT I_F.CUSTOMER
+    $INSERT I_F.DATES
+    $INSERT I_F.AB.H.ASSET.CLASS.PARAM
+    $INSERT I_F.AB.H.LOAN.BROAD.CATEG
+    $INSERT I_F.AB.L.CLASSIFICATION.HIST
+    $INSERT I_COB.AB.CALC.SEC.COMMON
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*----------------------------------------------------------------------------
+INIT:
+*----
+
+    R.PD.CUS = ''
+    PD.CUS.ERR = ''
+    R.CUS.LIAB = ''
+    CUS.LIAB.ERR = ''
+    CNT = ''
+    Y.CNT.PD = 0
+    Y.TOT.CHLD.PD = ''
+    TOT.PD = 0
+    Y.TOT.EXE.VAL = 0
+    USED.COLL.PRNT = 0
+    USED.COLL.CHLD = 0
+    Y.SUSP = 0
+    Y.SEC.AMT = 0
+    RETURN
+*----------------------------------------------------------------------------
+PROCESS:
+*------
+!    DEBUG
+*---------------------------
+!Y.CUS.ID = 1000000255
+!CALL COB.IS.CALC.SEC.LOAD
+*-----------------------------
+    Y.RUN.FREQ = ''
+!   IF NOT(Y.RUN.FREQ) THEN   ;* if frequency is not set then set it
+!    R.PARAM = ''
+!    PARAM.ERR = ''
+!    Y.PARAM.ID = '6742'
+!    CALL F.READ(FN.PARAM,Y.PARAM.ID,R.PARAM,F.PARAM,PARAM.ERR)
+!    IF R.PARAM THEN
+!        Y.RUN.FREQ = R.PARAM<IS.ASSET.CL.PROV.REVIEW.FREQ>[1,8]
+! Y.RUN.FREQ = TODAY
+!    END
+!  END
+
+!    Y.NEXT.WORKING.DAY = R.DATES(EB.DAT.NEXT.WORKING.DAY)
+!    Y.LAST.WORKING.DAY = R.DATES(EB.DAT.LAST.WORKING.DAY)
+! IF Y.RUN.FREQ GE TODAY AND Y.RUN.FREQ LE Y.NEXT.WORKING.DAY THEN
+!    IF Y.RUN.FREQ GE Y.LAST.WORKING.DAY AND Y.RUN.FREQ LE TODAY THEN
+    Y.FLAG = 1
+!    END ELSE
+!        Y.FLAG = 0
+!    END
+
+    IF Y.FLAG = 1 THEN
+
+*--------------first count own contract--------------------------
+        CALL F.READ(FN.PD.CUS,Y.CUS.ID,R.PD.CUS,F.PD.CUS,PD.CUS.ERR)
+        IF R.PD.CUS THEN
+            CNT = DCOUNT(R.PD.CUS,FM)
+            Y.DEDUCT.PNT = 0
+            DIM PRNT.PD(CNT)
+            DIM PRNT.PD.ASSET(CNT)
+            PRNT.PD(0) = ''
+            PRNT.PD.ASSET(0) = ''
+            INDX = 0
+            FOR I=1 TO CNT
+                IF R.PD.CUS<I>[1,4] EQ 'PDLD' OR R.PD.CUS<I>[1,4] EQ 'PDPD' THEN
+                    Y.PD.ID = R.PD.CUS<I>
+                    R.PD.PAYMENT.DUE = ''
+                    PD.ERR = ''
+                    CALL F.READ(FN.PD.PAYMENT.DUE,Y.PD.ID,R.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE,PD.ERR)
+                    IF R.PD.PAYMENT.DUE THEN
+                        Y.ASSET = R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.ASSET.CLASS.POS>
+                        IF Y.ASSET GE 30 THEN
+                            Y.PE.RATE = R.PD.PAYMENT.DUE<PD.PENALTY.RATE>
+                            Y.BL.DATE = R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.BL.DATE.POS>
+                            IF Y.ASSET EQ 50 AND R.PD.CUS<I>[1,4] EQ 'PDPD' AND Y.PE.RATE EQ 0 AND Y.BL.DATE LT  Y.RUN.FREQ THEN
+                                USED.COLL.PRNT += R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.TOT.EXV.AMT.POS>
+                                Y.DEDUCT.PNT++
+                            END ELSE
+                                INDX++
+                                PRNT.PD(INDX) = ''
+                                PRNT.PD(INDX) = Y.PD.ID
+                                PRNT.PD.ASSET(INDX) = ''
+                                PRNT.PD.ASSET(INDX) = Y.ASSET
+                            END
+                        END ELSE
+                            Y.DEDUCT.PNT++
+                        END
+                    END
+                END ELSE
+                    Y.DEDUCT.PNT++
+                END
+
+            NEXT I
+
+        END
+*--------------------------------------------------------------------
+!     DEBUG
+*--------------- now the child's contract----------------------------
+        Y.TOT.CHLD.PD = 0
+        Y.CHLD.CNT = DCOUNT(R.CUS.LIAB,FM)
+        Y.CHLD.CNT -= 1
+        DIM Y.CH.CUS.ID(Y.CHLD.CNT)
+
+        FLAG = 0
+        Y.CH.CUS.ID(0) = ''
+        FOR I = 1 TO Y.CHLD.CNT
+            Y.CH.CUS.ID(I) = ''
+            IF FLAG = 0 THEN
+                Y.CH.CUS.ID(I) = R.CUS.LIAB<I>
+            END ELSE
+                Y.CH.CUS.ID(I) = R.CUS.LIAB<I+1>
+            END
+            R.PD.CUS = ''
+            PD.CUS.ERR = ''
+            IF Y.CH.CUS.ID(I) NE Y.CUS.ID THEN
+                CALL F.READ(FN.PD.CUS,Y.CH.CUS.ID(I),R.PD.CUS,F.PD.CUS,PD.CUS.ERR)
+                IF R.PD.CUS THEN
+                    Y.CNT.PD = DCOUNT(R.PD.CUS,FM)
+                    Y.TOT.CHLD.PD += Y.CNT.PD
+
+                END
+            END ELSE
+                FLAG = 1
+                I--
+            END
+
+        NEXT I
+!      DEBUG
+        DIM CHLD.PD(Y.TOT.CHLD.PD)
+        DIM CHLD.PD.ASSET(Y.TOT.CHLD.PD)
+        CHLD.PD(0) = ''
+        CHLD.PD.ASSET(0) = ''
+        INDX = 0
+        Y.DEDUCT.CHLD = 0
+        Y.WRITE = ''
+        FOR I = 1 TO Y.CHLD.CNT
+            R.PD.CUS = ''
+            USED.COLL.CHLD = 0
+            IF Y.CH.CUS.ID(I) NE '' THEN
+                CALL F.READ(FN.PD.CUS,Y.CH.CUS.ID(I),R.PD.CUS,F.PD.CUS,PD.CUS.ERR)
+                IF R.PD.CUS THEN
+                    Y.CNT = DCOUNT(R.PD.CUS,FM)
+                    FOR J = 1 TO Y.CNT
+                        IF R.PD.CUS<J>[1,4] EQ 'PDLD' OR R.PD.CUS<J>[1,4] EQ 'PDPD' THEN
+                            Y.PD.ID = R.PD.CUS<J>
+                            R.PD.PAYMENT.DUE = ''
+                            PD.ERR = ''
+                            CALL F.READ(FN.PD.PAYMENT.DUE,Y.PD.ID,R.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE,PD.ERR)
+                            IF R.PD.PAYMENT.DUE THEN
+                                Y.ASSET = R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.ASSET.CLASS.POS>
+                                IF Y.ASSET GE 30 THEN
+                                    Y.PE.RATE = R.PD.PAYMENT.DUE<PD.PENALTY.RATE>
+                                    Y.BL.DATE = R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.BL.DATE.POS>
+                                    IF Y.ASSET EQ 50 AND R.PD.CUS<I>[1,4] EQ 'PDPD' AND Y.PE.RATE EQ 0 AND Y.BL.DATE LT Y.RUN.FREQ THEN
+                                        USED.COLL.CHLD += R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.TOT.EXV.AMT.POS>
+                                        Y.DEDUCT.CHLD++
+                                    END ELSE
+                                        INDX++
+                                        CHLD.PD(INDX) = ''
+                                        CHLD.PD(INDX) = Y.PD.ID
+                                        CHLD.PD.ASSET(INDX) = ''
+                                        CHLD.PD.ASSET(INDX) = Y.ASSET
+                                    END
+                                END ELSE
+                                    Y.DEDUCT.CHLD++
+                                END
+                            END
+
+                        END ELSE
+                            Y.DEDUCT.CHLD++
+                        END
+                    NEXT J
+                    Y.COLL = Y.CH.CUS.ID(I) :@VM: USED.COLL.CHLD
+                    Y.WRITE<-1> = Y.COLL
+                END
+            END
+        NEXT I
+
+*--------------------------------------------------------------------
+!DEBUG
+*-----------------merge two array into one---------------------------
+        CNT = CNT - Y.DEDUCT.PNT
+        Y.TOT.CHLD.PD = Y.TOT.CHLD.PD - Y.DEDUCT.CHLD
+        Y.TOT.PD = CNT + Y.TOT.CHLD.PD
+        DIM A(Y.TOT.PD)
+        DIM B(Y.TOT.PD)
+        A(0) = ''
+        B(0) = ''
+        FOR I = 1 TO CNT
+            A(I) = ''
+            B(I) = ''
+            A(I) = PRNT.PD(I)
+            B(I) = PRNT.PD.ASSET(I)
+        NEXT I
+        FOR I = 1 TO Y.TOT.CHLD.PD
+            A(I+CNT) = ''
+            B(I+CNT) = ''
+            A(I+CNT) = CHLD.PD(I)
+            B(I+CNT) = CHLD.PD.ASSET(I)
+        NEXT I
+
+*--------------------------------------------------------------------
+!DEBUG
+*------------------sort all PD descending by Asset class(stored in B array)-------------------------------------------
+        Y.LOOP = Y.TOT.PD
+        FOR I=1 TO Y.LOOP
+            FOR J=1 TO Y.LOOP-1
+                IF (B(J) < B(J+1)) THEN
+
+                    TEMP.B = B(J)
+                    B(J) = B(J+1)
+                    B(J+1) = TEMP.B
+
+                    TEMP.A = A(J)
+                    A(J) = A(J+1)
+                    A(J+1) = TEMP.A
+
+                END
+            NEXT J
+            Y.LOOP -= 1
+        NEXT I
+!DEBUG
+        Y.CUSTOMER = Y.CUS.ID
+        GOSUB READ.COLLATERAL
+        GOSUB CALC.SECURITY
+
+*--------------nullify REM.SEC.VAL of processed sister cusotmer
+        FOR I = 1 TO Y.CHLD.CNT
+            R.CUS1 = ''
+            CUS.ERR = ''
+            Y.ID = Y.CH.CUS.ID(I)
+            CALL F.READ(FN.CUS,Y.ID,R.CUS1,F.CUS,CUS.ERR)
+            IF R.CUS1 THEN
+                R.CUS1<EB.CUS.LOCAL.REF,Y.REMAIN.SEC.POS> = ''
+                WRITE R.CUS1 ON F.CUS,Y.ID
+            END
+        NEXT I
+*------------------------------------------------------
+!DEBUG
+*------------------------------------------------------------------------
+    END
+    RETURN
+*----------------------------------------------------------------------
+READ.COLLATERAL:
+*--------------
+!   DEBUG
+    Y.TOT.EXE.VAL = 0
+    SEL = "SELECT ":FN.COLLATERAL:" WITH @ID LIKE ": Y.CUSTOMER :"..."
+    CALL EB.READLIST(SEL,SELLIST,"",NO.OF.REC,Y.RET.CODE)
+    IF SELLIST THEN
+        LOOP
+            REMOVE Y.COL.ID FROM SELLIST SETTING Y.POS
+        WHILE Y.COL.ID:Y.POS
+            R.COLLATERAL = ''
+            Y.COL.ERR = ''
+            CALL F.READ(FN.COLLATERAL,Y.COL.ID,R.COLLATERAL,F.COLLATERAL,Y.COL.ERR)
+            Y.COL.TYPE=R.COLLATERAL<COLL.COLLATERAL.TYPE>
+* Calculate the Execution value from the percentage Allocation
+            Y.EXE.VAL = R.COLLATERAL<COLL.CENTRAL.BANK.VALUE>
+            Y.TOT.EXE.VAL += Y.EXE.VAL
+            Y.EXE.VAL = ''
+        REPEAT
+    END
+
+    RETURN
+*-----------------------------------------------------------------------
+CALC.SECURITY:
+*------------
+!DEBUG
+    Y.SEC.AMT = Y.TOT.EXE.VAL - USED.COLL.PRNT    ;* deduct used collateral
+* from total amount
+    FOR I =1 TO Y.TOT.PD
+
+        Y.PD.ID = A(I)
+        R.PD.PAYMENT.DUE = ''
+        PD.ERR = ''
+        CALL F.READ(FN.PD.PAYMENT.DUE,Y.PD.ID,R.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE,PD.ERR)
+        IF R.PD.PAYMENT.DUE THEN
+            Y.THIS.CUS = R.PD.PAYMENT.DUE<PD.CUSTOMER>
+            Y.TOT.OVD = R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.TOT.CL.DUE.AMT.POS>
+            Y.PER = R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.PROVISION.POS>
+            Y.SUSP = R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.TOT.SUSP.POS>
+            Y.PE.RATE = R.PD.PAYMENT.DUE<PD.PENALTY.RATE>
+            Y.ASSET.CLASS = R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.ASSET.CLASS.POS>
+            Y.AMT.TO.CMPR = Y.TOT.OVD - Y.SUSP
+
+            IF Y.THIS.CUS EQ Y.CUS.ID THEN        ;* PD of parent customer
+                IF Y.SEC.AMT GE Y.AMT.TO.CMPR THEN
+                    Y.ELIGIBLE.SEC = Y.AMT.TO.CMPR
+                    Y.SEC.AMT = Y.SEC.AMT - Y.AMT.TO.CMPR
+                END ELSE
+                    Y.ELIGIBLE.SEC = Y.SEC.AMT
+                    Y.SEC.AMT = 0
+
+                END
+            END ELSE          ;*PD of sister customer
+                R.CUS = ''
+                CUS.ERR = ''
+                Y.ELIGIBLE.SEC = 0
+                Y.REMAIN.SEC = 0
+                CALL F.READ(FN.CUS,Y.THIS.CUS,R.CUS,F.CUS,CUS.ERR)
+                IF R.CUS THEN
+                    IF R.CUS<EB.CUS.LOCAL.REF,Y.REMAIN.SEC.POS> NE '' THEN      ;* that means this customer's own security has already calculated and used
+                        IF R.CUS<EB.CUS.LOCAL.REF,Y.REMAIN.SEC.POS> EQ 0 THEN   ;* this customer has no more own security to count
+* so consider from parent customer's security
+                            IF Y.SEC.AMT GE Y.AMT.TO.CMPR THEN
+                                Y.ELIGIBLE.SEC = Y.AMT.TO.CMPR
+                                Y.SEC.AMT = Y.SEC.AMT - Y.AMT.TO.CMPR
+                            END ELSE
+                                Y.ELIGIBLE.SEC = Y.SEC.AMT
+                                Y.SEC.AMT = 0
+
+                            END
+                        END ELSE        ;* this customer has own fund remaining so use this
+                            Y.SEC.VAL = R.CUS<EB.CUS.LOCAL.REF,Y.REMAIN.SEC.POS>
+                            IF Y.SEC.VAL GE Y.AMT.TO.CMPR THEN        ;* no shortage in own fund
+                                Y.ELIGIBLE.SEC = Y.AMT.TO.CMPR
+                                Y.REMAIN.SEC = Y.SEC.VAL - Y.AMT.TO.CMPR
+                            END ELSE    ;* shortage in own fund use parent's fund
+                                IF Y.SEC.AMT GT 0 THEN      ;* parent has fund  remaining
+                                    Y.TEMP = Y.AMT.TO.CMPR - Y.SEC.VAL
+                                    IF Y.SEC.AMT GE Y.TEMP THEN       ;* parent's fund is sufficient. use as required
+                                        Y.ELIGIBLE.SEC = Y.AMT.TO.CMPR
+                                        Y.REMAIN.SEC = 0
+                                        Y.SEC.AMT -= Y.TEMP
+                                    END ELSE      ;* parent's fund is not sufficient.use all found
+                                        Y.ELIGIBLE.SEC = Y.SEC.VAL + Y.SEC.AMT
+                                        Y.REMAIN.SEC = 0
+                                        Y.SEC.AMT = 0
+                                    END
+                                END ELSE          ;* parent has no fund remaining so use only own fund
+                                    Y.ELIGIBLE.SEC = Y.TOT.EXE.VAL
+                                    Y.REMAIN.SEC = 0
+
+                                END
+                            END
+                            R.CUS<EB.CUS.LOCAL.REF,Y.REMAIN.SEC.POS> = Y.REMAIN.SEC
+                            WRITE R.CUS ON F.CUS,Y.THIS.CUS
+!     CALL JOURNAL.UPDATE('')
+                        END
+                    END ELSE  ;* this customer's own security yet not checked and calculated so check it
+                        Y.CUSTOMER = Y.THIS.CUS
+                        GOSUB READ.COLLATERAL
+                        USED.COLL = 0
+                        FIND Y.THIS.CUS IN Y.WRITE SETTING FD,VL THEN
+                            VL += 1
+                            USED.COLL = Y.WRITE<FD,VL>
+                        END
+                        Y.TOT.EXE.VAL -= USED.COLL
+                        IF Y.TOT.EXE.VAL GT 0 THEN          ;* this sister customer has own collateral
+
+                            IF Y.TOT.EXE.VAL GE Y.AMT.TO.CMPR THEN    ;*fund is sufficient.use as required
+                                Y.ELIGIBLE.SEC = Y.AMT.TO.CMPR
+                                Y.REMAIN.SEC = Y.TOT.EXE.VAL - Y.AMT.TO.CMPR
+                            END ELSE    ;* fund is not suffient. use parent's fund
+                                IF Y.SEC.AMT GT 0 THEN      ;* parent has fund remaining
+                                    Y.TEMP = Y.AMT.TO.CMPR - Y.TOT.EXE.VAL
+                                    IF Y.SEC.AMT GE Y.TEMP THEN       ;* parent has sufficient fund.Use as required
+                                        Y.ELIGIBLE.SEC = Y.AMT.TO.CMPR
+                                        Y.REMAIN.SEC = 0
+                                        Y.SEC.AMT -= Y.TEMP
+                                    END ELSE      ;* parent has no sufficient fund.Use all found
+                                        Y.ELIGIBLE.SEC = Y.TOT.EXE.VAL + Y.SEC.AMT
+                                        Y.REMAIN.SEC = 0
+                                        Y.SEC.AMT = 0
+                                    END
+                                END ELSE
+                                    Y.ELIGIBLE.SEC = Y.TOT.EXE.VAL
+                                    Y.REMAIN.SEC = 0
+                                END
+                            END
+                            R.CUS<EB.CUS.LOCAL.REF,Y.REMAIN.SEC.POS> = Y.REMAIN.SEC
+                            WRITE R.CUS ON F.CUS,Y.THIS.CUS
+!      CALL JOURNAL.UPDATE('')
+                        END ELSE        ;* child has no own collateral
+
+                            IF Y.SEC.AMT GE Y.AMT.TO.CMPR THEN
+                                Y.ELIGIBLE.SEC = Y.AMT.TO.CMPR
+                                Y.SEC.AMT = Y.SEC.AMT - Y.AMT.TO.CMPR
+                            END ELSE
+                                Y.ELIGIBLE.SEC = Y.SEC.AMT
+                                Y.SEC.AMT = 0
+
+                            END
+                        END
+                    END
+                END
+
+            END
+            GOSUB GET.PROVISION
+! DEBUG
+
+        END
+
+    NEXT I
+    RETURN
+*----------------------------------------------------------------------
+GET.PROVISION:
+*-------------
+!DEBUG
+    IF Y.ASSET.CLASS EQ 30 THEN
+        Y.BASE = Y.TOT.OVD - Y.SUSP - Y.ELIGIBLE.SEC
+    END ELSE
+        IF Y.ASSET.CLASS EQ 40 THEN
+            Y.BASE = Y.TOT.OVD - Y.SUSP - Y.ELIGIBLE.SEC
+        END ELSE
+            IF Y.ASSET.CLASS EQ 50 THEN
+                Y.BASE = Y.TOT.OVD - Y.SUSP - Y.ELIGIBLE.SEC
+            END ELSE
+                Y.BASE = 0
+            END
+        END
+    END
+    IF Y.BASE LT 0 THEN
+        Y.BASE = 0
+    END
+    Y.BASE.FR.PROV = Y.BASE * (Y.PER/100)
+
+    Y.BASE.AMT = DROUND(Y.BASE,2)
+    Y.PROV.AMT = DROUND(Y.BASE.FR.PROV,2)
+
+    IF Y.ELIGIBLE.SEC LT 0 THEN
+        Y.ELIGIBLE.SEC = 0
+    END
+
+    R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.BASE.PROV.POS> = Y.BASE.AMT
+    R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.PROV.AMT.POS> = Y.PROV.AMT
+    R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.TOT.EXV.AMT.POS> = Y.ELIGIBLE.SEC
+
+    WRITE R.PD.PAYMENT.DUE ON F.PD.PAYMENT.DUE,Y.PD.ID
+! CALL JOURNAL.UPDATE('')
+
+*---------------write classification history--------------------
+    CALL F.READ(FN.CLASS.HIST,Y.PD.ID,R.CLASS.HIST,F.CLASS.HIST,ERR)
+    IF R.CLASS.HIST THEN
+        R.CLASS.HIST<1,-1> = TODAY
+        R.CLASS.HIST<2,-1> = Y.ASSET.CLASS
+        R.CLASS.HIST<3,-1> = Y.TOT.OUTS.AMT
+        R.CLASS.HIST<4,-1> = Y.FIN.SUSP.AMT
+        R.CLASS.HIST<6,-1> = Y.BASE.FR.PROV
+    END
+    ELSE
+        R.CLASS.HIST<1> = TODAY
+        R.CLASS.HIST<2> = Y.ASSET.CLASS
+        R.CLASS.HIST<3> = Y.TOT.OUTS.AMT
+        R.CLASS.HIST<4> = Y.FIN.SUSP.AMT
+        R.CLASS.HIST<6> = Y.BASE.FR.PROV
+    END
+    WRITE R.CLASS.HIST ON F.CLASS.HIST,Y.PD.ID
+
+*------------------------------------------------------------------------
+*--------------------write to classification amount for generating accounting entry-----------
+    CALL F.READ(FN.CLASS.AMT,Y.PD.ID,R.CLASS.AMT,F.CLASS.AMT,ERR)
+    IF R.CLASS.AMT THEN
+        R.CLASS.AMT<CL.AMT.PROVISION.AMT> = Y.BASE.FR.PROV
+        WRITE R.CLASS.AMT TO F.CLASS.AMT,Y.PD.ID
+    END
+*---------------------------------------------------------------------------
+    RETURN
+*---------------------------------------------------------------------
+
+
+END

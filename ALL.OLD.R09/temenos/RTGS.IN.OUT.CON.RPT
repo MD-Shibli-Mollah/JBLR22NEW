@@ -1,0 +1,140 @@
+****************************************************************************************
+*Developed By: Md. Aminul Islam(Datasoft Systems)                                      *
+*This routine is attachedte to standard selection NOFILE.RTGS.IN.OUT.CON to return     *
+*inward & outward consolated transaction                                               *
+*Date:2016/01/12                                                                       *
+****************************************************************************************
+
+!PROGRAM RTGS.IN.OUT.CON.RPT
+    SUBROUTINE RTGS.IN.OUT.CON.RPT(Y.RETURN)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+
+
+    GOSUB INIT
+    GOSUB OPEN.FILE
+    GOSUB REFRESH.DATA
+    GOSUB PROCESS
+INIT:
+
+    FN.FT = 'F.FUNDS.TRANSFER';               F.FT = ''
+    FN.FT.HIS = 'F.FUNDS.TRANSFER$HIS';       F.FT.HIS = ''
+    Y.PREV.BR.CODE = ''
+    CALL GET.LOC.REF('FUNDS.TRANSFER','BICC.CODE',BICC.CODE.POS)
+    LOCATE 'VALUE.DATE' IN ENQ.SELECTION<2,1> SETTING VALUE.DATE.POS THEN
+        Y.VALUE.DATE = ENQ.SELECTION<4,VALUE.DATE.POS>
+        IF Y.VALUE.DATE EQ '!TODAY' THEN
+            Y.VALUE.DATE = TODAY
+        END
+    END
+    IF NOT(Y.VALUE.DATE) THEN
+        Y.VALUE.DATE = TODAY
+    END
+    CALL JULDATE(Y.VALUE.DATE,JULIAN.DATE)
+    Y.FT.ID.LK = 'FT':JULIAN.DATE[3,5]:'...'
+!Y.TOT.OUTW.AMT = ''
+!Y.TOT.OUTW.TXN = ''
+
+    RETURN
+
+OPEN.FILE:
+
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    RETURN
+
+PROCESS:
+!to get all outward and inward txn info
+    IF ID.COMPANY EQ 'BD0012001' THEN
+        SEL.CMD = 'SELECT ':FN.FT:' WITH @ID LIKE ':Y.FT.ID.LK
+        SEL.CMD.HIS = 'SELECT ':FN.FT.HIS:' WITH @ID LIKE ':Y.FT.ID.LK
+    END
+    ELSE
+        SEL.CMD = 'SELECT ':FN.FT:' WITH @ID LIKE ':Y.FT.ID.LK:' AND CO.CODE EQ ':ID.COMPANY
+        SEL.CMD.HIS = 'SELECT ':FN.FT.HIS:' WITH @ID LIKE ':Y.FT.ID.LK:' AND CO.CODE EQ ':ID.COMPANY
+    END
+    IF Y.VALUE.DATE GE TODAY THEN
+!regular txn
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+        LOOP
+            REMOVE Y.FT.ID FROM SEL.LIST SETTING POS
+        WHILE Y.FT.ID:POS
+            CALL F.READ(FN.FT,Y.FT.ID,R.REC,F.FT,Y.ERR)
+            Y.TRN.TYPE = R.REC<FT.TRANSACTION.TYPE>
+            IF Y.TRN.TYPE EQ 'ACOR' OR Y.TRN.TYPE EQ 'ACIR' THEN
+                Y.CO.CODE = R.REC<FT.CO.CODE>
+                Y.DEBIT.AMOUNT = R.REC<FT.DEBIT.AMOUNT>
+                TEMP.DATA<-1> = Y.CO.CODE:'*':Y.TRN.TYPE:'*':Y.DEBIT.AMOUNT
+            END
+        REPEAT
+    END ELSE
+!for history txn
+        CALL EB.READLIST(SEL.CMD.HIS,SEL.LIST,'',NO.OF.REC,RET.CODE)
+        LOOP
+            REMOVE Y.FT.ID FROM SEL.LIST SETTING POS
+        WHILE Y.FT.ID:POS
+            Y.FT.ID = FIELD(Y.FT.ID,';',1)
+            CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.FT.ID,R.REC,Y.FT.ERR)
+            FINDSTR Y.FT.ID IN TEMP.DATA SETTING REC.POS ELSE
+                Y.TRN.TYPE = R.REC<FT.TRANSACTION.TYPE>
+                IF Y.TRN.TYPE EQ 'ACOR' OR Y.TRN.TYPE EQ 'ACIR' THEN
+                    Y.BIC.CODE = R.REC<FT.LOCAL.REF,BICC.CODE.POS>
+                    Y.DEBIT.AMOUNT = R.REC<FT.DEBIT.AMOUNT>
+                    TEMP.DATA<-1> = Y.BIC.CODE:'*':Y.TRN.TYPE:'*':Y.DEBIT.AMOUNT
+                END
+            END
+        REPEAT
+    END
+    TEMP.DATA = SORT(TEMP.DATA)
+!end of outward and inward info
+    TOT.REC = DCOUNT(TEMP.DATA,@FM)
+    FOR I = 1 TO TOT.REC
+        Y.TEM.REC = FIELD(TEMP.DATA,@FM,I)
+        Y.BR.CODE = FIELD(Y.TEM.REC,'*',1)
+
+        IF I = 1 THEN
+            Y.PREV.BR.CODE = Y.BR.CODE
+        END
+
+        IF Y.BR.CODE EQ Y.PREV.BR.CODE THEN
+            GOSUB GET.TOT
+        END
+        ELSE
+            Y.RETURN<-1> = Y.PREV.BR.CODE:'*':Y.TOT.OUTW.TXN:'*':Y.TOT.OUTW.AMT:'*':Y.TOT.INW.TXN:'*':Y.TOT.INW.AMT
+            GOSUB REFRESH.DATA
+            GOSUB GET.TOT
+        END
+        IF I EQ TOT.REC THEN
+            Y.RETURN<-1> = Y.BR.CODE:'*':Y.TOT.OUTW.TXN:'*':Y.TOT.OUTW.AMT:'*':Y.TOT.INW.TXN:'*':Y.TOT.INW.AMT
+        END
+    NEXT I
+
+    RETURN
+
+GET.TOT:
+
+    Y.PREV.BR.CODE = Y.BR.CODE
+    Y.TXN.TYPE = FIELD(Y.TEM.REC,'*',2)
+    IF Y.TXN.TYPE EQ 'ACOR' THEN
+        Y.AMT = FIELD(Y.TEM.REC,'*',3)
+        Y.TOT.OUTW.AMT = Y.TOT.OUTW.AMT + Y.AMT
+        Y.TOT.OUTW.TXN = Y.TOT.OUTW.TXN + 1
+    END ELSE
+        Y.AMT.INW = FIELD(Y.TEM.REC,'*',3)
+        Y.TOT.INW.AMT = Y.TOT.INW.AMT + Y.AMT.INW
+        Y.TOT.INW.TXN = Y.TOT.INW.TXN + 1
+    END
+    RETURN
+
+REFRESH.DATA:
+
+    Y.AMT = '0'
+    Y.TOT.OUTW.AMT = '0'
+    Y.TOT.OUTW.TXN = '0'
+    Y.AMT.INW = '0'
+    Y.TOT.INW.AMT = '0'
+    Y.TOT.INW.TXN = '0'
+    RETURN
+END

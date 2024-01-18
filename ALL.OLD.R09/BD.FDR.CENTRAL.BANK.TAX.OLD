@@ -1,0 +1,54 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.FDR.CENTRAL.BANK.TAX( PASS.CUSTOMER, PASS.DEAL.AMOUNT, PASS.DEAL.CCY, PASS.CCY.MKT, PASS.CROSS.RATE, PASS.CROSS.CCY, PASS.DWN.CCY, PASS.DATA, PASS.CUST.CDN,R.TAX,TAX.AMOUNT)
+
+* Developed By- msiddque@temenos.com
+* Dated 14/11/2012
+* This routine calculate TAX amount based on TIN given or not and attached in CALC.ROUTINE field of TAX Application
+* Condition 1 : If TIN given then Tax will be 10%
+* Condition 2 : If TIN not given then Tax will be 15%
+*Revision History*
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+
+INIT:
+
+    FN.CUS="F.CUSTOMER"
+    F.CUS=""
+    REC.CUS=""
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.CUS,F.CUS)
+
+    RETURN
+
+PROCESS:
+
+    Y.TIN.GIVEN="TIN.GIVEN"
+    Y.TIN.GIVEN.POS=""
+    CALL GET.LOC.REF("CUSTOMER",Y.TIN.GIVEN,Y.TIN.GIVEN.POS)
+    CALL F.READ(FN.CUS,PASS.CUSTOMER,REC.CUS,F.CUS,ERR.CUS)
+
+    IF REC.CUS<EB.CUS.LOCAL.REF,Y.TIN.GIVEN.POS> EQ 'Y' THEN
+        TAX.AMOUNT=(PASS.DEAL.AMOUNT*10)/100
+    END ELSE
+        TAX.AMOUNT =(PASS.DEAL.AMOUNT*15)/100
+    END
+
+    RETURN
+
+END

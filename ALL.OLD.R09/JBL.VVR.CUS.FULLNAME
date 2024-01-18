@@ -1,0 +1,19 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.VVR.CUS.FULLNAME
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CUSTOMER
+    $INSERT I_F.ACCOUNT
+    FN.CUSTOMER = 'F.CUSTOMER'
+    F.CUSTOMER = ''
+    CALL OPF(FN.CUSTOMER,F.CUSTOMER)
+    Y.CUS.ID = R.NEW(AC.CUSTOMER)
+    CALL F.READ(FN.CUSTOMER,Y.CUS.ID,Y.CUS.REC,F.CUSTOMER,CUS.ERR)
+    Y.CUS.FULL.NAME = Y.CUS.REC<EB.CUS.NAME.1>
+    R.NEW(AC.ACCOUNT.TITLE.1) = Y.CUS.FULL.NAME
+
+
+    RETURN
+END

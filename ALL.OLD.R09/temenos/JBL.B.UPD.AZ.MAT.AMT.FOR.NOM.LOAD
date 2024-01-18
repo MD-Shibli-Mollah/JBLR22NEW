@@ -1,0 +1,70 @@
+*-----------------------------------------------------------------------------
+* <Rating>-11</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.UPD.AZ.MAT.AMT.FOR.NOM.LOAD
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine is used to open the files required for the cob routine
+* JBL.B.UPD.AZ.MAT.AMT.FOR.NOM.
+*-------------------------------------------------------------------------
+* Project Name : National Bank Limited(Bangladesh)
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+* NA
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+* NA
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+* OPF                       CORE            Opens the file
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 04/03/2011 -                            New   - Rashmitha M
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE JBL.BP I_JBL.B.UPD.AZ.MAT.AMT.FOR.NOM.COMMON
+    $INCLUDE JBL.BP I_F.EB.BD.EXCISE.DUTY
+    $INCLUDE JBL.BP I_F.EB.JBL.AZ.MAT.LIST
+    $INCLUDE GLOBUS.BP I_F.AZ.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.AZ.SCHEDULES.HIST
+
+    GOSUB INIT
+
+    RETURN
+*-------------------------------------------------------------------------
+INIT:
+*****
+! Open files
+*
+    FN.EB.BD.EXCISE.DUTY='F.EB.BD.EXCISE.DUTY'
+    F.EB.BD.EXCISE.DUTY=''
+    CALL OPF(FN.EB.BD.EXCISE.DUTY,F.EB.BD.EXCISE.DUTY)
+*
+
+    FN.EB.JBL.AZ.MAT.LIST='F.EB.JBL.AZ.MAT.LIST'
+    F.EB.JBL.AZ.MAT.LIST=''
+    CALL OPF(FN.EB.JBL.AZ.MAT.LIST,F.EB.JBL.AZ.MAT.LIST)
+
+*
+    FN.AZ.ACCOUNT='F.AZ.ACCOUNT'
+    F.AZ.ACCOUNT=''
+    CALL OPF(FN.AZ.ACCOUNT,F.AZ.ACCOUNT)
+
+*
+    FN.AZ.SCHEDULES.HIST='F.AZ.SCHEDULES.HIST'
+    F.AZ.SCHEDULES.HIST=''
+    CALL OPF(FN.AZ.SCHEDULES.HIST,F.AZ.SCHEDULES.HIST)
+
+*
+    RETURN
+*-------------------------------------------------------------------------
+END

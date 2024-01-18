@@ -1,0 +1,54 @@
+    SUBROUTINE JBL.MICR.STOCK.MGT.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine
+*
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* Modification History :
+*
+*   Description : New Template for MICR Cheque Management
+*   Author      : AVIJIT SAHA
+*   Date        : 23/01/2022
+*
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("STOCK.ID", T24_String)   ;* Define Table id
+*-----------------------------------------------------------------------------
+    CALL Table.addFieldDefinition("TR.TYPE","5","SSS","")
+    CALL Table.addFieldDefinition("TR.CODE","5","","")
+    CALL Table.addFieldDefinition("TR.PREFIX","5","SSS","")
+    CALL Table.addFieldDefinition("PREFIX.NO","5","","")
+    CALL Table.addFieldDefinition("STARTING.NO","0000007.7","","")
+    CALL Table.addFieldDefinition("ENDING.NO","7.7","","")
+    CALL Table.addFieldDefinition("LAST.USED.NO","0000007.7","","")
+    CALL Table.addFieldDefinition("BALANCE","10","","")
+    CALL Table.addField("STATUS", T24_String,"","")
+*-----------------------------------------------------------------------------
+* Block of reserved fields
+*-----------------------------------------------------------------------------
+    CALL Table.addReservedField('RESERVED.5')
+    CALL Table.addReservedField('RESERVED.4')
+    CALL Table.addReservedField('RESERVED.3')
+    CALL Table.addReservedField('RESERVED.2')
+    CALL Table.addReservedField('RESERVED.1')
+*-----------------------------------------------------------------------------
+    CALL Table.addLocalReferenceField('XX.LOCAL.REF')
+    CALL Table.addOverrideField
+*-----------------------------------------------------------------------------
+
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+END

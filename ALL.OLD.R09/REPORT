@@ -1,0 +1,161 @@
+*-------------------------------------------------------------------------
+* <Rating>-49</Rating>
+*-------------------------------------------------------------------------
+    SUBROUTINE NOFILE.DAYEND.CASH.MEMO(Y.ARR)
+*-------------------------------------------------------------------------
+* Report is used for particular branches dayend cash position.
+*
+*-------------------------------------------------------------------------
+* modification date -- 20150920
+* modified by -- huraira
+* until branch manually deposit cash to teller through cash deposite menu this report
+* should not calculate opening and closing balance with the consideration of category
+* '13501'.that's why category '13501' has been removed from select statement.
+*
+*-------------------------------------------------------------------------
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_F.DATES
+    $INSERT ../GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT ../GLOBUS.BP I_F.ACCOUNT
+    $INSERT ../GLOBUS.BP I_F.TELLER
+
+*-------------------------------------------------------------------------
+* Main controlling section:
+*-------------------------------------------------------------------------
+    GOSUB INITIALISATION
+    GOSUB MAIN.PROCESS
+
+    RETURN
+
+*-------------------------------------------------------------------------
+* Subroutine Section:
+* File Opening and Variable set up
+
+INITIALISATION:
+
+*-------------------------------------------------------------------------
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT = ""
+    R.ACCOUNT = ""
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    FN.TELLER = "F.TELLER"
+    F.TELLER = ""
+    R.TELLER = ''
+    CALL OPF(FN.TELLER, F.TELLER)
+    Y.CREDIT="4":@FM:"5":@FM:"14":@FM:"32":@FM:"110":@FM:"112":@FM:"114":@FM:"16"
+    Y.DEBIT ="9":@FM:"10":@FM:"33":@FM:"109":@FM:"111 ":@FM:"113":@FM:"15":@FM:"151":@FM:"152"
+    RETURN
+
+*-------------------------------------------------------------------------
+* Main Subroutine processing:
+*
+MAIN.PROCESS:
+*
+*-------------------------------------------------------------------------
+*Opening Balance
+
+    Y.COMPANY = ID.COMPANY
+
+
+*SEL.CMD = "SELECT " : FN.ACCOUNT : " WITH CATEGORY EQ 10001 10011 13501 AND CO.CODE EQ ":Y.COMPANY
+    SEL.CMD = "SELECT " : FN.ACCOUNT : " WITH CATEGORY EQ 10001 10011 AND CO.CODE EQ ":Y.COMPANY
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORDS,RET.CODE)
+    LOOP
+        REMOVE TRAN.ID FROM SEL.LIST SETTING TXN.POS
+    WHILE TRAN.ID:TXN.POS
+        CALL F.READ(FN.ACCOUNT,TRAN.ID,R.ACCOUNT,F.ACCOUNT,Y.ERR)
+        Y.OPEN.BAL = R.ACCOUNT<AC.OPEN.ACTUAL.BAL>
+        Y.TOT.OPEN.BAL = Y.TOT.OPEN.BAL + Y.OPEN.BAL
+    REPEAT
+    Y.FINAL.TXT<-1> = "Opening Balance":"*":ABS(Y.TOT.OPEN.BAL) :"*":"0"
+*-------------------------------------------------------------------------
+*Received from Bank
+    SEL.CMD1 = "SELECT ":FN.TELLER: " WITH CO.CODE EQ ":Y.COMPANY
+    CALL EB.READLIST(SEL.CMD1,SEL.LIST1,"",NO.OF.RECORDS,RET.CODE)
+    Y.TELLER.ID =SEL.LIST1
+    LOOP
+        REMOVE TRAN.ID FROM SEL.LIST1 SETTING TXN.POS
+    WHILE TRAN.ID:TXN.POS
+        CALL F.READ(FN.TELLER,TRAN.ID,R.TELLER,F.TELLER,Y.ERR)
+        Y.TRANS.CODE =R.TELLER<TT.TE.TRANSACTION.CODE>
+        LOCATE Y.TRANS.CODE IN  Y.DEBIT SETTING POS THEN
+            Y.ACC2 = R.TELLER<TT.TE.ACCOUNT.2>
+            Y.DR.CR.MARKER = R.TELLER<TT.TE.DR.CR.MARKER>
+            CALL F.READ(FN.ACCOUNT,Y.ACC2,R.ACCOUNT,F.ACCOUNT,Y.ERR)
+            Y.CATEGORY = R.ACCOUNT<AC.CATEGORY>
+            IF (Y.CATEGORY EQ '5012' OR Y.CATEGORY EQ 17451 OR Y.CATEGORY EQ 5011 OR Y.CATEGORY EQ 17454 OR Y.CATEGORY EQ 5021 OR Y.CATEGORY EQ 17455 OR Y.CATEGORY EQ 14018 OR Y.CATEGORY EQ 13062) THEN
+                Y.AMT = R.TELLER<TT.TE.NET.AMOUNT>
+                Y.REV.BANK.AMT = Y.REV.BANK.AMT + ABS(Y.AMT)
+                Y.R.VOUCHER = Y.R.VOUCHER + 1
+            END
+            ELSE
+                Y.AMT = R.TELLER<TT.TE.NET.AMOUNT>
+                Y.REV.CUS.AMT = Y.REV.CUS.AMT + ABS(Y.AMT)
+                Y.R.VOUCHER = Y.R.VOUCHER + 1
+            END
+        END
+        ELSE
+            LOCATE  Y.TRANS.CODE IN Y.CREDIT SETTING POS1 THEN
+                Y.ACC2 = R.TELLER<TT.TE.ACCOUNT.2>
+                Y.DR.CR.MARKER = R.TELLER<TT.TE.DR.CR.MARKER>
+                CALL F.READ(FN.ACCOUNT,Y.ACC2,R.ACCOUNT,F.ACCOUNT,Y.ERR)
+                Y.CATEGORY = R.ACCOUNT<AC.CATEGORY>
+                IF (Y.CATEGORY EQ '5012' OR Y.CATEGORY EQ 17451 OR Y.CATEGORY EQ 5011 OR Y.CATEGORY EQ 17454 OR Y.CATEGORY EQ 5021 OR Y.CATEGORY EQ 17455 OR Y.CATEGORY EQ 14018 OR Y.CATEGORY EQ 13062) THEN
+                    CALL F.READ(FN.TELLER,TRAN.ID,R.TELLER,F.TELLER,Y.ERR)
+                    Y.AMT = R.TELLER<TT.TE.NET.AMOUNT>
+                    Y.PTB.AMT = Y.PTB.AMT + Y.AMT
+                    Y.P.VOUCHER = Y.P.VOUCHER + 1
+                END
+                ELSE
+                    CALL F.READ(FN.TELLER,TRAN.ID,R.TELLER,F.TELLER,Y.ERR)
+                    Y.AMT = R.TELLER<TT.TE.NET.AMOUNT>
+                    Y.PTC.AMT = Y.PTC.AMT + Y.AMT
+                    Y.P.VOUCHER = Y.P.VOUCHER + 1
+                END
+            END
+        END
+
+
+    REPEAT
+
+    Y.FINAL.TXT<-1> = "Received from Bank":"*": Y.REV.BANK.AMT:"*":"0"
+    Y.FINAL.TXT<-1> = "Received from Customers":"*": Y.REV.CUS.AMT:"*":"0"
+    Y.FINAL.TT.REC = ABS(Y.REV.BANK.AMT) + ABS(Y.REV.CUS.AMT)
+    Y.FINAL.TXT<-1> = "Total Received ":"*":Y.FINAL.TT.REC :"*":"0"
+
+    Y.FINAL.TT.BAL= ABS(Y.TOT.OPEN.BAL) + ABS(Y.FINAL.TT.REC)
+
+    Y.FINAL.TXT<-1> = "SUB TOTAL" :"*": Y.FINAL.TT.BAL:"*":"0"
+
+    Y.FINAL.TXT<-1> = "Paid to Bank" :"*": Y.PTB.AMT:"*":"0"
+
+    Y.FINAL.TXT<-1> = "Paid to Customers":"*":  Y.PTC.AMT :"*":"0"
+    Y.FINAL.TTP = ABS(Y.PTB.AMT) + ABS(Y.PTC.AMT)
+    Y.FINAL.TXT<-1> = "Total Paid":"*":Y.FINAL.TTP :"*":"0"
+
+    Y.FINAL.C.BAL = ABS(Y.FINAL.TT.BAL) - ABS(Y.FINAL.TTP)
+    Y.FINAL.TXT<-1> = "Closing Balance":"*": Y.FINAL.C.BAL  :"*":"0"
+
+    Y.R.AMT = ''
+    Y.AMT = ''
+
+*-------------------------------------------------------------------------
+*Total Paid Voucher
+    Y.FINAL.TXT<-1> = "Total Paid Voucher":"*":Y.P.VOUCHER :"*":"0"
+*Total Received Voucher
+    Y.FINAL.TXT<-1> = "Total Received Voucher":"*":Y.R.VOUCHER:"*":Y.FINAL.C.BAL
+*-------------------------------------------------------------------------
+*Total voucher
+    Y.TT.VOCH=Y.P.VOUCHER + Y.R.VOUCHER
+    Y.FINAL.TXT<-1> = "Total Voucher":"*": Y.TT.VOCH:"*":Y.FINAL.C.BAL
+*-------------------------------------------------------------------------
+
+*Final array to displaying the data
+
+    Y.ARR = Y.FINAL.TXT
+
+    RETURN
+END

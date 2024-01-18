@@ -1,0 +1,100 @@
+*-----------------------------------------------------------------------------
+* <Rating>-41</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ACC.SUSP.LIST(Y.DATA)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT BP I_F.EB.BD.SUSPENSE.REGISTER
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+
+*****
+INIT:
+*****
+
+    FN.ACC = 'FBNK.ACCOUNT'
+    F.ACC = ''
+
+    FN.SR = 'FBNK.EB.BD.SUSPENSE.REGISTER'
+    F.SR = ''
+
+    LOCATE "CATEGORY" IN ENQ.SELECTION<2,1> SETTING CAT.POS THEN
+        Y.CATEGORY = ENQ.SELECTION<4,CAT.POS>
+    END
+    LOCATE "ACCT.NO" IN ENQ.SELECTION<2,1> SETTING ACCT.POS THEN
+        Y.ACCT.NO = ENQ.SELECTION<4,ACCT.POS>
+    END
+
+    SEL.CMD = ''
+
+    RETURN
+
+**********
+OPENFILES:
+**********
+    CALL OPF(FN.ACC,F.ACC)
+    CALL OPF(FN.SR,F.SR)
+    RETURN
+
+********
+PROCESS:
+********
+
+    IF Y.ACCT.NO NE '' THEN
+        SEL.CMD = 'SELECT ':FN.ACC:' WITH @ID EQ ':Y.ACCT.NO
+    END
+    ELSE
+        IF (Y.CATEGORY GE 1600 AND Y.CATEGORY LE 2000) OR Y.CATEGORY EQ '' THEN
+            IF Y.CATEGORY EQ '' THEN
+                SEL.CMD = 'SELECT ':FN.ACC:' WITH CO.CODE EQ ':ID.COMPANY:' AND CATEGORY GE 1600 AND CATEGORY LE 2000'
+            END ELSE
+                SEL.CMD = 'SELECT ':FN.ACC:' WITH CO.CODE EQ ':ID.COMPANY:' AND CATEGORY EQ ':Y.CATEGORY
+            END
+        END
+
+    END
+    IF SEL.CMD NE '' THEN
+
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.RECORD,ERR)
+        LOOP
+            REMOVE Y.ACC.ID FROM SEL.LIST SETTING Y.POS
+        WHILE Y.ACC.ID:Y.POS
+            CALL F.READ(FN.ACC,Y.ACC.ID,R.ACC,F.ACC,ACC.ERR)
+            Y.SUSP.AMT = R.ACC<AC.ACCR.DR.SUSP>
+
+            CALL F.READ(FN.SR,Y.ACC.ID,R.SR,F.SR,SR.ERR)
+            Y.LEG.SUSP.AMT = R.SR<EB.BD.67.SUSPENSE.AMOUNT>
+
+            Y.TITLE = R.ACC<AC.ACCOUNT.TITLE.1>
+            Y.CATEGORY = R.ACC<AC.CATEGORY>
+            Y.WORK.BALANCE = R.ACC<AC.WORKING.BALANCE>
+            Y.SUSP.AMT = R.ACC<AC.ACCR.DR.SUSP>
+            Y.TOT.SUSP.AMT = Y.SUSP.AMT + Y.LEG.SUSP.AMT
+            IF Y.TOT.SUSP.AMT GT 0 THEN
+                Y.DATA<-1> = Y.ACC.ID:'*':Y.TITLE:'*':Y.CATEGORY:'*':Y.WORK.BALANCE:'*':Y.LEG.SUSP.AMT:'*':Y.SUSP.AMT
+            END
+            GOSUB REFRESH.DATA
+
+        REPEAT
+    END
+    RETURN
+
+**************
+REFRESH.DATA:
+**************
+    Y.ACC.ID = ''
+    Y.TITLE = ''
+    Y.CATEGORY = ''
+    Y.WORK.BALANCE = ''
+    Y.SUSP.AMT = ''
+    Y.LEG.SUSP.AMT = ''
+    RETURN
+
+END

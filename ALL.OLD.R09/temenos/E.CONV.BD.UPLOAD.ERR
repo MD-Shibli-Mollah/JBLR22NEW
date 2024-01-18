@@ -1,0 +1,28 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE E.CONV.BD.UPLOAD.ERR
+
+    $INSERT ../T24_BP I_COMMON
+    $INSERT ../T24_BP I_EQUATE
+    $INSERT ../T24_BP I_ENQUIRY.COMMON
+    $INSERT ../T24_BP I_F.EB.LOGGING
+*
+    FN.LOGGING = 'F.EB.LOGGING'
+    F.LOGGING = ''
+    CALL OPF(FN.LOGGING,F.LOGGING)
+
+*    DEBUG
+
+    Y.ID = O.DATA
+    CALL F.READ(FN.LOGGING,Y.ID,R.LOGGING,F.LOGGING,ERR)
+    Y.DET = R.LOGGING<EB.LOG.LOG.DETAILS>
+    Y.UPD.DET1 = FIELDS(Y.DET,'|',1)
+    Y.UPD.DET2 = FIELDS(Y.DET,'|',2)
+    IF Y.UPD.DET2 THEN
+        O.DATA = Y.UPD.DET2
+    END ELSE
+        O.DATA = Y.UPD.DET1
+    END
+    RETURN
+END

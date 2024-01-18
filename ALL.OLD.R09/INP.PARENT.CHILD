@@ -1,0 +1,62 @@
+*********************************************************************************************
+*Purpose: This routine is attachted to LIMIT,SECURED version as a INPUT.ROUTINE field and *
+*is used to get get first two digit from Head Parent Limit                                  *
+*Developed By: Md. Shafiul Azam(Datasoft Systems Bangladesh Ltd.)                           *
+*Supervised by : Md. Aminul Islam(Datasoft Systems Bangladesh Ltd.)                         *
+*********************************************************************************************
+    SUBROUTINE INP.PARENT.CHILD
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.LIMIT
+    $INSERT GLOBUS.BP I_F.LIMIT.REFERENCE
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*********
+INIT:
+*********
+    FN.LI.REF = 'FBNK.LIMIT.REFERENCE'
+    F.LI.REF = ''
+    CALL GET.LOC.REF('LIMIT','SUB.PARENT',Y.SUB.PARENT.POS)
+    CALL GET.LOC.REF('LIMIT','CHILD.LIMIT',Y.CHILD.LIMIT.POS)
+    RETURN
+
+***********
+OPENFILES:
+***********
+    CALL OPF(FN.LI.REF,F.LI.REF)
+    RETURN
+
+***********
+PROCESS:
+***********
+    Y.H.PARENT.ID = FIELD(ID.NEW,'.',2)[4,4]
+    Y.PARENT.ID = R.NEW(LI.LOCAL.REF)<1,Y.SUB.PARENT.POS>
+    CALL F.READ(FN.LI.REF,Y.H.PARENT.ID,R.LI.REF,F.LI.REF,LI.ERR)
+    Y.PARENT.ID.LIST = R.LI.REF<LI.REF.REFERENCE.CHILD>
+    FIND Y.PARENT.ID IN Y.PARENT.ID.LIST SETTING POS THEN NULL
+    IF POS EQ '' THEN
+        AF = LI.LOCAL.REF
+        AV = Y.SUB.PARENT.POS
+        ETEXT = 'Input must be parent limit'
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    Y.CHILD.ID = R.NEW(LI.LOCAL.REF)<1,Y.CHILD.LIMIT.POS>
+    CALL F.READ(FN.LI.REF,Y.PARENT.ID,R.LI.REF,F.LI.REF,LI.ERR)
+    Y.CHILD.ID.LIST = R.LI.REF<LI.REF.REFERENCE.CHILD>
+    FIND Y.CHILD.ID IN Y.CHILD.ID.LIST SETTING POS1 THEN NULL
+    IF POS1 EQ '' THEN
+        AF = LI.LOCAL.REF
+        AV = Y.CHILD.LIMIT.POS
+        ETEXT = 'Input must be child limit'
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    RETURN
+
+END

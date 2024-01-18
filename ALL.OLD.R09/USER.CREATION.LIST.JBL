@@ -1,0 +1,210 @@
+**********************************************************************************
+* ROUTINE : USER.CREATION.LIST.JBL
+* REASON : RETURN FOR NOFILE ENQUIRY WHICH CONTAINS USER CREATION LIST
+* REQ : Abu Hena Mostofa Zamal (FAGM)
+* DEVELOPED BY : ALIN BOBY
+* DATE : 20160926 [TRANSFER FILE-ENQUIRY TO NOFILE-ENQUIRY]
+* LIVE : 20161004
+**********************************************************************************
+
+*    PROGRAM USER.CREATION.LIST.JBL
+    SUBROUTINE USER.CREATION.LIST.JBL(Y.ARR1)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.USER
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    GOSUB STEP1
+    GOSUB STEP2
+    GOSUB STEP3
+    RETURN
+
+STEP1:
+
+    FN.USER='F.USER'
+    F.USER=''
+
+    FN.USER.HIS='F.USER$HIS'
+    F.USER.HIS=''
+
+    FN.COMPANY='F.COMPANY'
+    F.COMPANY=''
+
+    Y.SDATE='20160101'
+    Y.EDATE='20160313'
+    Y.BR.CODE=''
+    Y.SIGN.NAME=''
+    Y.USER.NAME=''
+    Y.REV.DATE=''
+    Y.INP=''
+    Y.AUTH=''
+    Y.SL=0
+
+*!DEBUG
+*    LOCATE "CREATION.DATE" IN ENQ.SELECTION<2,1> SETTING CLS.ENQ.POS THEN
+*        Y.START.DATE =LEFT(ENQ.SELECTION<4,CLS.ENQ.POS>,8)
+*        Y.END.DATE =RIGHT(ENQ.SELECTION<4,CLS.ENQ.POS>,8)
+*        Y.DATE.OPT=ENQ.SELECTION<3,CLS.ENQ.POS>
+*    END
+
+    LOCATE "FROM.DATE" IN ENQ.SELECTION<2,1> SETTING DATE.POS1 THEN
+        Y.SDATE=ENQ.SELECTION<4,DATE.POS1>
+    END
+    LOCATE "TO.DATE" IN ENQ.SELECTION<2,1> SETTING DATE.POS2 THEN
+        Y.EDATE=ENQ.SELECTION<4,DATE.POS2>
+    END
+
+* Y.SDATE=ENQ.SELECTION<4,1>
+* Y.EDATE=ENQ.SELECTION<4,2>
+
+
+    Y.DT1=RIGHT(Y.SDATE,2):"-":RIGHT(LEFT(Y.SDATE,6),2):"-":LEFT(Y.SDATE,4)
+    Y.DT2=RIGHT(Y.EDATE,2):"-":RIGHT(LEFT(Y.EDATE,6),2):"-":LEFT(Y.EDATE,4)
+
+
+    IF Y.SDATE EQ Y.EDATE THEN
+        Y.DT="REPORT BASED ON : ":Y.DT1
+    END
+
+    ELSE IF Y.SDATE GT Y.EDATE THEN
+        Y.DT="REPORT FROM ":Y.DT2:" TO ":Y.DT1
+        Y.DATE1=Y.SDATE
+        Y.SDATE=Y.EDATE
+        Y.EDATE=Y.DATE1
+    END
+
+    ELSE
+
+        Y.DT="REPORT FROM ":Y.DT1:" TO ":Y.DT2
+    END
+
+    Y.SDATE1=RIGHT(Y.SDATE,6):'0000'
+    Y.EDATE1=RIGHT(Y.EDATE,6):'9999'
+
+    RETURN
+
+STEP2:
+    CALL OPF(FN.USER.HIS,F.USER.HIS)
+    CALL OPF(FN.USER,F.USER)
+    CALL OPF(FN.COMPANY,F.COMPANY)
+    RETURN
+
+STEP3:
+
+************************************LIVE FILE **********************************
+
+    SEL.CMD='SELECT ':FN.USER:' WITH DATE.TIME GE ':Y.SDATE1:' AND DATE.TIME LE ':Y.EDATE1:' AND CURR.NO EQ 1'
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,ERR)
+
+    IF SEL.LIST NE '' THEN
+        LOOP
+            REMOVE Y.USER.ID FROM SEL.LIST SETTING POS
+        WHILE Y.USER.ID:POS
+            CALL F.READ(FN.USER,Y.USER.ID,R.USER,F.USER,ERR.USER)
+
+            Y.SL = Y.SL+1
+            Y.BR.CODE=R.USER<EB.USE.COMPANY.CODE>
+            Y.BR.CODE=FIELD(Y.BR.CODE,@VM,1)
+            IF Y.BR.CODE EQ "ALL" THEN
+                Y.BR.CODE="BD0012001"
+                CALL F.READ(FN.COMPANY,Y.BR.CODE,R.COMPANY1,F.COMPANY,ERR.COMPANY)
+                Y.BR.CODE1=R.COMPANY1<EB.COM.COMPANY.NAME>
+            END
+            ELSE
+                CALL F.READ(FN.COMPANY,Y.BR.CODE,R.COMPANY1,F.COMPANY,ERR.COMPANY)
+                Y.BR.CODE1=R.COMPANY1<EB.COM.COMPANY.NAME>
+            END
+            Y.SIGN.NAME=R.USER<EB.USE.SIGN.ON.NAME>
+            Y.USER.NAME=R.USER<EB.USE.USER.NAME>
+            Y.DATE='20':LEFT(R.USER<EB.USE.DATE.TIME>,6)
+            Y.REV.DATE=Y.DATE
+            Y.REV.TIME=LEFT(RIGHT(R.USER<EB.USE.DATE.TIME>,4),2):':':RIGHT(R.USER<EB.USE.DATE.TIME>,2)
+            Y.INP=R.USER<EB.USE.INPUTTER>
+            IF DCOUNT(Y.INP,"_") >= 2 THEN
+                Y.INP1=FIELD(Y.INP,"_",2,1)
+            END
+            ELSE
+                Y.INP1=Y.INP
+            END
+
+            Y.AUTH=R.USER<EB.USE.AUTHORISER>
+            IF DCOUNT(Y.AUTH,"_")>=2 THEN
+                Y.AUTH1=FIELD(Y.AUTH,"_",2,1)
+            END
+            ELSE
+                Y.AUTH1=Y.AUTH
+            END
+
+            Y.ARR1<-1>= Y.REV.DATE:'*':Y.BR.CODE:'*':Y.SIGN.NAME:'*':Y.USER.NAME:'*':Y.REV.TIME:'*':Y.INP1:'*':Y.AUTH1:'*':Y.SL:'*':Y.DT:'*':Y.BR.CODE1
+
+        REPEAT
+    END
+***********************HISTORY FILE*******************************
+    SEL.CMD=''
+    SEL.LIST=''
+    Y.BR.CODE=''
+    Y.BR.CODE1=''
+    Y.SIGN.NAME=''
+    Y.USER.NAME=''
+    Y.REV.DATE=''
+    Y.REV.TIME=''
+    Y.INP1=''
+    Y.AUTH1=''
+    Y.INP=''
+    Y.AUTH=''
+
+
+    SEL.CMD='SELECT ':FN.USER.HIS:' WITH DATE.TIME GE ':Y.SDATE1:' AND DATE.TIME LE ':Y.EDATE1:' AND CURR.NO EQ 1'
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,ERR)
+
+    IF SEL.LIST NE '' THEN
+        LOOP
+            REMOVE Y.USER.ID FROM SEL.LIST SETTING POS
+        WHILE Y.USER.ID:POS
+
+*Y.USER.ID1=FIELD(Y.USER.ID,';',1,1)
+            CALL F.READ(FN.USER.HIS,Y.USER.ID,R.USER.HIS,F.USER.HIS,ERR.USER)
+
+            Y.SL = Y.SL+1
+            Y.BR.CODE=R.USER.HIS<EB.USE.COMPANY.CODE>
+            Y.BR.CODE=FIELD(Y.BR.CODE,@VM,1)
+            IF Y.BR.CODE EQ "ALL" THEN
+                Y.BR.CODE="BD0012001"
+                CALL F.READ(FN.COMPANY,Y.BR.CODE,R.COMPANY1,F.COMPANY,ERR.COMPANY)
+                Y.BR.CODE1=R.COMPANY1<EB.COM.COMPANY.NAME>
+            END
+            ELSE
+                CALL F.READ(FN.COMPANY,Y.BR.CODE,R.COMPANY1,F.COMPANY,ERR.COMPANY)
+                Y.BR.CODE1=R.COMPANY1<EB.COM.COMPANY.NAME>
+            END
+
+
+            Y.SIGN.NAME=R.USER.HIS<EB.USE.SIGN.ON.NAME>
+            Y.USER.NAME=R.USER.HIS<EB.USE.USER.NAME>
+            Y.DATE='20':LEFT(R.USER.HIS<EB.USE.DATE.TIME>,6)
+            Y.REV.DATE=Y.DATE
+            Y.REV.TIME=LEFT(RIGHT(R.USER.HIS<EB.USE.DATE.TIME>,4),2):':':RIGHT(R.USER.HIS<EB.USE.DATE.TIME>,2)
+            Y.INP=R.USER.HIS<EB.USE.INPUTTER>
+            IF DCOUNT(Y.INP,"_") >= 2 THEN
+                Y.INP1=FIELD(Y.INP,"_",2,1)
+            END
+            ELSE
+                Y.INP1=Y.INP
+            END
+
+            Y.AUTH=R.USER.HIS<EB.USE.AUTHORISER>
+            IF DCOUNT(Y.AUTH,"_")>=2 THEN
+                Y.AUTH1=FIELD(Y.AUTH,"_",2,1)
+            END
+            ELSE
+                Y.AUTH1=Y.AUTH
+            END
+
+            Y.ARR1<-1>= Y.REV.DATE:'*':Y.BR.CODE:'*':Y.SIGN.NAME:'*':Y.USER.NAME:'*':Y.REV.TIME:'*':Y.INP1:'*':Y.AUTH1:'*':Y.SL:'*':Y.DT:'*':Y.BR.CODE1
+        REPEAT
+    END
+
+    Y.ARR1=SORT(Y.ARR1)
+
+    RETURN
+END

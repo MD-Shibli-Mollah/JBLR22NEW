@@ -1,0 +1,62 @@
+*-----------------------------------------------------------------------------
+* <Rating>-33</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.TERM.LOAN.CHRG
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LD.LOANS.AND.DEPOSITS
+    $INSERT I_F.LD.SCHEDULE.DEFINE
+
+    FN.LD='F.LD.LOANS.AND.DEPOSITS'
+    F.LD=''
+    REC.LD=''
+    Y.LD.ID=''
+
+    FN.LD.SCH='F.LD.SCHEDULE.DEFINE'
+    F.LD.SCH=''
+    REC.LD.SCH=''
+    Y.LD.SCH=''
+
+    Y.MESSAGE=''
+
+*********Start of User Change Portion********
+    Y.CATEGORY='21051'
+    Y.LIMIT.PROD='4185'
+*********End of User Change Portion********
+
+    CALL OPF(FN.LD,F.LD)
+    CALL OPF(FN.LD.SCH,F.LD.SCH)
+
+    SEL.CMD.LD="SSELECT ":FN.LD:" WITH CATEGORY EQ ":Y.CATEGORY:" AND LIMIT.PROD EQ ":Y.LIMIT.PROD:" AND CONTRACT.TYPE EQ 'AMORT' AND STATUS NE 'LIQ' AND OVERDUE.STATUS NE 'NAB' "
+    CALL EB.READLIST(SEL.CMD.LD,SEL.LIST.LD,'',NO.OF.REC.LD,ERR.LD)
+
+    LOOP
+        REMOVE Y.LD.ID FROM SEL.LIST.LD SETTING LD.POS
+
+    WHILE Y.LD.ID:LD.POS
+        CALL F.READ(FN.LD.SCH,Y.LD.ID,REC.LD.SCH,F.LD.SCH,ERR.LD.SCH)
+        CALL F.READ(FN.LD,Y.LD.ID,REC.LD,F.LD,ERR.LD)
+
+        Y.SCH.CNT=''
+        Y.SCH.CNT=DCOUNT(REC.LD.SCH<LD.SD.SCH.TYPE>,VM)+1
+
+        Y.MESSAGE="LD.LOANS.AND.DEPOSITS,LD.CHRG/I/PROCESS,DMUSER.1//":REC.LD<LD.CO.CODE>:",":Y.LD.ID:",AUTO.SCHEDS::=NO,DEFINE.SCHEDS::=YES//SCH.TYPE:":Y.SCH.CNT:":1=F,DATE:":Y.SCH.CNT:":1=":TODAY:",CHARGE.CODE:":Y.SCH.CNT:":1=4"
+        GOSUB DO.TRANSACTION
+    REPEAT
+
+DO.TRANSACTION:
+    RUNNING.UNDER.BATCH=1
+    Y.SOURCE="DM.OFS.SRC"
+    CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.MESSAGE)
+    RUNNING.UNDER.BATCH=0
+    SENSITIVITY=''
+    Y.STATUS =FIELD(FIELD(Y.MESSAGE,"/",3,1),",",1)
+    Y.MESSAGE = ''
+    IF Y.STATUS EQ '1' THEN
+        CNT =CNT+1
+        CRT" PROCESS................":CNT
+    END
+    RETURN
+
+END

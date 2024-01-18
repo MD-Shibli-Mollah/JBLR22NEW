@@ -1,0 +1,163 @@
+*-----------------------------------------------------------------------------
+* <Rating>582</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM TEST.DATA
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.STMT.ENTRY
+    $INSERT I_F.COMPANY
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.TELLER
+    $INSERT I_F.CUSTOMER
+    $INSERT BP I_F.JBL.CASH.BOOK
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+!CHANGE ACCORDING TO TODAY OR YESTERDAY DATA
+!FN.AC.ENT.LWORK.DAY = "F.ACCT.ENT.LWORK.DAY"
+    FN.AC.ENT.LWORK.DAY = "F.ACCT.ENT.TODAY"
+    F.AC.ENT.LWORK.DAY = ""
+    FN.STMT.ENT = "F.STMT.ENTRY"
+    F.STMT.ENT = ""
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+    FN.AC.HIS = "F.ACCOUNT$HIS"
+    F.AC.HIS = ""
+    FN.TT = "F.TELLER"
+    F.TT = ""
+    FN.TT.HIS = "F.TELLER$HIS"
+    F.TT.HIS = ""
+    FN.CUS = 'F.CUSTOMER'
+    F.CUS = ''
+    FN.CASH = 'F.EB.JBL.CASH.BOOK'
+    F.CASH = ''
+
+**************************************************************************
+!TRANSACTION CODE FOR CASH
+    Y.CASH.TR.CODE = 4:@FM:5:@FM:6:@FM:9:@FM:10:@FM:14:@FM:32:@FM:33:@FM:109:@FM:110:@FM:111:@FM:112:@FM:113:@FM:114
+**************************************************************************
+!TRANSACTION CODE FOR CLEARING
+    Y.CLEAR.TR.CODE = 28:@FM:29:@FM:30:@FM:34:@FM:41:@FM:42:@FM:43:@FM:44:@FM:45:@FM:46:@FM:49:@FM:92:@FM:93:@FM:95
+****************************************************************
+!TRANSACTION CODE FOR CLEARING WHICH WILL READ FROM STMT.ENTRY---134,135,136
+    Y.STMT.CLEAR.TR.CODE = 134:@FM:135:@FM:136
+**************************************************************************
+!TRANSACTION ID FOR TRANSFER
+!Y.TRANS.TR.CODE = 'AC':@FM:'AZ':@FM:'BL':@FM:'CH':@FM:'DC':@FM:'FT':@FM:'FXBPL':@FM:'LC':@FM:'LCC':@FM:'LCD':@FM:'LCM':@FM:'LD':@FM:'MM':@FM:'MMI':@FM:'MMD':@FM:'DD':@FM:'PDC':@FM:'DDCA':@FM:'PDLC':@FM:'PDLD':@FM:'PDMD':@FM:'PDMM':@FM:'PDPD':@FM:'PDTF':@FM:'PL':@FM:'PL.TR'
+**************************************************************************
+
+!!!CHANGE THE SIGN ACCORDING TO EITHER 'DEBIT' OR 'CREDIT' DATA
+    SIGN = "DBT"
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.AC.ENT.LWORK.DAY,F.AC.ENT.LWORK.DAY)
+    CALL OPF(FN.STMT.ENT,F.STMT.ENT)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.TT.HIS,F.TT.HIS)
+    CALL OPF(FN.CUS,F.CUS)
+    CALL OPF(FN.CASH,F.CASH)
+    CALL GET.LOC.REF("ACCOUNT",Y.LIMIT.PROD,Y.LIMIT.PROD.POS)
+    RETURN
+
+PROCESS:
+
+!DEBUG
+    SEL.CMD = "SSELECT ":FN.AC.ENT.LWORK.DAY:" WITH CO.CODE EQ ":ID.COMPANY:" AND PRODCATEG NE '' AND PRODCATEG NE '10001' AND PRODCATEG NE '10011' AND PRODCATEG NE '15910' BY GLCODE1 BY GLCODE2 BY GLCODE3"
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    PRINT " ":"GL_CODE":"  ":"STMT.ENTRY":"  ":"CATEGORY":"  ":"TRANS.MODE":"  ":"SYS.ID":"  ":"TRANS.REF":"  ":"TRANS.CODE":"  ":"ACC_NO":"  ":"AMOUNT"
+
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+        CALL F.READ(FN.AC.ENT.LWORK.DAY,Y.ID,R.REC,F.AC.ENT.LWORK.DAY,Y.ERR)
+        CALL F.READ(FN.AC,Y.ID,R.AC.REC,F.AC,Y.ERR)
+        IF R.AC.REC EQ '' THEN
+            CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.ID,R.AC.REC,Y.ERR)
+        END
+
+        Y.CATEGORY = R.AC.REC<AC.CATEGORY>
+        Y.CURRENCY = R.AC.REC<AC.CURRENCY>
+        Y.LIMIT = R.AC.REC<AC.LOCAL.REF,Y.LIMIT.PROD.POS>
+        Y.CUSTOMER = R.AC.REC<AC.CUSTOMER>
+        CALL F.READ(FN.CUS,Y.CUSTOMER,R.CUS.REC,F.CUS,Y.ERR)
+        Y.SECTOR = R.CUS.REC<EB.CUS.SECTOR>
+        Y.CB1 = Y.CATEGORY : "." : Y.CURRENCY : "." : Y.LIMIT
+        Y.CB2 = Y.CATEGORY : "." : Y.CURRENCY : "." : Y.SECTOR
+        Y.CB3 = Y.CATEGORY : "." : Y.CURRENCY
+
+        CALL F.READ(FN.CASH,Y.CB1,R.CASH.BOOK,F.CASH,Y.ERR)
+        IF R.CASH.BOOK EQ '' THEN
+            CALL F.READ(FN.CASH,Y.CB2,R.CASH.BOOK,F.CASH,Y.ERR)
+        END
+        IF R.CASH.BOOK EQ '' THEN
+            CALL F.READ(FN.CASH,Y.CB3,R.CASH.BOOK,F.CASH,Y.ERR)
+        END
+
+        Y.GL.CODE = R.CASH.BOOK<EB.JBL40.GL.CODE>
+        Y.ENTRY.COUNT = DCOUNT(R.REC,@FM)
+
+        FOR I = 1 TO Y.ENTRY.COUNT
+            Y.STMT.ENT.ID = R.REC<I>
+            CALL F.READ(FN.STMT.ENT,Y.STMT.ENT.ID,R.STMT.ENT.REC,F.STMT.ENT,Y.ERR)
+            Y.STMT.TRANS.CODE = R.STMT.ENT.REC<AC.STE.TRANSACTION.CODE>
+            Y.AMT.LCY = R.STMT.ENT.REC<AC.STE.AMOUNT.LCY>
+            Y.CO.CODE = R.STMT.ENT.REC<AC.STE.COMPANY.CODE>
+            Y.REC.STATUS = R.STMT.ENT.REC<AC.STE.RECORD.STATUS>
+            Y.TRANS.REF = R.STMT.ENT.REC<AC.STE.TRANS.REFERENCE>
+            Y.SYS.ID = SUBSTRINGS(Y.TRANS.REF,1,2)
+            Y.DET.TR.CODE = R.STMT.ENT.REC<AC.STE.TRANSACTION.CODE>
+
+            IF Y.AMT.LCY LT 0 THEN
+                Y.SIGN = "CRDT"
+            END ELSE
+                Y.SIGN = "DBT"
+            END
+
+            IF Y.SIGN EQ SIGN AND Y.CO.CODE EQ ID.COMPANY AND Y.REC.STATUS EQ "" AND (Y.DET.TR.CODE NE '130' OR Y.DET.TR.CODE NE '131') THEN
+
+                BEGIN CASE
+                CASE Y.SYS.ID EQ "TT"
+                    CALL F.READ(FN.TT,Y.TRANS.REF,R.TT.REC,F.TT,Y.ERR)
+                    IF R.TT.REC EQ '' THEN
+                        CALL F.READ(FN.TT.HIS,Y.TRANS.REF:";1",R.TT.REC,F.TT.HIS,Y.ERR)
+                    END
+                    Y.TRANS.CODE = R.TT.REC<TT.TE.TRANSACTION.CODE>
+
+                    LOCATE  Y.TRANS.CODE IN Y.CASH.TR.CODE SETTING Y.POS THEN
+                        Y.TR.MODE  = "CASH"
+                    END
+
+                    LOCATE  Y.TRANS.CODE IN Y.CLEAR.TR.CODE SETTING Y.POS THEN
+                        Y.TR.MODE = "CLEARING"
+                    END
+
+                CASE Y.SYS.ID EQ "CC"
+                    Y.TR.MODE = "CLEARING"
+
+                CASE 1
+
+                    LOCATE Y.STMT.TRANS.CODE IN Y.STMT.CLEAR.TR.CODE SETTING Y.POS THEN
+                        Y.TR.MODE = "CLEARING"
+                    END
+                    ELSE
+                        Y.TR.MODE = "TRANSFER"
+                    END
+                END CASE
+
+                PRINT " ":Y.GL.CODE:"  ":Y.STMT.ENT.ID:"  ":Y.CATEGORY:"  ":Y.TR.MODE:"  ":Y.SYS.ID:"  ":Y.TRANS.REF:"  ":Y.STMT.TRANS.CODE:"  ":Y.ID:"  ":Y.AMT.LCY
+                Y.TR.MODE = ""
+            END
+        NEXT
+    REPEAT
+END

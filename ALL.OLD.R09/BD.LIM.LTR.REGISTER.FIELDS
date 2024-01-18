@@ -1,0 +1,59 @@
+ *-----------------------------------------------------------------------------
+* <Rating>-2</Rating>
+ *-----------------------------------------------------------------------------
+     SUBROUTINE BD.LIM.LTR.REGISTER.FIELDS
+ *-----------------------------------------------------------------------------
+ * Description:
+ *--------------
+ * This file is used to hold the fields of BD.LIM.LTR.REGISTER
+ *-----------------------------------------------------------------------------
+ * Modification History :
+ *-----------------------
+ * 01/03/2011 - New - G.Sabari
+ *                    Thesys Technologies
+ *-----------------------------------------------------------------------------
+     $INCLUDE GLOBUS.BP I_COMMON
+     $INCLUDE GLOBUS.BP I_EQUATE
+     $INCLUDE GLOBUS.BP I_DataTypes
+ *-----------------------------------------------------------------------------
+     CALL Table.defineId("ID", T24_String)         ;* Define Table id
+ *-----------------------------------------------------------------------------
+     CALL Table.addOptionsField('LOAN.TYPE','LIM_LTR',Field_Mandatory,'')
+     CALL Table.addFieldDefinition('LC.REF.NO','15.1.C','A','')
+     CALL Field.setCheckFile('LETTER.OF.CREDIT')
+     CALL Table.addFieldDefinition('CUSTOMER.ID','20','','')
+     CALL Table.addFieldDefinition('PAD.ID','20','A','')
+     CALL Table.addFieldDefinition('INVOICE.VALUE','19.1','AMT','')
+     CALL Table.addFieldDefinition('PAD.INTEREST','10','AMT','')
+     CALL Table.addOptionsField('PAD.INT.PAYMT','By Customer_By LIM/LTR','','')
+     CALL Table.addField('PAD.DEBIT.ACCT',T24_Account,'','')
+     CALL Table.addOptionsField('XX<CHG.TYPE','VAT_ADVANCE.INCOME.TAX_DEVELOPMENT.SURCHARGE_LICENSE.FEE_TRANSPORT.CHARGE_OTHER.CHARGES','','')
+     CALL Table.addOptionsField('XX-CHG.AMT.TYPE','Flat Amount_Percentage','','')
+     CALL Table.addFieldDefinition('XX-CHG.AMOUNT','15','','')
+     CALL Table.addOptionsField('XX-CHG.PAY.METHOD','By Customer_By LIM/LTR','','')
+     CALL Table.addField('XX>CHG.DR.ACCT',T24_Account,'','')
+     CALL Table.addFieldDefinition('XX<OTH.CHGS.DESC','25','A','')
+     CALL Table.addFieldDefinition('XX-OTH.CHGS.AMT','15','','')
+     CALL Table.addOptionsField('XX-OTH.CHG.PAYMTD','By Customer_By LIM/LTR','','')
+     CALL Table.addField('XX>OTH.CHG.DRACCT',T24_Account,'','')
+
+     CALL Table.addFieldDefinition('LANDED.COST','19','AMT','')
+     CALL Table.addFieldDefinition('LIM.LTR.AMOUNT','19','AMT','')
+     CALL Table.addFieldDefinition('LC.MARGIN.AMT','15','','')
+     CALL Table.addField('DR.MARGIN.ACCT',T24_Account,'','')
+     CALL Table.addField('CR.MARGIN.ACCT',T24_Account,'','')
+
+     CALL Table.addFieldDefinition('LD.LINKED','YES_NO','A','')
+
+     CALL Table.addReservedField('XX.RESERVED.05')
+     CALL Table.addReservedField('XX.RESERVED.04')
+     CALL Table.addReservedField('XX.RESERVED.03')
+     CALL Table.addReservedField('XX.STMT.NO')
+     CALL Table.addReservedField('XX.OVERRIDE')
+ *-----------------------------------------------------------------------------
+     CALL Table.setAuditPosition         ;* Poputale audit information
+ *-----------------------------------------------------------------------------
+     RETURN
+ *-----------------------------------------------------------------------------
+
+ END

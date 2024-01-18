@@ -1,0 +1,61 @@
+**********************************
+* DEVELOPED BY: ALIN BOBY
+* USER ID GEN ALGORITHM
+**********************************
+
+    SUBROUTINE TRANS.NAME.ID
+
+**    PROGRAM TRANS.NAME.ID
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+
+    Y.FILE = O.DATA
+**    Y.FILE='MR. SDAAF-SD X/E'
+
+    Y.NAME=FIELD(Y.FILE,'|',1)
+
+
+    Y.BANK.ID=FIELD(Y.FILE,'|',2)
+    Y.LEN=LEN(Y.FILE)
+    Y.CHAR=0
+
+    GOSUB GEN
+    GOSUB RET
+    RETURN
+GEN:
+
+    Y.CC=SUBSTRINGS(Y.NAME,RND(Y.LEN),1)
+**   CRT Y.CC
+    IF Y.CC GE 'A' AND Y.CC LE 'Z' THEN
+        IF Y.CHAR EQ 0 THEN
+            Y.CHAR=Y.CHAR+1
+            Y.CC1=Y.CC
+**           CRT Y.CC
+            GOSUB GEN
+        END
+        ELSE IF Y.CHAR EQ 1 THEN
+            Y.CHAR=Y.CHAR+1
+            Y.CC1=Y.CC1:Y.CC
+        END
+
+    END
+    ELSE
+        GOSUB GEN
+    END
+    RETURN
+
+
+RET:
+**    CRT Y.CC
+**    CRT Y.CC1
+**
+**    CRT Y.CHAR
+    O.DATA=''
+    O.DATA=Y.CC1:Y.BANK.ID:"0"
+
+    RETURN
+
+END

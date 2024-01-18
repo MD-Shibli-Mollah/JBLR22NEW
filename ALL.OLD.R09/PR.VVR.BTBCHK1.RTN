@@ -1,0 +1,53 @@
+*-----------------------------------------------------------------------------
+* <Rating>-33</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VVR.BTBCHK1.RTN
+*---------------------------------------------------------------------------------
+*this routine calculates the fob value and entitlement value when the freight charges changed
+*----------------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LETTER.OF.CREDIT
+
+    GOSUB INITIALISE
+    GOSUB OPENFILES
+    GOSUB CHKCALC
+    RETURN
+
+INITIALISE:
+
+    FN.LETTER.OF.CREDIT="F.LETTER.OF.CREDIT"
+    F.LETTER.OF.CREDIT=""
+    Y.ID=ID.NEW
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+    RETURN
+
+CHKCALC:
+
+    CALL F.READ(FN.LETTER.OF.CREDIT,Y.ID,R.LEETER.OF.CREDIT,F.LETTER.OF.CREDIT,Y.ERR)
+*gets the position of local ref fields
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","FOB.VALUE",Y.FOB.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","DOC.VALUE.FC",Y.DOC.VAL.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","CHARGES.IN.FC",Y.FC.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","FREIGHT.CHARGES",Y.CHRG.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","RATE.ENT",Y.RATE.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","LC.AMT.LCY",Y.AMT.POS)
+*calculates the fob value
+    Y.CONT.VALUE=R.NEW(TF.LC.LC.AMOUNT)
+    Y.FREIGHT.CHRG=COMI
+    Y.FOREIGN.CHRG=R.NEW(TF.LC.LOCAL.REF)<1,Y.FC.POS>
+    Y.DOC.VAL.CHRG=R.NEW(TF.LC.LOCAL.REF)<1,Y.DOC.VAL.POS>
+    Y.CHRG=Y.FREIGHT.CHRG + Y.FOREIGN.CHRG + Y.DOC.VAL.CHRG
+    Y.FOB.VALUE=Y.CONT.VALUE - Y.CHRG
+    R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.POS>=Y.FOB.VALUE
+*calculates the entitlement value by rate of entitlement
+    Y.RATE=R.NEW(TF.LC.LOCAL.REF)<1,Y.RATE.POS>
+    Y.AMT=(Y.RATE * Y.FOB.VALUE)/100
+    R.NEW(TF.LC.LOCAL.REF)<1,Y.AMT.POS>=Y.AMT
+    !CALL REBUILD.SCREEN
+    RETURN
+END

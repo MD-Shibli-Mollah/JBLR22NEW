@@ -1,0 +1,137 @@
+* Version 1 04/08/97  GLOBUS Release No. G8.0.00
+*-----------------------------------------------------------------------------
+* <Rating>75</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.ACCT.ID
+
+* Routine used at Janatha Bank to calculate the check digit as per their account number format.
+* This program could change COMI so that  the correct account number is calculated with the relevant check digits.
+
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_ENQUIRY.COMMON
+    $INCLUDE GLOBUS.BP I_F.COMPANY
+    $INCLUDE GLOBUS.BP I_F.INTERCO.PARAMETER
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+
+
+    IF V$FUNCTION EQ 'I' THEN
+        IF FIELD(COMI,@FM,2) NE 'NEW' THEN
+            IF LEN(FIELD(COMI,@FM,1)) NE 13 THEN
+                ETEXT='CLICK NEW DEAL'
+                RETURN
+            END
+
+        END ELSE
+            GOSUB INITIALISE
+            GOSUB CHECK.DIGIT
+        END
+
+    END
+    IF ERROR.MSG # '' THEN ETEXT = ERROR.MSG
+
+    RETURN
+
+*--------------------------------------------------------------------
+
+INITIALISE:
+*---------
+
+    ERROR.MSG = ''
+    ETEXT = ''
+
+    FN.LOCKING = 'F.LOCKING'
+    F.LOCKING = ''
+    CALL OPF(FN.LOCKING,F.LOCKING)
+    R.LOCKING = ''
+    Y.LOCKING.ID = 'FBNK.JBL.ACCT.SEQ.NO'
+
+!  FN.AC='F.ACCOUNT'
+! F.AC=''
+!FN.AC.NAU='F.ACCOUNT$NAU'
+!F.AC.NAU=''
+! CALL OPF(FN.AC,F.AC)
+! CALL OPF(FN.AC.NAU,F.AC.NAU)
+
+    YBRANCH.MNEMONIC = ''
+    YBRANCH.POSITION = ''
+    YBRANCH.LIST = ''
+    YBRANCH.MNEMONIC<1> = R.INTERCO.PARAMETER<ST.ICP.BRANCH.CODE>
+    YBRANCH.MNEMONIC<2> = R.INTERCO.PARAMETER<ST.ICP.FIN.MNEMONIC>
+    YBRANCH.MNEMONIC<3> = R.INTERCO.PARAMETER<ST.ICP.COMPANY>
+    YBRANCH.LIST = YBRANCH.MNEMONIC<1>
+
+    RETURN
+*--------------------------------------------------------------------
+
+CHECK.DIGIT:
+*----------
+
+
+! Y.NEW.ID=FIELD(COMI,@FM,1)
+!CALL F.READ(FN.AC,Y.NEW.ID,R.AC,F.AC,ERR.AC)
+!CALL F.READ(FN.AC.NAU,Y.NEW.ID,R.AC.NAU,F.AC.NAU,ERR.AC.NAU)
+
+!IF R.AC EQ '' AND R.AC.NAU EQ '' THEN
+!   COMI :=@FM:'NEW'
+!END
+
+!IF FIELD(COMI,@FM,2) NE 'NEW' THEN RETURN
+
+    YBRANCH = R.COMPANY(EB.COM.FINANCIAL.MNE)
+    FIND YBRANCH IN YBRANCH.MNEMONIC SETTING BFV,BMV,BSV THEN
+        YBRANCH.CODE =YBRANCH.MNEMONIC<1,BMV>
+    END ELSE        ;* Account is in master company
+        BMV = 1
+        YBRANCH.CODE = YBRANCH.MNEMONIC<1,BMV>
+    END
+
+!    Y.ACCT.ID = ID.COMPANY[2]
+    Y.ACCT.ID = YBRANCH.CODE
+    Y.LOC.ERR = ''
+
+    CALL F.READ(FN.LOCKING,Y.LOCKING.ID,R.LOCKING,F.LOCKING,Y.LOC.ERR)
+    IF Y.LOC.ERR EQ '' THEN
+        Y.SEQ = R.LOCKING<1>
+        Y.SEQ.NO = FMT(Y.SEQ,"10'0'R")
+        Y.SEQ = Y.SEQ + 1
+
+        WRITE Y.SEQ ON F.LOCKING, Y.LOCKING.ID
+        Y.ACCT.ID := Y.SEQ.NO
+    END
+
+* Janatha Bank Check digit calculations
+
+    CHECK.DIGIT = 0
+    REMAINDER = ''
+    TOTAL.1 = 0
+
+    TOTAL.1 += Y.ACCT.ID[1,1] * 7
+    TOTAL.1 += Y.ACCT.ID[2,1] * 6
+    TOTAL.1 += Y.ACCT.ID[3,1] * 5
+    TOTAL.1 += Y.ACCT.ID[4,1] * 4
+    TOTAL.1 += Y.ACCT.ID[5,1] * 3
+    TOTAL.1 += Y.ACCT.ID[6,1] * 2
+    TOTAL.1 += Y.ACCT.ID[7,1] * 7
+    TOTAL.1 += Y.ACCT.ID[8,1] * 6
+    TOTAL.1 += Y.ACCT.ID[9,1] * 5
+    TOTAL.1 += Y.ACCT.ID[10,1] * 4
+    TOTAL.1 += Y.ACCT.ID[11,1] * 3
+    TOTAL.1 += Y.ACCT.ID[12,1] * 2
+
+*
+    MOD.OF.COMI = MOD(TOTAL.1,11)
+
+    LS.DIGIT = 11 - MOD.OF.COMI
+
+    IF LEN(LS.DIGIT) > 1 THEN
+        CHECK.DIGIT = LS.DIGIT[2,1]
+    END ELSE
+        CHECK.DIGIT = LS.DIGIT
+    END
+
+* END OF CHECK DIGIT CALCULATION
+    Y.ACCT.ID := CHECK.DIGIT
+    COMI = Y.ACCT.ID
+
+END

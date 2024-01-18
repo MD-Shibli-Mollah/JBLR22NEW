@@ -1,0 +1,282 @@
+*-----------------------------------------------------------------------------
+***Develop By: Robiul Islam **********
+**** Date: 02 FEB 2017 *********
+* <Rating>1396</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATM.ACC.CHK
+!PROGRAM ATM.ACC.CHK
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT BP I_F.ATM.CARD.MGT
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+    FN.AC.HIS = "F.ACCOUNT$HIS"
+    F.AC.HIS = ""
+    FN.CUS="F.CUSTOMER"
+    F.CUS=""
+    Y.ACCOUNT=R.NEW(EB.ATM19.ACCT.NO)
+    Y.CATEGORY.ALLOW=1001:@FM:6001:@FM:6004:@FM:6019
+
+    Y.CELLPHONE=""
+    Y.CLIENTPROPF=""
+    Y.CLIENTPROPM=""
+    Y.BIRTHDAY=""
+    Y.ADDRESS=""
+    Y.CORADDRESS=""
+    FN.ATM="F.EB.ATM.CARD.MGT"
+    F.ATM=""
+    FN.ATM.NAU="F.EB.ATM.CARD.MGT$NAU"
+    F.ATM.NAU=""
+    Y.CARD.TYPE= R.NEW(EB.ATM19.CARD.TYPE)
+    Y.CARD.NAME= R.NEW(EB.ATM19.CARD.NAME)
+    R.AC.REC = ""
+    Y.FLAG=0
+    Y.MODE.FLAG=0
+OPENFILES:
+
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.CUS,F.CUS)
+    CALL OPF(FN.ATM,F.ATM)
+    CALL OPF(FN.ATM.NAU,F.ATM.NAU)
+    RETURN
+
+PROCESS:
+
+    IF Y.ACCOUNT NE "" THEN
+        CALL F.READ(FN.AC,Y.ACCOUNT,R.AC.REC,F.AC,Y.ERR)
+        Y.CATEGORY.ACC=R.AC.REC<AC.CATEGORY>
+        Y.JOINT.HOLDER=R.AC.REC<AC.JOINT.HOLDER>
+        Y.POSTING.RESTRICT=R.AC.REC<AC.POSTING.RESTRICT>
+        Y.INACTIVE.MARKER=R.AC.REC<AC.INACTIV.MARKER>
+        Y.CUSTOMER = R.AC.REC<AC.CUSTOMER>
+        CALL GET.LOC.REF('ACCOUNT','MODE.OF.OPER',Y.MODE.OF.OPER)
+        CALL GET.LOC.REF('ACCOUNT','ACCOUNT.NATURE',Y.ACCOUNT.NATURE)
+        Y.AC.MODE=UPCASE(R.AC.REC<AC.LOCAL.REF,Y.MODE.OF.OPER>)
+        Y.AC.NATURE=UPCASE(R.AC.REC<AC.LOCAL.REF,Y.ACCOUNT.NATURE>)
+        IF Y.AC.MODE EQ "SELF" OR Y.AC.MODE EQ "SINGLE" THEN
+            Y.MODE.FLAG=1
+        END
+        CALL F.READ(FN.CUS,Y.CUSTOMER,R.CUS.REC,F.CUS,Y.ERR)
+
+        Y.SEX=R.CUS.REC<EB.CUS.GENDER>
+        Y.TITLE = R.CUS.REC<EB.CUS.TITLE>
+        CALL GET.LOC.REF('CUSTOMER','CUS.COMU.ADD',Y.COMU.ADD)
+        CALL GET.LOC.REF('CUSTOMER','CUS.COMU.VILL',Y.COMU.VILL)
+        CALL GET.LOC.REF('CUSTOMER','CUS.COMU.PO',Y.COMU.PO)
+        CALL GET.LOC.REF('CUSTOMER','CUS.COMU.UPZ',Y.COMU.UPZ)
+        CALL GET.LOC.REF('CUSTOMER','CUS.COMU.DIST',Y.COMU.DIST)
+        CALL GET.LOC.REF('CUSTOMER','FATHER.NAME',Y.FATHER.NAME)
+        CALL GET.LOC.REF('CUSTOMER','MOTHER.NAME',Y.MOTHER.NAME)
+        CALL GET.LOC.REF('CUSTOMER','SMS.ALERT',Y.SMS.ALT)
+        Y.CELLPHONE=R.CUS.REC<EB.CUS.SMS.1>
+        Y.CLIENTPROPF=R.CUS.REC<EB.CUS.LOCAL.REF,Y.FATHER.NAME>
+        Y.CLIENTPROPM=R.CUS.REC<EB.CUS.LOCAL.REF,Y.MOTHER.NAME>
+        Y.SMS.ALERT=R.CUS.REC<EB.CUS.LOCAL.REF,Y.SMS.ALT>
+        Y.BIRTHDAY=R.CUS.REC<EB.CUS.DATE.OF.BIRTH>
+        Y.ADDRESS=R.CUS.REC<EB.CUS.STREET>
+        Y.TOWN.COUNTRY=R.CUS.REC<EB.CUS.TOWN.COUNTRY>
+        Y.CORADDRESS=R.CUS.REC<EB.CUS.LOCAL.REF,Y.COMU.ADD>
+        Y.COM.VILL=R.CUS.REC<EB.CUS.LOCAL.REF,Y.COMU.VILL>
+        Y.COM.PO=R.CUS.REC<EB.CUS.LOCAL.REF,Y.COMU.PO>
+        Y.COM.UPZ=R.CUS.REC<EB.CUS.LOCAL.REF,Y.COMU.UPZ>
+        Y.COM.DIST=R.CUS.REC<EB.CUS.LOCAL.REF,Y.COMU.DIST>
+
+        Y.CATEGORY.COUNT=DCOUNT(Y.CATEGORY.ALLOW,@FM)
+        Y.CATE.CHK=0
+        FOR I=1 TO Y.CATEGORY.COUNT
+            Y.CATE=FIELD(Y.CATEGORY.ALLOW,@FM,I)
+            IF Y.CATE EQ Y.CATEGORY.ACC THEN
+                Y.CATE.CHK=1
+                BREAK
+            END
+        NEXT I
+
+        MSG="PLEASE GIVE INPUT-"
+        IF R.AC.REC NE "" AND Y.SEX EQ ""  THEN
+            MSG = MSG :" Gender,"
+            Y.FLAG=1
+        END
+        IF R.AC.REC NE "" AND Y.TITLE  EQ ""  THEN
+            MSG = MSG :" Title ,"
+            Y.FLAG=1
+        END
+        IF R.AC.REC NE "" AND Y.CELLPHONE  EQ ""  THEN
+            MSG = MSG :" Mobile Phone Numbers,"
+            Y.FLAG=1
+        END
+        IF R.AC.REC NE "" AND Y.SMS.ALERT  NE "Y"  THEN
+            MSG = MSG :" SMS ALERT,"
+            Y.FLAG=1
+        END
+        IF R.AC.REC NE "" AND Y.BIRTHDAY EQ ""  THEN
+            MSG = MSG :" Birthday,"
+            Y.FLAG=1
+        END
+        IF R.AC.REC NE "" AND Y.CLIENTPROPF EQ ""  THEN
+            MSG = MSG :" Father Name,"
+            Y.FLAG=1
+        END
+        IF R.AC.REC NE "" AND Y.CLIENTPROPM EQ ""  THEN
+            MSG = MSG :" Mother Name,"
+            Y.FLAG=1
+        END
+        IF R.AC.REC NE "" AND Y.ADDRESS  EQ ""  THEN
+            MSG = MSG :"Present Address,"
+            Y.FLAG=1
+        END
+        IF R.AC.REC NE "" AND Y.TOWN.COUNTRY  EQ ""  THEN
+            MSG = MSG :"Present Address-TOWN,"
+            Y.FLAG=1
+        END
+        IF R.AC.REC NE "" AND Y.CORADDRESS  EQ ""  THEN
+            MSG = MSG :" Communication Address,"
+            Y.FLAG=1
+        END
+        IF R.AC.REC NE "" AND Y.COM.VILL  EQ ""  THEN
+            MSG = MSG :" Communication Address-VILLAGE,"
+            Y.FLAG=1
+        END
+        IF R.AC.REC NE "" AND Y.COM.PO  EQ ""  THEN
+            MSG = MSG :" Communication Address-POLISH STATION,"
+            Y.FLAG=1
+        END
+        IF R.AC.REC NE "" AND Y.COM.UPZ  EQ ""  THEN
+            MSG = MSG :" Communication Address-UPAZALA,"
+            Y.FLAG=1
+        END
+        IF R.AC.REC NE "" AND Y.COM.DIST  EQ ""  THEN
+            MSG = MSG :" Communication Address-DISTRICT,"
+            Y.FLAG=1
+        END
+        IF R.AC.REC NE "" AND Y.INACTIVE.MARKER NE "" THEN
+            ETEXT =Y.ACCOUNT: " INACTIVE ACCOUNT"
+            CALL STORE.END.ERROR
+        END
+
+        ELSE IF Y.CATEGORY.ACC NE "" AND Y.CATE.CHK EQ 0 THEN
+            ETEXT ="INVALID CATEGORY"
+            CALL STORE.END.ERROR
+        END
+        ELSE IF LEN(Y.CARD.NAME) LT 3  THEN
+            ETEXT ="CARD NAME MINIMUM 3 CHARACTERS"
+            CALL STORE.END.ERROR
+        END
+        ELSE IF R.AC.REC NE "" AND ID.COMPANY NE R.AC.REC<AC.CO.CODE>  THEN
+            ETEXT =Y.ACCOUNT: " INVALID ACCOUNT"
+            CALL STORE.END.ERROR
+        END
+        ELSE IF R.AC.REC NE "" AND Y.JOINT.HOLDER NE ""  THEN
+            ETEXT ="JOINT ACCOUNT NOT ALLOW"
+            CALL STORE.END.ERROR
+        END
+        ELSE IF Y.CUSTOMER EQ ""  THEN
+            ETEXT ="CUSTOMER MISSING"
+            CALL STORE.END.ERROR
+        END
+        ELSE IF NOT(ISDIGIT(Y.ACCOUNT))  THEN
+            ETEXT ="INVALID ACCOUNT"
+            CALL STORE.END.ERROR
+        END
+        ELSE IF Y.AC.MODE NE "" AND Y.MODE.FLAG EQ 0 THEN
+            ETEXT ="INDIVIDUAL ACCOUNT ALLOW MODE OF OPERATION MUST BE SELF"
+            CALL STORE.END.ERROR
+        END
+        ELSE IF  Y.AC.NATURE NE "" AND  Y.AC.NATURE NE "INDIVIDUAL ACCOUNT"  THEN
+            ETEXT ="INDIVIDUAL ACCOUNT ALLOW ACCOUNT NATURE MUST BE INDIVIDUAL ACCOUNT"
+            CALL STORE.END.ERROR
+        END
+
+
+        ELSE IF Y.POSTING.RESTRICT NE "" AND R.AC.REC NE "" THEN
+            ETEXT = Y.ACCOUNT: " IS POSTING RESTRICTED"
+            CALL STORE.END.ERROR
+        END
+        ELSE IF Y.FLAG EQ 1 THEN
+            MSG = MSG :" Field This Customer(":Y.CUSTOMER:") Module"
+            ETEXT = MSG
+            CALL STORE.END.ERROR
+        END
+        ELSE IF LEN(Y.CELLPHONE<1,1>) LE 10 THEN
+            MSG = "Invalid Mobile Number This Customer(":Y.CUSTOMER:") Module"
+            ETEXT = MSG
+            CALL STORE.END.ERROR
+        END
+        ELSE IF R.AC.REC NE "" THEN
+            SEL.CMD = "SELECT ":FN.ATM:" WITH ACCT.NO EQ " : Y.ACCOUNT
+            CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+            LOOP
+                REMOVE Y.ATM.ID FROM SEL.LIST SETTING Y.POS
+            WHILE Y.ATM.ID:Y.POS
+                CALL F.READ(FN.ATM,Y.ATM.ID,R.ATM.REC,F.ATM,Y.ERR)
+                IF R.ATM.REC<EB.ATM19.CARD.TYPE> EQ Y.CARD.TYPE AND Y.ATM.ID NE ID.NEW THEN
+                    ETEXT = Y.ACCOUNT: " IS ALREADY ASSIGN THIS TYPE CARD"
+                    CALL STORE.END.ERROR
+                    BREAK
+                END
+            REPEAT
+
+            SEL.CMD = "SELECT ":FN.ATM.NAU:" WITH ACCT.NO EQ " : Y.ACCOUNT
+            CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+            LOOP
+                REMOVE Y.ATM.ID FROM SEL.LIST SETTING Y.POS
+            WHILE Y.ATM.ID:Y.POS
+                CALL F.READ(FN.ATM.NAU,Y.ATM.ID,R.ATM.REC,F.ATM.NAU,Y.ERR)
+                IF R.ATM.REC<EB.ATM19.CARD.TYPE> EQ Y.CARD.TYPE AND Y.ATM.ID NE ID.NEW  THEN
+                    ETEXT = Y.ACCOUNT: " IS ALREADY ASSIGN THIS TYPE CARD"
+                    CALL STORE.END.ERROR
+                    BREAK
+                END
+            REPEAT
+
+        END
+
+        Y.COUNT=DCOUNT(Y.CARD.NAME," ")
+        FOR I=1 TO Y.COUNT
+            IF NOT(ALPHA(FIELD(Y.CARD.NAME," ",I))) THEN
+                ETEXT ="PLEASE REMOVE SPECIAL CHARACTER FROM CARD NAME"
+                CALL STORE.END.ERROR
+            END
+        NEXT I
+!ELSE IF Y.CARD.NAME NE "" THEN
+!  ETEXT = Y.ACCOUNT: " CATEGORY INVALID"
+! CALL STORE.END.ERROR
+
+!END
+!   ELSE IF R.AC.REC NE "" THEN
+!      CALL GET.LOC.REF('ACCOUNT','AC.ATM.CARD.NUM',Y.AC.ATM.CARD.NUM)
+!     Y.NO.OF.CARD=DCOUNT(R.AC.REC<AC.LOCAL.REF,Y.AC.ATM.CARD.NUM>,@SM)
+
+!    FOR I = 1 TO Y.NO.OF.CARD
+!       Y.ATM.ID =R.AC.REC<AC.LOCAL.REF,Y.AC.ATM.CARD.NUM,I>
+!      CALL F.READ(FN.ATM,Y.ATM.ID,R.ATM.REC,F.ATM,Y.ERR)
+!     IF R.ATM.REC<EB.ATM19.CARD.TYPE> EQ Y.CARD.TYPE THEN
+!        ETEXT = Y.ACCOUNT: " IS ALREADY ASSIGN THIS TYPE CARD"
+!       CALL STORE.END.ERROR
+!      BREAK
+! END
+!CALL F.READ(FN.ATM.NAU,Y.ATM.ID,R.ATM.REC,F.ATM.NAU,Y.ERR)
+!IF R.ATM.REC<EB.ATM19.CARD.TYPE> EQ Y.CARD.TYPE THEN
+!   ETEXT = Y.ACCOUNT: " IS ALREADY ASSIGN THIS TYPE CARD"
+!  CALL STORE.END.ERROR
+! BREAK
+!END
+! NEXT I
+!END
+
+
+    END
+    RETURN
+
+END

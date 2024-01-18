@@ -1,0 +1,85 @@
+*-----------------------------------------------------------------------------
+* <Rating>-33</Rating>
+*-----------------------------------------------------------------------------
+** Program Information
+
+** Written By                   : MD IMRAN HASAN
+** Created Date                 : 2015-11-29
+** Last Modification Date       : 2020-12-13
+** Purpose                      : To generate (ED)Excise Duty summary report
+
+!Generate Excise duty deduct report
+!ENQUIRY.REPORT,ANN.EXC.DUTY I ER.ANN.EXC.DUTY
+
+** Tools
+!TSM SERVICE - BNK/OFS.MESSAGE.SERVICE
+!TSM SERVICE - BNK/OFS.RESPONSE.QUEUE
+*-----------------------------------------------------------------------------------
+
+    SUBROUTINE R.ICTD.RG.EXCISE.DEDUCT
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.COMPANY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*----
+INIT:
+*----
+    FN.COMP = 'F.COMPANY'
+    F.COMP = ''
+
+    Y.DEDUCT.RATE = '150':@FM:'500':@FM:'3000':@FM:'15000':@FM:'40000'
+
+    RETURN
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.COMP,F.COMP)
+
+    RETURN
+*-------
+PROCESS:
+*-------
+
+!---------------------------------------------------------------
+!READ SINGLE STATUS COMPANY
+!---------------------------------------------------------------
+    COMPANY.LIST = ''
+
+    CALL GET.LOC.REF("COMPANY","BRANCH.STATUS",Y.BRANCH.STATUS.POS)
+    SEL.CMD1='SELECT ':FN.COMP
+    CALL EB.READLIST(SEL.CMD1,SEL.LIST1,'',NO.OF.REC1,RET.CODE1)
+    LOOP
+        REMOVE  Y.COMP.ID FROM SEL.LIST1 SETTING Y.POS
+    WHILE Y.COMP.ID:Y.POS
+        CALL F.READ(FN.COMP,Y.COMP.ID,R.COMP,F.COMP,ERR.CODE.COMP)
+        Y.BRANCH.STATUS = R.COMP<EB.COM.LOCAL.REF,Y.BRANCH.STATUS.POS>
+        IF Y.BRANCH.STATUS EQ 'SINGLE' THEN
+            COMPANY.LIST<-1> = Y.COMP.ID
+        END
+    REPEAT
+!---------------------------------------------------------------
+
+    FOR I=1 TO DCOUNT(COMPANY.LIST,@FM)
+        COMP.ID =  FIELD(COMPANY.LIST,@FM,I)
+
+        FOR K = 1 TO DCOUNT(Y.DEDUCT.RATE,@FM)
+            Y.RATE = FIELD(Y.DEDUCT.RATE,@FM,K)
+!Y.I.MESSAGE = "ENQUIRY.REPORT,ANN.EXC.DUTY/I/PROCESS,//":COMP.ID:",ER.ANN.EXC.DUTY.":Y.RATE:",LIST:1:1=201712,LIST:1:2=":Y.RATE
+
+            Y.V.MESSAGE = "ENQUIRY.REPORT,ANN.EXC.DUTY/V/PROCESS,//":COMP.ID:",ER.ANN.EXC.DUTY.":Y.RATE
+            V.MSG.ID = ''
+            CALL OFS.POST.MESSAGE(Y.V.MESSAGE, V.MSG.ID ,"DM.OFS.SRC.VAL", "DMUSER")
+            CALL JOURNAL.UPDATE ('TEST')
+
+        NEXT K
+    NEXT I
+    CRT "TASK COMPLETED"
+
+    RETURN
+END

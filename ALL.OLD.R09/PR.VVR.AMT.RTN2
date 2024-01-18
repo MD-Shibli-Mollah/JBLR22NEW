@@ -1,0 +1,24 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VVR.AMT.RTN2
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.DRAWINGS
+
+    Y.DAYS=COMI
+
+    Y.AMT=R.NEW(TF.DR.DOCUMENT.AMOUNT)
+
+    CALL GET.LOC.REF("DRAWINGS","INTEREST.RATE",Y.INT)
+    CALL GET.LOC.REF("DRAWINGS","MARGIN.RATE",Y.MARGIN)
+    Y.RATE= R.NEW(TF.DR.LOCAL.REF)<1,Y.INT>
+    Y.AMOUNT=(Y.RATE * Y.AMT * Y.DAYS)/36000
+    CALL EB.ROUND.AMOUNT('',Y.AMOUNT,'2','')
+    IF R.NEW(TF.DR.LOCAL.REF)<1,Y.MARGIN> EQ '' THEN
+        R.NEW(TF.DR.LOCAL.REF)<1,Y.MARGIN>=Y.AMOUNT
+        CALL REBUILD.SCREEN
+    END
+    RETURN
+END

@@ -1,0 +1,49 @@
+    SUBROUTINE TODAY.ENTRY.FIELDS
+
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_DataTypes
+*** </region>
+
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("ENTRY.ID", T24_String)   ;* Define Table id
+
+    CALL Table.addFieldDefinition("TXN.ID","30","A","")
+    CALL Table.addFieldDefinition("VALUE.DATE","12","D","")
+    CALL Table.addFieldDefinition("ACCT.ID","20","","")
+    CALL Field.setCheckFile("ACCOUNT")
+
+    CALL Table.addFieldDefinition("ACCT.TITLE","35","A","")
+    CALL Table.addFieldDefinition("LEGACY.ID","20","A","")
+    CALL Table.addFieldDefinition("INSTRUMENT.NO","20","A","")
+    CALL Table.addFieldDefinition("CATEGORY","5","","")
+    CALL Field.setCheckFile("CATEGORY")
+    CALL Table.addFieldDefinition("CURRENCY","3","A","")
+    CALL Field.setCheckFile("CURRENCY")
+    CALL Table.addAmountField("AMOUNT","CURRENCY",Field_AllowNegative,'')
+    CALL Table.addAmountField("FCY.AMOUNT","CURRENCY",Field_AllowNegative,'')
+    CALL Table.addFieldDefinition("TRANSACTION.CODE","5",'','')
+    CALL Field.setCheckFile("TELLER.TRANSACTION")
+    CALL Table.addFieldDefinition("TRANSACTION.TYPE","5",'','')
+    CALL Field.setCheckFile("FT.TXN.TYPE.CONDITION")
+    CALL Table.addFieldDefinition("IN.SWIFT.MSG","22","A",'')
+    CALL Table.addFieldDefinition("INPUT.BY","16","","")
+    CALL Field.setCheckFile("USER")
+    CALL Table.addFieldDefinition("AUTHORISED.BY","16","","")
+    CALL Field.setCheckFile("USER")
+    CALL Table.addFieldDefinition("STMT.ENTRY.ID","30","","")
+    CALL Field.setCheckFile("STMT.ENTRY")
+    CALL Table.addFieldDefinition("SYSTEM.ID","8","","")
+    CALL Field.setCheckFile("EB.SYSTEM.ID")
+
+*-----------------------------------------------------------------------------
+!CALL Table.addOverrideField
+!CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+
+    RETURN
+END
+
+

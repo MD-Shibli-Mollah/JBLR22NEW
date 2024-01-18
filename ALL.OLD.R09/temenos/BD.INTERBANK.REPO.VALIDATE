@@ -1,0 +1,48 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.INTERBANK.REPO.VALIDATE
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*-----------------------
+* This routine is to validate the entered Amount and calculate total
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 02/10/2013 New   - Manjunath Suvarna
+*                    Sepit SoftTech Pvt. Ltd.
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE JBL.BP I_F.BD.INTERBANK.REPO
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.IB.REPO = 'F.BD.INTERBANK.REPO'
+    F.IB.REPO = ''
+
+    CALL OPF(FN.IB.REPO,F.IB.REPO)
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+*
+    Y.CNT = DCOUNT(R.NEW(INTER.REPO.AMOUNT),@VM)
+    Y.AMT = R.NEW(INTER.REPO.AMOUNT)
+    FOR I = 1 TO Y.CNT
+        Y.AMOUNT+ = FIELD(Y.AMT,VM,I,1)
+    NEXT I
+    IF Y.AMOUNT THEN
+        R.NEW(INTER.REPO.SUB.TOTAL) = Y.AMOUNT
+    END
+*
+    RETURN
+END

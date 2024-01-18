@@ -1,0 +1,257 @@
+*-----------------------------------------------------------------------------
+* <Rating>314</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE NOFILE.CHEQUE.STATUS(Y.ARR)
+*-------------------------------------------------------------------------
+* This is a Nofile Enquiry Routine used to display Status of Cheques.
+* Status of Used, Stopped, Unused Cheques.
+* Customer by account wise display.
+*
+*@author        manjunath.s@sepit.net
+*-------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.CHEQUE.ISSUE
+    $INSERT GLOBUS.BP I_F.CHEQUES.PRESENTED
+    $INSERT GLOBUS.BP I_F.CHEQUES.STOPPED
+*-------------------------------------------------------------------------
+* Main controlling section:
+*-------------------------------------------------------------------------
+    GOSUB INITIALISATION
+    GOSUB MAIN.PROCESS
+
+    RETURN
+
+*-------------------------------------------------------------------------
+* Subroutine Section:
+* File Opening and Variable set up
+
+INITIALISATION:
+
+*-------------------------------------------------------------------------
+    FN.CHEQUE.ISSUE = "F.CHEQUE.ISSUE"
+    F.CHEQUE.ISSUE = ""
+    R.CHEQUE.ISSUE = ""
+    CALL OPF(FN.CHEQUE.ISSUE,F.CHEQUE.ISSUE)
+
+    FN.CHEQUES.PRESENTED = "F.CHEQUES.PRESENTED"
+    F.CHEQUES.PRESENTED = ""
+    R.CHEQUES.PRESENTED = ""
+    CALL OPF(FN.CHEQUES.PRESENTED,F.CHEQUES.PRESENTED)
+
+    FN.CHEQUES.STOPPED = "F.CHEQUES.STOPPED"
+    F.CHEQUES.STOPPED = ""
+    R.CHEQUES.STOPPED = ""
+    CALL OPF(FN.CHEQUES.STOPPED,F.CHEQUES.STOPPED)
+
+    RETURN
+
+
+*-------------------------------------------------------------------------
+* Main Subroutine processing:
+* Locating the field of Account Number in the ENQUIRY which should be a Mandatory input
+
+MAIN.PROCESS:
+
+*-------------------------------------------------------------------------
+    LOCATE "ACCOUNT.NUMBER" IN  D.FIELDS<1> SETTING POS THEN
+        Y.ACCT.NO = D.RANGE.AND.VALUE<1,POS>
+    END
+
+!-Last Amendment by Md. Imran Hasan
+    GOSUB CHQ.STOPPED
+    GOSUB CHQ.PRESENTED
+!-Last Amendment by Md. Imran Hasan
+
+    GOSUB CHEQUE.UNUSED
+    RETURN
+
+*-------------------------------------------------------------------------
+CHEQUE.UNUSED:
+*-------------------------------------------------------------------------
+    SEL.CMD = "SELECT ":FN.CHEQUE.ISSUE:" WITH @ID LIKE ...":Y.ACCT.NO:"..."
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORDS,RET.CODE)
+    LOOP
+        REMOVE CHQ.ID FROM SEL.LIST SETTING CHQ.POS
+    WHILE CHQ.ID:CHQ.POS
+        CALL F.READ(FN.CHEQUE.ISSUE,CHQ.ID,R.CHEQUE.ISSUE,F.CHEQUE.ISSUE,Y.ERR)
+        Y.CHEQUE.TYPE = FIELD(CHQ.ID,".",1,1)
+        Y.DATE = R.CHEQUE.ISSUE<CHEQUE.IS.ISSUE.DATE>
+        Y.CHQ.BEGIN = R.CHEQUE.ISSUE<CHEQUE.IS.CHQ.NO.START>
+        Y.CHQ.END.NO = R.CHEQUE.ISSUE<CHEQUE.IS.NUMBER.ISSUED>
+        Y.CHQ.END.NUMBER = Y.CHQ.BEGIN + Y.CHQ.END.NO
+        Y.CHQ.END = Y.CHQ.END.NUMBER - 1
+        Y.CHEQUES = Y.CHQ.BEGIN
+
+!-Last Amendment by Md. Imran Hasan
+!GOSUB CHQ.STOPPED
+!GOSUB CHQ.PRESENTED
+!-Last Amendment by Md. Imran Hasan
+
+        LOOP
+        WHILE Y.CHEQUES LE Y.CHQ.END
+            FIND Y.CHEQUES IN Y.CHQ.ARR1 SETTING UNUSED.POS THEN
+                Y.CHEQUE.ARR1<-1> = Y.CHEQUES
+            END ELSE
+                FIND Y.CHEQUES IN Y.CHQ.ARR2 SETTING UNUSED.POS THEN
+                    Y.CHEQUE.ARR2<-1> = Y.CHEQUES
+                END ELSE
+                    Y.CHEQUE.ARR3<-1> = Y.CHEQUES
+                END
+            END
+            Y.CHEQUES = Y.CHEQUES + 1
+        REPEAT
+
+        Y.COUNT.STOP = DCOUNT(Y.CHEQUE.ARR1,@FM)
+        Y.COUNT.PRESENT = DCOUNT(Y.CHEQUE.ARR2,@FM)
+        Y.COUNT.UNUSED = DCOUNT(Y.CHEQUE.ARR3,@FM)
+
+        IF Y.COUNT.STOP GT "1" THEN
+            Y.START = FIELD(Y.CHEQUE.ARR1,FM,1)
+            Y.END = Y.START
+            GOSUB CHQ.STOP.ACTION
+            GOSUB CHQ.STOP.ACTION.A1
+        END ELSE
+            Y.CHQ.ARR.S:= Y.CHEQUE.ARR1
+        END
+
+        IF Y.COUNT.PRESENT GT "1" THEN
+            Y.START = FIELD(Y.CHEQUE.ARR2,FM,1)
+            Y.END = Y.START
+            GOSUB CHQ.PRESENT.ACTION
+            GOSUB CHQ.PRESENT.ACTION.A1
+        END ELSE
+            Y.CHQ.ARR.P:= Y.CHEQUE.ARR2
+        END
+
+        IF Y.COUNT.UNUSED GT "1" THEN
+            Y.START = FIELD(Y.CHEQUE.ARR3,FM,1)
+            Y.END = Y.START
+            GOSUB CHQ.UNUSED.ACTION
+            GOSUB CHQ.UNUSED.ACTION.A1
+        END ELSE
+            Y.CHQ.ARR.U:= Y.CHEQUE.ARR3
+        END
+
+        Y.ALL.STATUS<-1> = "USED :":Y.COUNT.PRESENT:" Leave(s)":Y.CHQ.ARR.P
+
+        Y.ALL.STATUS<-1> = "STOP :":Y.COUNT.STOP:" Leave(s)":Y.CHQ.ARR.S
+
+        Y.ALL.STATUS<-1> = "UNUSED :":Y.COUNT.UNUSED:" Leave(s)":Y.CHQ.ARR.U
+
+        CONVERT FM TO VM IN Y.ALL.STATUS
+
+        Y.ARR<-1> = Y.ACCT.NO:" * ":Y.CHQ.BEGIN:" - ":Y.CHQ.END:" * ":Y.ALL.STATUS
+
+        Y.CHEQUE.ARR1=''
+        Y.CHEQUE.ARR2=''
+        Y.CHEQUE.ARR3=''
+        Y.DATE=''
+        Y.CHQ.BEGIN=''
+        Y.CHQ.END=''
+        Y.ALL.ACC = ''
+        Y.ALL.BOOK = ''
+        Y.ALL.STATUS = ''
+        Y.CHQ.ARR.S = ''
+        Y.CHQ.ARR.P = ''
+        Y.CHQ.ARR.U = ''
+    REPEAT
+*-------------------------------------------------------------------------
+CHQ.STOPPED:
+*-------------------------------------------------------------------------
+    SEL.CMD.STOPPED = "SELECT ":FN.CHEQUES.STOPPED:" WITH @ID LIKE ...":Y.ACCT.NO:"..."
+    CALL EB.READLIST(SEL.CMD.STOPPED,SEL.LIST.STOPPED,"",NO.OF.RECORDS,RET.CODE)
+    LOOP
+        REMOVE Y.CHQ.STOPPED.ID FROM SEL.LIST.STOPPED SETTING STOPPED.POS
+    WHILE Y.CHQ.STOPPED.ID:STOPPED.POS
+        Y.CHQ.STOPPED = FIELD(Y.CHQ.STOPPED.ID,"*",2,1)
+        Y.CHQ.ARR1<-1>=Y.CHQ.STOPPED
+    REPEAT
+    RETURN
+*-------------------------------------------------------------------------
+CHQ.PRESENTED:
+*-------------------------------------------------------------------------
+    SEL.CMD.PRESENT =  "SELECT ":FN.CHEQUES.PRESENTED:" WITH @ID LIKE ...":Y.ACCT.NO:"..."
+    CALL EB.READLIST(SEL.CMD.PRESENT,SEL.LIST.PRESENT,"",NO.OF.RECORDS,RET.CODE)
+    LOOP
+        REMOVE Y.CHQ.PRESENT.ID FROM SEL.LIST.PRESENT SETTING PRESENT.POS
+    WHILE Y.CHQ.PRESENT.ID:PRESENT.POS
+        Y.CHQ.PRESENT=Y.CHQ.PRESENT.ID
+        Y.CHQ.NO=FIELD(Y.CHQ.PRESENT,"-",2,1)
+        Y.CHQ.ARR2<-1>=Y.CHQ.NO
+    REPEAT
+    RETURN
+*-------------------------------------------------------------------------
+CHQ.STOP.ACTION:
+*-------------------------------------------------------------------------
+    FOR I=2 TO Y.COUNT.STOP
+        Y.TEMP = FIELD(Y.CHEQUE.ARR1,FM,I)
+        IF (Y.TEMP - Y.END) GT "1" THEN
+            GOSUB CHQ.STOP.ACTION.A1
+            Y.START = Y.TEMP
+            Y.END = Y.TEMP
+        END ELSE
+            Y.END = Y.TEMP
+        END
+    NEXT I
+    RETURN
+*-------------------------------------------------------------------------
+CHQ.PRESENT.ACTION:
+*-------------------------------------------------------------------------
+    FOR I=2 TO Y.COUNT.PRESENT
+        Y.TEMP = FIELD(Y.CHEQUE.ARR2,FM,I)
+        IF (Y.TEMP - Y.END) GT "1" THEN
+            GOSUB CHQ.PRESENT.ACTION.A1
+            Y.START = Y.TEMP
+            Y.END = Y.TEMP
+        END ELSE
+            Y.END = Y.TEMP
+        END
+    NEXT I
+    RETURN
+*-------------------------------------------------------------------------
+CHQ.UNUSED.ACTION:
+*-------------------------------------------------------------------------
+    FOR I=2 TO Y.COUNT.UNUSED
+        Y.TEMP = FIELD(Y.CHEQUE.ARR3,FM,I)
+        IF (Y.TEMP - Y.END) GT "1" THEN
+            GOSUB CHQ.UNUSED.ACTION.A1
+            Y.START = Y.TEMP
+            Y.END = Y.TEMP
+        END ELSE
+            Y.END = Y.TEMP
+        END
+    NEXT I
+    RETURN
+*-------------------------------------------------------------------------
+CHQ.STOP.ACTION.A1:
+*-------------------------------------------------------------------------
+    IF Y.START EQ Y.END THEN
+        Y.CHQ.ARR.S:= " [" :Y.START: "]"
+    END ELSE
+        Y.CHQ.ARR.S:= " [" :Y.START : "-" :Y.END: "]"
+    END
+    RETURN
+*-------------------------------------------------------------------------
+CHQ.PRESENT.ACTION.A1:
+*-------------------------------------------------------------------------
+    IF Y.START EQ Y.END THEN
+        Y.CHQ.ARR.P:= " [" :Y.START: "]"
+    END ELSE
+        Y.CHQ.ARR.P:= " [" :Y.START : "-" :Y.END: "]"
+    END
+    RETURN
+*-------------------------------------------------------------------------
+CHQ.UNUSED.ACTION.A1:
+*-------------------------------------------------------------------------
+    IF Y.START EQ Y.END THEN
+        Y.CHQ.ARR.U:= " [" :Y.START: "]"
+    END ELSE
+        Y.CHQ.ARR.U:= " [" :Y.START : "-" :Y.END: "]"
+    END
+    RETURN
+*-------------------------------------------------------------------------
+
+    RETURN
+END

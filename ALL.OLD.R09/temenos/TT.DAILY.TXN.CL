@@ -1,0 +1,227 @@
+*-----------------------------------------------------------------------------
+* <Rating>23</Rating>
+*-----------------------------------------------------------------------------
+****************************************************************************************
+*Developed By: Md. Zakir Hossain(JBL)*
+*Date:10/09/2015*
+****************************************************************************************
+
+!PROGRAM TT.DAILY.TXN.CL
+    SUBROUTINE TT.DAILY.TXN.CL
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT BP I_F.EB.DAILY.TXN
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CLASS
+    $INSERT GLOBUS.BP I_F.CHEQUE.COLLECTION
+
+! GOSUB INIT
+!GOSUB OPENFILES
+!GOSUB PROCESS
+
+
+*------
+INIT:
+*------
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+
+    FN.AC.HIS = 'F.ACCOUNT$HIS'
+    F.AC.HIS = ''
+
+    FN.TT.HIS = 'F.TELLER$HIS'
+    F.TT.HIS = ''
+
+    FN.TT = 'F.TELLER'
+    F.TT = ''
+
+    FN.COLL='F.CHEQUE.COLLECTION'
+    F.COLL=''
+
+    FN.TXN='F.EB.DAILY.TXN'
+    F.TXN=''
+    FN.AC.CLS='F.ACCOUNT.CLASS'
+    F.AC.CLS=''
+    REC.TXN=''
+    Y.CLS=''
+    Y.CH.CL=''
+    Y.AC.TITLE=''
+    Y.CHG.CODE=''
+    Y.SOURCE="BUILD.CONTROL"
+    Y.GL.CATEG=1111:@FM:1112:@FM:1113:@FM:1114
+    Y.TXN.ID=''
+    CALL GET.LOC.REF("CHEQUE.COLLECTION","CHQ.COLL.STATUS",Y.CHQ.COLL.POS)
+    RETURN
+
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF( FN.TT, F.TT)
+    CALL OPF( FN.TT.HIS, F.TT.HIS)
+    CALL OPF(FN.COLL,F.COLL)
+    CALL OPF(FN.TXN,F.TXN)
+    CALL OPF(FN.AC.CLS,F.AC.CLS)
+    RETURN
+
+*-------
+PROCESS:
+*-------
+
+    CALL JULDATE(TODAY,Y.C)
+    CALL F.READ(FN.TT,R.NEW(CHQ.COL.TXN.ID),REC.TT,F.TT,TT.ERR)
+    IF REC.TT EQ "" THEN
+        CALL EB.READ.HISTORY.REC(F.TT.HIS,R.NEW(CHQ.COL.TXN.ID), REC.TT,'')
+    END
+    Y.REC.ID="TT":RIGHT(FIELD(R.NEW(CHQ.COL.TXN.ID),";",1),5):RIGHT(Y.C,5)
+*********************** Read FT Transaction ****************************
+!IF REC.TT<TT.TE.RECORD.STATUS> EQ "RNAU" THEN
+!SEL.CMD="SELECT ":FN.TXN:" WITH @ID LIKE ...":Y.REC.ID
+!CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,ERR1)
+!LOOP
+!REMOVE Y.TXN.ID FROM SEL.LIST SETTING POS
+!WHILE Y.TXN.ID:POS
+!CALL DELETE(FN.TXN,Y.TXN.ID)
+!SEL.DEL="DELETE ":FN.TXN:" ":Y.TXN.ID
+!EXECUTE SEL.DEL
+!REPEAT
+!RETURN
+!END
+    Y.DR.CR.MARKER=REC.TT<TT.TE.DR.CR.MARKER>
+    Y.TXN.CODE=REC.TT<TT.TE.TRANSACTION.CODE>
+    Y.CH.CL="CL"
+    Y.TXN.ID=FIELD(R.NEW(CHQ.COL.TXN.ID),";",1)
+    GOSUB DO.TRANSACTION
+    IF R.NEW(CHQ.COL.LOCAL.REF)<Y.CHQ.COLL.POS> EQ "RETURNED" THEN
+        Y.DR.CR.MARKER="CREDIT"
+        Y.TXN.ID="CHEQUE RETURN"
+        GOSUB DO.TRANSACTION
+    END
+    RETURN
+DO.TRANSACTION:
+****************** Read Internal GL Account Information *************************
+    Y.T24.ID=REC.TT<TT.TE.ACCOUNT.1>
+    CALL F.READ(FN.AC,Y.T24.ID,R.AC,F.AC,AC.ERR)
+    Y.LEG.ID=R.AC<AC.ALT.ACCT.ID>
+    Y.CATEGORY=R.AC<AC.CATEGORY>
+    Y.AC.TITLE=R.AC<AC.ACCOUNT.TITLE.1>
+    Y.AC.CO.CODE=R.AC<AC.CO.CODE>
+    Y.CLS="GL"
+    GOSUB ID.GEN.DR
+**************** Read Customer/Gl/PL Account Information ****************************
+    Y.T24.ID=REC.TT<TT.TE.ACCOUNT.2>
+    IF ISDIGIT(Y.T24.ID) THEN
+        CALL F.READ(FN.AC, Y.T24.ID, R.AC, F.AC, AC.ERR)
+        Y.LEG.ID=R.AC<AC.ALT.ACCT.ID>
+        Y.CATEGORY=R.AC<AC.CATEGORY>
+        Y.AC.TITLE=R.AC<AC.ACCOUNT.TITLE.1>
+        Y.AC.CO.CODE=R.AC<AC.CO.CODE>
+    END ELSE
+        IF LEFT(Y.T24.ID,2) EQ "PL" THEN
+            Y.CATEGORY=RIGHT(Y.T24.ID,5)
+            Y.CLS="PL"
+        END ELSE
+
+            CALL F.READ(FN.AC, Y.T24.ID, R.AC, F.AC, AC.ERR)
+            Y.LEG.ID=R.AC<AC.ALT.ACCT.ID>
+            Y.CATEGORY=R.AC<AC.CATEGORY>
+            Y.AC.TITLE=R.AC<AC.ACCOUNT.TITLE.1>
+            Y.AC.CO.CODE=R.AC<AC.CO.CODE>
+            Y.CLS="GL"
+        END
+    END
+    GOSUB ID.GEN.CR
+    RETURN
+ID.GEN.DR:
+    IF Y.DR.CR.MARKER EQ "DEBIT" THEN
+        Y.ID=RIGHT(ID.COMPANY,4):".":RIGHT(ID.COMPANY,4):".DR.":Y.CLS:".":Y.CH.CL:".":Y.TXN.CODE:".":Y.CATEGORY:".":Y.REC.ID
+    END ELSE
+        Y.ID=RIGHT(ID.COMPANY,4):".":RIGHT(ID.COMPANY,4):".CR.":Y.CLS:".":Y.CH.CL:".":Y.TXN.CODE:".":Y.CATEGORY:".":Y.REC.ID
+    END
+
+!IF REC.TT<TT.TE.RECORD.STATUS> EQ "RNAU" THEN
+!CALL F.DELETE(FN.TXN,Y.ID)
+!RETURN
+!END
+    GOSUB WRITE.TXN
+    RETURN
+ID.GEN.CR:
+    IF Y.CLS EQ "" THEN
+        GOSUB CHECK.ACCT.CLASS
+    END
+    IF Y.AC.CO.CODE EQ ID.COMPANY THEN
+        IF Y.DR.CR.MARKER EQ "DEBIT" THEN
+            Y.ID=RIGHT(ID.COMPANY,4):".":RIGHT(ID.COMPANY,4):".CR.":Y.CLS:".":Y.CH.CL:".":Y.TXN.CODE:".":Y.CATEGORY:".":Y.REC.ID
+        END ELSE
+            Y.ID=RIGHT(ID.COMPANY,4):".":RIGHT(ID.COMPANY,4):".DR.":Y.CLS:".":Y.CH.CL:".":Y.TXN.CODE:".":Y.CATEGORY:".":Y.REC.ID
+        END
+    END ELSE
+        Y.ID=RIGHT(ID.COMPANY,4):".":RIGHT(Y.AC.CO.CODE,4):".CR.":Y.CLS:".":Y.CH.CL:".":Y.TXN.CODE:".":Y.CATEGORY:".":Y.REC.ID
+    END
+!IF REC.TT<TT.TE.RECORD.STATUS> EQ "RNAU" THEN
+!CALL F.DELETE(FN.TXN,Y.ID)
+!RETURN
+!END
+    GOSUB WRITE.TXN
+    RETURN
+
+CHECK.ACCT.CLASS:
+    CALL F.READ(FN.AC.CLS,"U-SB",REC.CLS,F.AC.CLS,CLS.ERR)
+    CONVERT VM TO FM IN REC.CLS<AC.CLS.CATEGORY>
+    LOCATE Y.CATEGORY IN REC.CLS<AC.CLS.CATEGORY> SETTING Y.POS THEN
+        Y.CLS="U-SB"
+    END ELSE
+        CALL F.READ(FN.AC.CLS,"U-CD",REC.CLS,F.AC.CLS,CLS.ERR)
+        CONVERT VM TO FM IN REC.CLS<AC.CLS.CATEGORY>
+        LOCATE Y.CATEGORY IN REC.CLS<AC.CLS.CATEGORY> SETTING Y.POS THEN
+            Y.CLS="U-CD"
+        END ELSE
+            CALL F.READ(FN.AC.CLS,"U-STD",REC.CLS,F.AC.CLS,CLS.ERR)
+            CONVERT VM TO FM IN REC.CLS<AC.CLS.CATEGORY>
+            LOCATE Y.CATEGORY IN REC.CLS<AC.CLS.CATEGORY> SETTING Y.POS THEN
+                Y.CLS="U-STD"
+            END ELSE
+                LOCATE  Y.CATEGORY IN Y.GL.CATEG SETTING Y.POS1 THEN
+                    Y.CLS="GL"
+                END ELSE
+************Added by DataSoft for Loan,Deposit & RD***************
+                    CALL GET.TT.CL.CLS.FROM.CATEGORY(Y.CATEGORY,Y.CLS)
+****************************End***********************************
+                    IF Y.CLS EQ '' THEN
+                        Y.CLS=Y.CATEGORY
+                    END
+                END
+            END
+        END
+    END
+    RETURN
+
+WRITE.TXN:
+    CALL F.READ(FN.TXN,Y.ID,REC.TXN,F.TXN,ERR.TXN)
+!IF REC.TXN NE "" THEN
+!Y.ID=Y.ID:";1"
+! END
+    REC.TXN<EB.DAI69.TXN.ID>=Y.TXN.ID
+    REC.TXN<EB.DAI69.ACCT.NO>=Y.T24.ID
+    REC.TXN<EB.DAI69.LAGACY.ID>=Y.LEG.ID
+    REC.TXN<EB.DAI69.ACCT.TITLE>=Y.AC.TITLE
+    REC.TXN<EB.DAI69.CATEGORY>=Y.CATEGORY
+    REC.TXN<EB.DAI69.AMOUNT>=R.NEW(CHQ.COL.AMOUNT)
+    REC.TXN<EB.DAI69.VERSION.NAME>=PGM.VERSION
+    REC.TXN<EB.DAI69.TRANSACTION.CODE>=Y.TXN.CODE
+    IF Y.CHG.CODE THEN
+        REC.TXN<EB.DAI69.TRANSACTION.CODE>=Y.CHG.CODE
+    END
+    REC.TXN<EB.DAI69.INPUT.BY>=FIELD(REC.TT<TT.TE.INPUTTER>,"_",2)
+    REC.TXN<EB.DAI69.AUTHORISED.BY>=OPERATOR
+    WRITE REC.TXN TO F.TXN,Y.ID
+    REC.TXN=''
+    Y.LEG.ID=''
+    Y.CLS=''
+    Y.CHG.CODE=''
+    RETURN
+
+END

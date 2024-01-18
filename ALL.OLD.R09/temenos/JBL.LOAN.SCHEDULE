@@ -1,0 +1,319 @@
+*-----------------------------------------------------------------------------
+* <Rating>110</Rating>
+*-----------------------------------------------------------------------------
+******************************************************************************
+*Purpose:This Program Generates Term Loan Schedule By Considering Loan       *
+*Amount,Loan Start Date,Loan Maturity Date,Interest Rate,Installment Amount, *
+*Installment Frequency,Grace Period.                                         *
+*Developed By: Md. Zahid Hasan                                               *
+*Date:20140509(NEW DEVELOPMENT)                                              *
+*DataSoft Systems Bangladesh Limited                                         *
+******************************************************************************
+*
+    SUBROUTINE JBL.LOAN.SCHEDULE
+*
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.LN.ASSET.CLASS
+*
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+*
+    RETURN
+*
+**********
+INIT:
+*********
+    Y.ACCOUNT.ID = O.DATA
+    FN.ACCOUNT = 'FBNK.ACCOUNT'
+    F.ACCOUNT= ''
+*
+    FN.LN.AST.CLS = 'F.LN.ASSET.CLASS'
+    F.LN.AST.CLS = ''
+*
+    Y.LOAN.AMT = ''
+    Y.REPAY.AMT  = ''
+    Y.INT.RATE = ''
+    Y.LOAN.START.DATE = ''
+    Y.LOAN.MAT.DATE = ''
+    Y.INT.DENUM = ''
+    Y.PRIN.AMT = ''
+    Y.INT.AMT = ''
+    Y.INT.CHG = ''
+    Y.OUTSTN.AMT = ''
+    Y.FIRST.DUE.DATE = ''
+    Y.GRACE.PERIOD = ''
+    Y.EVENT.DESC = ''
+    Y.EFFECT.BAL = ''
+    Y.TODAY = TODAY
+    Y.COUNT = '1'
+*
+    Y.LOAN.AMOUNT.POS = ''
+    Y.INT.RATE.POS = ''
+    Y.LOAN.MAT.DATE.POS = ''
+    Y.INSTALL.AMOUNT.POS = ''
+    Y.LOAN.START.DATE.POS = ''
+    Y.INST.FREQUENCY.POS = ''
+    Y.FIRST.DUE.DATE.POS= ''
+    Y.GRACE.PERIOD.POS = ''
+*
+    RETURN
+************************************************************************
+OPENFILE:
+************************************************************************
+*
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    CALL OPF(FN.LN.AST.CLS,F.LN.AST.CLS)
+*
+    CALL GET.LOC.REF('ACCOUNT','LOAN.AMOUNT',Y.LOAN.AMOUNT.POS)
+    CALL GET.LOC.REF('ACCOUNT','INT.RATE',Y.INT.RATE.POS)
+    CALL GET.LOC.REF('ACCOUNT','LOAN.MAT.DATE',Y.LOAN.MAT.DATE.POS)
+    CALL GET.LOC.REF('ACCOUNT','INSTALL.AMOUNT',Y.INSTALL.AMOUNT.POS)
+    CALL GET.LOC.REF('ACCOUNT','LOAN.START.DATE',Y.LOAN.START.DATE.POS)
+    CALL GET.LOC.REF('ACCOUNT','INST.FREQUENCY',Y.INST.FREQUENCY.POS)
+    CALL GET.LOC.REF('ACCOUNT','GRACE.PERIOD',Y.GRACE.PERIOD.POS)
+    CALL GET.LOC.REF('ACCOUNT','FIRST.INST.DATE',Y.FIRST.DUE.DATE.POS)
+    CALL GET.LOC.REF('ACCOUNT','PR.ASSET.CLASS',Y.PR.ASSET.CLASS.POS)
+*
+    RETURN
+*
+************************************************************************
+PROCESS:
+************************************************************************
+*
+    CALL F.READ(FN.ACCOUNT,Y.ACCOUNT.ID,R.ACC.REC,F.ACCOUNT,Y.ACC.ERR)
+*
+    Y.WORKING.BAL = ABS(R.ACC.REC<AC.WORKING.BALANCE>)
+*
+    Y.LOAN.AMOUNT = R.ACC.REC<AC.LOCAL.REF,Y.LOAN.AMOUNT.POS>
+    Y.INT.RATE= R.ACC.REC<AC.LOCAL.REF,Y.INT.RATE.POS>
+    Y.LOAN.MAT.DATE = R.ACC.REC<AC.LOCAL.REF,Y.LOAN.MAT.DATE.POS>
+    Y.INSTALL.AMOUNT = R.ACC.REC<AC.LOCAL.REF,Y.INSTALL.AMOUNT.POS>
+    Y.LOAN.START.DATE = R.ACC.REC<AC.LOCAL.REF,Y.LOAN.START.DATE.POS>
+    Y.INST.FREQUENCY = R.ACC.REC<AC.LOCAL.REF,Y.INST.FREQUENCY.POS>
+    Y.GRACE.PERIOD = R.ACC.REC<AC.LOCAL.REF,Y.GRACE.PERIOD.POS>
+    Y.FIRST.DUE.DATE = R.ACC.REC<AC.LOCAL.REF,Y.FIRST.DUE.DATE.POS>
+    Y.PR.ASSET.CLASS = R.ACC.REC<AC.LOCAL.REF,Y.PR.ASSET.CLASS.POS>
+*
+    CALL F.READ(FN.LN.AST.CLS,Y.PR.ASSET.CLASS,R.LN.AST.CLS.REC,F.LN.AST.CLS,Y.LN.AST.CLS.ERR)
+    Y.CL.STATUS = R.LN.AST.CLS.REC<LN.ASSCLS.SHORT.DESC>
+*
+    GOSUB DISBURSE
+    GOSUB GRACE.PERIOD.INT
+*
+    HOLIDAY.PERIOD = 'N'
+    Y.DISBURSE.AMT = 0.00
+    Y.REPAY.AMT = Y.INSTALL.AMOUNT
+*
+    Y.START.YEAR = Y.LOAN.START.DATE[1,4]
+    Y.START.MONTH = Y.LOAN.START.DATE[5,2]
+    Y.START.DAY = Y.LOAN.START.DATE[7,2]
+*
+    Y.MAT.YEAR = Y.LOAN.MAT.DATE[1,4]
+    Y.MAT.MONTH = Y.LOAN.MAT.DATE[5,2]
+    Y.MAT.DAY = Y.LOAN.MAT.DATE[7,2]
+    MONTH.COUNTER = 0
+*
+    GOSUB INT.PARAM
+*
+    LOOP
+    WHILE (Y.LOAN.MAT.DATE GT Y.EVENT.DATE)
+        GOSUB GET.DAYS
+        IF Y.OUTSTN.AMT GT Y.INSTALL.AMOUNT THEN
+            IF Y.LOAN.MAT.DATE EQ Y.EVENT.DATE THEN
+                Y.PRIN.AMT = DROUND(Y.OUTSTN.AMT,2)
+                Y.REPAY.AMT = Y.PRIN.AMT + Y.INT.AMT
+                Y.OUTSTN.AMT = 0.00
+            END
+            ELSE
+                Y.PRIN.AMT = DROUND((Y.INSTALL.AMOUNT - Y.INT.AMT),2)
+                Y.OUTSTN.AMT = DROUND((Y.OUTSTN.AMT - Y.PRIN.AMT),2)
+                Y.REPAY.AMT = Y.INSTALL.AMOUNT
+            END
+        END
+        ELSE
+            Y.PRIN.AMT = DROUND(Y.OUTSTN.AMT,2)
+            Y.REPAY.AMT = Y.PRIN.AMT + Y.INT.AMT
+            Y.OUTSTN.AMT = 0.00
+        END
+*
+        GOSUB UPDATE.DATA
+*
+    REPEAT
+*
+    RETURN
+*
+DISBURSE:
+*
+    Y.REPAY.AMT  = 0.00
+    Y.PRIN.AMT = 0.00
+    Y.INT.AMT = 0.00
+    Y.INT.CHG = 0.00
+    Y.EVENT.DATE = Y.LOAN.START.DATE
+    Y.DISBURSE.AMT = Y.LOAN.AMOUNT
+    Y.OUTSTN.AMT = Y.LOAN.AMOUNT
+    Y.EVENT.DESC = 'LOAN DISBURSEMENT'
+*
+    GOSUB UPDATE.DATA
+*
+    RETURN
+*
+GRACE.PERIOD.INT:
+*
+    IF Y.GRACE.PERIOD EQ '' OR Y.GRACE.PERIOD EQ 0 THEN RETURN
+*
+    Y.REPAY.AMT  = 0.00
+    Y.PRIN.AMT = 0.00
+    Y.INT.AMT = 0.00
+    Y.DISBURSE.AMT = 0.00
+    Y.EVENT.DESC = 'GRACE PERIOD INTEREST CAP'
+    HOLIDAY.PERIOD = 'Y'
+    GRACE.QTR.COUNTER = 1
+    GRACE.QTR.NO = Y.GRACE.PERIOD/3
+    IF Y.GRACE.PERIOD LT 3 THEN
+        Y.INT.CHG  = DROUND((Y.OUTSTN.AMT * (Y.INT.RATE/100)/(12/Y.GRACE.PERIOD)),2)
+        IF Y.OUTSTN.AMT GT Y.INSTALL.AMOUNT THEN
+            Y.OUTSTN.AMT = Y.OUTSTN.AMT + Y.INT.CHG
+        END
+        Y.TOT.MONTH = Y.GRACE.PERIOD
+*
+        GOSUB GET.DAYS
+        GOSUB UPDATE.DATA
+    END
+    ELSE
+        LOOP
+        WHILE (GRACE.QTR.COUNTER LE GRACE.QTR.NO)
+            Y.INT.CHG  = DROUND((Y.OUTSTN.AMT * (Y.INT.RATE/100)/4),2)
+            IF Y.OUTSTN.AMT GT Y.INSTALL.AMOUNT THEN
+                Y.OUTSTN.AMT = Y.OUTSTN.AMT + Y.INT.CHG
+            END
+*
+            Y.TOT.MONTH = 3
+*
+            GOSUB GET.DAYS
+            GOSUB UPDATE.DATA
+*
+            GRACE.QTR.COUNTER +=1
+*
+        REPEAT
+    END
+*
+    RETURN
+*
+CALC.INT:
+*
+    IF MOD(MONTH.COUNTER,3) EQ 0 THEN
+        IF Y.INST.FREQUENCY NE 'M' THEN
+            Y.INT.AMT  = DROUND((Y.OUTSTN.AMT * (Y.INT.RATE/100)/4),2)
+        END
+        ELSE
+            Y.EFFECT.BAL = Y.EFFECT.BAL + Y.OUTSTN.AMT
+            Y.INT.AMT  = DROUND(((Y.EFFECT.BAL/3) * (Y.INT.RATE/100)/4),2)
+            Y.EFFECT.BAL = 0
+        END
+        Y.INT.CHG = Y.INT.AMT
+        Y.EVENT.DESC = 'INTEREST CAPITALIZATION,LOAN REPAYMENT'
+*
+        IF Y.TOT.MONTH GT 3  AND MOD(MONTH.COUNTER,Y.TOT.MONTH) NE 0 THEN
+            Y.REPAY.AMT  = 0.00
+            Y.PRIN.AMT = 0.00
+            Y.INT.AMT = 0.00
+            Y.OUTSTN.AMT = Y.OUTSTN.AMT + Y.INT.CHG
+            Y.EVENT.DESC = 'INTEREST CAPITALIZATION'
+*
+            GOSUB UPDATE.DATA
+        END
+    END
+    ELSE
+        Y.INT.AMT  = 0
+        Y.INT.CHG = 0
+        Y.EVENT.DESC = 'LOAN REPAYMENT'
+        Y.EFFECT.BAL = Y.EFFECT.BAL + Y.OUTSTN.AMT
+    END
+*
+    RETURN
+*
+INT.PARAM:
+*
+    IF Y.INST.FREQUENCY EQ 'M' THEN
+        Y.TOT.MONTH = 1
+    END
+    ELSE
+        IF Y.INST.FREQUENCY EQ 'Q' THEN
+            Y.TOT.MONTH = 3
+        END
+        ELSE
+            IF Y.INST.FREQUENCY EQ 'H' THEN
+                Y.TOT.MONTH = 6
+            END
+            ELSE
+                Y.TOT.MONTH = 12
+            END
+        END
+    END
+    RETURN
+*
+GET.DAYS:
+*
+    FOR M = 1 TO Y.TOT.MONTH
+        Y.EVENT.MONTH = Y.EVENT.DATE[5,2]
+        Y.EVENT.YEAR = Y.EVENT.DATE[1,4]
+        Y.LY.CON1 = MOD(Y.EVENT.YEAR,4)
+        Y.LY.CON2 = MOD(Y.EVENT.YEAR,100)
+        Y.LY.CON3 = MOD(Y.EVENT.YEAR,400)
+*
+        IF Y.EVENT.MONTH EQ '04' OR Y.EVENT.MONTH EQ '06' OR Y.EVENT.MONTH EQ '09' OR Y.EVENT.MONTH EQ '11' THEN
+            NO.OF.DAY = '30'
+        END
+        ELSE
+            IF Y.EVENT.MONTH EQ '01' OR Y.EVENT.MONTH EQ '03' OR Y.EVENT.MONTH EQ '05' OR Y.EVENT.MONTH EQ '07' OR Y.EVENT.MONTH EQ '08' OR Y.EVENT.MONTH EQ '10' OR Y.EVENT.MONTH EQ '12' THEN
+                NO.OF.DAY = '31'
+            END
+            ELSE
+                IF (Y.LY.CON1 EQ 0 AND Y.LY.CON2 NE 0 ) OR Y.LY.CON3 EQ 0 THEN
+                    NO.OF.DAY = '29'
+                END
+                ELSE
+                    NO.OF.DAY = '28'
+                END
+            END
+        END
+*
+        CALL CDT('C',Y.EVENT.DATE,NO.OF.DAY)
+*
+        IF HOLIDAY.PERIOD NE 'Y' THEN
+            MONTH.COUNTER +=1
+            GOSUB CALC.INT
+        END
+    NEXT
+*
+    RETURN
+*
+UPDATE.DATA:
+    IF Y.EVENT.DATE LE Y.TODAY THEN
+        Y.OUTSTN.AMT.TEMP = ABS(Y.OUTSTN.AMT)
+    END
+*
+    IF Y.EVENT.DATE GT Y.TODAY AND Y.LOAN.MAT.DATE GE Y.TODAY AND Y.LOAN.START.DATE LE Y.TODAY AND Y.COUNT EQ 1 THEN
+        Y.OUTSTN.AMT = (Y.WORKING.BAL - Y.OUTSTN.AMT.TEMP)
+        IF Y.OUTSTN.AMT LE 0 THEN
+            Y.OUTSTN.AMT = 0
+        END
+        O.DATA = Y.OUTSTN.AMT:"*":Y.CL.STATUS
+        Y.COUNT = 2
+    END ELSE
+        Y.WORK.BAL = R.ACC.REC<AC.WORKING.BALANCE>
+*
+        IF Y.LOAN.START.DATE LE Y.TODAY AND Y.LOAN.MAT.DATE LT Y.TODAY AND Y.WORK.BAL LT 0 THEN
+            Y.OUTSTN.AMT = Y.WORKING.BAL
+            O.DATA = Y.OUTSTN.AMT:"*":Y.CL.STATUS
+        END ELSE
+            IF Y.LOAN.START.DATE GT Y.TODAY THEN
+                O.DATA = '0'
+            END
+        END
+        RETURN
+    END

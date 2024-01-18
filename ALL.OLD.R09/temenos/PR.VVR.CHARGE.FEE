@@ -1,0 +1,21 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VVR.CHARGE.FEE
+!
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.DRAWINGS
+!
+    CALL GET.LOC.REF("DRAWINGS","TOTAL.BILL.AMT",Y.BILL.POS)
+    CALL GET.LOC.REF("DRAWINGS","MARGIN.RATE",Y.RATE.POS)
+    CALL GET.LOC.REF("DRAWINGS","ANY.CHARGES.FC",Y.CHRG.POS)
+    Y.AMT=R.NEW(TF.DR.DOCUMENT.AMOUNT)
+    Y.INT=R.NEW(TF.DR.LOCAL.REF)<1,Y.RATE.POS>
+    Y.CHRG=COMI
+
+    Y.AMT1=Y.AMT + Y.INT + Y.CHRG
+    R.NEW(TF.DR.LOCAL.REF)<1,Y.BILL.POS>=Y.AMT1 
+    CALL REBUILD.SCREEN
+    RETURN
+END

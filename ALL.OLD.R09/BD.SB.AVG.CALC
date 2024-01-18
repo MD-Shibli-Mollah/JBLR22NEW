@@ -1,0 +1,93 @@
+*-----------------------------------------------------------------------------
+* <Rating>89</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SB.AVG.CALC(Y.AC.ID)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT I_F.ABL.H.SB.YRPAR
+    $INSERT I_F.ABL.H.SB.CHRG
+    $INSERT JBL.BP I_BD.SB.AVG.CALC.COMMON
+
+    GOSUB MAIN.PROCESS
+    RETURN
+
+*-------------
+MAIN.PROCESS:
+*-------------
+
+    CALL F.READ(FN.AC,Y.AC.ID,REC.AC,F.AC,ERROR.AC)
+
+    Y.CO.CODE = REC.AC<AC.CO.CODE>
+    Y.ALL.COMPANY = REC.SB.YR.SYS<SY.INCLUDE.COMP>
+    LOCATE Y.CO.CODE IN Y.ALL.COMPANY<1,1> SETTING POS THEN
+
+        IF REC.AC<AC.LOCAL.REF,Y.MAIN.CHG.POS> NE 'Waive' AND REC.AC<AC.WORKING.BALANCE> GT '0' AND REC.AC<AC.POSTING.RESTRICT> NE '13' THEN
+
+            IN.DATA  = ST.EN.DATE:Y.AC.ID
+            Y.CUS.ID = REC.AC<AC.CUSTOMER>
+
+            CALL JBL.S.CALCULATE.AVG.BAL(IN.DATA,OUT.DATA)
+
+            Y.AC.AVG.BAL = FIELD(OUT.DATA,">",2)
+
+            IF Y.AC.AVG.BAL GT '1000000' THEN
+
+                CALL F.READ(FN.SB.CHR,Y.AC.ID,REC.SB.CHR,F.SB.CHR,ERR.SB.CHR)
+                REC.SB.CHR<SBC.BALANCE> = Y.AC.AVG.BAL
+                REC.SB.CHR<SBC.SLAB.AMT> = 300
+                REC.SB.CHR<SBC.CO.CODE> = REC.AC<AC.CO.CODE>
+                WRITE REC.SB.CHR TO F.SB.CHR,Y.AC.ID
+
+            END
+            ELSE
+
+                Y.AC.OPEN.DATE = REC.AC<AC.OPENING.DATE>
+
+                IF Y.AC.OPEN.DATE GE '20210701' THEN
+
+                    FOR I = 1 TO Y.CHRG.SLAB.COUNT
+                        IF I NE Y.CHRG.SLAB.COUNT THEN
+                            Y.AMT.1 = REC.SB.YR.SYS<SY.CHRG.SLAB.FROM,I>
+                            Y.AMT.2 = REC.SB.YR.SYS<SY.CHRG.SLAB.TO,I>
+
+                            IF Y.AC.AVG.BAL GE REC.SB.YR.SYS<SY.CHRG.SLAB.FROM,I> AND Y.AC.AVG.BAL LE REC.SB.YR.SYS<SY.CHRG.SLAB.TO,I> THEN
+                                Y.BALANCE = REC.SB.YR.SYS<SY.CHRG.AMT,I>
+
+                                CALL F.READ(FN.SB.CHR,Y.AC.ID,REC.SB.CHR,F.SB.CHR,ERR.SB.CHR)
+                                REC.SB.CHR<SBC.BALANCE> = Y.AC.AVG.BAL
+                                REC.SB.CHR<SBC.SLAB.AMT> = Y.BALANCE
+                                REC.SB.CHR<SBC.CO.CODE> = REC.AC<AC.CO.CODE>
+                                WRITE REC.SB.CHR TO F.SB.CHR,Y.AC.ID
+                                Y.MAIN.CNT = Y.MAIN.CNT + 1
+                                CRT "PROCESS......":Y.MAIN.CNT:"...ACCOUNT NO=>":Y.AC.ID
+                            END
+                        END
+                        ELSE
+                            IF  Y.AC.AVG.BAL GE REC.SB.YR.SYS<SY.CHRG.SLAB.FROM,I> THEN
+                                Y.BALANCE = REC.SB.YR.SYS<SY.CHRG.AMT,I>
+
+                                CALL F.READ(FN.SB.CHR,Y.AC.ID,REC.SB.CHR,F.SB.CHR,ERR.SB.CHR)
+                                REC.SB.CHR<SBC.BALANCE> = Y.AC.AVG.BAL
+                                REC.SB.CHR<SBC.SLAB.AMT> = Y.BALANCE
+                                REC.SB.CHR<SBC.CO.CODE> = REC.AC<AC.CO.CODE>
+                                WRITE REC.SB.CHR TO F.SB.CHR,Y.AC.ID
+                                Y.MAIN.CNT = Y.MAIN.CNT + 1
+                                CRT "PROCESS......":Y.MAIN.CNT:"...ACCOUNT NO=>":Y.AC.ID
+                            END
+                        END
+                    NEXT I
+                END
+                Y.BALANCE =''
+                Y.AC.AVG.BAL=''
+                Y.AC.ID=''
+                REC.AC=''
+                REC.SB.CHR=''
+            END
+
+        END
+    END
+    RETURN
+END

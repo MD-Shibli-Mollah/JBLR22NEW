@@ -1,0 +1,111 @@
+*-----------------------------------------------------------------------------
+* <Rating>-46</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE NOFILE.LIST.CHQ.DELIV.BRN(Y.ARR)
+*-------------------------------------------------------------------------
+* This is a Nofile Enquiry Routine used to Bankwise instrument list.
+* List particular bank's branch'S cheques delivered list with Instrument Details.
+*
+*@author        manjunath.s@sepit.net
+*-------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.DATES
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.CHEQUE.COLLECTION
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT JBL.BP I_F.ABL.H.CLEARING.ROUTE
+*-------------------------------------------------------------------------
+* Main controlling section:
+*-------------------------------------------------------------------------
+    GOSUB INITIALISATION
+    GOSUB MAIN.PROCESS
+
+    RETURN
+
+*-------------------------------------------------------------------------
+* Subroutine Section:
+* File Opening and Variable set up
+
+INITIALISATION:
+
+*-------------------------------------------------------------------------
+    FN.CHEQUE.COLLEC = "F.CHEQUE.COLLECTION"
+    F.CHEQUE.COLLEC = ""
+    R.CHEQUE.COLLEC = ""
+    CALL OPF(FN.CHEQUE.COLLEC,F.CHEQUE.COLLEC)
+
+    FN.TELLER = "F.TELLER"
+    F.TELLER= ""
+    R.TELLER = ''
+    CALL OPF(FN.TELLER,F.TELLER)
+
+    FN.TELLERHIS = "F.TELLER$HIS"
+    F.TELLERHIS = ""
+    CALL OPF(FN.TELLERHIS,F.TELLERHIS)
+
+    FN.CLEARING.ROUTE = "F.ABL.H.CLEARING.ROUTE"
+    F.CLEARING.ROUTE = ""
+    R.CLEARING.ROUTE = ""
+    CALL OPF(FN.CLEARING.ROUTE,F.CLEARING.ROUTE)
+
+    RETURN
+*-------------------------------------------------------------------------
+* Main Subroutine processing:
+* Locating the field of Exposure Date in the ENQUIRY which should be a Mandatory input
+*
+MAIN.PROCESS:
+*
+    LOCATE "EXPOSURE.DATE" IN  D.FIELDS<1> SETTING POS THEN
+        Y.EXPO.DATE = D.RANGE.AND.VALUE<POS>
+    END
+*
+    LOCATE "BB.ROUTE.CODE" IN  D.FIELDS<1> SETTING POS1 THEN
+        Y.ROUTE.CODE = D.RANGE.AND.VALUE<POS1>
+    END
+    GOSUB INSTRUMENT.LIST
+    RETURN
+*
+*-------------------------------------------------------------------------
+INSTRUMENT.LIST:
+*-------------------------------------------------------------------------
+    Y.COMPANY = ID.COMPANY
+*    SEL.CMD = "SELECT ":FN.CHEQUE.COLLEC:" WITH CO.CODE EQ ":Y.COMPANY:" AND EXPOSURE.DATE EQ ":Y.EXPO.DATE
+    SEL.CMD = "SELECT ":FN.CHEQUE.COLLEC:" WITH EXPOSURE.DATE EQ ":Y.EXPO.DATE
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORDS,RET.CODE)
+    LOOP
+        REMOVE TRAN.ID FROM SEL.LIST SETTING TXN.POS
+    WHILE TRAN.ID:TXN.POS
+        CALL F.READ(FN.CHEQUE.COLLEC,TRAN.ID,R.CHEQUE.COLLEC,F.CHEQUE.COLLEC,Y.ERR)
+        Y.TXN.ID = R.CHEQUE.COLLEC<CHQ.COL.TXN.ID>
+        JUL.DATE = ''
+        Y.JUL.DATE = RIGHT(R.DATES(EB.DAT.JULIAN.DATE),5)
+        IF Y.TXN.ID[3,5] EQ Y.JUL.DATE THEN
+            CALL F.READ(FN.TELLER,Y.TXN.ID,R.TELLER,F.TELLER,Y.ERR)
+        END ELSE
+            Y.TXNR.ID = Y.TXN.ID:";1"
+            CALL F.READ(FN.TELLERHIS,Y.TXNR.ID,R.TELLER,F.TELLERHIS,Y.ERR)
+        END
+        Y.TRAN.CODE = R.TELLER<TT.TE.TRANSACTION.CODE>
+        IF Y.TRAN.CODE EQ '42' OR Y.TRAN.CODE EQ '43' THEN
+            LOCAL.REF.FLD.POS = ''
+            CALL GET.LOC.REF('TELLER',"BB.ROUTE.CODE",LOCAL.REF.FLD.POS)
+            Y.RUT.CDE = R.TELLER<TT.TE.LOCAL.REF,LOCAL.REF.FLD.POS>
+            Y.RUT.COMP = Y.RUT.CDE
+            Y.BRANCH.CODE = Y.ROUTE.CODE
+            IF Y.BRANCH.CODE EQ Y.RUT.COMP THEN
+                LOCAL.REF.FLD.POS = ''
+                CALL GET.LOC.REF('TELLER',"PR.CHEQUE.NO",LOCAL.REF.FLD.POS)
+                Y.CHQ.NO = R.TELLER<TT.TE.LOCAL.REF,LOCAL.REF.FLD.POS>
+                CALL F.READ(FN.CHEQUE.COLLEC,TRAN.ID,R.CHEQUE.COLLEC,F.CHEQUE.COLLEC,Y.ERR)
+                Y.AMOUNT = R.CHEQUE.COLLEC<CHQ.COL.AMOUNT>
+
+                Y.ARR<-1> = Y.CHQ.NO:" * ":Y.AMOUNT
+            END
+        END
+    REPEAT
+    Y.AMOUNT = ''
+    Y.CHQ.NO = ''
+*-------------------------------------------------------------------------
+    RETURN
+END

@@ -1,0 +1,39 @@
+*-----------------------------------------------------------------------------
+* <Rating>431</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VAU.UPDATE.INSTR.PAYMENT
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT JBL.BP I_F.PR.H.INSTR.ISSUED
+
+    GOSUB OPEN.FILES
+    GOSUB PROCESS
+    RETURN
+
+OPEN.FILES:
+*==========
+    FN.PR.H.INSTR.ISSUED = 'F.PR.H.INSTR.ISSUED'
+    F.PR.H.INSTR.ISSUED = ''
+    CALL OPF(FN.PR.H.INSTR.ISSUED,F.PR.H.INSTR.ISSUED)
+    RETURN
+
+PROCESS:
+*=======
+    Y.CHEQ.TYPE = R.NEW(FT.CHEQ.TYPE)   ;!take remittence cheque type
+
+!    Y.INS.ID = 'PO.':R.NEW(FT.DEBIT.ACCT.NO):'-':R.NEW(FT.CHEQUE.NUMBER)  ;! previouse code for generating Instrument ID
+
+    Y.INS.ID = Y.CHEQ.TYPE:'.':R.NEW(FT.DEBIT.ACCT.NO):'-':R.NEW(FT.CHEQUE.NUMBER)        ;!new code for generating Instrument ID
+    R.INSTR.ISSUED = ''
+    CALL F.READ(FN.PR.H.INSTR.ISSUED,Y.INS.ID,R.INSTR.ISSUED,F.PR.H.INSTR.ISSUED,INSTR.READ.ERR)
+    IF R.INSTR.ISSUED THEN
+        R.INSTR.ISSUED<INS.DATE.OF.PRESENTED> = TODAY
+        R.INSTR.ISSUED<INS.COLL.TXN.REF> = ID.NEW
+        R.INSTR.ISSUED<INS.COLL.TXN.COMPANY> = R.NEW(FT.CO.CODE)
+        WRITE R.INSTR.ISSUED TO F.PR.H.INSTR.ISSUED,Y.INS.ID
+    END
+!    WRITE R.INSTR.ISSUED TO F.PR.H.INSTR.ISSUED,Y.INS.ID
+
+    RETURN
+END

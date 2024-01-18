@@ -1,0 +1,83 @@
+*************************************************************************************************************************************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>279</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE COB.PR.PD.LIMIT.PROD(Y.PD.ID)
+*************************************************************************************************************************************************************************************************
+*
+*   1.This routine is to fetch the value from the field,
+*     ORIG.LIMIT.REF from PD.PAYMENT.DUE and populate it in the
+*     local reference field LIMIT.PROD at the stage of COB.
+*   2.Also this COB routine will update the local reference field,
+*     CLASSIFICATION from the Payment Against Documentation
+*     version of LD.LOANS.AND.DEPOSITS
+*
+*************************************************************************************************************************************************************************************************
+*   MODIFICATION HISTORY:
+*   ---------------------
+*
+*   30/08/2006 -- S.INDUMATHI -- NEW
+*   25/11/2006 -- S.INDUMATHI -- Limit reference is taken from
+*                                ORIG.LIMIT.REF and the local reference field
+*                                classification is updated.
+*
+*************************************************************************************************************************************************************************************************
+*
+*   Insert files required:
+*   ----------------------
+*
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LD.LOANS.AND.DEPOSITS
+    $INSERT I_F.PD.PAYMENT.DUE
+    $INSERT I_COB.PR.PD.LIMIT.PROD.COMMON
+    GOSUB PROCESS   ;*Default the local ref field LIMIT.PROD and update the CLASSIFICATION field.
+    RETURN
+*************************************************************************************************************************************************************************************************
+PROCESS:
+*-------
+*
+*   Initializing the LD ID:
+*   -----------------------
+*
+    Y.LD.ID = RIGHT(Y.PD.ID,12)
+*************************************************************************************************************************************************************************************************
+*
+*   Reading the PD.PAYMENT.DUE file to fetch the ORIG.LIMIT.REF field,
+*   ------------------------------------------------------------------
+*   and populating the local reference field LIMIT.PROD.
+*   -------------------------------------------------------
+*
+*    CALL F.READ(FN.PD.PAYMENT.DUE,Y.PD.ID,R.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE,Y.PD.ERR)
+    READ R.PD.PAYMENT.DUE FROM F.PD.PAYMENT.DUE,Y.PD.ID ELSE R.PD.PAYMENT.DUE = ''
+    IF R.PD.PAYMENT.DUE THEN
+        Y.LIM.REF = R.PD.PAYMENT.DUE<PD.ORIG.LIMIT.REF>
+        Y.LIMIT.REFERENCE = FIELD(Y.LIM.REF,".",1)
+!To skip the migrated PD limit prod
+        IF R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.LIM.POS> AND Y.LIMIT.REFERENCE EQ '9700' THEN RETURN
+        R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.LIM.POS> = Y.LIMIT.REFERENCE
+!-M.Suresh
+*
+*  Condition to check if the limit reference in the field ORIG.LIMIT.REF
+*  ----------------------------------------------------------------------
+*  is the limit references of Payment Against Documentation and if yes then
+*  -----------------------------------------------------------------------
+*  read the LD.LOANS.AND.DEPOSITS file.
+*  ------------------------------------
+*
+        IF Y.LIMIT.REFERENCE EQ 5112 OR Y.LIMIT.REFERENCE EQ 5142 OR Y.LIMIT.REFERENCE EQ 5152 OR Y.LIMIT.REFERENCE EQ 5162 OR Y.LIMIT.REFERENCE EQ 5172 OR Y.LIMIT.REFERENCE EQ 5192 THEN
+*            CALL F.READ(FN.LD.LOANS.AND.DEPOSITS,Y.LD.ID,R.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS,Y.LD.ERR)
+            READ R.LD.LOANS.AND.DEPOSITS FROM F.LD.LOANS.AND.DEPOSITS,Y.LD.ID ELSE R.LD.LOANS.AND.DEPOSITS = ''
+            IF R.LD.LOANS.AND.DEPOSITS THEN
+                R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.PD.CLASS.POS> = R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF,Y.LD.CLASS.POS>
+*
+*  Writing/Updating the field CLASSIFICATION in the PD record.
+*  -----------------------------------------------------------
+*
+            END
+        END
+        CALL F.WRITE(FN.PD.PAYMENT.DUE,Y.PD.ID,R.PD.PAYMENT.DUE)
+    END
+    RETURN
+*************************************************************************************************************************************************************************************************
+END

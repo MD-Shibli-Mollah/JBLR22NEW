@@ -1,0 +1,94 @@
+*-----------------------------------------------------------------------------
+* <Rating>-32</Rating>
+*-----------------------------------------------------------------------------
+*Company Name   :
+*Developed By   : Md. Aminul Islam
+*----------------------------------------------------------------------
+*Subroutine Type:
+*Attached To    : The Enquiry 'LC.ADVISE.REG'
+*Attached As    :
+*In Parameter   :
+*Out Parameter  :
+*-----------------------------------------------------------------------
+*Description    : This Routine is use to calculate the LCs charge amount
+*               :
+*-----------------------------------------------------------------------
+*Modification Details:
+*New:
+*-----------------------------------------------------------------------
+*Modification History :
+* ----------------------------------------------------------------------
+    SUBROUTINE GET.LC.CHARGE.AMT
+!PROGRAM GET.LC.CHARGE.AMT
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.LC.ACCOUNT.BALANCES
+    $INSERT GLOBUS.BP I_F.LETTER.OF.CREDIT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.LC.AC.BAL = "F.LC.ACCOUNT.BALANCES"
+    F.LC.AC.BAL = ""
+    FN.LC = "F.LETTER.OF.CREDIT"
+    F.LC = ""
+    FN.LC.HIS = "F.LETTER.OF.CREDIT$HIS"
+    F.LC.HIS = ""
+
+    Y.CHGR.CODE.LIST = 'LCADVCHG':@FM:'LCADVAMD':@FM:'LCEXADVCHG':@FM:'LCEXADVAMD'
+
+    Y.LC.ID = O.DATA
+    Y.FIRST.LC.ID = Y.LC.ID:';1'
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.LC.AC.BAL,F.LC.AC.BAL)
+    CALL OPF(FN.LC,F.LC)
+    CALL OPF(FN.LC.HIS,F.LC.HIS)
+    RETURN
+
+PROCESS:
+!DEBUG
+!Y.LC.ID = 'TF1419172800'
+    CALL F.READ(FN.LC,Y.LC.ID,R.LC,F.LC,Y.ERR.LC)
+    Y.CURR.NO = R.LC<TF.LC.CURR.NO>
+
+    IF Y.CURR.NO GT '1' THEN
+        CALL F.READ(FN.LC.HIS,Y.FIRST.LC.ID,R.LC,F.LC.HIS,Y.ERR.LC)
+    END
+
+    Y.VALUE.DATE = R.LC<TF.LC.BOOKING.DATE>
+    Y.BENIFICIARY = R.LC<TF.LC.BENEFICIARY>
+
+    CALL F.READ(FN.LC.AC.BAL,Y.LC.ID,R.LC.AC.BAL,F.LC.AC.BAL,Y.ERR)
+    Y.TOT.CHRG.CODE = DCOUNT(R.LC.AC.BAL<LCAC.CHRG.CODE>,@VM)
+    Y.CHARGE.AMT = 0
+    FOR I = 1 TO Y.TOT.CHRG.CODE
+        Y.CHRG.STATUS = R.LC.AC.BAL<LCAC.CHRG.STATUS,I>
+        Y.INL.AMT =  R.LC.AC.BAL<LCAC.CHRG.LCCY.AMT,I>
+        Y.CHGR.CODE = R.LC.AC.BAL<LCAC.CHRG.CODE,I>
+
+        LOCATE Y.CHGR.CODE IN Y.CHGR.CODE.LIST SETTING Y.POS THEN
+            IF Y.CHRG.STATUS EQ '2' THEN
+                Y.DT.REALISED = R.LC.AC.BAL<LCAC.DATE.RECEIVED,I>
+!Y.CHARGE.AMT = Y.CHARGE.AMT + Y.INL.AMT
+                Y.CHARGE.AMT = Y.INL.AMT
+                Y.RETURN<-1> = Y.CHARGE.AMT:'*':Y.DT.REALISED:'*':Y.VALUE.DATE
+            END
+        END
+    NEXT
+
+!O.DATA = Y.CHARGE.AMT:'*':Y.DT.REALISED:'*':Y.VALUE.DATE
+    O.DATA = Y.RETURN
+    Y.RETURN = ''
+    RETURN
+END

@@ -1,0 +1,225 @@
+*-----------------------------------------------------------------------------
+* <Rating>702</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SP.VER.AUTH
+
+
+* Subroutine Description :
+********1.BD.H.SP.BATCH,INPUT (FOR BATCH INPUT)--INPUT ROUTINE********************
+********2.BD.H.SP.BATCH,TRANSFER (FOR BATCH TRANSFER)--INPUT ROUTINE**************
+********3.BD.H.SP.STOCK.ISSUE,ISSUE (FOR SANCHAYAPATRA ISSUE APPLICATION)--INPUT ROUTINE************
+********4.FUNDS.TRANSFER,SPISSUE (FOR ISSUING SANCHAYPATRA)---AUTHORISATION ROUTINE************
+********5.FUNDS.TRANSFER,SPCLOSE (FOR SANCHAYAPATRA MATURE CLOSE)---AUTHORISATION ROUTINE***********
+********6.FUNDS.TRANSFER,SP.PRECLOSE (FOR SANCHAYAPATRA PRE-MATURE CLOSE)---AUTHORISATION ROUTINE*************
+********7.FUNDS.TRANSFER,COUPON.SET.FINAL (FOR SANCHAYAPATRA FINAL SETTLEMENT)---AUTHORISATION ROUTINE*************
+********8.FUNDS.TRANSFER,SP.FINAL.SET (FOR SANCHAYAPATRA FINAL SETTLEMENT)---AUTHORISATION ROUTINE*****************
+*------------------------
+* This routine is use for default value in FREQUENCY
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20170726 - New - DEVELOPEMENT TEAM
+*                  JBL
+*-------------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT I_F.BD.H.SP.CATEGORY
+    $INSERT I_F.BD.H.SP.STOCK.ISSUE
+    $INSERT SP.BP I_F.BD.H.SP.COUPON
+    $INSERT SP.BP I_F.BD.H.SP.BATCH
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+*** </region>*-----------------------------------------------------------------------------
+***---------------------------------------------------------------
+INIT:
+    FN.SPCATG='F.BD.H.SP.CATEGORY'
+    F.SPCATG=''
+    FN.SP.ISSUE='F.BD.H.SP.STOCK.ISSUE'
+    F.SP.ISSUE=''
+    FN.SP.COUPON = 'F.BD.H.SP.COUPON'
+    F.SP.COUPON = ''
+    FN.TT = "F.TELLER"
+    F.TT = ""
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+    FN.SP.ISSUE.AUTH = 'F.BD.H.SP.STOCK.ISSUE$NAU'
+    F.SP.ISSUE.AUTH = ''
+    Y.SP.POS=''
+    Y.FT=''
+    Y.TT=''
+
+    RETURN
+***---------------------------------------------------------------
+***---------------------------------------------------------------
+OPENFILE:
+    CALL OPF(FN.SPCATG,F.SPCATG)
+    CALL OPF(FN.SP.ISSUE,F.SP.ISSUE)
+    CALL OPF(FN.SP.COUPON,F.SP.COUPON)
+!CALL OPF(FN.SPSTK,F.SPSTK)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.SP.ISSUE.AUTH,F.SP.ISSUE.AUTH)
+    RETURN
+***---------------------------------------------------------------
+***---------------------------------------------------------------
+PROCESS:
+
+    Y.VERSION.ID=APPLICATION:PGM.VERSION
+
+    IF Y.VERSION.ID EQ "BD.H.SP.STOCK.ISSUE,STKINPUT" THEN
+        Y.CATG.ID=R.NEW(SP.STK.TYPE.OF.SP)
+        CALL F.READ(FN.SPCATG,Y.CATG.ID,R.SPCATG,F.SPCATG,Y.ERR)
+        R.NEW(SP.STK.FREQUENCY)=R.SPCATG<SP.CATG.FREQUENCY>
+
+        END    ELSE  IF Y.VERSION.ID EQ "BD.H.SP.STOCK.ISSUE,ISSUE" THEN
+            IF V$FUNCTION EQ 'I' THEN
+                Y.CATG.ID=R.NEW(SP.STK.TYPE.OF.SP)
+                CALL F.READ(FN.SPCATG,Y.CATG.ID,R.SPCATG,F.SPCATG,Y.ERR)
+                Y.MATURITY.DURARION=R.SPCATG<SP.CATG.MAT.DURATION>
+                Y.ISSUE.DATE=R.NEW(SP.STK.ISSUE.DATE)
+                Y.ISSUE.DATE=ICONV(Y.ISSUE.DATE,"D")
+                Y.ISSUE.DAT=''
+                CALL DIETER.DATE(Y.ISSUE.DAT,Y.ISSUE.DATE,'')
+                Y.DATE = RIGHT(Y.ISSUE.DAT,2)
+                COMI = Y.ISSUE.DAT:'M':Y.MATURITY.DURARION:Y.DATE
+                CALL CFQ
+                Y.MAT.DATE1 = COMI
+                Y.MAT.DATE = Y.MAT.DATE1[1,8]
+                R.NEW(SP.STK.MATURITY.DATE)=Y.MAT.DATE
+                Y.CUS=R.NEW(SP.STK.CUSTOMER.NO)
+                Y.DAT=R.NEW(SP.STK.ISSUE.DATE)
+                Y.DATS=RIGHT(Y.DAT,6)
+                Y.CUS.JOINT=R.NEW(SP.STK.JOINT.INDIVIDUAL)
+                Y.JOINT="INDIVIDUAL":@FM:"JOINT":@FM:"FUND"
+                Y.JOINT.VAL=1:@VM:2:@VM:3
+                LOCATE Y.CUS.JOINT IN Y.JOINT<1> SETTING Y.JN.POS THEN
+                    Y.CUS.TYPE=Y.JOINT.VAL<1,Y.JN.POS>
+                END
+                Y.SP.TYPE=RIGHT(Y.CATG.ID,1)
+                R.NEW(SP.STK.REG.NO)=Y.CUS:".":Y.SP.TYPE:Y.CUS.TYPE:Y.DATS
+            END
+
+        END
+        ELSE IF Y.VERSION.ID EQ "FUNDS.TRANSFER,SPISSUE" THEN
+            IF V$FUNCTION EQ 'A' THEN
+
+                CALL GET.LOC.REF("FUNDS.TRANSFER","SP.INFO",Y.SP.POS)
+                Y.SP.ID=R.NEW(FT.LOCAL.REF)<1,Y.SP.POS>
+                Y.FT.ID=ID.NEW
+                CALL F.READ(FN.SP.ISSUE.AUTH,Y.SP.ID,R.SP.ISSUE,F.SP.ISSUE.AUTH,Y.ER3)
+                R.SP.ISSUE<SP.STK.TRAN.REFRENCE1>=Y.FT.ID
+                WRITE R.SP.ISSUE TO F.SP.ISSUE.AUTH,Y.SP.ID
+            END
+
+        END
+        ELSE IF Y.VERSION.ID EQ "FUNDS.TRANSFER,SPCLOSE" OR Y.VERSION.ID EQ "FUNDS.TRANSFER,SPCLOSE.TYPE" THEN
+            IF V$FUNCTION EQ 'A' THEN
+
+                CALL GET.LOC.REF("FUNDS.TRANSFER","SP.INFO",Y.SP.POS)
+                Y.SP.ID=R.NEW(FT.LOCAL.REF)<1,Y.SP.POS>
+                Y.FT.ID=ID.NEW
+                CALL F.READ(FN.SP.ISSUE,Y.SP.ID,R.SP.ISSUE,F.SP.ISSUE,Y.ER3)
+                Y.FT=R.SP.ISSUE<SP.STK.TRAN.REFRENCE2>
+                Y.TYPE=R.SP.ISSUE<SP.STK.TYPE.OF.SP>
+                IF Y.TYPE EQ "SP-0002" THEN
+                    Y.FACE.VALUE=R.SP.ISSUE<SP.STK.FACE.VALUE>
+                    Y.INT.RATE=R.SP.ISSUE<SP.STK.FLAT.INTT.RATE>
+                    Y.YEAR=5
+                    Y.FACE.INT=(Y.FACE.VALUE*Y.INT.RATE*Y.YEAR)/100
+                    Y.SOURCE.TAX=Y.FACE.INT*0.05
+                    Y.FACE.AMT=Y.FACE.INT-Y.SOURCE.TAX
+                    Y.SETL.AMOUNT=Y.FACE.VALUE+Y.FACE.AMT
+                    R.SP.ISSUE<SP.STK.APPL.RATE>=Y.INT.RATE
+                    R.SP.ISSUE<SP.STK.SP.INT.AMT>=Y.FACE.INT
+                    R.SP.ISSUE<SP.STK.SP.TAX>=Y.SOURCE.TAX
+                END
+               ! IF Y.FT EQ '' THEN
+                    R.SP.ISSUE<SP.STK.TRAN.REFRENCE2>=Y.FT.ID
+                    R.SP.ISSUE<SP.STK.MATURITY.STATUS>="MATURED"
+                    R.SP.ISSUE<SP.STK.STATUS>="PAID TO CUSTOMER"
+                    R.SP.ISSUE<SP.STK.CLOSE.DATE>=TODAY
+                    R.SP.ISSUE<SP.STK.APPL.AMT>=R.NEW(FT.DEBIT.AMOUNT)
+                    WRITE R.SP.ISSUE TO F.SP.ISSUE,Y.SP.ID
+               ! END
+               ! ELSE
+                !    ETEXT = 'ALREADY ONE FT EXIST'
+                 !   CALL STORE.END.ERROR
+                !END
+            END
+
+        END 
+
+        ELSE IF Y.VERSION.ID EQ "FUNDS.TRANSFER,COUPON.SET.FINAL" THEN
+
+            IF V$FUNCTION EQ 'A' THEN
+                CALL GET.LOC.REF("FUNDS.TRANSFER","SP.INFO",Y.SP.POS)
+                Y.COUPON.ID=R.NEW(FT.LOCAL.REF)<1,Y.SP.POS>
+                CALL F.READ(FN.SP.COUPON,Y.COUPON.ID,R.COUPON,F.SP.COUPON,Y.COP.ER1)
+                R.COUPON<SP.CP.STATUS>="PAID BY AGENT"
+                R.COUPON<SP.CP.REIM.DATE,4>=TODAY
+                WRITE R.COUPON TO F.SP.COUPON,Y.COUPON.ID
+
+
+            END
+        END
+        ELSE IF Y.VERSION.ID EQ "FUNDS.TRANSFER,SP.FINAL.SET" THEN
+
+            IF V$FUNCTION EQ 'A' THEN
+                CALL GET.LOC.REF("FUNDS.TRANSFER","SP.INFO",Y.SP.POS)
+                Y.SP.ID=R.NEW(FT.LOCAL.REF)<1,Y.SP.POS>
+                CALL F.READ(FN.SP.ISSUE,Y.SP.ID,R.SP.ISSUE,F.SP.ISSUE,Y.ER3)
+
+                R.SP.ISSUE<SP.STK.STATUS>="PAID BY AGENT"
+                R.SP.ISSUE<SP.STK.REIM.DATE,4>=TODAY
+                WRITE R.SP.ISSUE TO F.SP.ISSUE,Y.SP.ID
+
+            END
+        END
+        ELSE IF Y.VERSION.ID EQ "TELLER,SPISSUE" THEN
+            IF V$FUNCTION EQ 'A' THEN
+
+                CALL GET.LOC.REF("TELLER","SP.INFO",Y.SP.POS)
+                Y.SP.ID=R.NEW(TT.TE.LOCAL.REF)<1,Y.SP.POS>
+                Y.TT.ID=ID.NEW
+
+                CALL F.READ(FN.SP.ISSUE.AUTH,Y.SP.ID,R.SP.ISSUE,F.SP.ISSUE.AUTH,Y.ER3)
+                R.SP.ISSUE<SP.STK.TRAN.REFRENCE1>=Y.TT.ID
+                WRITE R.SP.ISSUE TO F.SP.ISSUE.AUTH,Y.SP.ID
+
+            END
+
+        END
+!     ELSE IF Y.VERSION.ID EQ "TELLER,SPCLOSE" THEN
+!         IF V$FUNCTION EQ 'A' THEN
+
+!            CALL GET.LOC.REF("TELLER","SP.INFO",Y.SP.POS)
+!            Y.SP.ID=R.NEW(TT.TE.LOCAL.REF)<1,Y.SP.POS>
+!            Y.TT.ID=ID.NEW
+!  CALL OPF(FN.SP.ISSUE,F.SP.ISSUE)
+!            CALL F.READ(FN.SP.ISSUE,Y.SP.ID,R.SP.ISSUE,F.SP.ISSUE,Y.ER3)
+!           Y.TT=R.SP.ISSUE<SP.STK.TRAN.REFRENCE2>
+!           IF Y.TT EQ '' THEN
+!              R.SP.ISSUE<SP.STK.TRAN.REFRENCE2>=Y.TT.ID
+!              R.SP.ISSUE<SP.STK.MATURITY.STATUS>="MATURED"
+!              R.SP.ISSUE<SP.STK.STATUS>="PAID TO CUSTOMER"
+!              R.SP.ISSUE<SP.STK.CLOSE.DATE>=TODAY
+!              R.SP.ISSUE<SP.STK.APPL.AMT>=R.SP.ISSUE<SP.STK.FACE.VALUE>
+!R.SP.ISSUE<SP.STK.APPL.AMT>=R.NEW(FT.DEBIT.AMOUNT)
+!              WRITE R.SP.ISSUE TO F.SP.ISSUE,Y.SP.ID
+!          END
+!          ELSE
+!              ETEXT = 'ALREADY ONE TT EXIST'
+!              CALL STORE.END.ERROR
+!          END
+!      END
+
+!  END
+        RETURN
+***----------------------------------------------------------------
+    END

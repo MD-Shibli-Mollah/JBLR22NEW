@@ -1,0 +1,169 @@
+*-----------------------------------------------------------------------------
+* <Rating>-40</Rating>
+*  ---- Routine Modified Date: 31 - 08 - 2015  -- Modied by :: Apurba
+*  ---- IF Y.BALANCE NE 0 THEN -- OMMIT BY APURBA -- REQ. BY ZAHID[FAGM]
+* update: 20160504, By: Alin Boby, Req: Abu Hena Mostofa Zamal (FAGM)
+* add new field category in last column
+*-----------------------------------------------------------------------------
+    SUBROUTINE E.ABL.AC.BOOK.DATE.BAL(Y.RETURN)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CLASS
+    $INSERT GLOBUS.BP I_F.ACCT.ACTIVITY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    Y.ACCT.ID=''
+    Y.ACCT.REC=''
+    Y.BALANCE.TYPE='VALUE'
+
+    LOCATE "DATE" IN ENQ.SELECTION<2,1> SETTING DATE.POS THEN
+        Y.BALANCE.DATE = ENQ.SELECTION<4,DATE.POS>
+        IF Y.BALANCE.DATE EQ "" THEN
+            Y.BALANCE.DATE = TODAY
+        END
+    END
+
+    Y.SYSTEM.DATE=''
+
+    Y.BALANCE=''
+    Y.CREDIT.MVMT=''
+    Y.DEBIT.MVMT=''
+    Y.ERR.MSG=''
+    Y.CAL=''
+
+    FN.AC='F.ACCOUNT'
+    F.AC=''
+
+    FN.AC.HIS='F.ACCOUNT$HIS'
+    F.AC.HIS=''
+
+    FN.AC.CLOSE = 'F.ACCOUNT.CLOSED'
+    F.AC.CLOSE = ''
+
+    FN.AC.CLASS = "F.ACCOUNT.CLASS"
+    F.AC.CLASS = ""
+
+    REC.AC=''
+    REC.AC.HIS=''
+
+    LOCATE "CATEGORY" IN ENQ.SELECTION<2,1> SETTING CATEGORY.POS THEN
+        Y.CATEGORY = ENQ.SELECTION<4,CATEGORY.POS>
+        CONVERT SM TO " " IN Y.CATEGORY
+    END
+
+    Y.CATEG.LIST = ''
+    Y.RESULT=''
+    Y.BLANK=''
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.CLOSE,F.AC.CLOSE)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.AC.CLASS,F.AC.CLASS)
+    RETURN
+
+PROCESS:
+
+    CALL F.READ(FN.AC.CLASS,Y.CATEGORY,R.AC.CLASS.REC,F.AC.CLASS,Y.ERR)
+    Y.CATEG.COUNT = DCOUNT(R.AC.CLASS.REC<3>,@VM)
+    FOR I = 1 TO Y.CATEG.COUNT
+        INS R.AC.CLASS.REC<3,I> BEFORE Y.CATEG.LIST<0,0,0>
+    NEXT
+    CONVERT FM TO " " IN Y.CATEG.LIST
+
+********************************************
+!Read Account Balance from Live Account File
+********************************************
+
+    IF Y.CATEG.LIST NE "" THEN
+************IF Record ID Select From ACCOUNT.CLASS File **************
+        SEL.CMD.AC = "SELECT ":FN.AC:" WITH CO.CODE EQ ":ID.COMPANY:" AND CATEGORY EQ ":Y.CATEG.LIST
+    END ELSE
+        IF Y.CATEG.LIST EQ "" THEN
+************IF Individual Category Provided in Selection Field********
+            SEL.CMD.AC = "SELECT ":FN.AC:" WITH CO.CODE EQ ":ID.COMPANY:" AND CATEGORY EQ ":Y.CATEGORY
+        END
+    END
+
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.AC,'',AC.REC.NO,AC.RET.CODE)
+
+!DEBUG
+
+    LOOP
+        REMOVE Y.ACCT.ID FROM SEL.LIST.AC SETTING POS
+    WHILE Y.ACCT.ID:POS
+
+        CALL EB.GET.ACCT.BALANCE(Y.ACCT.ID,Y.ACCT.REC,Y.BALANCE.TYPE,Y.BALANCE.DATE,Y.SYSTEM.DATE,Y.BALANCE,Y.CREDIT.MVMT,Y.DEBIT.MVMT,Y.ERR.MSG)
+
+**   OMMIT BY APURBA **
+!IF Y.BALANCE NE 0 THEN
+
+        CALL F.READ(FN.AC,Y.ACCT.ID,REC.AC,F.AC,ERR.AC)
+***************To Identify -ve or +ve Balance****************
+        IF Y.BALANCE LT 0 THEN
+            Y.RESULT=Y.ACCT.ID:"*":Y.BALANCE:"*":Y.BLANK:"*":REC.AC<AC.ACCOUNT.TITLE.1>:"*":REC.AC<AC.ALT.ACCT.ID>:"*":REC.AC<AC.OPENING.DATE>:"*":REC.AC<AC.CATEGORY>
+        END ELSE
+            Y.RESULT=Y.ACCT.ID:"*":Y.BLANK:"*":Y.BALANCE:"*":REC.AC<AC.ACCOUNT.TITLE.1>:"*":REC.AC<AC.ALT.ACCT.ID>:"*":REC.AC<AC.OPENING.DATE>:"*":REC.AC<AC.CATEGORY>
+        END
+*************************************************************
+        Y.CAL<-1>=Y.RESULT
+
+!END ; ** OMMIT BY APURBA
+    REPEAT
+
+    Y.ACCT.ID =''
+
+**********************************************
+!Read Account Balance from Closed Account File
+**********************************************
+
+    IF Y.CATEG.LIST NE "" THEN
+************IF Record ID Select From ACCOUNT.CLASS File **************
+        SEL.CMD.AC.CLOSE = "SELECT ":FN.AC.CLOSE:" WITH CO.CODE EQ ":ID.COMPANY:" AND ACCT.CLOSE.DATE GE ":Y.BALANCE.DATE:" AND CATEGORY EQ ":Y.CATEG.LIST
+    END ELSE
+        IF Y.CATEG.LIST EQ "" THEN
+************IF Individual Category Provided in Selection Field********
+            SEL.CMD.AC.CLOSE = "SELECT ":FN.AC.CLOSE:" WITH CO.CODE EQ ":ID.COMPANY:" AND ACCT.CLOSE.DATE GE ":Y.BALANCE.DATE:" AND CATEGORY EQ ":Y.CATEGORY
+        END
+    END
+
+    CALL EB.READLIST(SEL.CMD.AC.CLOSE,SEL.LIST.AC.CLOSE,'',CLOSE.AC.REC.NO,CLOSE.AC.RET.CODE)
+    LOOP
+        REMOVE Y.ACCT.ID FROM SEL.LIST.AC.CLOSE SETTING POS
+
+    WHILE Y.ACCT.ID:POS
+        CALL EB.GET.ACCT.BALANCE(Y.ACCT.ID,Y.ACCT.REC,Y.BALANCE.TYPE,Y.BALANCE.DATE,Y.SYSTEM.DATE,Y.BALANCE,Y.CREDIT.MVMT,Y.DEBIT.MVMT,Y.ERR.MSG)
+
+**** OMIT BY APURBA *****
+!IF Y.BALANCE NE 0 THEN
+
+        Y.ACCT.ID=Y.ACCT.ID:";1"
+        CALL F.READ(FN.AC.HIS,Y.ACCT.ID,REC.AC.HIS,F.AC.HIS,ERR.AC.HIS)
+***************To Identify -ve or +ve Balance****************
+        IF Y.BALANCE LT 0 THEN
+            Y.RESULT=Y.ACCT.ID:"*":Y.BALANCE:"*":Y.BLANK:"*":REC.AC.HIS<AC.ACCOUNT.TITLE.1>:"*":REC.AC.HIS<AC.ALT.ACCT.ID>:"*":REC.AC.HIS<AC.OPENING.DATE>:"*":REC.AC.HIS<AC.CATEGORY>
+        END ELSE
+            Y.RESULT=Y.ACCT.ID:"*":Y.BLANK:"*":Y.BALANCE:"*":REC.AC.HIS<AC.ACCOUNT.TITLE.1>:"*":REC.AC.HIS<AC.ALT.ACCT.ID>:"*":REC.AC.HIS<AC.OPENING.DATE>:"*":REC.AC.HIS<AC.CATEGORY>
+        END
+*************************************************************
+        Y.CAL<-1>=Y.RESULT
+
+!END; ** OMIT BY APURBA
+
+    REPEAT
+
+    Y.RETURN<-1> = SORT(Y.CAL)
+*PRINT Y.RETURN
+
+    RETURN
+
+END

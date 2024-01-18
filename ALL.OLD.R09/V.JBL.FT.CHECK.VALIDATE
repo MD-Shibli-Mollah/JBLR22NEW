@@ -1,0 +1,176 @@
+*-----------------------------------------------------------------------------
+* <Rating>-65</Rating>
+*-----------------------------------------------------------------------------
+* This is for In FT version values default get default.
+*-----------------------------------------------------------------------------
+    SUBROUTINE V.JBL.FT.CHECK.VALIDATE
+*-----------------------------------------------------------------------------
+*   21/08/2013   -- Manjunath Suvarna
+*                   Sepit SoftTech Pvt. Ltd.
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.FOREX
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT JBL.BP I_F.BD.FIRST.PAIR.DEAL.DETAILS
+    $INSERT JBL.BP I_F.BD.BASE.CURRENCY.TABLE
+*
+    GOSUB INITIALISE
+    GOSUB PROCESS
+*
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+
+    FN.FOREX = 'F.FOREX'
+    F.FOREX = ''
+*
+    FN.FOREX$HIS = 'F.FOREX$HIS'
+    F.FOREX$HIS = ''
+*
+    FN.FIRST.PAIR = 'F.BD.FIRST.PAIR.DEAL.DETAILS'
+    F.FIRST.PAIR = ''
+*
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+*
+    FN.BASE.CCY = 'F.BD.BASE.CURRENCY.TABLE'
+    F.BASE.CCY = ''
+*
+    CALL OPF(FN.FOREX,F.FOREX)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FOREX$HIS,F.FOREX$HIS)
+    CALL OPF(FN.BASE.CCY,F.BASE.CCY)
+*
+    RETURN
+*
+*-----------------------------------------------------------------------------
+PROCESS:
+*
+    Y.APP = "FUNDS.TRANSFER":FM:"FOREX"
+    Y.FLD = "FX.DEAL.REF":FM:"FIRST.PAIR.DEAL"
+    CALL MULTI.GET.LOC.REF(Y.APP, Y.FLD, Y.POS)
+    Y.FX.POS = Y.POS<1,1>
+    Y.FPD.POS = Y.POS<2,1>
+*
+    Y.FX.ID = R.NEW(FT.LOCAL.REF)<1,Y.FX.POS>
+    CALL F.READ(FN.FOREX,Y.FX.ID,R.FOREX,F.FOREX,Y.ERR)
+    IF R.FOREX THEN
+        Y.FPD = R.FOREX<FX.LOCAL.REF,Y.FPD.POS>
+        IF Y.FPD EQ 'FIRST.DEAL' THEN
+            E = "EB-FX.FT.NOT.FIRST.DEAL"
+        END ELSE
+*
+* For FT Version values defaulting based on the requirement
+*
+            Y.CCY.BUY = R.FOREX<FX.CURRENCY.BOUGHT>
+            Y.CCY.SOLD = R.FOREX<FX.CURRENCY.SOLD>
+            Y.ACCT.PAY = R.FOREX<FX.OUR.ACCOUNT.PAY>
+            Y.ACCT.REC = R.FOREX<FX.OUR.ACCOUNT.REC>
+            GOSUB FT.DEFAULT
+        END
+    END ELSE
+*
+        GOSUB SEL.STMT
+* Fetching values from History table of forex application.
+*
+        IF Y.FPD EQ 'FIRST.DEAL' THEN
+            E = "EB-FX.FT.NOT.FIRST.DEAL"
+        END ELSE
+*
+* For FT Version values defaulting based on the requirement
+*
+            Y.CCY.BUY = R.FOREX$HIS<FX.CURRENCY.BOUGHT>
+            Y.CCY.SOLD = R.FOREX$HIS<FX.CURRENCY.SOLD>
+            Y.ACCT.PAY = R.FOREX$HIS<FX.OUR.ACCOUNT.PAY>
+            Y.ACCT.REC = R.FOREX$HIS<FX.OUR.ACCOUNT.REC>
+            GOSUB FT.DEFAULT
+        END
+    END
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+SEL.STMT:
+* Fetching values from History table of forex application.
+*
+    Y.H.ID = R.NEW(FT.LOCAL.REF)<1,Y.FX.POS>
+    SELECT.CMD = "SELECT ":FN.FIRST.PAIR:" WITH FIRST.DEAL.REF EQ ":Y.H.ID
+    CALL EB.READLIST(SELECT.CMD,SELECT.LIST,"",NO.OF.REC,RETURN.CODE)
+    IF SELECT.LIST THEN
+        Y.ID = SELECT.LIST
+        CALL F.READ(FN.FIRST.PAIR,Y.ID,R.FIRST.PAIR,F.FIRST.PAIR,Y.ERR)
+        Y.CUR.F = R.FIRST.PAIR<BD.FPD.FIRST.CURR.NO>
+        Y.HIS.ID = Y.H.ID:";":Y.CUR.F
+    END ELSE
+        SELECT.CMD = "SELECT ":FN.FIRST.PAIR:" WITH PAIR.DEAL.REF EQ ":Y.H.ID
+        CALL EB.READLIST(SELECT.CMD,SELECT.LIST,"",NO.OF.REC,RETURN.CODE)
+        Y.ID = SELECT.LIST
+        CALL F.READ(FN.FIRST.PAIR,Y.ID,R.FIRST.PAIR,F.FIRST.PAIR,Y.ERR)
+        Y.CUR.P = R.FIRST.PAIR<BD.FPD.PAIR.CURR.NO>
+        Y.HIS.ID = Y.H.ID:";":Y.CUR.P
+    END
+    CALL F.READ(FN.FOREX$HIS,Y.HIS.ID,R.FOREX$HIS,F.FOREX$HIS,Y.ERR)
+    Y.FPD = R.FOREX$HIS<FX.LOCAL.REF,Y.FPD.POS>
+
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+FT.DEFAULT:
+* For FT Version values defaulting based on the requirement
+*
+    CALL F.READ(FN.BASE.CCY,'SYSTEM',R.BASE.CCY,F.BASE.CCY,Y.ERR)
+    Y.AMT = R.NEW(FT.DEBIT.AMOUNT)
+    IF Y.AMT LT 0 THEN
+        R.NEW(FT.DEBIT.ACCT.NO) = 'PL53530'
+        R.NEW(FT.DEBIT.CURRENCY) = 'BDT'
+        R.NEW(FT.DEBIT.AMOUNT) = ''
+        R.NEW(FT.CREDIT.AMOUNT) = ABS(Y.AMT)
+*
+        IF Y.CCY.BUY EQ 'USD' THEN
+            LOCATE Y.CCY.SOLD IN R.BASE.CCY<1,1> SETTING BASE.POS THEN
+                R.NEW(FT.CREDIT.CURRENCY) = Y.CCY.BUY
+                R.NEW(FT.CREDIT.ACCT.NO) = Y.ACCT.REC
+            END ELSE
+                R.NEW(FT.CREDIT.CURRENCY) = Y.CCY.SOLD
+                R.NEW(FT.CREDIT.ACCT.NO) = Y.ACCT.PAY
+            END
+        END ELSE
+            R.NEW(FT.CREDIT.CURRENCY) = Y.CCY.SOLD
+            R.NEW(FT.CREDIT.ACCT.NO) = Y.ACCT.PAY
+        END
+*
+        R.NEW(FT.DEBIT.VALUE.DATE) = TODAY
+        R.NEW(FT.CREDIT.VALUE.DATE) = TODAY
+        R.NEW(FT.PROFIT.CENTRE.DEPT) = '100'
+        R.NEW(FT.ORDERING.CUST) = 'JBL'
+    END ELSE
+        R.NEW(FT.CREDIT.ACCT.NO) = 'PL53525'
+        R.NEW(FT.CREDIT.CURRENCY) = 'BDT'
+        R.NEW(FT.DEBIT.AMOUNT) = Y.AMT
+*
+        IF Y.CCY.SOLD EQ 'USD' THEN
+            LOCATE Y.CCY.BUY IN R.BASE.CCY<1,1> SETTING BASE.POS THEN
+                R.NEW(FT.DEBIT.CURRENCY) = Y.CCY.SOLD
+                R.NEW(FT.DEBIT.ACCT.NO) = Y.ACCT.PAY
+            END ELSE
+                R.NEW(FT.DEBIT.CURRENCY) = Y.CCY.BUY
+                R.NEW(FT.DEBIT.ACCT.NO) = Y.ACCT.REC
+            END
+        END ELSE
+            R.NEW(FT.DEBIT.CURRENCY) = Y.CCY.BUY
+            R.NEW(FT.DEBIT.ACCT.NO) = Y.ACCT.REC
+        END
+*
+        R.NEW(FT.DEBIT.VALUE.DATE) = TODAY
+        R.NEW(FT.CREDIT.VALUE.DATE) = TODAY
+        R.NEW(FT.PROFIT.CENTRE.DEPT) = '100'
+        R.NEW(FT.ORDERING.CUST) = 'JBL'
+    END
+
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+END

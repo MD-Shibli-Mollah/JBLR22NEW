@@ -1,0 +1,40 @@
+*-----------------------------------------------------------------------------
+* <Rating>200</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.STMT.DATE(ENQ.DATA)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+
+    Y.INIT.DATE="20120304"
+    Y.DATE=''
+    Y.FR.DATE=''
+    Y.TO.DATE=''
+    LOCATE 'BOOKING.DATE' IN ENQ.DATA<2,1> SETTING BDATE.POS THEN
+        Y.DATE = ENQ.DATA<4,BDATE.POS>
+        IF Y.DATE THEN
+
+            BEGIN CASE
+
+            CASE ENQ.DATA<3,BDATE.POS> EQ 'RG'
+                Y.FR.DATE = FIELD(Y.DATE," ",1)
+                Y.TO.DATE = FIELD(Y.DATE," ",2)
+                IF Y.FR.DATE LT Y.INIT.DATE THEN
+                    IF Y.TO.DATE LT Y.INIT.DATE THEN
+                        ENQ.DATA<4,BDATE.POS> = Y.INIT.DATE:" ":TODAY
+                    END
+                    ELSE
+                        ENQ.DATA<4,BDATE.POS> = Y.INIT.DATE:" ":FIELD(Y.DATE," ",2)
+                    END
+                END
+            CASE  ENQ.DATA<3,BDATE.POS> EQ 'LT' OR ENQ.DATA<3,BDATE.POS> EQ 'LE'
+                IF  Y.FR.DATE LE Y.DATE THEN
+                    ENQ.DATA<4,BDATE.POS> = Y.INIT.DATE
+                END
+            END CASE
+
+        END
+    END
+
+    RETURN
+END

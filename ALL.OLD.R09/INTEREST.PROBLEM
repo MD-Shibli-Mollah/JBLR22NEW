@@ -1,0 +1,46 @@
+*-----------------------------------------------------------------------------
+* <Rating>169</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM INTEREST.PROBLEM
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ABL.H.AC.VIOLATION
+    $INSERT I_F.STMT.ACCT.CR
+
+    F.FILE.OUT=''
+    OPENSEQ '&COMO&','TAX.NOT.DEDUCTED.csv' TO F.FILE.OUT ELSE NULL
+
+    FN.VIOL="F.ABL.H.AC.VIOLATION"
+    F.VIOL=''
+    Y.VIOL.ID=''
+    REC.VIOL=''
+    CALL OPF(FN.VIOL,F.VIOL)
+
+    FN.STMT.CR="F.STMT.ACCT.CR"
+    F.STMT.CR=''
+    REC.STMT.CR=''
+    Y.STMT.CR.ID=''
+    CALL OPF(FN.STMT.CR,F.STMT.CR)
+
+    SEL.CMD="SELECT ":FN.VIOL:" WITH @ID LIKE '....201306'"
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,ERR.REC)
+    LOOP
+        REMOVE Y.VIOL.ID FROM SEL.LIST SETTING SEL.POS
+    WHILE Y.VIOL.ID:SEL.POS
+
+        CALL F.READ(FN.VIOL,Y.VIOL.ID,REC.VIOL,F.VIOL,REC.VIOL)
+        Y.STMT.CR.ID=FIELD(Y.VIOL.ID,".",1):"-20130630"
+        CALL F.READ(FN.STMT.CR,Y.STMT.CR.ID,REC.STMT.CR,F.STMT.CR,ERR.STMT.CR)
+        IF REC.STMT.CR THEN
+            CORE.VAL = FIELD(Y.VIOL.ID,".",1):",":REC.STMT.CR<IC.STMCR.TOTAL.INTEREST>:",":REC.STMT.CR<IC.STMCR.TAX.FOR.CUSTOMER>:",":REC.STMT.CR<IC.STMCR.GRAND.TOTAL>:",":REC.STMT.CR<IC.STMCR.MANUAL.ADJ.AMT>:",":REC.VIOL<ACV.CO.CODE>
+        END
+        ELSE
+            CORE.VAL = FIELD(Y.VIOL.ID,".",1):",NOT FOUND":
+        END
+        PRINT " VALUE = ":CORE.VAL
+        WRITESEQ CORE.VAL TO F.FILE.OUT ELSE NULL
+    REPEAT
+    PRINT" Completed......"
+    CLOSESEQ F.FILE.OUT
+
+END

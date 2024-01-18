@@ -1,0 +1,62 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+
+*-----------------------------------------------------------------------------
+!PROGRAM JAPI.UNIQUE.DUP.CHK
+    SUBROUTINE JAPI.UNIQUE.DUP.CHK
+!-----------------------------------------------------------------------------!
+**********API DUP CHK
+
+*DEV MOHAMMAD ROBIUL ISLAM
+!------------------------------------------------------------------------------!
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT BP I_F.JBL.API.TRANSACTION.INFO
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT BP  I_F.API.SYS.INFO
+
+    FN.API.INFO ='F.JBL.API.TRANSACTION.INFO'
+    F.API.INFO=''
+    CALL OPF(FN.API.INFO,F.API.INFO)
+    FN.SYS.INFO ='F.EB.API.SYS.INFO'
+    F.SYS.INFO=''
+    CALL OPF(FN.SYS.INFO,F.SYS.INFO)
+
+    FN.ACCOUNT ='F.ACCOUNT'
+    F.ACCOUNT=''
+    Y.MESSAGE="Others"
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    CALL GET.LOC.REF('FUNDS.TRANSFER','AT.UNIQUE.ID',Y.AT.UNIQUE.ID)
+    Y.CR.AC=R.NEW(FT.CREDIT.ACCT.NO)
+
+    CALL F.READ(FN.ACCOUNT,Y.CR.AC,R.AC,F.ACCOUNT,ACCOUNT.ERR)
+    CALL F.READ(FN.SYS.INFO,'FRD',R.SYS,F.SYS.INFO,SYS.INFO.ERR)
+
+    Y.CATEGORY=R.AC<AC.CATEGORY>
+    Y.IND.AC=R.SYS<EB.API64.IND.CATEGORY>
+
+
+    FIND Y.CATEGORY IN Y.IND.AC SETTING Ap, Vp THEN
+        Y.MESSAGE="Personal"
+    END
+
+    IF R.NEW(FT.LOCAL.REF)<1,Y.AT.UNIQUE.ID> NE "" AND R.NEW(FT.RECORD.STATUS) NE "REV" THEN
+        Y.AT.UNIQUE.ID=R.NEW(FT.LOCAL.REF)<1,Y.AT.UNIQUE.ID>
+        CALL F.READ(FN.API.INFO,Y.AT.UNIQUE.ID,R.API.ID,F.API.INFO,API.READ.ERR)
+        IF (R.API.ID NE '' AND (R.API.ID<JBL.API.DEBIT.ACCT.NO> NE R.NEW(FT.DEBIT.ACCT.NO) OR R.API.ID<JBL.API.CREDIT.ACCT.NO> NE R.NEW(FT.CREDIT.ACCT.NO) OR R.API.ID<JBL.API.TXN.AMOUNT> NE R.NEW(FT.DEBIT.AMOUNT))) THEN
+            ETEXT ="FAILED.DUPLICATE.AT.UNIQUE.ID-":Y.AT.UNIQUE.ID
+            CALL STORE.END.ERROR
+
+        END
+        ELSE IF R.API.ID NE '' THEN
+            ETEXT ="ALREADY.SUCCESS.DUPLICATE.AT.UNIQUE.ID-":Y.AT.UNIQUE.ID:"-":R.API.ID<JBL.API.TRANS.REF>:"-":Y.MESSAGE
+            CALL STORE.END.ERROR
+        END
+
+    END
+
+
+    RETURN
+

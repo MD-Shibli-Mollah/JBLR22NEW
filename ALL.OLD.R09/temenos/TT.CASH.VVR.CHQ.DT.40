@@ -1,0 +1,44 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE TT.CASH.VVR.CHQ.DT.40
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.TELLER
+
+    Y.CHQ.DATE = 'CHEQUE.DATE.VD'
+    Y.CHQ.DATE.POS = ''
+
+    Y.FT.CHQ.DATE = 'CHEQUE.DATE'
+    Y.FT.CHQ.DATE.POS = ''
+
+    Y.CHQ.DT = ''
+
+    CALL GET.LOC.REF("TELLER",Y.CHQ.DATE,Y.CHQ.DATE.POS)
+    Y.CHQ.DT = R.NEW(TT.TE.LOCAL.REF)<1,Y.CHQ.DATE.POS>
+    CALL CDD('BD',TODAY,Y.CHQ.DT,Y.NO.OF.DAY)
+    Y.STALE.PERIOD = Y.NO.OF.DAY/180
+    IF ALPHA(R.NEW(TT.TE.CHEQUE.NUMBER)[1,1]) EQ 1 THEN
+        AF = 2
+        ETEXT = "SORRY CHEQUE NUMBER SHOULD BE NUMERIC"
+        CALL STORE.END.ERROR
+    END
+
+    IF  (Y.STALE.PERIOD GT 1) OR (Y.STALE.PERIOD LT -1) THEN
+        AF = 1
+        ETEXT = "SORRY CHEQUE DATE IS NOT VALID"
+        CALL STORE.END.ERROR
+
+    END
+
+    IF  R.NEW(TT.TE.AMOUNT.LOCAL.1) LT 30000 THEN
+        AF = 1
+        ETEXT = "SORRY AMOUNT SHOULD GREATER THAN 30000"
+        CALL STORE.END.ERROR
+
+    END
+
+
+
+    RETURN
+END

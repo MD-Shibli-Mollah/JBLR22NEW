@@ -1,0 +1,57 @@
+*-----------------------------------------------------------------------------
+* <Rating>139</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.WORKING.BAL.SMS(Y.ACC.ID)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT JBL.BP I_JBL.WORKING.BAL.SMS.COMMON
+
+    CALL F.READ(FN.ACC,Y.ACC.ID,R.ACC,F.ACC,Y.ERR)
+    Y.WORK.BAL = R.ACC<AC.ONLINE.ACTUAL.BAL>
+    Y.CURRENCY = R.ACC<AC.CURRENCY>
+
+    IF Y.WORK.BAL NE '' AND Y.WORK.BAL GT 5 THEN
+        Y.CUS.ID = R.ACC<AC.CUSTOMER>
+        Y.CO.CODE = R.ACC<AC.CO.CODE>
+
+        CALL F.READ(FN.COM,Y.CO.CODE,R.COM,F.COM,Y.COM.ERR)
+        Y.COMP.NAME = R.COM<EB.COM.COMPANY.NAME>
+
+        CALL F.READ(FN.CUS,Y.CUS.ID,R.CUS,F.CUS,Y.CUR.ERR)
+        Y.SMS.ALERT = R.CUS<EB.CUS.LOCAL.REF,Y.SMS.CONTROL.POS>
+        MOBILE.NO = R.CUS<EB.CUS.SMS.1>
+
+        IF Y.SMS.ALERT EQ 'Y' AND MOBILE.NO NE '' THEN
+
+            SMS.BUILD = 'Dear Sir,Balance of your account no **':RIGHT(Y.ACC.ID,4):' with Janata Bank Ltd,':Y.COMP.NAME:' Branch is ':Y.CURRENCY:Y.WORK.BAL:' at the end of ':Y.MONTH.NAME:'. It will be treated as a balance confirmation. Thank you.':'|1|8|0'
+
+            Y.MOB.LEN = DCOUNT(MOBILE.NO,@VM)
+
+            FOR Y=1 TO Y.MOB.LEN
+                Y.MOBILE.NO = FIELD(MOBILE.NO,@VM,Y)
+                Y.MOBILE.NO = TRIM(Y.MOBILE.NO," ","A")
+                IF ISDIGIT(Y.MOBILE.NO) AND LEN(Y.MOBILE.NO) EQ 11 THEN
+                    Y.VALID.OPRT = Y.MOBILE.NO[0,3]
+                    LOCATE Y.VALID.OPRT IN Y.VALID.ARRAY SETTING Y.POS THEN
+
+                        SMS.FILE = SMS.DIR:'/':Y.MOBILE.NO:'-':Y.ACC.ID:'-':TODAY:'.csv'
+                        Y.SMS.BUILD = Y.MOBILE.NO:'-':Y.ACC.ID:'-':TODAY:"|":Y.MOBILE.NO:"|":SMS.BUILD
+
+                        SMS.FILE.POINT = ''
+                        OPENSEQ SMS.FILE TO SMS.FILE.POINT ELSE
+                        END
+                        IF SMS.FILE.POINT NE '' THEN
+                            WRITESEQ Y.SMS.BUILD TO SMS.FILE.POINT ELSE
+                            END
+                        END
+                    END
+                END
+            NEXT Y
+
+        END
+    END
+    RETURN
+END

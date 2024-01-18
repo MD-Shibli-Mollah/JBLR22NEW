@@ -1,0 +1,34 @@
+    SUBROUTINE TT.VAULT.FIELDS
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_DataTypes
+
+    CALL Table.defineId("REF.ID", T24_String)
+    CALL Table.addField("BR.INFO",T24_String,"NOINPUT", "")
+    CALL Table.addField("XX<DENOM",T24_String,"NOINPUT", "")
+    CALL Table.addAmountField("XX-F.UNIT",T24_Numeric,"", "")
+    CALL Table.addAmountField("XX-M.UNIT",T24_Numeric,"", "")
+    CALL Table.addAmountField("XX-COIN",T24_Numeric,"", "")
+    CALL Table.addAmountField('XX-N.UNIT',T24_Numeric,"","")
+    CALL Table.addReservedField('XX-RESERVED.02')
+    CALL Table.addReservedField('XX>RESERVED.03')
+    CALL Table.addField("TXN.DATE",T24_Date,"NOINPUT", "")
+    CALL Table.addAmountField("T.M.UNIT","CURRENCY","NOINPUT", "")
+    CALL Table.addField("T.M.AMT","CURRENCY","NOINPUT", "")
+    CALL Table.addAmountField("T.F.UNIT","CURRENCY","NOINPUT", "")
+    CALL Table.addField("T.F.AMT","CURRENCY","NOINPUT", "")
+    CALL Table.addAmountField("T.UNIT","CURRENCY","NOINPUT", "")
+    CALL Table.addField("T.C.AMT","CURRENCY","NOINPUT", "")
+    CALL Table.addAmountField("T.COIN","CURRENCY","NOINPUT", "")
+    CALL Table.addField("T.AMT","CURRENCY","NOINPUT", "")
+    CALL Table.addField("T.AMT.W",T24_Text,"NOINPUT", "")
+    CALL Table.addAmountField('T.N.UNIT',"CURRENCY","NOINPUT","")
+    CALL Table.addField('T.N.AMT',"CURRENCY","NOINPUT","")
+    CALL Table.addReservedField('XX.RESERVED.06')
+    CALL Table.addLocalReferenceField('XX.LOCAL.REF')
+    CALL Table.addOverrideField
+    CALL Table.setAuditPosition
+    C$NS.OPERATION = 'ALL'
+    RETURN
+END 

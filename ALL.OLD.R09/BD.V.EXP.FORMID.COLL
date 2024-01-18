@@ -1,0 +1,116 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>60</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.EXP.FORMID.COLL
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This routine is fatch record from BD.EXP.FROM.REGISTER
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20/04/2012 - New - Rayhan
+* 10/09/2018 - Edit - Mehedi(DS)
+*-----------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INSERT GLOBUS.BP I_F.DRAWINGS
+    $INSERT JBL.BP I_F.BD.EXPFORM.REGISTER
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+    FN.LETTER.OF.CREDIT = 'F.LETTER.OF.CREDIT'
+    F.LETTER.OF.CREDIT  = ''
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+    R.LETTER.OF.CREDIT  = ''
+
+    FN.DRAWINGS = 'F.DRAWINGS'
+    F.DRAWINGS = ''
+    CALL OPF(FN.DRAWINGS,F.DRAWINGS)
+    R.DRAWINGS = ''
+    Y.DRAWINGS.ERR = ''
+
+    FN.EXPFORM = 'F.BD.EXPFORM.REGISTER'
+    F.EXPFORM = ''
+    CALL OPF(FN.EXPFORM,F.EXPFORM)
+    R.EXPFORM.REC = ''
+    Y.EXPFORM.ERR = ''
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+!DEBUG
+    GOSUB GET.LOC.REF.POS
+    IF COMI EQ "" THEN RETURN
+    Y.EXPFORM.NO = COMI
+    Y.DR.NO = ID.NEW
+    Y.LC.NO = Y.DR.NO[1,12]
+    Y.DOC.AMT = R.NEW(TF.DR.DOCUMENT.AMOUNT)
+*-----------Mehedi(DS)10/09/2018--------
+    Y.EXPFORM.NO.CNT = DCOUNT(Y.EXPFORM.NO,@VM)
+    FOR I=1 TO Y.EXPFORM.NO.CNT
+*---------------------------------------
+        CALL F.READ(FN.EXPFORM,Y.EXPFORM.NO<I>,R.EXPFORM.REC,F.EXPFORM,Y.EXPFORM.ERR)
+        IF NOT(R.EXPFORM.REC) THEN
+            AF = TF.DR.LOCAL.REF
+            AV = Y.DR.EXPNO.POS
+            ETEXT ="EXP FORM Number Not Existing"
+            CALL STORE.END.ERROR
+        END ELSE
+            IF R.EXPFORM.REC<EXPFORM.DRAWING.NO> NE '' THEN
+                AF = TF.DR.LOCAL.REF
+                AV = Y.DR.EXPNO.POS
+                ETEXT ="EXP Number Already Used By Other Document"
+                CALL STORE.END.ERROR
+            END
+            IF R.EXPFORM.REC<EXPFORM.TF.NUMBER> EQ Y.LC.NO THEN
+                GOSUB SET.LC.JOB.VALUE.LD
+            END ELSE
+                AF = TF.DR.LOCAL.REF
+                AV = Y.DR.EXPNO.POS
+                ETEXT ="EXP Number Not for This Export LC"
+                CALL STORE.END.ERROR
+            END
+        END
+    NEXT I
+    RETURN
+*-----------------------------------------------------------------------------
+GET.LOC.REF.POS:
+*--------------
+    CALL GET.LOC.REF("DRAWINGS","HS.CODE",Y.DR.HSCODE.POS)
+!CALL GET.LOC.REF("DRAWINGS","EXP.FORM.NO",Y.DR.EXPNO.POS)
+!CALL GET.LOC.REF("DRAWINGS","EXP.VALUE",Y.DR.EXPVALUE.POS)
+*----------Mehedi(DS)10/09/2018---------
+    CALL GET.LOC.REF("DRAWINGS","LT.EXP.FORM.NO",Y.DR.EXPNO.POS)
+    CALL GET.LOC.REF("DRAWINGS","LT.EXP.VALUE",Y.DR.EXPVALUE.POS)
+*---------------------------------------
+    CALL GET.LOC.REF("DRAWINGS","COMMODTY.CODE",Y.DR.COMCODE.POS)
+    CALL GET.LOC.REF("DRAWINGS","COMMDTY.VOLUME",Y.DR.COMVAL.POS)
+    CALL GET.LOC.REF("DRAWINGS","COMMDTY.UNIT",Y.DR.COMUNIT.POS)
+    CALL GET.LOC.REF("DRAWINGS","UNIT.PRICE",Y.DR.UITPRIC.POS)
+    CALL GET.LOC.REF("DRAWINGS","DEST.COUNTRY",Y.DR.DESCO.POS)
+    CALL GET.LOC.REF("DRAWINGS","DEST.PORT",Y.DR.DESPO.POS)
+    CALL GET.LOC.REF("DRAWINGS","PROF.INV.VALUE",Y.DR.INVALUE.POS)
+
+    RETURN
+
+SET.LC.JOB.VALUE.LD:
+*------------------
+    R.NEW(TF.DR.LOCAL.REF)<1,Y.DR.EXPVALUE.POS> = R.EXPFORM.REC<EXPFORM.EXP.VALUE>
+    R.NEW(TF.DR.LOCAL.REF)<1,Y.DR.HSCODE.POS> = R.EXPFORM.REC<EXPFORM.HS.CODE>
+    R.NEW(TF.DR.LOCAL.REF)<1,Y.DR.COMCODE.POS> = R.EXPFORM.REC<EXPFORM.CMDTY.CODE>
+    R.NEW(TF.DR.LOCAL.REF)<1,Y.DR.COMVAL.POS> = R.EXPFORM.REC<EXPFORM.CMDTY.VALUE>
+    R.NEW(TF.DR.LOCAL.REF)<1,Y.DR.COMUNIT.POS> = R.EXPFORM.REC<EXPFORM.CMDTY.UNIT>
+    R.NEW(TF.DR.LOCAL.REF)<1,Y.DR.UITPRIC.POS> = R.EXPFORM.REC<EXPFORM.CMDTY.UNIT.PRICE>
+    R.NEW(TF.DR.LOCAL.REF)<1,Y.DR.DESCO.POS> = R.EXPFORM.REC<EXPFORM.DEST.COUNTRY>
+    R.NEW(TF.DR.LOCAL.REF)<1,Y.DR.DESPO.POS> = R.EXPFORM.REC<EXPFORM.DEST.PORT>
+    R.NEW(TF.DR.LOCAL.REF)<1,Y.DR.INVALUE.POS> = Y.DOC.AMT
+    RETURN

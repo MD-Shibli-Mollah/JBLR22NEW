@@ -1,0 +1,100 @@
+*-----------------------------------------------------------------------------
+* <Rating>438</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE GET.CHQ.STATUS(Y.ACCT.ID,Y.CHEQUE.NO,Y.STATUS)
+!    PROGRAM GET.CHQ.STATUS
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CHEQUE.REGISTER
+    $INSERT I_F.CHEQUES.PRESENTED
+    $INSERT I_F.CHEQUE.TYPE.ACCOUNT
+
+!   Y.ACCT.ID = '0100000000447'
+!  Y.CHEQUE.NO = '100000'
+! Y.STATUS = ''
+
+    GOSUB INIT
+    GOSUB PROCESS
+!CRT Y.STATUS
+    RETURN
+*---------
+INIT:
+*--------   `
+    Y.CHEQUE.TYPE = ''
+    FN.CHEQUE.REGISTER = 'F.CHEQUE.REGISTER'
+    F.CHEQUE.REGISTER = ''
+    CALL OPF(FN.CHEQUE.REGISTER,F.CHEQUE.REGISTER)
+
+    FN.CHEQUES.STOPPED = 'F.CHEQUES.STOPPED'
+    F.CHEQUES.STOPPED = ''
+    CALL OPF(FN.CHEQUES.STOPPED,F.CHEQUES.STOPPED)
+
+    FN.CHEQUES.PRESENTED = 'F.CHEQUES.PRESENTED'
+    F.CHEQUES.PRESENTED = ''
+    CALL OPF(FN.CHEQUES.PRESENTED,F.CHEQUES.PRESENTED)
+
+    FN.CHEQUE.TYPE.ACCOUNT = 'F.CHEQUE.TYPE.ACCOUNT'
+    F.CHEQUE.TYPE.ACCOUNT = ''
+    CALL OPF(FN.CHEQUE.TYPE.ACCOUNT,F.CHEQUE.TYPE.ACCOUNT)
+
+    RETURN
+*-----------
+PROCESS:
+*-----------
+!    DEBUG
+*------Caution_______*
+*Do not change the value of variable Y.STATUS This value is hard coded and taken into consideration
+*in a routine named VALIDATE.INSTR and others also
+*------------------*
+    CALL F.READ(FN.CHEQUE.TYPE.ACCOUNT,Y.ACCT.ID,R.CHEQUE.TYPE.ACCOUNT,F.CHEQUE.TYPE.ACCOUNT,CTA.READ.ERR)
+    IF NOT(R.CHEQUE.TYPE.ACCOUNT) THEN
+        Y.STATUS = 'NO.CHQ.TYPE'
+    END
+    ELSE
+        Y.CHEQUE.TYPE = R.CHEQUE.TYPE.ACCOUNT<CHQ.TYP.CHEQUE.TYPE,1>
+    END
+    IF Y.CHEQUE.TYPE THEN
+        Y.CHQ.REG.ID = Y.CHEQUE.TYPE:'.':Y.ACCT.ID
+        CALL F.READ(FN.CHEQUE.REGISTER,Y.CHQ.REG.ID,R.CHEQUE.REGISTER,F.CHEQUE.REGISTER,CR.READ.ERR)
+        IF NOT(CR.READ.ERR) THEN
+            CR.ISSUE.RANGE = R.CHEQUE.REGISTER<CHEQUE.REG.CHEQUE.NOS>
+            CR.ISSUE.RANGE.CNT = DCOUNT(CR.ISSUE.RANGE,@VM)
+            Y.START.NO = ''
+            FOR I = 1 TO CR.ISSUE.RANGE.CNT
+                Y.RANGE.FLD = ''
+                Y.RANGE.FLD = CR.ISSUE.RANGE<1,I>
+                Y.START.NO = Y.CHEQUE.NO
+                Y.END.NO = ''
+                Y.RESULT = ''
+                Y.ERROR = ''
+                CALL EB.MAINTAIN.RANGES(Y.RANGE.FLD,Y.START.NO,Y.END.NO,'ENQ',Y.RESULT,Y.ERROR)
+                IF Y.RESULT EQ 1 THEN EXIT
+            NEXT I
+            IF NOT(Y.RESULT) THEN
+                Y.STATUS = 'NOT ISSUED'
+            END
+            ELSE
+                Y.STATUS = 'ISSUED'
+            END
+            CR.RET.RANGE = R.CHEQUE.REGISTER<CHEQUE.REG.RETURNED.CHQS>
+            LOCATE Y.CHEQUE.NO IN CR.RET.RANGE<1,1> SETTING Y.RET.RG.POS THEN
+                Y.STATUS = "RETURNED"
+            END
+            Y.CHQ.PRESENTED.ID = Y.CHEQUE.TYPE:'.':Y.ACCT.ID:'-':Y.CHEQUE.NO
+            CALL F.READ(FN.CHEQUES.PRESENTED,Y.CHQ.PRESENTED.ID,R.CHQ.PRESENT,F.CHEQUES.PRESENTED,CHQ.PRESENT.READ.ERR)
+            READ R.CHQ.PRESENT FROM F.CHEQUES.PRESENTED,Y.CHQ.PRESENTED.ID ELSE R.CHQ.PRESENT = ''
+            IF R.CHQ.PRESENT THEN
+                Y.STATUS = 'PRESENTED'
+            END
+            Y.CHQ.STOPPED.ID = Y.ACCT.ID:'*':Y.CHEQUE.NO
+            CALL F.READ(FN.CHEQUES.STOPPED,Y.CHQ.STOPPED.ID,R.CHQ.STOPPED,F.CHEQUES.STOPPED,CHQ.STOP.READ.ERR)
+            IF R.CHQ.STOPPED THEN
+                Y.STATUS = 'STOPPED'
+            END
+        END
+        ELSE
+            Y.STATUS = 'NO.CHQ.REG'
+        END
+    END
+    RETURN
+END

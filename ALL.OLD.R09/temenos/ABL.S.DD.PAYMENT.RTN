@@ -1,0 +1,514 @@
+*-----------------------------------------------------------------------------
+* <Rating>2755</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.DD.PAYMENT.RTN
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.ABL.H.DD.DETAILS
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT JBL.BP I_F.ABL.H.DD.CATEG
+    $INSERT JBL.BP I_F.ABL.H.BRANCH.CODE
+
+
+!-----Modification History--------------------------------!
+!---1)  2011/02/28----NGMO Functionality Add
+!---2)  2011/03/20----For Offline Branch DD
+!---3)  2011/10/14----Fetch Advice Number
+!---4) 2013/06/06 ----Functionality For DD mark cuation When no Record Details there
+* DEPLOY: 20190917
+* UPDATE: 20191114
+* UPD BY ALIN BOBY RASEL MEHERAZ
+!---------------------------------------------------------!
+
+!----TIPU START----
+    FN.FT = 'FBNK.FUNDS.TRANSFER'
+    F.FT = ''
+    FN.FT.HIS = 'FBNK.FUNDS.TRANSFER$HIS'
+    F.FT.HIS = ''
+
+    FN.TT = 'FBNK.TELLER'
+    F.TT = ''
+    FN.TT.HIS = 'FBNK.TELLER$HIS'
+    F.TT.HIS = ''
+!----TIPU END------
+    FN.DD.DETAILS ='F.ABL.H.DD.DETAILS'
+    F.DD.DETAILS=''
+    CALL OPF(FN.DD.DETAILS,F.DD.DETAILS)
+    Y.DD.DETAILS.ID =''
+    REC.DD.DETAILS=''
+
+    FN.DD.CATEG='F.ABL.H.DD.CATEG'
+    F.DD.CATEG=''
+    CALL OPF(FN.DD.CATEG,F.DD.CATEG)
+    REC.DD.CATEG = ''
+
+    FN.BR.CODE="F.ABL.H.BRANCH.CODE"
+    F.BR.CODE=''
+    REC.BR.CODE=''
+    CALL OPF(FN.BR.CODE,F.BR.CODE)
+    Y.ISS.BR.ZN.CODE=''
+
+    Y.DD.ISSUE='CHEQUE.DATE'
+    Y.DD.ISSUE.POS.TT =''
+    Y.DD.ISSUE.POS.FT =''
+    CALL GET.LOC.REF("TELLER",Y.DD.ISSUE,Y.DD.ISSUE.POS.TT)
+    CALL GET.LOC.REF("FUNDS.TRANSFER",Y.DD.ISSUE,Y.DD.ISSUE.POS.FT)
+
+    Y.BR.CODE='BRANCH'
+    Y.BR.CODE.POS.TT=''
+    Y.BR.CODE.POS.FT=''
+    CALL GET.LOC.REF("TELLER",Y.BR.CODE,Y.BR.CODE.POS.TT)
+    CALL GET.LOC.REF("FUNDS.TRANSFER",Y.BR.CODE,Y.BR.CODE.POS.FT)
+
+    Y.SCROLL='SCROLL'
+    Y.SCROLL.POS.TT=''
+    Y.SCROLL.POS.FT=''
+    CALL GET.LOC.REF("TELLER",Y.SCROLL,Y.SCROLL.POS.TT)
+    CALL GET.LOC.REF("FUNDS.TRANSFER",Y.SCROLL,Y.SCROLL.POS.FT)
+
+    Y.DD.NO='PR.CHEQUE.NO'
+    Y.DD.POS.TT=''
+    Y.DD.POS.FT=''
+    CALL GET.LOC.REF("TELLER",Y.DD.NO,Y.DD.POS.TT)
+    CALL GET.LOC.REF("FUNDS.TRANSFER",Y.DD.NO,Y.DD.POS.FT)
+
+!---S/1----
+!    Y.NGMO.FT="NGMO"
+!    Y.NGMO.POS.FT=''
+!    CALL GET.LOC.REF("FUNDS.TRANSFER",Y.NGMO.FT,Y.NGMO.POS.FT)
+
+!---E/1---
+
+!-----S/3------!
+    Y.DD.ADVISE.REF.NO='ADVISE.REF.NO'
+    Y.DD.ADVISE.REF.NO.POS.TT=''
+    Y.DD.ADVISE.REF.NO.POS.FT=''
+    CALL GET.LOC.REF("TELLER",Y.DD.ADVISE.REF.NO,Y.DD.ADVISE.REF.NO.POS.TT)
+    CALL GET.LOC.REF("FUNDS.TRANSFER",Y.DD.ADVISE.REF.NO,Y.DD.ADVISE.REF.NO.POS.FT)
+!------E/3------!
+
+    Y.DD.TT.MT='DD.TT.MT'
+    Y.DD.TT.MT.POS.TT=''
+    Y.DD.TT.MT.POS.FT=''
+    CALL GET.LOC.REF("TELLER",Y.DD.TT.MT,Y.DD.TT.MT.POS.TT)
+    CALL GET.LOC.REF("FUNDS.TRANSFER",Y.DD.TT.MT,Y.DD.TT.MT.POS.FT)
+
+    Y.VERSION.LIST = 'FUNDS.TRANSFER,ABL.DD.RECV.PAY':@FM:'FUNDS.TRANSFER,JBL.TT.PAYMENT':@FM:'FUNDS.TRANSFER,JBL.MT.PAYMENT':@FM:'FUNDS.TRANSFER,ABL.DD.RES.ADV':@FM:'TELLER,ABL.DD.RECV.PAY.CASH':@FM:'TELLER,ABL.DD.RECV.PAY.CLEARING'
+    Y.APPLICATION = APPLICATION
+    Y.PGM.VERSION = PGM.VERSION
+    Y.VERSION = Y.APPLICATION:Y.PGM.VERSION
+    FINDSTR Y.VERSION IN Y.VERSION.LIST SETTING Y.VERSION.POS THEN END
+    IF APPLICATION EQ 'TELLER' THEN
+        Y.DD.DETAILS.ID =R.NEW(TT.TE.LOCAL.REF)<1,Y.DD.TT.MT.POS.TT>:".":FMT(R.NEW(TT.TE.LOCAL.REF)<1,Y.BR.CODE.POS.TT>,"R%4"):".":RIGHT(ID.COMPANY,4):".":R.NEW(TT.TE.LOCAL.REF)<1,Y.DD.ISSUE.POS.TT>[1,4]:".":COMI
+        CALL F.READ(FN.DD.DETAILS,Y.DD.DETAILS.ID,REC.DD.DETAILS,F.DD.DETAILS,ERR.DD.DETAILS)
+!--------------TIPU START------------
+        IF Y.VERSION.POS EQ '' THEN
+            IF REC.DD.DETAILS EQ '' THEN
+                ETEXT = "CONTROLLING NUMBER NOT ISSUED"
+                CALL STORE.END.ERROR
+                RETURN
+            END
+        END
+!--------------TIPU END--------------
+
+        CALL F.READ(FN.DD.CATEG,'SYSTEM',REC.DD.CATEG,F.DD.CATEG,ERR.DD.CATEG)
+
+!------------TIPU START-------------
+        Y.ISSUE.REF.NO = REC.DD.DETAILS<DDT.ISSUE.REF.NO>
+        CALL OPF(FN.TT,F.TT)
+        CALL OPF(FN.TT.HIS,F.TT.HIS)
+        CALL F.READ(FN.TT,Y.ISSUE.REF.NO,R.TT,F.TT,TT.ERR)
+        IF R.TT EQ '' THEN
+            CALL EB.READ.HISTORY.REC(F.TT.HIS,Y.ISSUE.REF.NO,R.TT,TT.HIS.ERR)
+        END
+        IF R.TT NE '' THEN
+            Y.RECORD.STATUS = R.TT<TT.TE.RECORD.STATUS>
+            IF Y.RECORD.STATUS EQ 'REVE' THEN
+                ETEXT = "Instrument Already Reversed"
+                CALL STORE.END.ERROR
+                RETURN
+            END
+        END
+!-------------TIPU END----------------
+
+
+        BEGIN CASE
+        CASE R.NEW(TT.TE.LOCAL.REF)<1,Y.DD.TT.MT.POS.TT> EQ 'DD'
+            IF PGM.VERSION EQ ',ABL.DD.RECV.PAY.CASH' OR ',ABL.DD.RECV.PAY.CLEARING' THEN
+                BEGIN CASE
+
+!-----------------TIPU START--------------
+                CASE  REC.DD.DETAILS<DDT.INS.PAID> EQ 'Y' AND REC.DD.DETAILS<DDT.ADVICE> EQ 'Y' AND REC.DD.DETAILS<DDT.CANCEL> EQ 'Y'
+                    ETEXT = "Advice and DD Already Cancel"
+                    CALL STORE.END.ERROR
+!-----------------TIPU END----------------
+
+                CASE  REC.DD.DETAILS<DDT.INS.PAID> EQ 'N' AND REC.DD.DETAILS<DDT.ADVICE> EQ 'N'
+!------KAMRAN(20190902)--------!
+                    IF PGM.VERSION EQ  ',ABL.DD.RECV.PAY.CLEARING' THEN
+                        R.NEW(TT.TE.ACCOUNT.1)="BDT140310001":RIGHT(ID.COMPANY,4)
+                    END
+!---------------END------------!
+                    R.NEW(TT.TE.ACCOUNT.2)="BDT":REC.DD.CATEG<DDC.DD.PAY.WITHOUT>:"0001":RIGHT(ID.COMPANY,4)
+                    IF REC.DD.DETAILS<DDT.DUPLICATE> EQ 'Y' THEN
+                        Y.OVERRIDE.NO = R.NEW(TT.TE.OVERRIDE)
+                        Y.OVERRIDE.CNT = DCOUNT(Y.OVERRIDE.NO,@VM)
+                        Y.OVERRIDE.CNT +=1
+                        TEXT = "Duplicate DD"
+                        CALL STORE.OVERRIDE(Y.OVERRIDE.CNT)
+                    END
+                    IF REC.DD.DETAILS<DDT.CAUTION> EQ 'Y' THEN
+                        ETEXT = "DD Is Mark Caution"
+                        CALL STORE.END.ERROR
+                    END
+                CASE  REC.DD.DETAILS<DDT.INS.PAID> EQ 'N' AND REC.DD.DETAILS<DDT.ADVICE> EQ 'Y'
+!------KAMRAN(20190902)--------!
+                    IF PGM.VERSION EQ  ',ABL.DD.RECV.PAY.CLEARING' THEN
+                        R.NEW(TT.TE.ACCOUNT.1)="BDT140310001":RIGHT(ID.COMPANY,4)
+                    END
+!--------------END-------------!
+                    R.NEW(TT.TE.ACCOUNT.2)="BDT":REC.DD.CATEG<DDC.BP.DD.PAYABLE>:"0001":RIGHT(ID.COMPANY,4)
+                    IF REC.DD.DETAILS<DDT.DUPLICATE> EQ 'Y' THEN
+                        Y.OVERRIDE.NO = R.NEW(TT.TE.OVERRIDE)
+                        Y.OVERRIDE.CNT = DCOUNT(Y.OVERRIDE.NO,@VM)
+                        Y.OVERRIDE.CNT +=1
+                        TEXT = "Duplicate DD"
+                        CALL STORE.OVERRIDE(Y.OVERRIDE.CNT)
+                    END
+                    IF REC.DD.DETAILS<DDT.CAUTION> EQ 'Y' THEN
+                        ETEXT = "DD Is Mark Caution"
+                        CALL STORE.END.ERROR
+                    END
+                CASE  REC.DD.DETAILS<DDT.INS.PAID> EQ 'Y' AND REC.DD.DETAILS<DDT.ADVICE> EQ 'Y'
+                    ETEXT = "Advice and DD Already paid"
+                    CALL STORE.END.ERROR
+
+                CASE  REC.DD.DETAILS<DDT.INS.PAID> EQ 'Y' AND REC.DD.DETAILS<DDT.ADVICE> EQ 'N'
+                    ETEXT = "DD Already paid"
+                    CALL STORE.END.ERROR
+
+                CASE 1
+!------S/4---------!
+                    IF REC.DD.DETAILS<DDT.CAUTION> EQ 'Y' THEN
+                        ETEXT = "DD Is Mark Caution"
+                        CALL STORE.END.ERROR
+                    END
+!-----E/4----------!
+!------KAMRAN(20190902)--------!
+                    IF PGM.VERSION EQ  ',ABL.DD.RECV.PAY.CLEARING' THEN
+                        R.NEW(TT.TE.ACCOUNT.1)="BDT140310001":RIGHT(ID.COMPANY,4)
+                    END
+!---------------END------------!
+                    R.NEW(TT.TE.ACCOUNT.2)="BDT":REC.DD.CATEG<DDC.DD.PAY.WITHOUT>:"0001":RIGHT(ID.COMPANY,4)
+
+                END CASE
+
+            END
+!---S/2---
+            IF REC.DD.DETAILS THEN
+!---E/2----
+                IF (REC.DD.DETAILS<DDT.RESERVED.4> EQ 'REVE' AND PGM.VERSION EQ ',ABL.DD.RECV.PAY.CLEARING') OR (REC.DD.DETAILS<DDT.RESERVED.4> EQ 'REVE' AND PGM.VERSION EQ ',ABL.DD.RECV.PAY.CASH') THEN
+                    IF (REC.DD.DETAILS<DDT.ADVICE> EQ 'Y') THEN
+************************************************UPDATE BY KAMRAN(20181007)****************
+                        R.NEW(TT.TE.LOCAL.REF)<1,Y.DD.POS.TT>=REC.DD.DETAILS<DDT.INS.PRINTED.NO>
+                        R.NEW(TT.TE.THEIR.REFERENCE)=REC.DD.DETAILS<DDT.BENIFICIARY>
+                        R.NEW(TT.TE.AMOUNT.LOCAL.1)=REC.DD.DETAILS<DDT.AMOUNT>
+                        R.NEW(TT.TE.LOCAL.REF)<1,Y.DD.ADVISE.REF.NO.POS.TT>=REC.DD.DETAILS<DDT.ISSUE.ADVICE.NO>
+*********************************************END******************************************
+                    END
+                END
+                ELSE
+*********************************UPDATED BY KAMRAN(20181007)*********************
+                    R.NEW(TT.TE.LOCAL.REF)<1,Y.DD.POS.TT>=REC.DD.DETAILS<DDT.INS.PRINTED.NO>
+                    R.NEW(TT.TE.THEIR.REFERENCE)=REC.DD.DETAILS<DDT.BENIFICIARY>
+                    R.NEW(TT.TE.AMOUNT.LOCAL.1)=REC.DD.DETAILS<DDT.AMOUNT>
+********************************************END**********************************
+
+!-----S/3-----!
+!-------------------HURAIRA.20170810---------------------------
+!DD issue advice number must be shown during Respponding of DD Advice
+!R.NEW(TT.TE.LOCAL.REF)<1,Y.DD.ADVISE.REF.NO.POS.TT>=REC.DD.DETAILS<DDT.PAY.ADVICE.NO>
+************************************UPDATE BY KAMRAN(20181007)****************************************
+!R.NEW(TT.TE.LOCAL.REF)<1,Y.DD.ADVISE.REF.NO.POS.TT>=REC.DD.DETAILS<DDT.ISSUE.ADVICE.NO>
+*****************************************************END************************************
+!-----------------------END-----------------------------------
+!-----E/3------!
+                END
+!ELSE
+!    REC.DD.DETAILS<DDT.INS.PRINTED.NO> = R.NEW(TT.TE.LOCAL.REF)<1,Y.DD.POS.TT>
+!    REC.DD.DETAILS<DDT.BENIFICIARY> = R.NEW(TT.TE.THEIR.REFERENCE)
+!    REC.DD.DETAILS<DDT.AMOUNT> = R.NEW(TT.TE.AMOUNT.LOCAL.1)
+!    REC.DD.DETAILS<DDT.ISSUE.ADVICE.NO> = R.NEW(TT.TE.LOCAL.REF)<1,Y.DD.ADVISE.REF.NO.POS.TT>
+!END
+            END
+!---S/2---
+!            ELSE
+!                 R.NEW(TT.TE.ACCOUNT.2)="BDT":REC.DD.CATEG<DDC.DD.PAY.WITHOUT>:"0001":RIGHT(ID.COMPANY,4)
+!            END
+!---E/2---
+
+        CASE R.NEW(TT.TE.LOCAL.REF)<1,Y.DD.TT.MT.POS.TT> EQ 'TT'
+
+        CASE R.NEW(TT.TE.LOCAL.REF)<1,Y.DD.TT.MT.POS.TT> EQ 'MT'
+
+        END CASE
+
+    END
+
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        Y.DD.DETAILS.ID =R.NEW(FT.LOCAL.REF)<1,Y.DD.TT.MT.POS.FT>:".":FMT(R.NEW(FT.LOCAL.REF)<1,Y.BR.CODE.POS.FT>,"R%4"):".":RIGHT(ID.COMPANY,4):".":R.NEW(FT.LOCAL.REF)<1,Y.DD.ISSUE.POS.FT>[1,4]:".":COMI
+        CALL F.READ(FN.DD.DETAILS,Y.DD.DETAILS.ID,REC.DD.DETAILS,F.DD.DETAILS,ERR.DD.DETAILS)
+!--------------TIPU START------------
+        IF Y.VERSION.POS EQ '' THEN
+            IF REC.DD.DETAILS EQ '' THEN
+                ETEXT = "CONTROLLING NUMBER NOT ISSUED"
+                CALL STORE.END.ERROR
+                RETURN
+            END
+        END
+!--------------TIPU END--------------
+
+        CALL F.READ(FN.DD.CATEG,'SYSTEM',REC.DD.CATEG,F.DD.CATEG,ERR.DD.CATEG)
+        CALL F.READ(FN.BR.CODE,R.NEW(FT.LOCAL.REF)<1,Y.BR.CODE.POS.FT>,REC.BR.CODE,F.BR.CODE,ERR.BR.CODE)
+        Y.ISS.BR.ZN.CODE=FMT(REC.BR.CODE<BRN.ZONAL.CODE>,"R%4")
+
+!------------TIPU START-------------
+        Y.ISSUE.REF.NO = REC.DD.DETAILS<DDT.ISSUE.REF.NO>
+        Y.ISSUE.REF.TT.NO = REC.DD.DETAILS<DDT.ISSUE.REF.NO>
+        CALL OPF(FN.FT,F.FT)
+        CALL OPF(FN.FT.HIS,F.FT.HIS)
+        CALL F.READ(FN.FT,Y.ISSUE.REF.NO,R.FT,F.FT,FT.ERR)
+        IF R.FT EQ '' THEN
+            CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.ISSUE.REF.NO,R.FT,FT.HIS.ERR)
+        END
+        IF R.FT EQ '' THEN
+            CALL OPF(FN.TT,F.TT)
+            CALL OPF(FN.TT.HIS,F.TT.HIS)
+            CALL F.READ(FN.TT,Y.ISSUE.REF.TT.NO,R.FT,F.TT,TT.ERR)
+            IF R.FT EQ '' THEN
+                CALL EB.READ.HISTORY.REC(F.TT.HIS,Y.ISSUE.REF.TT.NO,R.FT,TT.HIS.ERR)
+            END
+        END
+
+!        IF R.FT EQ '' THEN
+!            CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.ISSUE.REF.NO,R.FT,FT.HIS.ERR)
+!        END
+        IF R.FT NE '' THEN
+            Y.RECORD.STATUS = R.FT<FT.RECORD.STATUS>
+            IF Y.RECORD.STATUS EQ '' THEN
+                Y.RECORD.STATUS = R.FT<TT.TE.RECORD.STATUS>
+            END
+            IF Y.RECORD.STATUS EQ 'REVE' THEN
+                ETEXT = "Instrument Already Reversed"
+                CALL STORE.END.ERROR
+                RETURN
+            END
+        END
+!-------------TIPU END----------------
+
+        BEGIN CASE
+
+        CASE R.NEW(FT.LOCAL.REF)<1,Y.DD.TT.MT.POS.FT> EQ 'DD'
+            IF PGM.VERSION EQ ',ABL.DD.RES.ADV' THEN
+
+                BEGIN CASE
+                CASE  REC.DD.DETAILS<DDT.INS.PAID> EQ 'N' AND REC.DD.DETAILS<DDT.ADVICE> EQ 'N'
+                    R.NEW(FT.DEBIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.NG.CATEG>:Y.ISS.BR.ZN.CODE:RIGHT(ID.COMPANY,4)
+                    R.NEW(FT.CREDIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.BP.DD.PAYABLE>:"0001":RIGHT(ID.COMPANY,4)
+!                R.NEW(FT.LOCAL.REF)<1,Y.NGMO.POS.FT>="NG"   ;!Add NGMO functionality
+                    IF REC.DD.DETAILS<DDT.CAUTION> EQ 'Y' THEN
+                        ETEXT = "DD Is Mark Caution"
+                        CALL STORE.END.ERROR
+                    END
+
+                CASE  REC.DD.DETAILS<DDT.INS.PAID> EQ 'N' AND REC.DD.DETAILS<DDT.ADVICE> EQ 'Y'
+                    ETEXT = "Advice Already Respond"
+                    CALL STORE.END.ERROR
+
+                CASE  REC.DD.DETAILS<DDT.INS.PAID> EQ 'Y' AND REC.DD.DETAILS<DDT.ADVICE> EQ 'N'
+                    R.NEW(FT.DEBIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.NG.CATEG>:Y.ISS.BR.ZN.CODE:RIGHT(ID.COMPANY,4)
+                    R.NEW(FT.CREDIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.DD.PAY.WITHOUT>:"0001":RIGHT(ID.COMPANY,4)
+!                R.NEW(FT.LOCAL.REF)<1,Y.NGMO.POS.FT>="NG"   ;!Add NGMO functionality
+
+                CASE  REC.DD.DETAILS<DDT.INS.PAID> EQ 'Y' AND REC.DD.DETAILS<DDT.ADVICE> EQ 'Y'
+                    ETEXT = "Advice and DD Already paid"
+                    CALL STORE.END.ERROR
+
+                CASE 1
+!------------4/S-------------!
+                    IF REC.DD.DETAILS<DDT.CAUTION> EQ 'Y' THEN
+                        ETEXT = "DD Is Mark Caution"
+                        CALL STORE.END.ERROR
+                    END
+!-----------4/E--------------!
+                    R.NEW(FT.DEBIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.NG.CATEG>:Y.ISS.BR.ZN.CODE:RIGHT(ID.COMPANY,4)
+                    R.NEW(FT.CREDIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.BP.DD.PAYABLE>:"0001":RIGHT(ID.COMPANY,4)
+                END CASE
+            END
+
+            IF PGM.VERSION EQ ',ABL.DD.RECV.PAY' THEN
+                BEGIN CASE
+
+!-----------------TIPU START--------------
+                CASE  REC.DD.DETAILS<DDT.INS.PAID> EQ 'Y' AND REC.DD.DETAILS<DDT.ADVICE> EQ 'Y' AND REC.DD.DETAILS<DDT.CANCEL> EQ 'Y'
+                    ETEXT = "Advice and DD Already Cancel"
+                    CALL STORE.END.ERROR
+!-----------------TIPU END----------------
+
+                CASE  REC.DD.DETAILS<DDT.INS.PAID> EQ 'N' AND REC.DD.DETAILS<DDT.ADVICE> EQ 'N'
+                    R.NEW(FT.DEBIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.DD.PAY.WITHOUT>:"0001":RIGHT(ID.COMPANY,4)
+                    IF REC.DD.DETAILS<DDT.DUPLICATE> EQ 'Y' THEN
+                        Y.OVERRIDE.NO = R.NEW(FT.OVERRIDE)
+                        Y.OVERRIDE.CNT = DCOUNT(Y.OVERRIDE.NO,@VM)
+                        Y.OVERRIDE.CNT +=1
+                        TEXT = "Duplicate DD"
+                        CALL STORE.OVERRIDE(Y.OVERRIDE.CNT)
+                    END
+
+                    IF REC.DD.DETAILS<DDT.CAUTION> EQ 'Y' THEN
+                        ETEXT = "DD Is Mark Caution"
+                        CALL STORE.END.ERROR
+                    END
+
+                CASE  REC.DD.DETAILS<DDT.INS.PAID> EQ 'N' AND REC.DD.DETAILS<DDT.ADVICE> EQ 'Y'
+                    R.NEW(FT.DEBIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.BP.DD.PAYABLE>:"0001":RIGHT(ID.COMPANY,4)
+                    IF REC.DD.DETAILS<DDT.DUPLICATE> EQ 'Y' THEN
+                        Y.OVERRIDE.NO = R.NEW(FT.OVERRIDE)
+                        Y.OVERRIDE.CNT = DCOUNT(Y.OVERRIDE.NO,@VM)
+                        Y.OVERRIDE.CNT +=1
+                        TEXT = "Duplicate DD"
+                        CALL STORE.OVERRIDE(Y.OVERRIDE.CNT)
+                    END
+                    IF REC.DD.DETAILS<DDT.CAUTION> EQ 'Y' THEN
+                        ETEXT = "DD Is Mark Caution"
+                        CALL STORE.END.ERROR
+                    END
+
+                CASE  REC.DD.DETAILS<DDT.INS.PAID> EQ 'Y' AND REC.DD.DETAILS<DDT.ADVICE> EQ 'Y'
+                    ETEXT = "Advice and DD Already paid"
+                    CALL STORE.END.ERROR
+
+                CASE  REC.DD.DETAILS<DDT.INS.PAID> EQ 'Y' AND REC.DD.DETAILS<DDT.ADVICE> EQ 'N'
+                    ETEXT = "DD Already paid"
+                    CALL STORE.END.ERROR
+                CASE 1
+!---------4/S---------!
+                    IF REC.DD.DETAILS<DDT.CAUTION> EQ 'Y' THEN
+                        ETEXT = "DD Is Mark Caution"
+                        CALL STORE.END.ERROR
+                    END
+!---------E/E---------!
+                    R.NEW(FT.DEBIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.DD.PAY.WITHOUT>:"0001":RIGHT(ID.COMPANY,4)
+                END CASE
+
+            END
+!---S/2----
+            IF REC.DD.DETAILS THEN
+!---E/2----
+                IF  (REC.DD.DETAILS<DDT.RESERVED.4> EQ 'REVE' AND PGM.VERSION EQ ',ABL.DD.RES.ADV') OR (REC.DD.DETAILS<DDT.RESERVED.4> EQ 'REVE' AND REC.DD.DETAILS<DDT.ADVICE> EQ 'N') THEN
+                    IF (PGM.VERSION EQ ',ABL.DD.RES.ADV' AND REC.DD.DETAILS<DDT.INS.PAID> EQ 'Y') THEN
+*******************************UPDATE BY RASHED***********************************
+!R.NEW(FT.LOCAL.REF)<1,Y.DD.POS.FT>=REC.DD.DETAILS<DDT.INS.PRINTED.NO>
+!R.NEW(FT.PAYMENT.DETAILS)=REC.DD.DETAILS<DDT.BENIFICIARY>
+!R.NEW(FT.DEBIT.AMOUNT)=REC.DD.DETAILS<DDT.AMOUNT>
+!R.NEW(FT.LOCAL.REF)<1,Y.DD.ADVISE.REF.NO.POS.FT>=REC.DD.DETAILS<DDT.ISSUE.ADVICE.NO>
+**********************************************************************
+                    END
+!CONTINUE
+                END
+                ELSE
+**************************************UPDATE BY RASHED*****************************************
+                    R.NEW(FT.LOCAL.REF)<1,Y.DD.POS.FT>=REC.DD.DETAILS<DDT.INS.PRINTED.NO>
+                    R.NEW(FT.PAYMENT.DETAILS)=REC.DD.DETAILS<DDT.BENIFICIARY>
+                    R.NEW(FT.DEBIT.AMOUNT)=REC.DD.DETAILS<DDT.AMOUNT>
+************************************************END************************************************
+!------S/3------!
+!------------------------huraira.20170810-----------
+!DD issue advice number must be shown during Respponding of DD Advice
+!R.NEW(FT.LOCAL.REF)<1,Y.DD.ADVISE.REF.NO.POS.FT>=REC.DD.DETAILS<DDT.PAY.ADVICE.NO>
+**********COMMENTED BY RASHED********************
+!R.NEW(FT.LOCAL.REF)<1,Y.DD.ADVISE.REF.NO.POS.FT>=REC.DD.DETAILS<DDT.ISSUE.ADVICE.NO>
+************************************************
+!-------------------------end-----------------------
+!------E/3-------!
+
+                END
+!ELSE
+!    REC.DD.DETAILS<DDT.INS.PRINTED.NO> = R.NEW(FT.LOCAL.REF)<1,Y.DD.POS.FT>
+!    REC.DD.DETAILS<DDT.BENIFICIARY> = R.NEW(FT.PAYMENT.DETAILS)
+!    REC.DD.DETAILS<DDT.AMOUNT> = R.NEW(FT.DEBIT.AMOUNT)
+!    REC.DD.DETAILS<DDT.ISSUE.ADVICE.NO> = R.NEW(FT.LOCAL.REF)<1,Y.DD.ADVISE.REF.NO.POS.FT>
+!END
+            END
+!---S/2----
+!            ELSE
+!                IF PGM.VERSION EQ ',ABL.DD.RES.ADV' THEN
+!                    R.NEW(FT.DEBIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.NG.CATEG>:"0001":RIGHT(ID.COMPANY,4)
+!                    R.NEW(FT.CREDIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.BP.DD.PAYABLE>:"0001":RIGHT(ID.COMPANY,4)
+!                    R.NEW(FT.LOCAL.REF)<1,Y.NGMO.POS.FT>="NG"         ;!Add NGMO functionality!
+!                END
+!                IF PGM.VERSION EQ ',ABL.DD.RECV.PAY' THEN
+!                    R.NEW(FT.DEBIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.DD.PAY.WITHOUT>:"0001":RIGHT(ID.COMPANY,4)
+!                END
+!            END
+!---E/2----
+
+        CASE R.NEW(FT.LOCAL.REF)<1,Y.DD.TT.MT.POS.FT> EQ 'TT'
+            IF REC.DD.DETAILS<DDT.INS.PAID> EQ 'Y' THEN
+                ETEXT = "TT Already paid"
+                CALL STORE.END.ERROR
+            END
+            ELSE
+                IF REC.DD.DETAILS THEN
+                    R.NEW(FT.DEBIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.NG.CATEG>:Y.ISS.BR.ZN.CODE:RIGHT(ID.COMPANY,4)
+                    IF  REC.DD.DETAILS<DDT.RESERVED.4> NE 'REVE' THEN
+                        R.NEW(FT.PAYMENT.DETAILS)=REC.DD.DETAILS<DDT.BENIFICIARY>
+                        R.NEW(FT.DEBIT.AMOUNT)=REC.DD.DETAILS<DDT.AMOUNT>
+                    END
+!ELSE
+!    REC.DD.DETAILS<DDT.BENIFICIARY> = R.NEW(FT.PAYMENT.DETAILS)
+!    REC.DD.DETAILS<DDT.AMOUNT> = R.NEW(FT.DEBIT.AMOUNT)
+!END
+                END
+                ELSE
+                    R.NEW(FT.DEBIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.NG.CATEG>:Y.ISS.BR.ZN.CODE:RIGHT(ID.COMPANY,4)
+                END
+            END
+
+        CASE R.NEW(FT.LOCAL.REF)<1,Y.DD.TT.MT.POS.FT> EQ 'MT'
+            IF REC.DD.DETAILS<DDT.ADVICE> EQ 'Y' THEN
+                ETEXT = "MT Already paid"
+                CALL STORE.END.ERROR
+            END
+            ELSE
+                IF REC.DD.DETAILS THEN
+                    IF  REC.DD.DETAILS<DDT.RESERVED.4> NE 'REVE' THEN
+                        R.NEW(FT.PAYMENT.DETAILS)=REC.DD.DETAILS<DDT.BENIFICIARY>
+                        R.NEW(FT.DEBIT.AMOUNT)=REC.DD.DETAILS<DDT.AMOUNT>
+                    END
+!ELSE
+!    REC.DD.DETAILS<DDT.BENIFICIARY> = R.NEW(FT.PAYMENT.DETAILS)
+!    REC.DD.DETAILS<DDT.AMOUNT> = R.NEW(FT.DEBIT.AMOUNT)
+!END
+                    R.NEW(FT.DEBIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.NG.CATEG>:Y.ISS.BR.ZN.CODE:RIGHT(ID.COMPANY,4)
+                END
+                ELSE
+                    R.NEW(FT.DEBIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.NG.CATEG>:Y.ISS.BR.ZN.CODE:RIGHT(ID.COMPANY,4)
+                END
+            END
+
+        END CASE
+
+    END
+!IF  REC.DD.DETAILS<DDT.RESERVED.4> EQ 'REVE' THEN
+!    WRITE REC.DD.DETAILS TO F.DD.DETAILS,Y.DD.DETAILS.ID
+!END
+*added by zakir in favour of sajib & subroto
+    IF R.NEW(TT.TE.ACCOUNT.2)="BDT":REC.DD.CATEG<DDC.DD.PAY.WITHOUT>:"0001":RIGHT(ID.COMPANY,4) OR R.NEW(FT.DEBIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.DD.PAY.WITHOUT>:"0001":RIGHT(ID.COMPANY,4) THEN
+        ETEXT = "Advice Not Responded Yet. Payment Not Proceed"
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+END

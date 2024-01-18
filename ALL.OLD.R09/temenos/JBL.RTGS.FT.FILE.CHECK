@@ -1,0 +1,83 @@
+*-----------------------------------------------------------------------------
+* <Rating>937</Rating>
+*-----------------------------------------------------------------------------
+* PROGRAM FOR REAL-TIME MONITORING RTGS TRANSACTION
+* DATE: 20210601
+* DEV: ALIN BOBY
+* VERSION: 1.0
+
+    SUBROUTINE JBL.RTGS.FT.FILE.CHECK
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT JBL.BP I_F.BD.RTGS.PARAM
+
+    FN.FT = "F.FUNDS.TRANSFER";                  F.FT = ""
+    FN.RTGS.PARAM = 'F.EB.BD.RTGS.PARAM';        F.RTGS.PARAM = ''
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.RTGS.PARAM,F.RTGS.PARAM)
+
+
+    CALL F.READ(FN.RTGS.PARAM,'SYSTEM',REC.PARAM,F.RTGS.PARAM,ERR.RTGS.PARAM)
+
+    Y.OUT.REQUEST.DIR = REC.PARAM<EB.BD.29.ROOT.DIR>:'/':REC.PARAM<EB.BD.29.OUTW.SUB.DIR>
+    Y.OUT.RTGS.DIR = 'RTGS/RTGS.OUTWARD'
+
+    SEL.CMD="SELECT ":Y.OUT.REQUEST.DIR
+
+    CALL EB.READLIST(SEL.CMD,RCC.IDS,'',REC.NO,RET.CODE)
+
+    IF RCC.IDS NE 0 THEN
+        LOOP
+            REMOVE FL.REC.ID FROM RCC.IDS SETTING ID.POS
+        WHILE FL.REC.ID:ID.POS
+            Y.FT.ID = LEFT(RIGHT(FL.REC.ID,22),12)
+
+            CALL F.READ(FN.FT,Y.FT.ID,R.FT,F.FT,Y.FT.ERR)
+            IF R.FT THEN
+                PRINT "FILE NAME : ":FL.REC.ID:" | FOUND : RECORD ":Y.FT.ID:" BR = (":R.FT<FT.CO.CODE>:") AMOUNT = ":R.FT<FT.DEBIT.AMOUNT>:" ACCOUNT = ":R.FT<FT.DEBIT.ACCT.NO>
+
+
+                OPENSEQ Y.OUT.REQUEST.DIR, FL.REC.ID TO F.FILE.IN ELSE
+                    CRT 'Failed to open', F.FILE.IN
+                    STOP
+                END
+
+                OPENSEQ Y.OUT.RTGS.DIR, FL.REC.ID TO F.FILE.OUT THEN
+                    WEOFSEQ F.FILE.OUT
+                END ELSE
+                    CREATE F.FILE.OUT ELSE CRT 'File create error' ;STOP
+                END
+
+                LOOP
+                    VLINE.MARK = 1
+                    READSEQ V.LINE FROM F.FILE.IN ELSE BREAK
+                    IF VLINE.MARK EQ 1 THEN
+                        WRITESEQ V.LINE TO F.FILE.OUT ELSE
+                            CRT 'Write error'
+                            STOP
+                        END
+                    END ELSE
+                        WRITESEQ V.LINE APPEND TO F.FILE.OUT ELSE
+                            CRT 'Write error'
+                            STOP
+                        END
+                    END
+                    VLINE.MARK = VLINE.MARK + 1
+                REPEAT
+
+                CLOSESEQ F.FILE.IN
+                CLOSESEQ F.FILE.OUT
+
+                DELETESEQ Y.OUT.REQUEST.DIR, FL.REC.ID ELSE NULL
+
+            END ELSE
+                PRINT "FILE NAME : ":FL.REC.ID:" | NOT FOUND : RECORD ":Y.FT.ID
+             !   DELETESEQ Y.OUT.REQUEST.DIR, FL.REC.ID ELSE NULL
+            END
+        REPEAT
+    END
+
+    RETURN
+END

@@ -1,0 +1,95 @@
+*-----------------------------------------------------------------------------
+* <Rating>350</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VCR.IMPNO.RTN
+*-----------------------------------------------------
+*this generates import lc number when the record is opened
+*------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.DRAWINGS
+    $INSERT I_F.INTERCO.PARAMETER
+    $INSERT I_F.COMPANY
+    $INSERT I_F.PR.H.ADCODES
+    $INSERT I_F.PR.T.BRIMP.SEQ.NO1
+    RETURN
+    GOSUB INITIALISE
+    GOSUB OPENFILES
+    GOSUB CHECK.REFNO
+
+    RETURN
+
+INITIALISE:
+
+    FN.DRAWINGS="F.DRAWINGS"
+    F.DRAWINGS=""
+    FN.PR.T.BRIMP.SEQ.NO="F.PR.T.BRIMP.SEQ.NO1"
+    F.PR.T.BRIMP.SEQ.NO=""
+    FN.PR.H.ADCODES="F.PR.H.ADCODES"
+    F.PR.H.ADCODES=""
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.PR.H.ADCODES,F.PR.H.ADCODES)
+    CALL OPF(FN.DRAWINGS,F.DRAWINGS)
+    CALL OPF(FN.PR.T.BRIMP.SEQ.NO,F.PR.T.BRIMP.SEQ.NO)
+    RETURN
+
+CHECK.REFNO:
+
+    Y.ID = ID.NEW
+    CALL GET.LOC.REF("DRAWINGS","IRC.NO",Y.IMP.POS)
+*    IF R.NEW.LAST(TF.DR.LOCAL.REF)<1,Y.IMP.POS> NE '' AND R.OLD(TF.DR.LOCAL.REF)<1,Y.IMP.POS> NE '' AND V$FUNCTION EQ "I" THEN
+    IF R.NEW.LAST(TF.DR.LOCAL.REF)<1,Y.IMP.POS> EQ '' AND  R.OLD(TF.DR.LOCAL.REF)<1,Y.IMP.POS> EQ '' AND V$FUNCTION EQ "I" OR V$FUNCTION EQ "C" THEN
+*extracting the branch code
+        Y.MNEMONIC=R.COMPANY(EB.COM.MNEMONIC)
+        Y.FIN.MNEMONIC=R.INTERCO.PARAMETER<ST.ICP.FIN.MNEMONIC>
+        Y.BRANCH.CODE1=R.INTERCO.PARAMETER<ST.ICP.BRANCH.CODE>
+        CONVERT SM TO VM IN Y.BRANCH.CODE1
+!*********
+!        FINDSTR Y.MNEMONIC IN Y.FIN.MNEMONIC SETTING POS1,POS2 THEN
+!            Y.BRANCH.CODE=Y.BRANCH.CODE1<1,POS2>
+!            CALL F.READ(FN.PR.H.ADCODES,Y.BRANCH.CODE,R.PR.H.ADCODES,F.PR.H.ADCODES,Y.ERR)
+!            Y.ADCODE=R.PR.H.ADCODES<AD.ADCODE>
+!        END
+!*******
+        Y.BRANCH.CODE=R.COMPANY(EB.COM.SUB.DIVISION.CODE)
+        CALL F.READ(FN.PR.H.ADCODES,Y.BRANCH.CODE,R.PR.H.ADCODES,F.PR.H.ADCODES,Y.ERR)
+        Y.ADCODE=R.PR.H.ADCODES<AD.ADCODE>
+!*********
+        IF Y.BRANCH.CODE EQ '' THEN
+            ETEXT = "BRANCH CODE NOT PRESENT"
+        END ELSE
+            Y.ADVICE="ABP"
+            Y.DATE1=TODAY[3,2]
+            Y.DATE=Y.MNEMONIC:APPLICATION:PGM.VERSION:".":TODAY[3,2]
+!Changes Starts here
+            OPEN 'F.LOCKING' TO F.LOCKING ELSE F.LOCKING=''
+READ.ID:
+            READ.ERR  =  ''
+!            CALL F.READ(FN.PR.T.BRIMP.SEQ.NO,Y.ADCODE,R.PR.T.BRCODE.SEQ.NO1,F.PR.T.BRCODE.SEQ.NO,Y.ERR)
+            READU R.PR.T.BRIMP.SEQ.NO1 FROM F.LOCKING,Y.DATE LOCKED
+                SLEEP 10
+                GOTO READ.ID
+            END THEN NULL
+            R.PR.T.BRIMP.SEQ.NO1<1>+=1
+            IF R.PR.T.BRIMP.SEQ.NO1<1> = 9999 THEN R.PR.T.BRIMP.SEQ.NO1<1>=1
+            Y.SERIAL.NO1 = R.PR.T.BRIMP.SEQ.NO1<1>+0
+            Y.SERIAL.NO1=FMT(Y.SERIAL.NO1,'R%4')
+            CALL  F.RELEASE("F.LOCKING",  Y.DATE,  F.LOCKING)
+!
+            WRITE R.PR.T.BRIMP.SEQ.NO1 TO F.LOCKING,Y.DATE ON ERROR NULL
+!Changes Ends here
+!
+*generates the serial number
+*CHECKS THE LENGTH OF SERIAL NUMBE
+            CALL CONCAT.FILE.UPDATE(FN.PR.T.BRIMP.SEQ.NO,Y.DATE,Y.SERIAL.NO1,"I","AL")
+            CALL F.RELEASE(FN.PR.T.BRIMP.SEQ.NO,Y.DATE,F.PR.T.BRIMP.SEQ.NO)
+********BTB.CONTRACT ID FORMATION***********************
+
+            R.NEW(TF.DR.LOCAL.REF)<1,Y.IMP.POS>= Y.ADCODE:Y.SERIAL.NO1:Y.DATE1
+
+        END
+    END
+    RETURN
+END

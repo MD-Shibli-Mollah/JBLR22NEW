@@ -1,0 +1,99 @@
+*-----------------------------------------------------------------------------
+* <Rating>-31</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE NOFILE.JBL.VAULT.REGISTER(Y.ARRAY)
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.TELLER
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.COMPANY
+    $INSERT I_F.TELLER.ID
+
+    GOSUB INIT
+    GOSUB PROCESS
+    GOSUB UPDATE
+************************************************************************************
+INIT:
+************************************************************************************
+
+
+    FN.COMPANY = "F.COMPANY" ; F.COMPANY = ""
+    CALL OPF(FN.COMPANY,F.COMPANY)
+
+    FN.TELLER = "F.TELLER" ; F.TELLER = ""
+    CALL OPF(FN.TELLER,F.TELLER)
+
+    FN.ACCOUNT = "F.ACCOUNT" ; F.ACCOUNT = ""
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT )
+
+    FN.TELLER.ID = "F.TELLER.ID" ; F.TELLER.ID = ""
+    CALL OPF(FN.TELLER.ID,F.TELLER.ID)
+
+    RETURN
+************************************************************************************
+PROCESS:
+************************************************************************************
+
+
+    Y.ID.COM = ID.COMPANY
+
+    SEL = "SELECT ":FN.TELLER: " WITH CO.CODE EQ ":Y.ID.COM
+    CALL EB.READLIST(SEL,SEL.LIST,'',SEL.CNT,Y.RET.CODE)
+
+
+
+    LOOP
+        REMOVE Y.TEL.ID FROM SEL.LIST SETTING Y.TEL.POS
+    WHILE Y.TEL.ID:Y.TEL.POS
+
+        CALL F.READ(FN.TELLER,Y.TEL.ID,R.TELLER.REC,F.TELLER,Y.ERR)
+        Y.TRANSACTION.CODE = R.TELLER.REC<TT.TE.TRANSACTION.CODE>
+
+        IF Y.TRANSACTION.CODE EQ '102' THEN
+
+            Y.AMT.DEBIT += R.TELLER.REC<TT.TE.AMOUNT.LOCAL.1>
+            Y.ACCOUNT.NO = R.TELLER.REC<TT.TE.ACCOUNT.2>
+            Y.TELLER.ID.2 = R.TELLER.REC<TT.TE.TELLER.ID.2>
+
+            CALL F.READ(FN.ACCOUNT,Y.ACCOUNT.NO,R.AC.REC,F.ACCOUNT,Y.ERR1)
+            Y.WORKING.BAL = R.AC.REC<AC.WORKING.BALANCE>
+            Y.TOTAL.BALANCE1 = ABS(Y.WORKING.BAL)
+            CALL F.READ(FN.TELLER.ID,Y.TELLER.ID.2,R.TEL.REC,F.TELLER.ID,Y.ERR3)
+            Y.CLSNG.TIL = R.TEL.REC<TT.TID.TILL.CLOS.BAL>
+        END
+
+        ELSE
+            IF Y.TRANSACTION.CODE EQ '101' THEN
+
+                Y.AMT.CREDIT += R.TELLER.REC<TT.TE.AMOUNT.LOCAL.1>
+                Y.ACCOUNT.NO = R.TELLER.REC<TT.TE.ACCOUNT.1>
+                Y.TELLER.ID.1 = R.TELLER.REC<TT.TE.TELLER.ID.1>
+                CALL F.READ(FN.ACCOUNT,Y.ACCOUNT.NO,R.AC.REC,F.ACCOUNT,Y.ERR1)
+                Y.WORKING.BAL = R.AC.REC<AC.WORKING.BALANCE>
+                Y.TOTAL.BALANCE2 = ABS(Y.WORKING.BAL)
+                Y.TELLER.ID.2 = R.TELLER.REC<TT.TE.TELLER.ID.1>
+                CALL F.READ(FN.TELLER.ID,Y.TELLER.ID.1,R.TEL.REC,F.TELLER.ID,Y.ERR3)
+                Y.CLSNG.TIL = R.TEL.REC<TT.TID.TILL.CLOS.BAL>
+            END
+
+        END
+    REPEAT
+
+    RETURN
+**************************************************************************************************
+UPDATE:
+*****************************************************************************************************
+
+    IF Y.TOTAL.BALANCE1 GE Y.TOTAL.BALANCE2 THEN
+        Y.TOTAL.BALANCE = Y.TOTAL.BALANCE1
+    END
+    ELSE
+        Y.TOTAL.BALANCE=Y.TOTAL.BALANCE2
+    END
+
+    Y.VAL = Y.ACCOUNT.NO:"*":Y.AMT.DEBIT:"*":Y.AMT.CREDIT:"*":Y.TOTAL.BALANCE
+    Y.ARRAY<-1> = Y.VAL
+    RETURN
+END

@@ -1,0 +1,105 @@
+*-----------------------------------------------------------------------------
+* <Rating>369</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE USER.TO.UMGT
+!PROGRAM USER.TO.UMGT
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP JBC.h
+    $INSERT BP I_F.USER.MGT
+    $INSERT GLOBUS.BP I_F.USER
+    $INSERT GLOBUS.BP I_F.PASSWORD.RESET
+
+    Y.ID = ID.NEW
+    Y.BANK.ID =RIGHT(LEFT(Y.ID,8),6)
+
+    FN.USER.MGT = 'F.EB.USER.MGT'
+    F.USER.MGT = ''
+    FN.USER = 'F.USER'
+    F.USER = ''
+    FN.PASSRESET='F.PASSWORD.RESET'
+    F.PASSRESET=''
+!Add by Imran
+! Y.AR = "@":@FM:"#":@FM:"$":@FM:"&":@FM:"%"
+!Add by Imran
+
+
+************************************* UPDATE FROM BOBY
+    Y.VER.ID=APPLICATION:PGM.VERSION
+**************************************
+    CALL OPF(FN.USER.MGT,F.USER.MGT)
+    CALL OPF(FN.USER,F.USER)
+    CALL OPF(FN.PASSRESET,F.PASSRESET)
+
+    CALL F.READ(FN.USER,Y.ID,R.USER.REC,F.USER,ERR)
+    IF R.USER.REC NE '' THEN
+        SEL.CMD = 'SELECT ' :FN.USER.MGT: ' WITH USER.ID EQ ': Y.ID
+    END
+    ELSE
+        SEL.CMD = 'SELECT ' :FN.USER.MGT: ' WITH EMP.BANK.ID EQ ': Y.BANK.ID
+    END
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RECT.CODE)
+    REMOVE Y.REQ.ID FROM SEL.LIST SETTING ID.POS
+    CALL F.READ(FN.USER.MGT,Y.REQ.ID,R.USER.MGT,F.USER.MGT,ERR.USER)
+    IF V$FUNCTION EQ 'A' THEN
+        Y.REQUEST.FOR = R.USER.MGT<EB.USE61.REQUEST.FOR>
+*****************ONLY FOR PASSWORD.RESET************UPDATE BY BOBY
+        IF Y.VER.ID EQ "PASSWORD.RESET,U" THEN
+            R.USER.MGT<EB.USE61.REQUEST.STATUS> = 'DONE'
+            R.USER.MGT<EB.USE61.INPUTTER> =  R.NEW(EB.PWR.INPUTTER)
+            R.USER.MGT<EB.USE61.AUTHORISER> = OPERATOR
+            R.USER.MGT<EB.USE61.DATE.TIME> = R.NEW(EB.PWR.DATE.TIME)
+            R.USER.MGT<EB.USE61.CO.CODE> = R.NEW(EB.PWR.CO.CODE)
+            CALL F.WRITE(FN.USER.MGT,Y.REQ.ID,R.USER.MGT)
+        END
+
+******ADDED BY BOBY***************
+        ELSE
+            IF Y.VER.ID EQ "USER,AUTH" AND R.USER.MGT<EB.USE61.REQUEST.FOR> EQ "TRANSFER" THEN
+                R.USER.MGT<EB.USE61.REQUEST.STATUS> = 'DONE'
+                R.USER.MGT<EB.USE61.INPUTTER> =  R.NEW(EB.USE.INPUTTER)
+                R.USER.MGT<EB.USE61.AUTHORISER> = OPERATOR
+                R.USER.MGT<EB.USE61.DATE.TIME> = R.NEW(EB.USE.DATE.TIME)
+                R.USER.MGT<EB.USE61.CO.CODE> = R.NEW(EB.USE.CO.CODE)
+                R.USER.MGT<EB.USE61.REQUEST.CO.CODE> = R.USER.MGT<EB.USE61.ATTRIBUTE1>
+                R.USER.MGT<EB.USE61.ATTRIBUTE1>=""
+                CALL F.WRITE(FN.USER.MGT,Y.REQ.ID,R.USER.MGT)
+            END
+**********************************
+
+            ELSE
+***********************************************************************
+                R.USER.MGT<EB.USE61.REQUEST.STATUS> = 'DONE'
+!Y.NAME = R.USER.MGT<EB.USE61.USER.NAME>
+                R.USER.MGT<EB.USE61.USER.NAME> = R.NEW(EB.USE.USER.NAME)
+                R.USER.MGT<EB.USE61.SIGN.ON.NAME> = R.NEW(EB.USE.SIGN.ON.NAME)
+                IF R.USER.REC EQ '' THEN
+                    R.USER.MGT<EB.USE61.USER.ID> = R.USER.MGT<EB.USE61.SIGN.ON.NAME>:'0'
+                END
+
+!Add by Imran
+                IF Y.REQUEST.FOR EQ 'NEW' THEN
+                    Y.USERID = OCONV(LEFT(R.USER.MGT<EB.USE61.SIGN.ON.NAME>,3),"MCT")
+                    FOR I=1 TO 5
+                        Y.RND.NUM:= RND(10)
+                    NEXT I
+! Y.PASS = Y.USERID:Y.AR<RND(5)+1>:Y.RND.NUM
+                    Y.PASS = Y.USERID:Y.RND.NUM
+                    Y.PASS.ENCRYPT = OCONV(Y.PASS,"MCAX")
+                    R.USER.MGT<EB.USE61.USER.PASSWORD> = Y.PASS.ENCRYPT
+                END
+!Add by Imran
+                R.USER.MGT<EB.USE61.REQUESTED.BY> = R.USER.MGT<EB.USE61.INPUTTER>
+                R.USER.MGT<EB.USE61.APPROVED.BY> = R.USER.MGT<EB.USE61.AUTHORISER>
+                R.USER.MGT<EB.USE61.INPUTTER> =  R.NEW(EB.USE.INPUTTER)
+                R.USER.MGT<EB.USE61.AUTHORISER> = OPERATOR
+                R.USER.MGT<EB.USE61.DATE.TIME> = R.NEW(EB.USE.DATE.TIME)
+                R.USER.MGT<EB.USE61.CO.CODE> = R.NEW(EB.USE.CO.CODE)
+
+                CALL F.WRITE(FN.USER.MGT,Y.REQ.ID,R.USER.MGT)
+!CALL JOURNAL.UPDATE('')
+            END
+        END
+    END
+    RETURN
+END

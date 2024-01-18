@@ -1,0 +1,39 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE FDR.MAT.EXCISE.DUTY.PROCESS.LOAD
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.AZ.ACCOUNT
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.DATES
+    $INSERT JBL.BP I_FDR.MAT.EXCISE.DUTY.PROCESS.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    RETURN
+
+*-------
+INIT:
+*-------
+    FN.AZ.ACCT = 'FBNK.AZ.ACCOUNT'
+    F.AZ.ACCT = ''
+    FN.ACCT = 'FBNK.ACCOUNT'
+    F.ACCT = ''
+    FN.DT = 'F.DATES'
+    F.DT = ''
+    Y.DATE = TODAY
+    Y.SOURCE = 'DM.OFS.SRC.VAL'
+    RETURN
+
+*----------
+OPENFILES:
+*----------
+    CALL OPF(FN.AZ.ACCT,F.AZ.ACCT)
+    CALL OPF(FN.DT,F.DT)
+    CALL F.READ(FN.DT,'BD0012001',R.DT,F.DT,DT.ERR)
+    Y.LAST.WRK.DAY = R.DT<EB.DAT.LAST.WORKING.DAY>
+    RETURN
+END

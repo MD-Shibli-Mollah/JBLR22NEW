@@ -1,0 +1,34 @@
+*-----------------------------------------------------------------------------
+* <Rating>-2</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE EB.BD.EXCISE.DUTY.FIELDS
+*-----------------------------------------------------------------------------
+* Template for field definitions routine EB.BD.EXCISE.DUTY.FIELDS
+*-----------------------------------------------------------------------------
+* Project Name : National Bank Limited(Bangladesh)
+*-------------------------------------------------------------------------
+* Modification History :
+*-----------------------
+* 14/03/11                        -                          Rashmitha M
+*-----------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_DataTypes
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("@ID", T24_String)        ;* Define Table id
+*-----------------------------------------------------------------------------
+    CALL Table.addField("CATEGORY",T24_String,"","")        ;* Add a new fields
+    CALL Field.setCheckFile('CATEGORY')
+    CALL Table.addField("HIGHEST.CR.BAL.LCY",T24_Amount,"","")
+    CALL Table.addField("HIGHEST.CR.BAL.FCY",T24_Amount,"","")
+    CALL Table.addField("HIGHEST.DT.BAL.LCY",T24_Amount,"","")
+    CALL Table.addField("HIGHEST.DT.BAL.FCY",T24_Amount,"","")
+    CALL Table.addField("EX.DUTY.AMT.LCY",T24_Amount,"","")
+    CALL Table.addField("EX.DUTY.AMT.FCY",T24_Amount,"","")
+    CALL Table.addField("POSTING.DATE",T24_Date,"","")
+    CALL Table.addField("XX<AZ.MAT.DATE",T24_Date,"","")
+    CALL Table.addField("XX>AZ.MAT.AMT",T24_Amount,"","")
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

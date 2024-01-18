@@ -1,0 +1,154 @@
+*-----------------------------------------------------------------------------
+* <Rating>539</Rating>
+*-----------------------------------------------------------------------------
+!    PROGRAM ABL.S.CTR
+    SUBROUTINE ABL.S.CTR(Y.RETURN)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.TELLER
+    $INSERT I_F.ABL.CTR.THRESOLD
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+!    DEBUG
+    FN.TELLER = 'F.TELLER$HIS'
+    F.TELLER = ''
+    FN.THRE = 'F.ABL.CTR.THRESOLD'
+    F.THRE = ''
+
+    Y.CATEGORY = ENQ.SELECTION<4,1>
+!    Y.CATEGORY = '6001'
+    Y.FROM.DATE = ENQ.SELECTION<4,2>
+!    Y.FROM.DATE = '20100901'
+    Y.TODATE = ENQ.SELECTION<4,3>
+!    Y.TODATE = '20100930'
+
+    Y.VALUE.DATE1 = ''
+    Y.VALUE.DATE2 = ''
+    Y.CUS.ACC = ''
+    Y.CUS.ACC1 = ''
+    Y.CUS.ACC2 = ''
+    Y.TRANS.ID = ''
+    Y.TRANS.CODE = ''
+    Y.TRANSACTION.CODE1 = ''
+    Y.TRANSACTION.CODE2 = ''
+    Y.TRANS.AMT = ''
+    Y.RET.DEP.AMT = '0.00'
+    Y.RET.WITH.AMT = '0.00'
+    Y.TRANS.DATE = ''
+    Y.CHEQUE.NO = ''
+    Y.TT.TRANS.ARR = ''
+    Y.THRE.VALUE = ''
+    Y.TELLER.ID = ''
+    Y.COUNT = ''
+    R.TELLER.REC = ''
+    R.TELL.REC.IND = ''
+    R.THRE.REC = ''
+    Y.REC.POS = ''
+    Y.REC.POS1 = ''
+    Y.REC.ID = ''
+    Y.NO.TT = ''
+    FLAG = ''
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.TELLER,F.TELLER)
+    CALL OPF(FN.THRE,F.THRE)
+    RETURN
+
+PROCESS:
+    CALL F.READ(FN.THRE,"SYSTEM",R.THRE.REC,F.THRE,F.ERR)
+    Y.THRE.VALUE = R.THRE.REC<CTR.THRESOLD.LIMIT>
+    SEL.CMD.TELLER = "SSELECT ":FN.TELLER:" WITH CO.CODE EQ ":ID.COMPANY:" AND PRODCATEG EQ ":Y.CATEGORY:" AND VALUE.DATE.1 GE ":Y.FROM.DATE:" AND VALUE.DATE.1 LE ":Y.TODATE:" AND TRANSACTION.CODE EQ 5 10 14 BY VALUE.DATE.1 BY ACCOUNT.2 BY TRANSACTION.CODE"
+    CALL EB.READLIST(SEL.CMD.TELLER,SEL.LIST.TELLER,'',TELLER.REC.NO,TELLER.RET.CODE)
+    LOOP
+        REMOVE Y.REC.ID FROM SEL.LIST.TELLER SETTING Y.REC.POS
+
+    WHILE Y.REC.ID:Y.REC.POS
+        CALL F.READ(FN.TELLER,Y.REC.ID,R.TELLER.REC,F.TELLER,F.ERR)
+
+        Y.VALUE.DATE1 = R.TELLER.REC<TT.TE.VALUE.DATE.1>
+        Y.CUS.ACC1 = R.TELLER.REC<TT.TE.ACCOUNT.2>
+        Y.TRANSACTION.CODE1 = R.TELLER.REC<TT.TE.TRANSACTION.CODE>
+
+        IF Y.VALUE.DATE1 NE Y.VALUE.DATE2 OR Y.CUS.ACC1 NE Y.CUS.ACC2 OR Y.TRANSACTION.CODE1 NE Y.TRANSACTION.CODE2 THEN
+
+LABEL:      IF Y.TRANS.AMT GE Y.THRE.VALUE THEN
+                Y.NO.TT = DCOUNT(Y.TT.TRANS.ARR,@FM)-1
+                FOR I = 1 TO Y.NO.TT
+
+                    SEL.CMD.TELL.IND = "SSELECT ":FN.TELLER:" WITH @ID EQ ":Y.TT.TRANS.ARR<I,1,1>:" AND CO.CODE EQ ":ID.COMPANY:" AND PRODCATEG EQ ":Y.CATEGORY:" AND VALUE.DATE.1 EQ ":Y.VALUE.DATE2:" AND ACCOUNT.2 EQ ":Y.CUS.ACC2:" AND TRANSACTION.CODE EQ ":Y.TRANSACTION.CODE2
+
+                    CALL EB.READLIST(SEL.CMD.TELL.IND,SEL.LIST.IND,'',REC.NO.IND,RET.CODE.IND)
+                    LOOP
+                        REMOVE Y.REC.ID1 FROM SEL.LIST.IND SETTING Y.REC.POS1
+                    WHILE Y.REC.ID1:Y.REC.POS1
+                        CALL F.READ(FN.TELLER,Y.REC.ID1,R.TELL.REC.IND,F.TELLER,F.ERR)
+
+                        Y.CUS.ACC = R.TELL.REC.IND<TT.TE.ACCOUNT.2>
+                        Y.TRANS.DATE = R.TELL.REC.IND<TT.TE.VALUE.DATE.1>
+                        Y.CHEQUE.NO = R.TELL.REC.IND<TT.TE.CHEQUE.NUMBER>
+                        Y.TRANS.CODE = R.TELL.REC.IND<TT.TE.TRANSACTION.CODE>
+
+                        IF Y.TRANS.CODE EQ 10 THEN
+                            Y.RET.DEP.AMT = R.TELL.REC.IND<TT.TE.AMOUNT.LOCAL.1>
+                        END ELSE
+                            Y.RET.WITH.AMT = R.TELL.REC.IND<TT.TE.AMOUNT.LOCAL.1>
+                        END
+
+                        Y.RETURN<-1> = Y.CUS.ACC:"*":Y.TRANS.DATE:"*":Y.CHEQUE.NO:"*":Y.RET.DEP.AMT:"*":Y.RET.WITH.AMT
+!  CRT Y.CUS.ACC:"*":Y.TRANS.DATE:"*":Y.CHEQUE.NO:"*":Y.RET.DEP.AMT:"*":Y.RET.WITH.AMT
+
+                        Y.CUS.ACC = ''
+                        Y.TRANS.DATE = ''
+                        Y.CHEQUE.NO = ''
+                        Y.TRANS.CODE = ''
+                        Y.RET.DEP.AMT = '0.00'
+                        Y.RET.WITH.AMT = '0.00'
+
+                    REPEAT
+                    Y.REC.POS1 = ''
+                NEXT
+            END
+
+            Y.TT.TRANS.ARR = ''
+            Y.TRANS.AMT = ''
+            Y.VALUE.DATE2 = R.TELLER.REC<TT.TE.VALUE.DATE.1>
+            Y.CUS.ACC2 = R.TELLER.REC<TT.TE.ACCOUNT.2>
+            Y.TRANSACTION.CODE2 = R.TELLER.REC<TT.TE.TRANSACTION.CODE>
+
+            Y.TELLER.ID = FIELD(Y.REC.ID,";",1)
+            Y.COUNT = COUNT(SEL.LIST.TELLER, Y.TELLER.ID)
+            IF Y.COUNT EQ 1 THEN
+                INS Y.REC.ID BEFORE Y.TT.TRANS.ARR<0,0,0>
+                Y.TRANS.AMT = Y.TRANS.AMT + R.TELLER.REC<TT.TE.AMOUNT.LOCAL.1>
+            END
+
+        END ELSE
+
+            Y.VALUE.DATE2 = R.TELLER.REC<TT.TE.VALUE.DATE.1>
+            Y.CUS.ACC2 = R.TELLER.REC<TT.TE.ACCOUNT.2>
+            Y.TRANSACTION.CODE2 = R.TELLER.REC<TT.TE.TRANSACTION.CODE>
+
+            Y.TELLER.ID = FIELD(Y.REC.ID,";",1)
+            Y.COUNT = COUNT(SEL.LIST.TELLER, Y.TELLER.ID)
+            IF Y.COUNT EQ 1 THEN
+                INS Y.REC.ID BEFORE Y.TT.TRANS.ARR<0,0,0>
+                Y.TRANS.AMT = Y.TRANS.AMT + R.TELLER.REC<TT.TE.AMOUNT.LOCAL.1>
+            END
+        END
+    REPEAT
+
+    IF FLAG EQ '' THEN
+        FLAG = 1
+        GOTO LABEL
+    END
+
+    RETURN
+END

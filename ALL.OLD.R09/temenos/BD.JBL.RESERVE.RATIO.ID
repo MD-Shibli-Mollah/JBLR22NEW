@@ -1,0 +1,49 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.JBL.RESERVE.RATIO.ID
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*-----------------------
+* This routine is to check the id it should be first day of each month
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 28/08/2013 New   - Manjunath Suvarna
+*                    Thesys Technologies
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE JBL.BP I_F.BD.JBL.RESERVE.RATIO
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.RESERVE.RATIO = 'F.BD.JBL.RESERVE.RATIO'
+    F.RESERVE.RATIO = ''
+
+    CALL OPF(FN.RESERVE.RATIO,F.RESERVE.RATIO)
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+*
+    Y.ID = COMI
+    Y.VAL = Y.ID[7,2]
+    IF Y.VAL NE 01 THEN
+        E = 'EB-RESERVE.RATIO.ID'
+    END
+    IF Y.ID GE TODAY THEN
+       E = 'EB-RESERVE.RATIO.ID2'
+    END
+*
+    RETURN
+END

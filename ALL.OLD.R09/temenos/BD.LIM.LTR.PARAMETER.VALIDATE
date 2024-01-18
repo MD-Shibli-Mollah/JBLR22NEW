@@ -1,0 +1,162 @@
+*-----------------------------------------------------------------------------
+* <Rating>-89</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.LIM.LTR.PARAMETER.VALIDATE
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*-----------------------
+* This routine is to validate the fields of BD.LIM.LTR.PARAMETER
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 01/03/2011 - New   - G.Sabari
+*                      Thesys Technologies
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.CATEGORY
+    $INCLUDE JBL.BP I_F.BD.LIM.LTR.PARAMETER
+*-----------------------------------------------------------------------------
+
+    GOSUB INITIALISE
+    GOSUB PROCESS.MESSAGE
+
+    RETURN
+*-----------------------------------------------------------------------------
+VALIDATE:
+*********
+
+* TODO - Add the validation code here.
+* Set AF, AV and AS to the field, multi value and sub value and invoke STORE.END.ERROR
+* Set ETEXT to point to the EB.ERROR.TABLE
+
+*      AF = MY.FIELD.NAME                 <== Name of the field
+*      ETEXT = 'EB-EXAMPLE.ERROR.CODE'    <== The error code
+*      CALL STORE.END.ERROR               <== Needs to be invoked per error
+
+    Y.CHG.TYPE = R.NEW(BD.PARAM.CHG.TYPE)
+    Y.CHG.CR.ACCT = R.NEW(BD.PARAM.CHG.CR.ACCT)
+    Y.CHG.TYPE.CNT = DCOUNT(Y.CHG.TYPE,VM)
+    Y.CHG.TYPE.INT.CNT = 1
+    Y.ERR = ''
+    LOOP
+    WHILE Y.CHG.TYPE.INT.CNT LE Y.CHG.TYPE.CNT
+        Y.CHG.TYPE.VAL = Y.CHG.TYPE<1,Y.CHG.TYPE.INT.CNT>
+        Y.CHG.CR.ACCT.VAL = Y.CHG.CR.ACCT<1,Y.CHG.TYPE.INT.CNT>
+        GOSUB CHK.CHARGE.CR.ACCT
+        Y.CAT = Y.CHG.CR.ACCT<1,Y.CHG.TYPE.INT.CNT>
+        GOSUB CHK.CATEGORY
+        IF Y.ERR THEN
+            AF = BD.PARAM.CHG.CR.ACCT
+            AV = Y.CHG.TYPE.INT.CNT
+            GOSUB THROW.ERR
+        END
+        Y.CHG.TYPE.INT.CNT++
+    REPEAT
+
+    Y.CAT = R.NEW(BD.PARAM.PADINT.CR.ACCT)
+    Y.ERR = ''
+    GOSUB CHK.CATEGORY
+    IF Y.ERR THEN
+        AF = BD.PARAM.PADINT.CR.ACCT
+        GOSUB THROW.ERR
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+CHK.CHARGE.CR.ACCT:
+*******************
+
+    IF Y.CHG.TYPE.VAL THEN
+        IF Y.CHG.CR.ACCT.VAL EQ '' THEN
+            AF = BD.PARAM.CHG.TYPE
+            AV = Y.CHG.TYPE.INT.CNT
+            ETEXT = 'EB-CHARGE.CR.ACCT'
+            CALL STORE.END.ERROR
+            RETURN
+        END
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+CHK.CATEGORY:
+*************
+
+    Y.ERR = ''
+    CALL F.READ(FN.CATEGORY,Y.CAT,R.CATEGORY,F.CATEGORY,Y.ACCT.ERR)
+    IF R.CATEGORY THEN
+        IF NOT((Y.CAT GE 10000 AND Y.CAT LE 19999) OR (Y.CAT GE 50000 AND Y.CAT LE 69999)) THEN
+            Y.ERR = 1
+            RETURN
+        END
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+THROW.ERR:
+**********
+
+    IF Y.ERR THEN
+        ETEXT = 'EB-NOT.VALID.CATEGORY'
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.BD.LIM.LTR.PARAMETER = 'F.BD.LIM.LTR.PARAMETER'
+    F.BD.LIM.LTR.PARAMETER = ''
+    CALL OPF(FN.BD.LIM.LTR.PARAMETER,F.BD.LIM.LTR.PARAMETER)
+    R.BD.LIM.LTR.PARAMETER = ''
+
+    FN.CATEGORY = 'F.CATEGORY'
+    F.CATEGORY = ''
+    CALL OPF(FN.CATEGORY,F.CATEGORY)
+    R.CATEGORY = ''
+
+    RETURN
+*-----------------------------------------------------------------------------
+*** <region name= Process Message>
+PROCESS.MESSAGE:
+*    BEGIN CASE
+*    CASE MESSAGE EQ ''        ;* Only during commit...
+*        BEGIN CASE
+*        CASE V$FUNCTION EQ 'D'
+*            GOSUB VALIDATE.DELETE
+*        CASE V$FUNCTION EQ 'R'
+*            GOSUB VALIDATE.REVERSE
+*        CASE OTHERWISE        ;* The real VALIDATE...
+*            GOSUB VALIDATE
+*        END CASE
+*    CASE MESSAGE EQ 'AUT' OR MESSAGE EQ 'VER'     ;* During authorisation and verification...
+*       GOSUB VALIDATE.AUTHORISATION
+*  END CASE
+*
+    GOSUB VALIDATE
+    RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+*** <region name= VALIDATE.DELETE>
+*VALIDATE.DELETE:
+* Any special checks for deletion
+
+*   RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+*** <region name= VALIDATE.REVERSE>
+*VALIDATE.REVERSE:
+* Any special checks for reversal
+
+*  RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+*** <region name= VALIDATE.AUTHORISATION>
+*VALIDATE.AUTHORISATION:
+* Any special checks for authorisation
+
+* RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+END

@@ -1,0 +1,58 @@
+*-------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.E.CONV.GET.FINAL.IDS
+*-------------------------------------------------------------------------
+*Subroutine Description:
+*-----------------------
+*Routine is used for getting the ids of only final curr nos.
+*-------------------------------------------------------------------------
+*Parameter Description:
+*--------- -----------
+*N/A
+*-------------------------------------------------------------------------
+*Common Variable Description:
+*------  ------- -----------
+*KEYS = contains all the ids for enquiry display
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:            Description:
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+*    Date            Name                           Description
+*   ------         ------                           -----------
+* 15 FEB 2011   Mohammed Anies K                  Initial Creation
+*               (Thesys Technologies)
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_ENQUIRY.COMMON
+
+*--------------------------------------------------------------------------------
+**********
+MAIN.PARA:
+**********
+    GOSUB PROCESS.PARA
+
+    RETURN
+
+*--------------------------------------------------------------------------------
+************
+PROCESS.PARA:
+**********
+
+    Y.CURRENT.ID = FIELD(ID,';',1,1)
+    Y.NEXT.ID = ENQ.KEYS<1>
+    Y.NEXT.ID = FIELD(Y.NEXT.ID,';',1,1)
+
+    IF Y.CURRENT.ID EQ Y.NEXT.ID THEN
+        DEL ENQ.KEYS<1>
+    END
+    RETURN
+END

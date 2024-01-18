@@ -1,0 +1,59 @@
+*-------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-50</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.E.CONV.AMT.WORD
+*-------------------------------------------------------------------------------
+*Subroutine Description:
+*-----------------------
+* This routine is used for conversion of amount in words
+*-------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20110210 - New - Shiva Shankar G
+*                  Thesys Technologies
+*-------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_ENQUIRY.COMMON
+    $INCLUDE GLOBUS.BP I_F.COMPANY
+
+    GOSUB INIT
+    GOSUB PROCESS
+    RETURN
+*---------------------------------------------------------------------
+INIT:
+*****
+    Y.LOAN.AMT = ''
+    Y.AMT=''
+    Y.RET.FRACTION.AMT = ''
+    Y.LANG='GB'
+    Y.LEN='1'
+    Y.NO.LINES='1'
+    Y.FLAG = 0
+
+    RETURN
+*---------------------------------------------------------------------
+PROCESS:
+********
+    Y.LOAN.AMT = O.DATA
+    Y.LOAN.AMT = ABS(Y.LOAN.AMT)
+    CALL DE.O.PRINT.WORDS(Y.LOAN.AMT,Y.AMT,Y.LANG,Y.LEN,Y.NO.LINES,Y.ERR)
+    Y.POS = INDEX(Y.LOAN.AMT,".",1)
+    IF Y.POS THEN
+        Y.FLAG = 1
+        Y.AMT = FIELD(Y.AMT,".",1,1)
+        Y.FRACTION.AMT = FIELD(Y.LOAN.AMT,'.',2,2)
+        CALL DE.O.PRINT.WORDS(Y.FRACTION.AMT,Y.RET.FRACTION.AMT,Y.LANG,Y.LEN,Y.NO.LINES,Y.ERR)
+    END
+    IF Y.FLAG THEN
+        Y.RET.AMT = Y.AMT:"AND ":Y.RET.FRACTION.AMT:"ONLY"
+    END ELSE
+        Y.RET.AMT = Y.AMT:"ONLY"
+    END
+    CONVERT "*" TO " " IN Y.RET.AMT
+    O.DATA ="(":Y.RET.AMT:")"
+
+    RETURN
+*--------------------------------------------------------------------------------------------------
+END

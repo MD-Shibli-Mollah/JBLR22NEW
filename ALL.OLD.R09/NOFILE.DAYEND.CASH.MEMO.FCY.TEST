@@ -1,0 +1,344 @@
+*-------------------------------------------------------------------------
+* <Rating>417</Rating>
+*-------------------------------------------------------------------------
+    SUBROUTINE NOFILE.DAYEND.CASH.MEMO.FCY.TEST(Y.ARR)
+!PROGRAM NOFILE.DAYEND.CASH.MEMO.FCY
+*-------------------------------------------------------------------------
+* Report is used for particular branches dayend cash position.
+*
+*-------------------------------------------------------------------------
+* modification date -- 20150920
+* modified by -- huraira
+* until branch manually deposit cash to teller through cash deposite menu this report
+* should not calculate opening and closing balance with the consideration of category
+* '13501'.that's why category '13501' has been removed from select statement.
+*
+* Modification date--20180305
+* Modified by--Fairooz
+* Only transaction code 153 added for DD/TT/MT issue in debit side
+*-------------------------------------------------------------------------
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_F.DATES
+    $INSERT ../GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT ../GLOBUS.BP I_F.ACCOUNT
+    $INSERT ../GLOBUS.BP I_F.TELLER
+    $INSERT ../GLOBUS.BP I_F.TT.STOCK.CONTROL
+
+*-------------------------------------------------------------------------
+* Main controlling section:
+*-------------------------------------------------------------------------
+    GOSUB INITIALISATION
+    GOSUB MAIN.PROCESS
+
+    RETURN
+
+*-------------------------------------------------------------------------
+* Subroutine Section:
+* File Opening and Variable set up
+
+INITIALISATION:
+
+*-------------------------------------------------------------------------
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT = ""
+    R.ACCOUNT = ""
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    FN.TELLER = "F.TELLER"
+    F.TELLER = ""
+    R.TELLER = ''
+    CALL OPF(FN.TELLER, F.TELLER)
+
+    FN.TT.STOCK = "F.TT.STOCK.CONTROL"
+    F.TT.STOCK = ""
+    CALL OPF(FN.TT.STOCK,F.TT.STOCK)
+
+    Y.CREDIT="4":@FM:"5":@FM:"14":@FM:"32":@FM:"110":@FM:"112":@FM:"114":@FM:"16":@FM:"24":@FM:"163":@FM:"164"
+!*****Modified by Fairooz****
+    Y.DEBIT ="9":@FM:"10":@FM:"33":@FM:"109":@FM:"111":@FM:"113":@FM:"15":@FM:"151":@FM:"152":@FM:"153":@FM:"23":@FM:"162"
+!***************************
+    Y.TOT.UNIT.10000 = "0"
+    Y.TOT.UNIT.5000 = "0"
+    Y.TOT.UNIT.1000 = "0"
+    Y.TOT.UNIT.500 = "0"
+    Y.TOT.UNIT.200 = "0"
+    Y.TOT.UNIT.100 = "0"
+    Y.TOT.UNIT.50 = "0"
+    Y.TOT.UNIT.20 = "0"
+    Y.TOT.UNIT.10 = "0"
+    Y.TOT.UNIT.5 = "0"
+    Y.TOT.UNIT.2 = "0"
+    Y.TOT.UNIT.1 = "0"
+    RETURN
+*-------------------------------------------------------------------------
+* Main Subroutine processing:
+*
+MAIN.PROCESS:
+*
+*-------------------------------------------------------------------------
+*Opening Balance
+    LOCATE 'CURRENCY' IN ENQ.SELECTION<2,1> SETTING CURRENCY.POS THEN
+        Y.CURRENCY = ENQ.SELECTION<4,CURRENCY.POS>
+    END
+!DEBUG
+    Y.COMPANY = ID.COMPANY
+    Y.LOC.CURR = 'BDT'
+    SEL.CMD = "SELECT " : FN.ACCOUNT : " WITH CATEGORY EQ 10001 10011 AND CURRENCY NE ":Y.LOC.CURR: " AND CURRENCY EQ ":Y.CURRENCY: " AND CO.CODE EQ ": Y.COMPANY
+!SEL.CMD = "SELECT " : FN.ACCOUNT : " WITH @ID LIKE ":Y.CURRENCY:"10001... OR ":Y.CURRENCY:"10011... AND CO.CODE EQ ": Y.COMPANY
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORDS,RET.CODE)
+    LOOP
+        REMOVE TRAN.ID FROM SEL.LIST SETTING TXN.POS
+    WHILE TRAN.ID:TXN.POS
+        CALL F.READ(FN.ACCOUNT,TRAN.ID,R.ACCOUNT,F.ACCOUNT,Y.ERR)
+        Y.OPEN.BAL = R.ACCOUNT<AC.OPEN.ACTUAL.BAL>
+        Y.TOT.OPEN.BAL = Y.TOT.OPEN.BAL + Y.OPEN.BAL
+        CALL F.READ(FN.TT.STOCK,TRAN.ID,R.TT.STOCK,F.TT.STOCK,Y.STOCK.ERR)
+        Y.DENOM = R.TT.STOCK<TT.SC.DENOMINATION>
+        Y.CNT.DENOM = DCOUNT(Y.DENOM,@VM)
+        FOR I = 1 TO Y.CNT.DENOM
+            Y.DENOM.NO = R.TT.STOCK<TT.SC.DENOMINATION,I>
+            Y.DENOM.SUB = SUBSTRINGS(Y.DENOM.NO,4,99)
+
+            IF Y.DENOM.SUB EQ '10000' THEN
+                Y.DENOM.UNIT = R.TT.STOCK<TT.SC.QUANTITY>
+                Y.CNT.UNIT = DCOUNT(Y.DENOM.UNIT,@VM)
+                FOR J = 1 TO Y.CNT.UNIT
+                    Y.UNIT = R.TT.STOCK<TT.SC.QUANTITY,I>
+                NEXT J
+                Y.TOT.UNIT.10000 = Y.TOT.UNIT.10000 + Y.UNIT
+                Y.DENOM.AMT.10000 = Y.TOT.UNIT.10000 * Y.DENOM.SUB
+            END
+            IF Y.DENOM.SUB EQ '5000' THEN
+                Y.DENOM.UNIT = R.TT.STOCK<TT.SC.QUANTITY>
+                Y.CNT.UNIT = DCOUNT(Y.DENOM.UNIT,@VM)
+                FOR J = 1 TO Y.CNT.UNIT
+                    Y.UNIT = R.TT.STOCK<TT.SC.QUANTITY,I>
+                NEXT J
+                Y.TOT.UNIT.5000 = Y.TOT.UNIT.5000 + Y.UNIT
+                Y.DENOM.AMT.5000 = Y.TOT.UNIT.5000 * Y.DENOM.SUB
+            END
+            IF Y.DENOM.SUB EQ '1000' THEN
+                Y.DENOM.UNIT = R.TT.STOCK<TT.SC.QUANTITY>
+                Y.CNT.UNIT = DCOUNT(Y.DENOM.UNIT,@VM)
+                FOR J = 1 TO Y.CNT.UNIT
+                    Y.UNIT = R.TT.STOCK<TT.SC.QUANTITY,I>
+                NEXT J
+                Y.TOT.UNIT.1000 = Y.TOT.UNIT.1000 + Y.UNIT
+                Y.DENOM.AMT.1000 = Y.TOT.UNIT.1000 * Y.DENOM.SUB
+            END
+            IF Y.DENOM.SUB EQ '500' THEN
+                Y.DENOM.UNIT = R.TT.STOCK<TT.SC.QUANTITY>
+                Y.CNT.UNIT = DCOUNT(Y.DENOM.UNIT,@VM)
+                FOR J = 1 TO Y.CNT.UNIT
+                    Y.UNIT = R.TT.STOCK<TT.SC.QUANTITY,I>
+                NEXT J
+                Y.TOT.UNIT.500 = Y.TOT.UNIT.500 + Y.UNIT
+                Y.DENOM.AMT.500 = Y.TOT.UNIT.500 * Y.DENOM.SUB
+            END
+            IF Y.DENOM.SUB EQ '200' THEN
+                Y.DENOM.UNIT = R.TT.STOCK<TT.SC.QUANTITY>
+                Y.CNT.UNIT = DCOUNT(Y.DENOM.UNIT,@VM)
+                FOR J = 1 TO Y.CNT.UNIT
+                    Y.UNIT = R.TT.STOCK<TT.SC.QUANTITY,I>
+                NEXT J
+                Y.TOT.UNIT.200 = Y.TOT.UNIT.200 + Y.UNIT
+                Y.DENOM.AMT.200 = Y.TOT.UNIT.200 * Y.DENOM.SUB
+            END
+            IF Y.DENOM.SUB EQ '100' THEN
+                Y.DENOM.UNIT = R.TT.STOCK<TT.SC.QUANTITY>
+                Y.CNT.UNIT = DCOUNT(Y.DENOM.UNIT,@VM)
+                FOR J = 1 TO Y.CNT.UNIT
+                    Y.UNIT = R.TT.STOCK<TT.SC.QUANTITY,I>
+                NEXT J
+                Y.TOT.UNIT.100 = Y.TOT.UNIT.100 + Y.UNIT
+                Y.DENOM.AMT.100 = Y.TOT.UNIT.100 * Y.DENOM.SUB
+            END
+            IF Y.DENOM.SUB EQ '50' THEN
+                Y.DENOM.UNIT = R.TT.STOCK<TT.SC.QUANTITY>
+                Y.CNT.UNIT = DCOUNT(Y.DENOM.UNIT,@VM)
+                FOR J = 1 TO Y.CNT.UNIT
+                    Y.UNIT = R.TT.STOCK<TT.SC.QUANTITY,I>
+                NEXT J
+                Y.TOT.UNIT.50 = Y.TOT.UNIT.50 + Y.UNIT
+                Y.DENOM.AMT.50 = Y.TOT.UNIT.50 * Y.DENOM.SUB
+            END
+            IF Y.DENOM.SUB EQ '20' THEN
+                Y.DENOM.UNIT = R.TT.STOCK<TT.SC.QUANTITY>
+                Y.CNT.UNIT = DCOUNT(Y.DENOM.UNIT,@VM)
+                FOR J = 1 TO Y.CNT.UNIT
+                    Y.UNIT = R.TT.STOCK<TT.SC.QUANTITY,I>
+                NEXT J
+                Y.TOT.UNIT.20 = Y.TOT.UNIT.20 + Y.UNIT
+                Y.DENOM.AMT.20 = Y.TOT.UNIT.20 * Y.DENOM.SUB
+            END
+            IF Y.DENOM.SUB EQ '10' THEN
+                Y.DENOM.UNIT = R.TT.STOCK<TT.SC.QUANTITY>
+                Y.CNT.UNIT = DCOUNT(Y.DENOM.UNIT,@VM)
+                FOR J = 1 TO Y.CNT.UNIT
+                    Y.UNIT = R.TT.STOCK<TT.SC.QUANTITY,I>
+                NEXT J
+                Y.TOT.UNIT.10 = Y.TOT.UNIT.10 + Y.UNIT
+                Y.DENOM.AMT.10 = Y.TOT.UNIT.10 * Y.DENOM.SUB
+            END
+            IF Y.DENOM.SUB EQ '5' THEN
+                Y.DENOM.UNIT = R.TT.STOCK<TT.SC.QUANTITY>
+                Y.CNT.UNIT = DCOUNT(Y.DENOM.UNIT,@VM)
+                FOR J = 1 TO Y.CNT.UNIT
+                    Y.UNIT = R.TT.STOCK<TT.SC.QUANTITY,I>
+                NEXT J
+                Y.TOT.UNIT.5 = Y.TOT.UNIT.5 + Y.UNIT
+                Y.DENOM.AMT.5 = Y.TOT.UNIT.5 * Y.DENOM.SUB
+            END
+            IF Y.DENOM.SUB EQ '2' THEN
+                Y.DENOM.UNIT = R.TT.STOCK<TT.SC.QUANTITY>
+                Y.CNT.UNIT = DCOUNT(Y.DENOM.UNIT,@VM)
+                FOR J = 1 TO Y.CNT.UNIT
+                    Y.UNIT = R.TT.STOCK<TT.SC.QUANTITY,I>
+                NEXT J
+                Y.TOT.UNIT.2 = Y.TOT.UNIT.2 + Y.UNIT
+                Y.DENOM.AMT.2 = Y.TOT.UNIT.2 * Y.DENOM.SUB
+            END
+            IF Y.DENOM.SUB EQ '1' THEN
+                Y.DENOM.UNIT = R.TT.STOCK<TT.SC.QUANTITY>
+                Y.CNT.UNIT = DCOUNT(Y.DENOM.UNIT,@VM)
+                FOR J = 1 TO Y.CNT.UNIT
+                    Y.UNIT = R.TT.STOCK<TT.SC.QUANTITY,I>
+                NEXT J
+                Y.TOT.UNIT.1 = Y.TOT.UNIT.1 + Y.UNIT
+                Y.DENOM.AMT.1 = Y.TOT.UNIT.1 * Y.DENOM.SUB
+            END
+        NEXT I
+    REPEAT
+    Y.TOT.DENOM.AMT = Y.DENOM.AMT.1 + Y.DENOM.AMT.2 + Y.DENOM.AMT.5 + Y.DENOM.AMT.10 + Y.DENOM.AMT.20 + Y.DENOM.AMT.50 + Y.DENOM.AMT.100 + Y.DENOM.AMT.200 + Y.DENOM.AMT.500 + Y.DENOM.AMT.1000 + Y.DENOM.AMT.5000 + Y.DENOM.AMT.10000
+    Y.TOT.OPEN.BAL = ABS(Y.TOT.OPEN.BAL)
+    Y.FINAL.TXT<-1> = "Opening Balance":"*":FMT(Y.TOT.OPEN.BAL,'R2,#15')
+*-------------------------------------------------------------------------
+!DEBUG
+*Received from Bank
+    SEL.CMD1 = "SELECT ":FN.TELLER: " WITH CO.CODE EQ ":Y.COMPANY:" AND (CURRENCY.1 EQ ":Y.CURRENCY:" OR CURRENCY.2 EQ ":Y.CURRENCY:")"
+    CALL EB.READLIST(SEL.CMD1,SEL.LIST1,"",NO.OF.RECORDS,RET.CODE)
+    Y.TELLER.ID =SEL.LIST1
+    LOOP
+        REMOVE TRAN.ID FROM SEL.LIST1 SETTING TXN.POS
+    WHILE TRAN.ID:TXN.POS
+!TRAN.ID = 'TT170931PKGS'
+        CALL F.READ(FN.TELLER,TRAN.ID,R.TELLER,F.TELLER,Y.ERR)
+        Y.TRANS.CODE =R.TELLER<TT.TE.TRANSACTION.CODE>
+        LOCATE Y.TRANS.CODE IN  Y.DEBIT SETTING POS THEN
+            Y.ACC2 = R.TELLER<TT.TE.ACCOUNT.2>
+            Y.DR.CR.MARKER = R.TELLER<TT.TE.DR.CR.MARKER>
+            CALL F.READ(FN.ACCOUNT,Y.ACC2,R.ACCOUNT,F.ACCOUNT,Y.ERR)
+            Y.CATEGORY = R.ACCOUNT<AC.CATEGORY>
+!--------------------------UPDATE BY KAMRAN 20181119--------------------------------------------
+            IF (Y.CATEGORY EQ '5012' OR Y.CATEGORY EQ 17451 OR Y.CATEGORY EQ 5011 OR Y.CATEGORY EQ 17454 OR Y.CATEGORY EQ 5021 OR Y.CATEGORY EQ 17455 OR Y.CATEGORY EQ 14018 OR Y.CATEGORY EQ 13062) THEN
+                Y.AMT = R.TELLER<TT.TE.NET.AMOUNT>
+                Y.REV.BANK.AMT = Y.REV.BANK.AMT + ABS(Y.AMT)
+                Y.R.VOUCHER = Y.R.VOUCHER + 1
+            END
+            ELSE
+                Y.FCY.2 = R.TELLER<TT.TE.AMOUNT.FCY.2>
+                Y.FCY.1 = R.TELLER<TT.TE.AMOUNT.FCY.1>
+                Y.AMT = Y.FCY.2
+                IF Y.AMT EQ '' THEN
+                    Y.AMT = Y.FCY.1
+                END
+                Y.REV.CUS.AMT = Y.REV.CUS.AMT + ABS(Y.AMT)
+                Y.R.VOUCHER = Y.R.VOUCHER + 1
+            END
+        END
+        ELSE
+            LOCATE  Y.TRANS.CODE IN Y.CREDIT SETTING POS1 THEN
+                Y.ACC2 = R.TELLER<TT.TE.ACCOUNT.2>
+                Y.DR.CR.MARKER = R.TELLER<TT.TE.DR.CR.MARKER>
+                CALL F.READ(FN.ACCOUNT,Y.ACC2,R.ACCOUNT,F.ACCOUNT,Y.ERR)
+                Y.CATEGORY = R.ACCOUNT<AC.CATEGORY>
+                IF (Y.CATEGORY EQ '5012' OR Y.CATEGORY EQ 17451 OR Y.CATEGORY EQ 5011 OR Y.CATEGORY EQ 17454 OR Y.CATEGORY EQ 5021 OR Y.CATEGORY EQ 17455 OR Y.CATEGORY EQ 14018 OR Y.CATEGORY EQ 13062) THEN
+                    CALL F.READ(FN.TELLER,TRAN.ID,R.TELLER,F.TELLER,Y.ERR)
+                    Y.AMT = R.TELLER<TT.TE.NET.AMOUNT>
+                    Y.PTB.AMT = Y.PTB.AMT + Y.AMT
+                    Y.P.VOUCHER = Y.P.VOUCHER + 1
+                END
+                ELSE
+                    CALL F.READ(FN.TELLER,TRAN.ID,R.TELLER,F.TELLER,Y.ERR)
+                    Y.FCY.2 = R.TELLER<TT.TE.AMOUNT.FCY.2>
+                    Y.FCY.1 = R.TELLER<TT.TE.AMOUNT.FCY.1>
+                    Y.AMT = Y.FCY.2
+                    IF Y.AMT EQ '' THEN
+                        Y.AMT = Y.FCY.1
+                    END
+                    Y.PTC.AMT = Y.PTC.AMT + Y.AMT
+                    Y.P.VOUCHER = Y.P.VOUCHER + 1
+                END
+            END
+        END
+    REPEAT
+
+    Y.FINAL.TXT<-1> = "Received from Bank":"*": FMT(Y.REV.BANK.AMT,'R2,#15')
+    Y.FINAL.TXT<-1> = "Received from Customers":"*": FMT(Y.REV.CUS.AMT,'R2,#15')
+    Y.FINAL.TT.REC = ABS(Y.REV.BANK.AMT) + ABS(Y.REV.CUS.AMT)
+    Y.FINAL.TXT<-1> = "Total Received ":"*":FMT(Y.FINAL.TT.REC,'R2,#15')
+
+    Y.FINAL.TT.BAL= ABS(Y.TOT.OPEN.BAL) + ABS(Y.FINAL.TT.REC)
+
+    Y.FINAL.TXT<-1> = "SUB TOTAL" :"*": FMT(Y.FINAL.TT.BAL,'R2,#15')
+
+    Y.FINAL.TXT<-1> = "Paid to Bank" :"*": FMT(Y.PTB.AMT,'R2,#15')
+
+    Y.FINAL.TXT<-1> = "Paid to Customers":"*":  FMT(Y.PTC.AMT,'R2,#15')
+    Y.FINAL.TTP = ABS(Y.PTB.AMT) + ABS(Y.PTC.AMT)
+    Y.FINAL.TXT<-1> = "Total Paid":"*":FMT(Y.FINAL.TTP,'R2,#15')
+
+    Y.FINAL.C.BAL = ABS(Y.FINAL.TT.BAL) - ABS(Y.FINAL.TTP)
+    LNGVAR= Y.FINAL.C.BAL
+    CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+    Y.FINAL.TXT<-1> = "Closing Balance":"*": FMT(Y.FINAL.C.BAL,'R2,#15')
+
+    Y.R.AMT = ''
+    Y.AMT = ''
+
+*-------------------------------------------------------------------------
+*Total Paid Voucher
+    Y.FINAL.TXT<-1> = "Total Paid Voucher":"*":Y.P.VOUCHER
+*Total Received Voucher
+    Y.FINAL.TXT<-1> = "Total Received Voucher":"*":Y.R.VOUCHER
+*-------------------------------------------------------------------------
+*Total voucher
+    Y.TT.VOCH=Y.P.VOUCHER + Y.R.VOUCHER
+    Y.FINAL.TXT<-1> = "Total Voucher":"*": Y.TT.VOCH
+*-------------------------------------------------------------------------
+Y.FINAL.TXT<-1> = "Amount In Words":"*":TXTOUT
+    LNGVAR=Y.TOT.DENOM.AMT
+    CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+
+*Total Denomination
+
+    Y.FINAL.TXT<-1> = "DENOMINATION":"*":"-----":"*":"0"
+    Y.FINAL.TXT<-1> = Y.TOT.UNIT.10000:" X 10000 = ":"*":FMT(Y.DENOM.AMT.10000,'R2,#15')
+    Y.FINAL.TXT<-1> = Y.TOT.UNIT.5000:" X 5000 = ":"*":FMT(Y.DENOM.AMT.5000,'R2,#15')
+    Y.FINAL.TXT<-1> = Y.TOT.UNIT.1000:" X 1000 = ":"*":FMT(Y.DENOM.AMT.1000,'R2,#15')
+    Y.FINAL.TXT<-1> = Y.TOT.UNIT.500:" X 500 = ":"*":FMT(Y.DENOM.AMT.500,'R2,#15')
+    Y.FINAL.TXT<-1> = Y.TOT.UNIT.200:" X 200 = ":"*":FMT(Y.DENOM.AMT.200,'R2,#15')
+    Y.FINAL.TXT<-1> =  Y.TOT.UNIT.100:" X 100 = ":"*":FMT(Y.DENOM.AMT.100,'R2,#15')
+    Y.FINAL.TXT<-1> =  Y.TOT.UNIT.50:" X 50 = ":"*":FMT(Y.DENOM.AMT.50,'R2,#15')
+    Y.FINAL.TXT<-1> =  Y.TOT.UNIT.20:" X 20 = ":"*":FMT(Y.DENOM.AMT.20,'R2,#15')
+    Y.FINAL.TXT<-1> =  Y.TOT.UNIT.10:" X 10 = ":"*":FMT(Y.DENOM.AMT.10,'R2,#15')
+    Y.FINAL.TXT<-1> =  Y.TOT.UNIT.5:" X 5 = ":"*":FMT(Y.DENOM.AMT.5,'R2,#15')
+    Y.FINAL.TXT<-1> =  Y.TOT.UNIT.2:" X 2 = ":"*":FMT(Y.DENOM.AMT.2,'R2,#15')
+    Y.FINAL.TXT<-1> =  Y.TOT.UNIT.1:" X 1 = ":"*":FMT(Y.DENOM.AMT.1,'R2,#15')
+    Y.FINAL.TXT<-1> =  "TOTAL : ":"*":FMT(Y.TOT.DENOM.AMT,'R2,#15')
+    Y.FINAL.TXT<-1> =  "Amount In Words : ":"*":TXTOUT
+    Y.FINAL.TXT<-1> =  " ":"*":" "
+    Y.FINAL.TXT<-1> =  " ":"*":" "
+    Y.FINAL.TXT<-1> =  " ":"*":" "
+    Y.FINAL.TXT<-1> =  " ":"*":" "
+    Y.FINAL.TXT<-1> =  " ":"*":" "
+    Y.FINAL.TXT<-1> =  " ":"*":" "
+    Y.FINAL.TXT<-1> =  "______________":"*":"_______________"
+    Y.FINAL.TXT<-1> =  "Chief Cashier":"*":"Manage/AGM/DGM"
+*Final array to displaying the data
+
+    Y.ARR = Y.FINAL.TXT
+
+    RETURN
+END

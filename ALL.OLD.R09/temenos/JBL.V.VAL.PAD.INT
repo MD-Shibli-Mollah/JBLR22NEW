@@ -1,0 +1,54 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VAL.PAD.INT
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*-----------------------
+* This Validation routine is to populate the TOT.INT.AMOUNT value to PAD.INTEREST
+*-----------------------------------------------------------------------------
+* Modification History:
+*---------------------
+* 03/03/2011 - New - G.Shiva Shankar
+*                    Thesys Technologies
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE JBL.BP I_F.BD.LIM.LTR.REGISTER
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.BD.LIM.LTR.REGISTER = 'F.BD.LIM.LTR.REGISTER'
+    F.BD.LIM.LTR.REGISTER  = ''
+    CALL OPF(FN.BD.LIM.LTR.REGISTER,F.BD.LIM.LTR.REGISTER)
+    R.BD.LIM.LTR.REGISTER  = ''
+
+    FN.LD.LOANS.AND.DEPOSITS = 'F.LD.LOANS.AND.DEPOSITS'
+    F.LD.LOANS.AND.DEPOSITS  = ''
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+    R.LD.LOANS.AND.DEPOSITS  = ''
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+
+    Y.PAD.ID = COMI
+    CALL F.READ(FN.LD.LOANS.AND.DEPOSITS,Y.PAD.ID,R.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS,Y.LD.ERR)
+    IF R.LD.LOANS.AND.DEPOSITS THEN
+        Y.TOT.INT.AMT = R.LD.LOANS.AND.DEPOSITS<LD.TOT.INTEREST.AMT>
+        R.NEW(BD.REG.PAD.INTEREST) = Y.TOT.INT.AMT
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+
+END

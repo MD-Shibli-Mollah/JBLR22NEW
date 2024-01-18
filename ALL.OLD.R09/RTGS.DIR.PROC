@@ -1,0 +1,114 @@
+**************************************************************************
+*Developed By: Md. Aminul Islam (Datasoft Systems)                       *
+*to create & validate RTGS releted directory                             *
+*Date:2016/01/12                                                         *
+**************************************************************************
+
+    SUBROUTINE RTGS.DIR.PROC
+!PROGRAM RTGS.DIR.PROC
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT JBL.BP I_F.BD.RTGS.PARAM
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.RTGS.PARAM = 'F.EB.BD.RTGS.PARAM';          F.RTGS.PARAM = ''
+    RETURN
+OPENFILES:
+
+    CALL OPF(FN.RTGS.PARAM,F.RTGS.PARAM)
+    RETURN
+
+PROCESS:
+    ROOT.DIR = R.NEW(EB.BD.29.ROOT.DIR)
+    OUTW.SUB.DIR = R.NEW(EB.BD.29.OUTW.SUB.DIR)
+    INW.SUB.DIR = R.NEW(EB.BD.29.INW.SUB.DIR)
+    RTGS.TXN.LOG.DIR = 'RTGS.TXN.LOG'
+    INW.CPY.FILES.DIR = 'INW.CPY.FILES'
+
+    IF NOT(ROOT.DIR) THEN
+        ETEXT = 'ROOT directory missing'
+        CALL STORE.END.ERROR
+        AF = EB.BD.29.ROOT.DIR
+        RETURN
+    END ELSE
+        IF V$FUNCTION EQ 'A' THEN
+            OPEN ROOT.DIR TO F.ROOT.DIR ELSE
+                CMD = 'CREATE.FILE ':ROOT.DIR:' TYPE=UD'
+                EXECUTE CMD
+                OPEN ROOT.DIR TO F.ROOT.DIR ELSE
+                    ETEXT = 'Can not create ROOT.DIR'
+                    CALL STORE.END.ERROR
+                    AF = EB.BD.29.ROOT.DIR
+                    RETURN
+                END
+            END
+        END
+    END
+
+    IF NOT(OUTW.SUB.DIR) THEN
+        ETEXT = 'Outward sub directory missing'
+        CALL STORE.END.ERROR
+        RETURN
+    END ELSE
+        IF V$FUNCTION EQ 'A' THEN
+            OPEN ROOT.DIR:'/':OUTW.SUB.DIR TO F.OUTW.SUB.DIR ELSE
+                CMD.OUTW = 'CREATE.FILE ':ROOT.DIR:'/':OUTW.SUB.DIR:' TYPE=UD'
+                EXECUTE CMD.OUTW
+                OPEN ROOT.DIR:'/':OUTW.SUB.DIR TO F.OUTW.SUB.DIR ELSE
+                    ETEXT = 'Can not create OUTW.SUB.DIR'
+                    CALL STORE.END.ERROR
+                    RETURN
+                END
+            END
+        END
+    END
+
+    IF NOT(INW.SUB.DIR) THEN
+        ETEXT = 'Inward sub directory missing'
+        CALL STORE.END.ERROR
+        RETURN
+    END ELSE
+        IF V$FUNCTION EQ 'A' THEN
+            OPEN ROOT.DIR:'/':INW.SUB.DIR TO F.INW.SUB.DIR ELSE
+                CMD.INW = 'CREATE.FILE ':ROOT.DIR:'/':INW.SUB.DIR:' TYPE=UD'
+                EXECUTE CMD.INW
+                OPEN ROOT.DIR:'/':INW.SUB.DIR TO F.INW.SUB.DIR ELSE
+                    ETEXT = 'Can not create INW.SUB.DIR'
+                    CALL STORE.END.ERROR
+                    RETURN
+                END
+            END
+        END
+    END
+    IF V$FUNCTION EQ 'A' THEN
+        OPEN ROOT.DIR:'/':RTGS.TXN.LOG.DIR TO F.RTGS.TXN.LOG ELSE
+            CMD.TXN.LOG = 'CREATE.FILE ':ROOT.DIR:'/':RTGS.TXN.LOG.DIR:' TYPE=UD'
+            EXECUTE CMD.TXN.LOG
+            OPEN ROOT.DIR:'/':RTGS.TXN.LOG.DIR TO F.RTGS.TXN.LOG ELSE
+                ETEXT = 'Can not create RTGS.TXN.LOG.DIR'
+                CALL STORE.END.ERROR
+                RETURN
+            END
+        END
+    END
+
+    IF V$FUNCTION EQ 'A' THEN
+        OPEN ROOT.DIR:'/':INW.CPY.FILES.DIR TO F.RTGS.CPY.FILES ELSE
+            CMD.CPY.FILES = 'CREATE.FILE ':ROOT.DIR:'/':INW.CPY.FILES.DIR:' TYPE=UD'
+            EXECUTE CMD.CPY.FILES
+            OPEN ROOT.DIR:'/':INW.CPY.FILES.DIR TO F.RTGS.CPY.FILES ELSE
+                ETEXT = 'Can not create INW.CPY.FILES.DIR'
+                CALL STORE.END.ERROR
+                RETURN
+            END
+        END
+    END
+
+    RETURN
+END

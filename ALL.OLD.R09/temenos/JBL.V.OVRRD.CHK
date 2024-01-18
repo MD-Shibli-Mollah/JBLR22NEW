@@ -1,0 +1,302 @@
+*-----------------------------------------------------------------------------
+* <Rating>8</Rating>
+*-----------------------------------------------------------------------------
+*Developed By: Islam
+* Convert the following overrides to error as per the janata *bank requirement and this development based on the core *override generaion:
+*Unauthorised overdraft
+*Cheque not in register
+*Cheque type missing
+*Cheque stop payments
+*Cheque already presented
+*Acct balance within locked amount
+*Credit till closing balance
+
+!----------Modification History--------!
+!1) Rectrict Overdraft only for categories defined in the parameter file ABL.H.MUL.PRM
+!2) Check POSTING.RESTRICT in Account
+!----------Modification History--------!
+
+    SUBROUTINE JBL.V.OVRRD.CHK
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT I_F.ABL.H.MUL.PRM
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT  = ''
+    R.ACCOUNT  = ''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+
+!-----1.Manik/S---------------!
+    FN.MUL.PARAM ='F.ABL.H.MUL.PRM'
+    F.MUL.PARAM =''
+    CALL OPF(FN.MUL.PARAM,F.MUL.PARAM)
+    REC.MUL.PARAM=''
+    Y.RES.OVERDRAFT.CATEG=''
+    Y.DEBIT.AC = ''
+    Y.DEBIT.AC.CAT = ''
+    Y.CREDIT.AC=''
+    Y.CREDIT.AC.CAT=''
+    Y.LEGAL.CHRG="LEGAL.CHARGE"
+    Y.LEGAL.CHRG.POS=""
+    Y.LEG.CHG=""
+
+    CALL F.READ(FN.MUL.PARAM,'SYSTEM',REC.MUL.PARAM,F.MUL.PARAM,ERR.MUL.PARAM)
+
+    IF REC.MUL.PARAM EQ '' THEN
+        ETEXT="Parameter File Missing For Overdraft Missing"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    ELSE
+        Y.RES.OVERDRAFT.CATEG=REC.MUL.PARAM<MPM.OVERDRAFT.RES.CATEG>
+    END
+
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        Y.DEBIT.AC = R.NEW(FT.DEBIT.ACCT.NO)
+        CALL GET.LOC.REF("FUNDS.TRANSFER",Y.LEGAL.CHRG,Y.LEGAL.CHRG.POS)
+        Y.LEG.CHG = R.NEW(FT.LOCAL.REF)<1,Y.LEGAL.CHRG.POS>
+    END
+
+    IF APPLICATION EQ 'TELLER' THEN
+        IF R.NEW(TT.TE.DR.CR.MARKER) EQ 'DEBIT' THEN
+            Y.DEBIT.AC = R.NEW(TT.TE.ACCOUNT.1)
+        END
+        ELSE
+            Y.DEBIT.AC = R.NEW(TT.TE.ACCOUNT.2)
+        END
+        CALL GET.LOC.REF("TELLER",Y.LEGAL.CHRG,Y.LEGAL.CHRG.POS)
+        Y.LEG.CHG = R.NEW(TT.TE.LOCAL.REF)<1,Y.LEGAL.CHRG.POS>
+    END
+
+    CALL F.READ(FN.ACCOUNT,Y.DEBIT.AC,R.ACCOUNT,F.ACCOUNT,ERR.AC)
+    Y.DEBIT.AC.CAT = R.ACCOUNT<AC.CATEGORY>
+
+!-----1.Manik/E---------------!
+
+    POS = 1
+    Y.OVERRIDE.VAL = R.NEW(V-9)
+    Y.OVRRD.NO = DCOUNT(Y.OVERRIDE.VAL,VM)
+
+    CRT Y.OVRRD.NO
+    FOR I=1 TO Y.OVRRD.NO
+        Y.OVRRD.DETLS = FIELD(Y.OVERRIDE.VAL,VM,I)
+        CRT Y.OVRRD.DETLS
+        Y.OVRRD.ID = FIELD(Y.OVRRD.DETLS,'}',1)
+
+        IF (Y.OVRRD.ID='ST-CHQ.INST.FOR.STOP') THEN
+            GOSUB ST.CHQ.INST.FOR.STOP
+        END
+
+        IF (Y.OVRRD.ID='CHQ.NOT.IN.REG') THEN
+            GOSUB CHQ.NOT.IN.REG
+        END
+
+        IF (Y.OVRRD.ID='CHQ.TYPE.MISS') THEN
+            GOSUB CHQ.TYPE.MISS
+        END
+
+        IF (Y.OVRRD.ID='ACCT.UNAUTH.OD') THEN
+            GOSUB ACCT.UNAUTH.OD
+!...........ZAKIR HOSSAIN(JBL).20160225..............!
+            IF V$FUNCTION EQ 'R' THEN
+                GOSUB REVERSE.RESTRICT
+            END
+!...............END...........................!
+        END
+
+        IF (Y.OVRRD.ID='CHQ.PRESENTED') THEN
+            GOSUB CHQ.PRESENTED
+        END
+
+        IF (Y.OVRRD.ID='ACCT.BAL.LT.LOCKED') THEN
+            GOSUB ACCT.BAL.LT.LOCKED
+        END
+
+        IF (Y.OVRRD.ID='TT.CR.TILL.CLOS.BAL') THEN
+            GOSUB TT.CR.TILL.CLOS.BAL
+        END
+!-----MANIK/S-----!
+        IF (Y.OVRRD.ID='EXCESS.ID') THEN
+            GOSUB EXCESS.ID
+        END
+!-----MANIK/E-----!
+        IF (Y.OVRRD.ID='POSTING.RESTRICT') THEN
+            GOSUB POSTING.RESTRICT
+        END
+        IF Y.OVRRD.ID EQ 'LIMIT.EXPIRED' OR Y.OVRRD.ID EQ 'LIMIT.EXPS.BEF.TXN' THEN
+            GOSUB LIMIT.EXPIRE
+        END
+    NEXT I
+
+
+    RETURN
+ACCT.UNAUTH.OD:
+    AF = I
+!    ETEXT = 'Unauthorised Overdraft Not Possible'
+!    CALL STORE.END.ERROR
+!-----1.Manik/S-----!
+    LOCATE Y.DEBIT.AC.CAT IN  Y.RES.OVERDRAFT.CATEG<1,1> SETTING Y.POS ELSE Y.POS = ''
+    IF Y.POS THEN
+        ETEXT = 'Unauthorised Overdraft Not Possible'
+        CALL STORE.END.ERROR
+    END
+    ELSE
+        IF NOT(Y.LEG.CHG) THEN
+            ETEXT = 'Unauthorised Overdraft Not Possible'
+            CALL STORE.END.ERROR
+        END
+        ELSE
+            TEXT = "Unauthorised Overdraft Due to ":Y.LEG.CHG
+            CALL STORE.OVERRIDE(Y.OVRRD.NO+1)
+        END
+    END
+!-----1.Manik/E-----!
+
+    RETURN
+ST.CHQ.INST.FOR.STOP:
+    AF = I
+    ETEXT = 'CHQ IS ALREADY INST FOR STOP'
+    CALL STORE.END.ERROR
+    RETURN
+CHQ.TYPE.MISS:
+
+    AF = I
+    ETEXT = 'CHEQUE TYPE MISSING'
+    CALL STORE.END.ERROR
+    RETURN
+CHQ.NOT.IN.REG:
+
+    AF = I
+    ETEXT = 'CHEQUE NUMBER NOT IN REG'
+    CALL STORE.END.ERROR
+    RETURN
+CHQ.PRESENTED:
+    AF = I
+    ETEXT = 'CHEQUE NUMBER ALREADY PRESENTED'
+    CALL STORE.END.ERROR
+    RETURN
+TT.CR.TILL.CLOS.BAL:
+    AF = I
+    ETEXT = 'CREDIT TILL CLOSING BALANCE'
+    CALL STORE.END.ERROR
+    RETURN
+
+ACCT.BAL.LT.LOCKED:
+    AF = I
+    ETEXT = 'Account Balance will fall in Locked Amount'
+    CALL STORE.END.ERROR
+    RETURN
+
+EXCESS.ID:
+    AF = I
+    IF NOT(Y.LEG.CHG) THEN
+        ETEXT = 'Execss Over Limit'
+        CALL STORE.END.ERROR
+    END
+    ELSE
+        TEXT = "Execss Over Limit Due to ":Y.LEG.CHG
+        CALL STORE.OVERRIDE(Y.OVRRD.NO+1)
+    END
+
+    RETURN
+
+*************************
+*added by Md. Zakir Hossain
+*date: 18 May 2016
+*Display the error message in FT and TT Txn with Posting Restrict Note
+*************************
+
+POSTING.RESTRICT:
+    AF=I
+    Y.ERROR='Posting Restriction'
+    CALL GET.LOC.REF("ACCOUNT","POST.REST.NOTE",Y.PR.POS)
+    IF APPLICATION EQ 'TELLER' THEN
+        Y.CREDIT.AC=R.NEW(TT.TE.ACCOUNT.2)
+        CALL  F.READ(FN.ACCOUNT,Y.CREDIT.AC,R.ACCOUNT,F.ACCOUNT,ERR.CODE)
+        IF R.ACCOUNT NE '' THEN
+            Y.POST.NOTE = R.ACCOUNT<AC.LOCAL.REF,Y.PR.POS>
+            IF Y.POST.NOTE NE '' THEN
+                Y.ERROR=Y.ERROR:",":Y.POST.NOTE:" ON AC"
+            END
+        END
+    END
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+********fOR Debit Account*************
+        Y.DEBIT.AC=R.NEW(FT.DEBIT.ACCT.NO)
+        CALL  F.READ(FN.ACCOUNT,Y.DEBIT.AC,R.ACCOUNT,F.ACCOUNT,ERR.CODE)
+        IF R.ACCOUNT NE '' THEN
+            Y.POST.NOTE = R.ACCOUNT<AC.LOCAL.REF,Y.PR.POS>
+            IF Y.POST.NOTE NE '' THEN
+                Y.ERROR=Y.ERROR:",":Y.POST.NOTE:" DR AC"
+            END
+        END
+
+********fOR Credit Account*************
+        Y.CREDIT.AC=R.NEW(FT.CREDIT.ACCT.NO)
+        CALL  F.READ(FN.ACCOUNT,Y.CREDIT.AC,RCR.ACCOUNT,F.ACCOUNT,ERR.CODE)
+        IF RCR.ACCOUNT NE '' THEN
+            Y.POST.NOTE = RCR.ACCOUNT<AC.LOCAL.REF,Y.PR.POS>
+            IF Y.POST.NOTE NE '' THEN
+                Y.ERROR=Y.ERROR:",":Y.POST.NOTE:" CR AC"
+            END
+        END
+    END
+    ETEXT=Y.ERROR
+    CALL STORE.END.ERROR
+
+    RETURN
+*************************
+*added by Zakir.20150909
+*reverse transaction is restricted if sufficient balance not available in account
+*************************
+
+REVERSE.RESTRICT:
+    IF APPLICATION EQ 'TELLER' THEN
+        GOSUB TT.REVERSE.RESTRICT
+    END
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        GOSUB  FT.REVERSE.RESTRICT
+    END
+    RETURN
+FT.REVERSE.RESTRICT:
+    AF=I
+    Y.CREDIT.AC=R.NEW(FT.CREDIT.ACCT.NO)
+    CALL  F.READ(FN.ACCOUNT,Y.CREDIT.AC,R.ACCOUNT,F.ACCOUNT,ERR.CODE)
+    IF R.ACCOUNT NE '' THEN
+        Y.CREDIT.AC.CAT=R.ACCOUNT<AC.CATEGORY>
+    END
+
+    LOCATE Y.CREDIT.AC.CAT IN  Y.RES.OVERDRAFT.CATEG<1,1> SETTING Y.POS ELSE Y.POS = ''
+    IF Y.POS THEN
+        CALL STORE.END.ERROR
+    END
+    RETURN
+
+TT.REVERSE.RESTRICT:
+    AF=I
+    Y.CREDIT.AC=R.NEW(TT.TE.ACCOUNT.2)
+    CALL  F.READ(FN.ACCOUNT,Y.CREDIT.AC,R.ACCOUNT,F.ACCOUNT,ERR.CODE)
+    IF R.ACCOUNT NE '' THEN
+        Y.CREDIT.AC.CAT=R.ACCOUNT<AC.CATEGORY>
+    END
+
+    IF R.NEW(TT.TE.DR.CR.MARKER) NE 'CREDIT' THEN
+        LOCATE Y.CREDIT.AC.CAT IN  Y.RES.OVERDRAFT.CATEG<1,1> SETTING Y.POS ELSE Y.POS = ''
+        IF Y.POS THEN
+            CALL STORE.END.ERROR
+        END
+    END
+    RETURN
+LIMIT.EXPIRE:
+    AF=I
+    IF NOT(Y.LEG.CHG) THEN
+        ETEXT = 'LIMIT HAS BEEN EXPIRED'
+        CALL STORE.END.ERROR
+    END
+    RETURN
+************end**********
+END

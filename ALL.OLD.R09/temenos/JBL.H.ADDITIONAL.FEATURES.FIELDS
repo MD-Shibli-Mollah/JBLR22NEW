@@ -1,0 +1,38 @@
+*-----------------------------------------------------------------------------
+* <Rating>-3</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.H.ADDITIONAL.FEATURES.FIELDS
+*-----------------------------------------------------------------------------
+* Description:
+*--------------
+* This file is used to hold the fields of JBL.ADDITIONAL.FEATURES
+*-----------------------------------------------------------------------------
+* Modification History :
+*-----------------------
+* 01/2/2011 New - R.Veena
+*                 Thesys Technologies
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_DataTypes
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("ADDNL.FEATURE.ID", T24_Numeric)         ;* Define Table id
+    ID.N = '2'
+*-----------------------------------------------------------------------------
+    CALL Table.addFieldDefinition('DESCRIPTION','100','A','')  ;* Field is used to hold the Banned Commodity Description
+    CALL Table.addReservedField('XX.RESERVED.10')
+    CALL Table.addReservedField('XX.RESERVED.09')
+    CALL Table.addReservedField('XX.RESERVED.08')
+    CALL Table.addReservedField('XX.RESERVED.07')
+    CALL Table.addReservedField('XX.RESERVED.06')
+    CALL Table.addReservedField('XX.RESERVED.05')
+    CALL Table.addReservedField('XX.RESERVED.04')
+    CALL Table.addReservedField('XX.RESERVED.03')
+    CALL Table.addReservedField('XX.RESERVED.02')
+    CALL Table.addReservedField('XX.RESERVED.01')
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

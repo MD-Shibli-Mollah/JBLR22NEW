@@ -1,0 +1,109 @@
+*-----------------------------------------------------------------------------
+* <Rating>100</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.GET.GLPL.LOAD
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_F.HOLD.CONTROL
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT GLOBUS.BP I_F.RE.CONSOL.ASSET.LINE
+    $INSERT GLOBUS.BP I_F.RE.CONSOL.PROFIT.LINE
+
+    $INSERT JBL.BP/REPGEN MT.GET.GLPL.VARS
+
+    FN.HC = 'F.HOLD.CONTROL'
+    F.HC = ''
+    FN.CAT = 'F.CATEGORY'
+    F.CAT = ''
+
+    FN.COMP = 'F.COMPANY'
+    F.COMP = ''
+
+    FN.AL = 'F.RE.CONSOL.ASSET.LINE'
+    F.AL = ''
+    R.AL = ''
+
+    FN.PL = 'F.RE.CONSOL.PROFIT.LINE'
+    F.PL = ''
+    R.PL = ''
+
+
+    CALL OPF(FN.HC,F.HC)
+    CALL OPF(FN.CAT,F.CAT)
+    CALL OPF(FN.COMP,F.COMP)
+    CALL OPF(FN.AL,F.AL)
+    CALL OPF(FN.PL,F.PL)
+
+!-------Check Directory----------
+    CMD.STR = "CREATE.FILE ALL.GLPL.DIR/":TODAY:" TYPE=UD"
+    CUR.DIR = "ALL.GLPL.DIR/":TODAY
+
+    OPEN CUR.DIR TO F.FILE.DIR
+    ELSE
+        EXECUTE CMD.STR
+        OPEN CUR.DIR TO F.FILE.DIR
+        ELSE
+            CRT CUR.DIR "OPENING FAILED"
+            RETURN
+        END
+    END
+!-------------------------------
+
+!------------------INITIALIZE LINE CODE------------------------
+
+    Y.LINE.CODE.ARRAY = ''
+
+!ASSET LINE CODE
+
+    SEL.CMD1='SELECT ':FN.AL
+    CALL EB.READLIST(SEL.CMD1,SEL.LIST1,'',NO.OF.REC1,RET.CODE1)
+    LOOP
+        REMOVE  Y.AL.ID FROM SEL.LIST1 SETTING Y.POS
+    WHILE Y.AL.ID:Y.POS
+        CALL F.READ(FN.AL,Y.AL.ID,R.AL,F.AL,ERR.CODE.AL)
+        Y.APPLIC.ID = R.AL<RE.CAL.APPLIC.ID,1>
+        IF ISDIGIT(Y.AL.ID) THEN
+            LOCATE Y.APPLIC.ID IN Y.LINE.CODE.ARRAY SETTING POS THEN
+            END
+            ELSE
+                Y.LINE.CODE.ARRAY<-1> = Y.APPLIC.ID
+            END
+        END
+
+    REPEAT
+
+!PROFIT LINE CODE
+
+    SEL.CMD2='SELECT ':FN.PL
+    CALL EB.READLIST(SEL.CMD2,SEL.LIST2,'',NO.OF.REC2,RET.CODE2)
+    LOOP
+        REMOVE  Y.PL.ID FROM SEL.LIST2 SETTING Y.POS
+    WHILE Y.PL.ID:Y.POS
+        CALL F.READ(FN.PL,Y.PL.ID,R.PL,F.PL,ERR.CODE.PL)
+        Y.APPLIC.ID = R.PL<RE.CPL.APPLIC.ID,1>
+        IF ISDIGIT(Y.PL.ID) THEN
+            LOCATE Y.APPLIC.ID IN Y.LINE.CODE.ARRAY SETTING POS THEN
+            END
+            ELSE
+                Y.LINE.CODE.ARRAY<-1> = Y.APPLIC.ID
+            END
+        END
+
+    REPEAT
+
+!------------------END INITIALIZE LINE CODE---------------------
+
+
+    CRT "INPUT BANK DATE: "
+    INPUT Y.BANKDATE
+
+    Y.FILE.DIR = CUR.DIR
+    Y.FILE.NAME = 'MT.GET.GLPL.':Y.BANKDATE:'.':TODAY:'.':SESSION.NO:'.csv'
+    OPENSEQ Y.FILE.DIR,Y.FILE.NAME TO F.FILE.DIR ELSE NULL
+
+    RETURN
+END

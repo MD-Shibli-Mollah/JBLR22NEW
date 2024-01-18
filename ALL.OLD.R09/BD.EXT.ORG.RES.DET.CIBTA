@@ -1,0 +1,137 @@
+*-----------------------------------------------------------------------------
+* <Rating>115</Rating>
+* Developed By: TOWHID TIPU
+* Date: 27.06.2018
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.EXT.ORG.RES.DET.CIBTA(Y.DATA)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.ABL.H.NM.ER
+    $INSERT JBL.BP I_F.ABL.H.BRANCH.CODE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+    FN.NM = "F.ABL.H.NM.ER"
+    F.NM = ""
+    FN.STMT.ENTRY = "F.STMT.ENTRY"
+    F.STMT.ENTRY = ""
+    FN.BR.ZN.CD = "F.ABL.H.BRANCH.CODE"
+    F.BR.ZN.CD = ""
+    Y.CATEGORY='12810'
+    Y.OPERAND = ENQ.SELECTION<3,1>
+    LOCATE 'DATE' IN ENQ.SELECTION<2,1> SETTING DATE.POS THEN
+        Y.FR.DATE =  ENQ.SELECTION<4,DATE.POS>
+    END
+    LOCATE 'T.DATE' IN ENQ.SELECTION<2,2> SETTING DATE.POS THEN
+        Y.T.DATE = ENQ.SELECTION<4,DATE.POS>
+    END
+    Y.FROM.DATE = Y.FR.DATE
+    Y.TO.DATE =Y.T.DATE
+    Y.ID=""
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.NM,F.NM)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.STMT.ENTRY,F.STMT.ENTRY)
+    CALL OPF (FN.BR.ZN.CD,F.BR.ZN.CD)
+    RETURN
+
+PROCESS:
+!---------------------CATEGORYWISE ACC-------------------
+    SEL.CMD.AC = "SELECT ":FN.AC:" WITH CO.CODE EQ ":ID.COMPANY:" AND CATEGORY EQ ":Y.CATEGORY
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+        CALL EB.ACCT.ENTRY.LIST(Y.ID,Y.FROM.DATE,Y.TO.DATE,Y.AC.STMT.LIST,Y.AC.OPEN.BAL,Y.AC.ER)
+        Y.FT.C=DCOUNT(Y.AC.STMT.LIST,@FM)
+        IF Y.FT.C NE 0 THEN
+            FOR I = 1 TO Y.FT.C
+                Y.STMT.ID = FIELD(Y.AC.STMT.LIST,@FM,I)
+                CALL F.READ(FN.STMT.ENTRY, Y.STMT.ID , R.STMT, F.STMT.ENTRY , Y.ERR)
+
+!Y.TR.REF = R.STMT<AC.STE.TRANS.REFERENCE>
+!Y.TR.ARR<-1>=Y.TR.REF
+!CALL F.READ(FN.NM,Y.TR.REF,R.NM,F.NM,Y.ERR.NM)
+
+                Y.REC.STATUS = R.STMT<AC.STE.RECORD.STATUS>
+                IF Y.REC.STATUS NE 'REVE' THEN
+                    Y.TR.REF = R.STMT<AC.STE.TRANS.REFERENCE>
+
+                    IF Y.TR.REF EQ '' THEN
+                        Y.TR.REF = R.STMT<AC.STE.OUR.REFERENCE>
+                    END
+
+
+                    Y.AMT = ABS(R.STMT<AC.STE.AMOUNT.LCY>)
+
+                    Y.NM.ID = Y.STMT.ID
+
+                    CALL F.READ(FN.NM,Y.NM.ID,R.NM,F.NM,Y.ERR.NM)
+
+                    IF R.NM EQ '' THEN
+                        Y.NM.ID = Y.TR.REF
+                        CALL F.READ(FN.NM,Y.NM.ID,R.NM,F.NM,Y.ERR.NM)
+
+                        IF Y.AMT NE R.NM<NM.AMOUNT> THEN
+                            R.NM = ''
+                        END
+
+                    END
+
+
+                    IF R.NM NE '' THEN
+
+                        IF Y.REC.STATUS NE 'REVE' THEN
+
+                            Y.ZONAL.CODE = R.NM<NM.ZONAL.CODE>
+                            Y.BRANCH.CODE = RIGHT(R.NM<NM.BRANCH.CODE>,4)
+!                    Y.VALUE.DATE = R.NM<NM.VALUE.DATE>
+                            Y.VALUE.DATE = R.STMT<AC.STE.BOOKING.DATE>
+                            Y.TRANS.CODE = R.NM<NM.TRANS.CODE>
+                            Y.DATE.OF.OE = R.NM<NM.DATE.OF.OE>
+                            Y.ADVICE.NO = R.NM<NM.ADVICE.NO>
+                            Y.OE.RE = R.NM<NM.OE.RE>
+                            Y.DR.CR.MARKER = R.NM<NM.DR.CR.MARKER>
+                            Y.CO.CODE = RIGHT(R.NM<NM.CO.CODE>,4)
+                            CALL F.READ(FN.BR.ZN.CD, Y.CO.CODE , R.BR.ZN.CD, F.BR.ZN.CD , Y.ERR.BR.ZN.CD)
+                            Y.BR.ZN.CD = R.BR.ZN.CD<BRN.ZONAL.CODE>
+                            Y.PARTICULAR = R.NM<NM.REMARKS>
+                            Y.AMOUNT.DR = 0
+                            Y.AMOUNT.CR = 0
+                            IF Y.OE.RE EQ 'OE' THEN
+                                Y.OE.RE.MARKER = '1'
+                            END
+                            IF Y.OE.RE EQ 'RE' THEN
+                                Y.OE.RE.MARKER = '2'
+                            END
+                            IF Y.DR.CR.MARKER EQ 'DR' THEN
+                                Y.AMOUNT.DR = R.NM<NM.AMOUNT>
+                            END
+                            IF Y.DR.CR.MARKER EQ 'CR' THEN
+                                Y.AMOUNT.CR = R.NM<NM.AMOUNT>
+                            END
+
+                            Y.DATA<-1> = Y.ZONAL.CODE:'*':Y.BRANCH.CODE:'*':Y.VALUE.DATE:'*':Y.TRANS.CODE:'*':Y.DATE.OF.OE:'*':Y.ADVICE.NO:'*': Y.OE.RE.MARKER: '*':Y.AMOUNT.DR:'*':Y.AMOUNT.CR:'*':Y.TR.REF:'*':Y.CO.CODE:'*':Y.PARTICULAR:'*':Y.BR.ZN.CD
+*                                      1                  2               3                 4                5               6                 7                 8                9             10           11            12             13
+                        END
+                    END
+                END
+            NEXT I
+
+        END
+    REPEAT
+    RETURN
+END
+!---------------------------------------------------

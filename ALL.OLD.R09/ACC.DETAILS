@@ -1,0 +1,130 @@
+*-------------------------------------------------------------------------------
+* <Rating>456</Rating>
+*-------------------------------------------------------------------------------
+    SUBROUTINE ACC.DETAILS(ACC.ID)
+
+*-------------------------------------------------------------------------------
+*This routine will extract the all the baalcnes from different concat files
+*related to account and compare each balance with balance from STMT.ENTRY file
+*If they do not tally, it is quoted as a problematic account and the output
+*will be saved in ACC.DETAILS.BP
+*-------------------------------------------------------------------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.EB.CONTRACT.BALANCES
+    $INSERT I_F.ACCT.ACTIVITY
+    $INSERT I_F.STMT.ENTRY
+    $INSERT I_F.DATES
+
+    COMMON/CHK/FN.ACC,F.ACC
+    COMMON/CHK/FN.STMT,F.STMT
+    COMMON/CHK/FN.SP,F.SP
+    COMMON/CHK/FN.ECB,F.ECB
+    COMMON/CHK/FN.AA,F.AA
+    COMMON/CHK/FN.ASP,F.ASP
+    COMMON/CHK/FN.BP,F.BP
+
+DEBUG
+    GOSUB ACC.BAL
+    GOSUB ECB.BAL
+    GOSUB AA.BAL
+    GOSUB SP.BAL
+
+DEBUG
+    IF (ACC.BAL NE SP.BAL) OR (AA.BAL NE SP.BAL) OR (ECB.BAL NE SP.BAL)  OR (TEMP.ID)  THEN
+        ACC.DETAILS = ACC.ID:' | ':ACC.BAL:' | ':ECB.BAL:' | ':AA.BAL:' | ':SP.BAL:' | ':CONSL.KEY:' | ':TEMP.ID:' | ':ASST.TYPE
+        WRITE ACC.DETAILS TO F.BP,ACC.ID
+    END
+
+    RELEASE F.ACC,ACC.ID
+
+    RETURN
+
+********
+ACC.BAL:
+********
+    ACC.ID = TRIM(ACC.ID)
+    ACC.BAL = 0
+    CALL F.READU(FN.ACC,ACC.ID,ACC.REC,F.ACC,"","")
+    IF ACC.REC THEN
+        ACC.BAL = ACC.REC<AC.ONLINE.ACTUAL.BAL>   ;*ACC bal till today
+    END
+    IF ACC.BAL = "" THEN ACC.BAL = 0
+
+    RETURN
+
+********
+ECB.BAL:
+********
+    ASST.TYPE = "" ; ECB.BAL = 0
+    READ ECB.REC FROM F.ECB,ACC.ID THEN
+        CONSL.KEY = ECB.REC<ECB.CONSOL.KEY>
+        ASST.TYPE = ECB.REC<ECB.OPEN.ASSET.TYPE>
+    END
+    Y.DATE1 = R.DATES(EB.DAT.TODAY)
+    CALL AC.GET.ECB.BALANCE(ACC.ID,ASST.TYPE,"",Y.DATE1,ECB.BAL,"")   ;*ECB bal till today
+    IF ECB.BAL = "" THEN ECB.BAL = 0
+
+    RETURN
+
+*******
+AA.BAL:
+*******
+    AA.BAL = 0 ; CR.MVMT1 = 0 ; DR.MVMT1 = 0 ; Y.ERR1 = ""
+    CALL EB.GET.ACCT.BALANCE(ACC.ID,ACC.REC,"BOOKING",Y.DATE1,"",AA.BAL,CR.MVMT1,DR.MVMT1,Y.ERR1)   ;*AA bal till today
+    IF AA.BAL = "" THEN AA.BAL = 0
+
+    RETURN
+
+*******
+SP.BAL:
+*******
+    SEL.CMD = ""
+    SEL.CMD = 'SELECT ':FN.SP:' EQ ':ACC.ID:'-]'
+    EXECUTE SEL.CMD CAPTURING OUTPUT
+    READLIST THE.LIST ELSE THE.LIST = ''
+
+    SP.ID = "" ; COLLECT.STMT.ID = ""; SP.BAL = 0;
+    LOOP
+        REMOVE SP.ID FROM THE.LIST SETTING POS
+    WHILE SP.ID::POS
+        READ SP.REC FROM F.SP,SP.ID THEN
+            COLLECT.STMT.ID<-1> = SP.REC
+        END
+    REPEAT
+
+    NOS = ""
+    NOS = DCOUNT(COLLECT.STMT.ID,FM)
+
+
+    ASP.REC = "" ; Y.CNT = ""
+    READ ASP.REC FROM F.ASP,ACC.ID THEN
+        SP.BAL = FIELD(ASP.REC<1>,"/",2,1)
+    END
+
+    TEMP.ID = '' ; EX.ID = '' ; EXC.BAL = ''
+    FOR I = 1 TO NOS
+        STMT.ID = COLLECT.STMT.ID<I>
+        READ STMT.REC FROM F.STMT,STMT.ID ELSE
+            PRINT "MISSING IDS":STMT.ID
+            TEMP.ID<-1> = STMT.ID
+            STMT.REC = ''
+        END
+        IF STMT.REC THEN
+
+            IF STMT.REC<AC.STE.AMOUNT.FCY> THEN
+                SP.BAL += STMT.REC<AC.STE.AMOUNT.FCY>
+            END ELSE
+                SP.BAL += STMT.REC<AC.STE.AMOUNT.LCY>
+            END
+
+        END
+
+    NEXT I
+
+    IF SP.BAL = "" THEN SP.BAL = 0
+
+    RETURN
+END

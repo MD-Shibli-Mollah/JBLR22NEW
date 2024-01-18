@@ -1,0 +1,91 @@
+*-----------------------------------------------------------------------------
+* <Rating>-31</Rating>
+*-----------------------------------------------------------------------------
+***********************************************************************************************************************
+*This sub routine will generate all deny request sms.
+*Developer: Md. Imran Hasan                                                                                           *
+*Release Date: 07-FEB-2018                                                                                            *                                                                   *
+***********************************************************************************************************************
+    SUBROUTINE JBL.SMS.URM.DENY
+!PROGRAM JBL.SMS.URM.DENY
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT BP I_F.USER.MGT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*--------
+INIT:
+*--------
+
+    FN.UM = 'F.EB.USER.MGT'
+    F.UM = ''
+
+    Y.PRIORITY = 3
+    Y.SIGN.ON.NAME = ''
+    Y.UM.ID = ''
+    R.UM = ''
+    Y.UM.ERR = ''
+    SMS.BUILD = ''
+    SMS.DIR = 'OTP.OUT'
+    Y.EVENT.FLAG = 0
+
+
+    RETURN
+
+*----------
+OPENFILES:
+*----------
+
+    CALL OPF (FN.UM,F.UM)
+
+    Y.URM.ID=ID.NEW
+    CALL F.READ(FN.UM,Y.URM.ID,R.UM,F.UM,ERROR.USER)
+
+    RETURN
+
+*----------
+PROCESS:
+*----------
+
+    Y.BANK.ID=RIGHT(LEFT(Y.URM.ID,8),6)
+    IF R.UM EQ '' THEN
+        SEL.CMD="SELECT ":FN.UM:" WITH EMP.BANK.ID EQ ":Y.BANK.ID
+
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORDS,RET.CODE)
+        REMOVE Y.URM.ID FROM SEL.LIST SETTING POS
+        CALL F.READ(FN.UM,Y.URM.ID,R.UM,F.UM,Y.UM.ERR)
+    END
+    Y.REQUEST.FOR = R.UM<EB.USE61.REQUEST.FOR>
+    Y.CELL.NO = R.UM<EB.USE61.MOBILE.NO>
+    Y.DENY.REASON = R.NEW(EB.USE61.DENY.REASON)
+
+
+    IF Y.CELL.NO THEN
+        SMS.BUILD = "Dear Sir/Concern, Your request '":Y.REQUEST.FOR:"' has been denied due to ":Y.DENY.REASON:". Thanks, JBL-IT(User Cell)."
+        Y.TIME = EREPLACE(OCONV(TIME(), "MT"),":","-")
+        SMS.BUILD.FINAL = Y.URM.ID:"-":Y.TIME:"|":Y.CELL.NO:"|":SMS.BUILD:"|":"1":"|":Y.PRIORITY
+
+        IF SMS.BUILD THEN
+
+            SMS.FILE = SMS.DIR:'/':Y.CELL.NO:'-':Y.URM.ID:'-':1:V$FUNCTION:'-':Y.TIME:'.csv'
+            OPENSEQ SMS.FILE TO SMS.FILE.POINT ELSE
+                CRT 'OPEN FAILED'
+            END
+            WRITESEQ SMS.BUILD.FINAL TO SMS.FILE.POINT ELSE
+                CRT 'WRITE FAILED'
+            END
+            CLOSESEQ SMS.FILE.POINT
+
+        END
+
+    END
+
+    SMS.BUILD = ''
+
+    RETURN
+
+END

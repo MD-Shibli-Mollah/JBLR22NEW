@@ -1,0 +1,218 @@
+* Version 3 21/07/00  GLOBUS Release No. G14.0.00 03/07/03
+*-----------------------------------------------------------------------------
+* <Rating>250</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE AB.H.ASSET.CLASS.PARAM.CHECK.FIELDS
+*----------------------------------------------------------------------------------------
+*
+*-----------------------------------------------------------------------------------------
+*
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LN.ASSET.CLASS
+    $INSERT I_F.PD.AMOUNT.TYPE
+    $INSERT I_F.AB.H.ASSET.CLASS.PARAM
+*
+*-----------------------------------------------------------------------------------------
+    GOSUB INITIALISE
+*
+************************************************************************
+*
+* Default the current field if input is null and the field is null.
+*
+    BEGIN CASE
+    CASE AS
+        INTO.FIELD = R.NEW(AF)<1,AV,AS>
+    CASE AV
+        INTO.FIELD = R.NEW(AF)<1,AV>
+    CASE OTHERWISE
+        INTO.FIELD = R.NEW(AF)
+    END CASE
+*
+    IF COMI = '' AND INTO.FIELD = '' THEN
+        GOSUB DEFAULT.FIELDS
+    END
+*
+*
+*
+* Now default other fields from this one if there is a value....
+*
+    IF COMI THEN
+        COMI.ENRI.SAVE = COMI.ENRI
+        COMI.ENRI = ''
+        GOSUB DEFAULT.OTHER.FIELDS
+        COMI.ENRI = COMI.ENRI.SAVE
+    END
+    GOSUB CHECK.FIELDS
+* All done here.
+*
+    RETURN
+
+************************************************************************
+* Local subroutines....
+************************************************************************
+*
+INITIALISE:
+*----------
+    E = ''
+    ETEXT = ''
+    RETURN
+
+*
+*-----------------------------------------------------------------------------------------
+DEFAULT.FIELDS:
+*--------------
+    BEGIN CASE
+*         CASE AF = XX.FIELD.NUMBER
+*            COMI = TODAY
+    END CASE
+    CALL REFRESH.FIELD(AF,"")
+*
+    RETURN
+
+
+*
+*-----------------------------------------------------------------------------------------
+DEFAULT.OTHER.FIELDS:
+*--------------------
+    DEFAULTED.FIELD = ''
+    DEFAULTED.ENRI = ''
+    BEGIN CASE
+*         CASE AF = XX.FIELD.NUMBER
+*              DEFAULTED.FIELD = XX.FIELD.NUMBER
+*              DEFAULTED.ENRI = ENRI
+    END CASE
+*
+    CALL REFRESH.FIELD(DEFAULTED.FIELD, DEFAULTED.ENRI)
+*
+    RETURN
+
+
+
+*
+*-----------------------------------------------------------------------------------------
+CHECK.FIELDS:
+*------------
+* Where an error occurs, set E
+*
+
+
+
+    FN.PD.AMT.TYPE = 'F.PD.AMOUNT.TYPE'
+    F.PD.AMT.TYPE = ''
+    ERR.PD = ''
+    CALL OPF(FN.PD.AMT.TYPE,F.PD.AMT.TYPE)
+
+    BEGIN CASE
+
+    CASE AF = IS.ASSET.CL.ASSET.CLASS
+        IF COMI THEN
+*R.NEW(IS.ASSET.CL.PROV.PERC)<1,AV> = ''
+*R.NEW(IS.ASSET.CL.PROV.RESV.CATEG)<1,AV> = ''
+*R.NEW(IS.ASSET.CL.PROV.EXP.CATEG)<1,AV> = ''
+*R.NEW(IS.ASSET.CL.WRITE.OFF)<1,AV> = ''
+*R.NEW(IS.ASSET.CL.INCOME.RECOG)<1,AV> = ''
+            GOSUB CATEG.FIELDS.DEFAULT
+        END
+
+    CASE AF = IS.ASSET.CL.AMT.TYPE
+        IF COMI THEN
+            Y.PD.AMT.TYPE.ID = COMI
+            CALL F.READ(FN.PD.AMT.TYPE,Y.PD.AMT.TYPE.ID,R.PD.AMT.TYPE,F.PD.AMT.TYPE,ERR.PD)
+            IF Y.PD.AMT.TYPE.ID NE 'ALL' AND ERR.PD NE '' THEN
+                E = 'PD.AMOUNT.TYPE NOT VALID'
+            END
+        END
+
+    CASE AF = IS.ASSET.CL.OVERDUE.TO
+        IF COMI THEN
+            IF R.NEW(IS.ASSET.CL.OVERDUE.FR)<1,AV,1> > COMI THEN
+                E = 'SHOULD BE GT OVERDUE.FR'
+            END ELSE
+                IF R.NEW(IS.ASSET.CL.DECISION)<1,AV,1> NE 'NR' AND R.NEW(IS.ASSET.CL.DECISION)<1,AV,1> NE 'RG' THEN
+                    E = 'ONLY FOR DECISION NR/RG'
+                END
+            END
+        END
+
+    CASE AF = IS.ASSET.CL.PROV.PERC
+        IF COMI GE 0 AND R.NEW(IS.ASSET.CL.WRITE.OFF)<1,AV,AS> EQ 'YES' THEN
+            E = 'NOT ALLOWED WHEN WRITE.OFF SET TO "YES"'
+        END
+
+    CASE AF = IS.ASSET.CL.PROV.RESV.CATEG
+        IF COMI AND R.NEW(IS.ASSET.CL.WRITE.OFF)<1,AV,AS> = 'YES' THEN
+            E = 'NOT ALLOWED WHEN WRITE.OFF SET TO "YES"'
+        END
+        IF NOT(E) AND COMI NE '' THEN
+            IF COMI LT 10000 OR COMI GT 19999 THEN
+                E = 'RANGE 10000 - 19999'
+            END
+        END
+
+    CASE AF = IS.ASSET.CL.PROV.EXP.CATEG
+
+        IF COMI AND R.NEW(IS.ASSET.CL.WRITE.OFF)<1,AV,AS> = 'YES' THEN
+            E = 'NOT ALLOWED WHEN WRITE.OFF SET TO "YES"'
+        END
+        IF NOT(E) AND COMI NE '' THEN
+            IF COMI LT 50000 OR COMI GT 59999 THEN
+                E = 'RANGE 50000 - 59999'
+            END
+        END
+
+    CASE AF = IS.ASSET.CL.WRITE.OFF
+        IF COMI EQ 'YES' AND AV GT 1 THEN
+            PERV.WOF = R.NEW(IS.ASSET.CL.WRITE.OFF)<1,AV-1>
+            IF PERV.WOF = 'YES' THEN
+                E = 'DEFINE YES ONCE ONLY'
+            END
+        END
+
+    END CASE
+
+    RETURN
+
+*************************************************************************
+CATEG.FIELDS.DEFAULT:
+**********************
+
+    FN.LN.ASSET.CLASS = 'F.LN.ASSET.CLASS'
+    F.LN.ASSET.CLASS = ''
+    Y.LN.ASSET.CLASS.ID = COMI
+    ERR.LN = ''
+
+    CALL OPF(FN.LN.ASSET.CLASS,F.LN.ASSET.CLASS)
+    CALL F.READ(FN.LN.ASSET.CLASS,Y.LN.ASSET.CLASS.ID,R.LN.ASSET.CLASS,F.LN.ASSET.CLASS,ERR.LN)
+    IF R.LN.ASSET.CLASS THEN
+        IF R.NEW(IS.ASSET.CL.PROV.PERC)<1,AV> EQ '' THEN
+            Y.PROV.PERC = R.LN.ASSET.CLASS<LN.ASSCLS.PROV.PERC>
+            R.NEW(IS.ASSET.CL.PROV.PERC)<1,AV> = Y.PROV.PERC
+        END
+
+        IF R.NEW(IS.ASSET.CL.PROV.RESV.CATEG)<1,AV> EQ '' THEN
+            Y.PROV.RESV.CATEG = R.LN.ASSET.CLASS<LN.ASSCLS.PROV.RESV.CATEG>
+            R.NEW(IS.ASSET.CL.PROV.RESV.CATEG)<1,AV> = Y.PROV.RESV.CATEG
+        END
+
+        IF R.NEW(IS.ASSET.CL.PROV.EXP.CATEG)<1,AV> EQ '' THEN
+            Y.PROV.EXP.CATEG = R.LN.ASSET.CLASS<LN.ASSCLS.PROV.EXP.CATEG>
+            R.NEW(IS.ASSET.CL.PROV.EXP.CATEG)<1,AV> = Y.PROV.EXP.CATEG
+        END
+
+        IF R.NEW(IS.ASSET.CL.WRITE.OFF)<1,AV> EQ '' THEN
+            Y.WRITE.OFF = R.LN.ASSET.CLASS<LN.ASSCLS.WRITE.OFF>
+            R.NEW(IS.ASSET.CL.WRITE.OFF)<1,AV> = Y.WRITE.OFF
+        END
+
+        IF R.NEW(IS.ASSET.CL.INCOME.RECOG)<1,AV> EQ '' THEN
+            Y.INC.RECOG = R.LN.ASSET.CLASS<LN.ASSCLS.INCOME.RECOG>
+            R.NEW(IS.ASSET.CL.INCOME.RECOG)<1,AV> = Y.INC.RECOG
+        END
+        CALL REBUILD.SCREEN
+    END
+
+    RETURN
+*
+*-----------------------------------------------------------------------------------------
+END

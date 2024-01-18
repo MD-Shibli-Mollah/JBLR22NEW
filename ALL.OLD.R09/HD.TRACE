@@ -1,0 +1,120 @@
+*-----------------------------------------------------------------------------
+* <Rating>925</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE HD.TRACE(WRITE.OUT,TRACE.DATA)
+*-----------------------------------------------------------------------------
+* ID.PARAM SETTING SHOULD BE DEFINED IN THE INITIALISE PARA
+* ID.PARAM - 0 - ID FORMAT - DATE_OPERATOR
+* ID.PARAM - 1 - ID FORMAT - DATE_OPERATOR_ROUTINE
+* ID.PARAM - 2 - ID FORMAT - DATE_OPERATOR_ROUTINE_APPLICATION
+* ID.PARAM - 3 - ID FORMAT - DATE_OPERATOR_ROUTINE_APPLICATION_ID
+*-----------------------------------------------------------------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_HD.TRACE
+
+    GOSUB INTIALISE
+    GOSUB OPEN.FILES
+    IF NOT(FILE.OPEN.ERROR) THEN
+        MIL.SEC = INT(MOD(SYSTEM(12),1000))       ;*EN_10003096 S
+        MIL.SEC=FMT(MIL.SEC,"R%3")
+        ODATE = FMT(DATE(),'D4-')
+        OTIME = OCONV(TIME(),'MTS'):SEP:MIL.SEC
+        TIME.NOW = ODATE:SEP:OTIME
+        TRACE.DATA.LOCAL = FM:TIME.NOW:SEP:@USERNO:SEP:TRACE.DATA
+        TRACE.DATA.COMMON:=TRACE.DATA.LOCAL
+        IF WRITE.OUT THEN
+            GOSUB BUILD.ID
+            GOSUB WRITE.DATA
+        END
+    END
+
+    RETURN
+*---------------------------------------------------------------------------------------
+INTIALISE:
+
+    FILE.OPEN.ERROR = 0
+    CR = CHARX(013)
+    OPERATOR.BASED=0 ;* When set to 0 formats the ID with the time component
+    ID.PARAM =0     ;* INITIALISE this parameter with either 0,1,2,3 depending on the requirement
+    SEP = '_'
+    TIME.INTERVAL=1200 ;* denotes the time interval between the trace files when OPERATOR.BASED is 0
+    IF WRITE.OUT='' THEN WRITE.OUT =1
+    TRACE.DATA.LOCAL=''
+*    IF NOT(TRACE.DATA.COMMON) THEN TRACE.DATA.COMMON=''
+     TRACE.DATA.COMMON=''
+
+*---------------------------------------------------------------------------------------
+OPEN.FILES:
+    FN.TRACE.FILE = 'TRACE.BP' ; F.TRACE.FILE = ''
+    OPEN FN.TRACE.FILE TO F.TRACE.FILE ELSE
+        FILE.OPEN.ERROR = 1
+    END
+    IF FILE.OPEN.ERROR THEN
+        PRINT 'Creating TRACE.BP'
+        EXECUTE 'CREATE.FILE TRACE.BP TYPE=UD'          ;* ud = directory!
+        FILE.OPEN.ERROR = 0
+    END
+    RETURN
+
+*---------------------------------------------------------------------------------------
+BUILD.ID:
+    TRACE.ID = ''
+    TRACE.ID = FMT(DATE(),'D4-')
+    TRACE.ID := '_' : @USERNO
+    TRACE.ID := '_'
+    IF NOT(OPERATOR.BASED) THEN
+        CURR.TIME =TIME()
+        IF NOT(TRACE.START.TIME) THEN
+            TRACE.START.TIME =CURR.TIME
+        END
+        IF (CURR.TIME - TRACE.START.TIME) > TIME.INTERVAL OR (CURR.TIME - TRACE.START.TIME) < 0 THEN
+            TRACE.START.TIME =CURR.TIME
+        END
+        TRACE.ID := TRACE.START.TIME
+    END ELSE
+        IF OPERATOR THEN TRACE.ID := OPERATOR ELSE TRACE.ID:="OPNULL"
+        BEGIN CASE
+            CASE ID.PARAM = 1
+                GOSUB HANDLE.RTN.ID
+            CASE ID.PARAM = 2
+                GOSUB HANDLE.APP.ID
+            CASE ID.PARAM = 3
+                GOSUB HANDLE.CONTRACT.ID
+        END CASE
+    END
+
+    RETURN
+*---------------------------------------------------------------------------------------
+WRITE.DATA:
+
+    READ OLD.DATA FROM F.TRACE.FILE,TRACE.ID ELSE OLD.DATA = ''
+    IF OLD.DATA THEN
+        TRACE.DATA.COMMON = OLD.DATA:TRACE.DATA.COMMON
+    END
+    WRITE TRACE.DATA.COMMON ON F.TRACE.FILE,TRACE.ID
+    TRACE.DATA.COMMON=''
+    RETURN
+*---------------------------------------------------------------------------------------
+HANDLE.RTN.ID:
+    TRACE.ID := SEP
+    CALLED.ROUTINES=RAISE(SYSTEM(1029)<1>)
+    CALL.ROUTINE=CALLED.ROUTINES<2,4>
+    IF CALL.ROUTINE NE '' THEN TRACE.ID := CALL.ROUTINE ELSE TRACE.ID:="RTNNULL"
+    RETURN
+
+*---------------------------------------------------------------------------------------
+HANDLE.APP.ID:
+    GOSUB HANDLE.RTN.ID
+    TRACE.ID := SEP
+    IF APPLICATION NE '' THEN TRACE.ID := APPLICATION ELSE TRACE.ID:="APPNULL"
+    RETURN
+*---------------------------------------------------------------------------------------
+HANDLE.CONTRACT.ID:
+    GOSUB HANDLE.APP.ID
+    TRACE.ID := SEP
+    IF ID.NEW THEN TRACE.ID := ID.NEW ELSE TRACE.ID := "IDNULL"
+    RETURN
+*---------------------------------------------------------------------------------------
+END

@@ -1,0 +1,25 @@
+* Return total Credit amount of ONUS Report Regarding TT Txn*
+ *Developed By: Md. Zakir Hossain *
+*Deploy Date: 12 JULY 2016 *
+
+    SUBROUTINE TT.CR.AMT
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+! DATS=FT*DR*123.5
+
+    Y.MODE.TYPE=O.DATA
+    Y.MODE=''
+    Y.TYPE=''
+    Y.AMT=''
+    Y.MODE=FIELD(Y.MODE.TYPE,'*',1)
+    Y.TYPE=FIELD(Y.MODE.TYPE,'*',2)
+    Y.AMT=FIELD(Y.MODE.TYPE,'*',3)
+    IF Y.MODE EQ "TT" AND Y.TYPE EQ "CR" THEN
+        O.DATA=Y.AMT
+    END ELSE
+        O.DATA=0
+    END
+    RETURN
+END

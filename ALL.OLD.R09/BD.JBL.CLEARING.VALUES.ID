@@ -1,0 +1,47 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-21</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.JBL.CLEARING.VALUES.ID
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*-----------------------
+* This routine is to check the id based on user input
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 28/08/2013 New   - Manjunath Suvarna
+*                    Thesys Technologies
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE JBL.BP I_F.BD.JBL.CLEARING.VALUES
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.CLEARING = 'F.BD.JBL.CLEARING.VALUES'
+    F.CLEARING = ''
+
+    CALL OPF(FN.CLEARING,F.CLEARING)
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+*
+    Y.ID = COMI
+
+    CALL F.READ(FN.CLEARING,Y.ID,R.CLEARING,F.CLEARING,Y.ERR)
+    IF R.CLEARING THEN
+!       E = 'EB-CLG.VALUES.ID'
+    END
+*
+    RETURN
+END

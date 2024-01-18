@@ -1,0 +1,129 @@
+*-----------------------------------------------------------------------------
+* <Rating>105</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE  ABL.S.CD.STD.HALF.YR.CHRG.TEST
+
+!----------------------------------------------------------------------------------
+!This Mainline is for Half yearly charges for CD and STD account.
+!It reads the local parameter file ABL.H.CDSTD.HY
+!----------------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT JBL.BP I_F.ABL.H.CDSTD.HY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+INIT:
+    FN.ACC='F.ACCOUNT'
+    F.ACC=''
+    REC.ACC=''
+    Y.AC.ID=''
+    Y.CHRG.INTERNAL.AC=''
+
+    FN.CDSTD.HF='F.ABL.H.CDSTD.HY'
+    F.CDSTD.HF=''
+    Y.CDSTD.HF.ID=''
+    REC.CDSTD.HF=''
+
+    Y.CD.CHRG.AMT=''
+    Y.CD.VAT.AMT=''
+    Y.CD.CHRG.AMT.SLAB=''
+    Y.CHRG.INTERNAL.AC=''
+    Y.VAT.PER=''
+    Y.FT.COMM=''
+    Y.EXCLUDE.AC.LIST=''
+    Y.ALLOW.COMP=''
+    Y.MAIN.CHG.POS=''
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.ACC,F.ACC)
+    CALL OPF(FN.CDSTD.HF,F.CDSTD.HF)
+    CALL GET.LOC.REF("ACCOUNT","MAIN.CHARGE",Y.MAIN.CHG.POS)
+    RETURN
+
+PROCESS:
+!-----Half Yearly Charge For Current Account ----!
+!---Charge Tk 200/- + VAT Tk 30
+
+    CALL F.READ(FN.CDSTD.HF,'SYSTEM',REC.CDSTD.HF.SYS,F.CDSTD.HF,ERR.CDSTD.HF)
+    IF REC.CDSTD.HF.SYS EQ '' THEN
+        ETEXT="There must be a record SYSTEM in ABL.H.CDSTD.HY"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    Y.CD.CHRG.AMT.SLAB=REC.CDSTD.HF.SYS<HF.CHRG.SLAB.AMT>
+    Y.CHRG.INTERNAL.AC="PL":REC.CDSTD.HF.SYS<HF.CHRG.CATEG>
+    Y.VAT.PER=REC.CDSTD.HF.SYS<HF.VAT.PERCENT>
+    Y.FT.COMM=REC.CDSTD.HF.SYS<HF.FT.COMM>
+
+    Y.ALLOW.COMP=REC.CDSTD.HF.SYS<HF.INCLUDE.COMP>
+
+    SEL.CMD.AC="SELECT ":FN.ACC:" WITH CATEGORY EQ 6009"
+
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.AC,'',NO.OF.REC.AC,ERR.AC)
+
+    CRT" TOTAL RECORDS SELECTED FOR CD AND STD HALF YEARLY CHRG ......":NO.OF.REC.AC
+    CRT" DO YOU WANT TO START THE PROCESSING OF CD AND STD HALF YEARLY CHRG Y/N"
+    INPUT USER.CHOICE
+
+    IF USER.CHOICE EQ 'Y' THEN
+
+        LOOP
+            REMOVE Y.AC.ID FROM SEL.LIST.AC SETTING CD.POS
+
+        WHILE Y.AC.ID:CD.POS
+            CALL F.READ(FN.ACC,Y.AC.ID,REC.ACC,F.ACC,ERR.ACC)
+
+            FIND REC.ACC<AC.CO.CODE> IN Y.ALLOW.COMP SETTING Y.FM,Y.VM,Y.SM THEN
+                IF REC.ACC<AC.LOCAL.REF,Y.MAIN.CHG.POS> NE 'Waive' AND REC.ACC<AC.WORKING.BALANCE> GT '0' THEN
+                    Y.CD.VAT.AMT = ( Y.CD.CHRG.AMT.SLAB * Y.VAT.PER ) / 100
+                    CALL EB.ROUND.AMOUNT(LCCY,Y.CD.VAT.AMT,"","")
+                    Y.CD.CHRG.AMT = Y.CD.CHRG.AMT.SLAB + Y.CD.VAT.AMT
+                    IF REC.ACC<AC.WORKING.BALANCE> LT Y.CD.CHRG.AMT THEN
+                        Y.CD.CHRG.AMT = ( REC.ACC<AC.WORKING.BALANCE> * 100 ) / ( Y.VAT.PER + 100 )
+                        CALL EB.ROUND.AMOUNT(LCCY,Y.CD.CHRG.AMT,"","")
+                        Y.CD.VAT.AMT = REC.ACC<AC.WORKING.BALANCE> - Y.CD.CHRG.AMT
+                    END
+                    ELSE
+                        Y.CD.CHRG.AMT = Y.CD.CHRG.AMT.SLAB
+                    END
+!Y.RETURN<-1> = Y.AC.ID:"*":REC.ACC<AC.CATEGORY>:"*":Y.CD.CHRG.AMT:"*":Y.CD.VAT.AMT:"*":REC.ACC<AC.CO.CODE>
+                    Y.MESSAGE="FUNDS.TRANSFER,MAIN.CHARGES/I/PROCESS,DMUSER.1//":REC.ACC<AC.CO.CODE>:",,TRANSACTION.TYPE=ACHY,DEBIT.ACCT.NO=":Y.AC.ID:",CREDIT.ACCT.NO=":Y.CHRG.INTERNAL.AC:",DEBIT.AMOUNT=":Y.CD.CHRG.AMT:",DEBIT.CURRENCY=BDT,ORDERING.BANK=ABL,DR.ADVICE.REQD.Y.N=N,CR.ADVICE.REQD.Y.N=N,COMMISSION.CODE=DEBIT PLUS CHARGES,COMMISSION.TYPE=":Y.FT.COMM:",COMMISSION.AMT=BDT ":Y.CD.VAT.AMT
+                    GOSUB DO.TRANSACTION
+                    Y.CD.CHRG.AMT = ''
+                    Y.CD.VAT.AMT  = ''
+                    REC.AC=''
+                END
+            END
+        REPEAT
+
+
+    END
+    RETURN
+
+DO.TRANSACTION:
+*RUNNING.UNDER.BATCH=1
+    Y.SOURCE="DM.OFS.SRC"
+* CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.MESSAGE)
+*RUNNING.UNDER.BATCH=0
+*SENSITIVITY=''
+
+    OPTNS = ''
+    MSG.ID = ''
+    CALL OFS.POST.MESSAGE(Y.MESSAGE, MSG.ID , Y.SOURCE, OPTNS)
+    CALL JOURNAL.UPDATE ('TEST')
+
+    Y.STATUS =FIELD(FIELD(Y.MESSAGE,"/",3,1),",",1)
+    Y.MESSAGE = ''
+    IF Y.STATUS EQ 'PROCESS' THEN
+        CNT =CNT+1
+        CRT" PROCESS................":CNT
+    END
+
+    RETURN
+END

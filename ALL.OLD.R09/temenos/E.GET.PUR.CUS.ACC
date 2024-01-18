@@ -1,0 +1,33 @@
+*-----------------------------------------------------------------------------
+* <Rating>190</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE E.GET.PUR.CUS.ACC(ID.LIST)
+!PROGRAM E.GET.PUR.CUS.ACC
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ACCOUNT
+!DEBUG
+    CLEARSELECT
+    LOCATE 'CUSTOMER.NO' IN D.FIELDS<1> SETTING POS ELSE POS = ''
+    CUS.NO= D.RANGE.AND.VALUE<1,POS>
+!CUS.NO = "1000004890"
+    FN.CUSTOMER.ACCOUNT = 'F.CUSTOMER.ACCOUNT'
+    F.CUSTOMER.ACCOUNT = ''
+    CALL OPF(FN.CUSTOMER.ACCOUNT,F.CUSTOMER.ACCOUNT)
+    FN.ACCOUNT='F.ACCOUNT'
+    F.ACCOUNT=''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    ID.LIST=''
+    READ R.ID.LIST FROM F.CUSTOMER.ACCOUNT,CUS.NO ELSE R.ID.LIST=''
+    FOR I = 1 TO DCOUNT(R.ID.LIST,@FM)
+        Y.AC.ID = R.ID.LIST<I>
+        CALL F.READ(FN.ACCOUN,Y.AC.ID,R.AC.REC,F.ACCOUNT,Y.AC.ERR)
+        IF R.AC.REC<AC.CATEGORY> EQ "1961" OR R.AC.REC<AC.CATEGORY> EQ "1962" OR R.AC.REC<AC.CATEGORY> EQ "1963" THEN
+            ID.LIST<-1> = Y.AC.ID:'*'
+            Y.AC.ID = ''
+            R.AC.REC = ''
+        END
+    NEXT I
+    RETURN
+END

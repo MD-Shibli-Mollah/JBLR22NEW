@@ -1,0 +1,84 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-50</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.HME.LOAN.REBATE.PARAM.VALIDATE
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*-----------------------
+* This routine is to validate the entered internal account.
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 18/02/2011 New   - Sabari G
+*                    Thesys Technologies
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE JBL.BP I_F.BD.HME.LOAN.REBATE.PARAM
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.CATEGORY = 'F.CATEGORY'
+    F.CATEGORY = ''
+    CALL OPF(FN.CATEGORY,F.CATEGORY)
+    R.CATEGORY = ''
+
+    FN.BD.HME.LOAN.REBATE.PARAM = 'F.BD.HME.LOAN.REBATE.PARAM'
+    F.BD.HME.LOAN.REBATE.PARAM = ''
+    CALL OPF(FN.BD.HME.LOAN.REBATE.PARAM,F.BD.HME.LOAN.REBATE.PARAM)
+    R.BD.HME.LOAN.REBATE.PARAM = ''
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+    AF = EB.PAR.DT.PL.CATEG
+    Y.CATEGORY = R.NEW(EB.PAR.DT.PL.CATEG)
+    GOSUB READ.CATEG
+    GOSUB CHK.DT.CATEG
+
+    AF = EB.PAR.CR.INT.ACCT.CATEG
+    Y.CATEGORY = R.NEW(EB.PAR.CR.INT.ACCT.CATEG)
+    GOSUB READ.CATEG
+    GOSUB CHK.INT.ACCT.CATEG
+
+    RETURN
+*-----------------------------------------------------------------------------
+READ.CATEG:
+***********
+
+    CALL F.READ(FN.CATEGORY,Y.CATEGORY,R.CATEGORY,F.CATEGORY,Y.ACCT.ERR)
+
+    RETURN
+*-----------------------------------------------------------------------------
+CHK.DT.CATEG:
+*************
+
+    IF R.CATEGORY THEN
+        IF NOT(Y.CATEGORY GE 50000 AND Y.CATEGORY LE 69999) THEN
+            ETEXT ="EB-DR.PL.CATEG"
+            CALL STORE.END.ERROR
+        END
+    END
+    RETURN
+*-----------------------------------------------------------------------------
+CHK.INT.ACCT.CATEG:
+*******************
+
+    IF R.CATEGORY THEN
+        IF NOT(Y.CATEGORY GE 10000 AND Y.CATEGORY LE 19999) THEN
+            ETEXT = "EB-INT.ACCT.CAT"
+            CALL STORE.END.ERROR
+        END
+    END
+    RETURN
+
+END

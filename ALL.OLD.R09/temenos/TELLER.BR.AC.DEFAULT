@@ -1,0 +1,44 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE TELLER.BR.AC.DEFAULT
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.TELLER
+
+    GOSUB INITIALIZE
+    * DEBUG
+    GOSUB CALCULATE
+
+
+INITIALIZE:
+
+    FN.TELLER='FBNK.TELLER'
+    F.TELLER=''
+    CALL OPF(FN.TELLER,F.TELLER)
+    FN.ABL.H.BRANCH.CODE='F.ABL.H.BRANCH.CODE'
+    F.ABL.H.BRANCH.CODE=''
+    CALL OPF(FN.ABL.H.BRANCH.CODE,F.ABL.H.BRANCH.CODE)
+    RETURN
+
+CALCULATE:
+
+
+    GOSUB CALCULATE.LOC.REF
+
+    BRAN.CODE = R.NEW(TT.TE.LOCAL.REF)<1,BRAN.CODE.POS>
+
+    AC.DET='BDT128100001'
+
+    AC.COMP.DET=AC.DET:BRAN.CODE
+
+    R.NEW(TT.TE.ACCOUNT.2)<1,1>=AC.COMP.DET
+
+    RETURN
+
+CALCULATE.LOC.REF:
+
+    BRAN.CODE.NAME='BRANCH.NAME'
+    BRAN.CODE.POS=''
+    CALL GET.LOC.REF('TELLER',BRAN.CODE.NAME,BRAN.CODE.POS)
+    RETURN

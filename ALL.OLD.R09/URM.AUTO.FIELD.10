@@ -1,0 +1,75 @@
+*-----------------------------------------------------------------------------
+* <Rating>-33</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE URM.AUTO.FIELD.10
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.USER
+    $INSERT BP I_F.USER.MGT
+    $INSERT GLOBUS.BP I_F.PASSWORD.RESET
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+
+INIT:
+
+    FN.UM = 'F.EB.USER.MGT'
+    F.UM = ''
+
+    FN.U='F.USER'
+    F.U=''
+
+    Y.UM.ID = ''
+    R.UM = ''
+    Y.UM.ERR = ''
+! Y.AR = "@":@FM:"#":@FM:"$":@FM:"&":@FM:"%"
+
+    RETURN
+
+OPENFILES:
+    CALL OPF (FN.UM, F.UM)
+    CALL OPF(FN.U,F.U)
+    RETURN
+
+PROCESS:
+
+
+    Y.USER.ID=ID.NEW
+    CALL F.READ(FN.U,Y.USER.ID,REC.USER,F.U,ERROR.USER)
+
+    Y.BANK.ID=RIGHT(LEFT(Y.USER.ID,8),6)
+    IF REC.USER NE '' THEN
+        SEL.CMD="SELECT ":FN.UM:" WITH USER.ID EQ ":Y.USER.ID
+    END
+    ELSE
+        SEL.CMD="SELECT ":FN.UM:" WITH EMP.BANK.ID EQ ":Y.BANK.ID
+    END
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORDS,RET.CODE)
+    REMOVE Y.UM.ID FROM SEL.LIST SETTING POS
+    CALL F.READ(FN.UM,Y.UM.ID,R.UM,F.UM,Y.UM.ERR)
+!by Imran
+
+    IF R.UM THEN
+
+        Y.USERID = OCONV(LEFT(R.UM<EB.USE61.SIGN.ON.NAME>,3),"MCT")
+        FOR I=1 TO 5
+            Y.RND.NUM:= RND(10)
+        NEXT I
+! Y.PASS = Y.USERID:Y.AR<RND(5)+1>:Y.RND.NUM
+        Y.PASS = Y.USERID:Y.RND.NUM
+        Y.PASS.ENCRYPT = OCONV(Y.PASS,"MCAX")
+        R.UM<EB.USE61.USER.PASSWORD> = Y.PASS.ENCRYPT
+        CALL F.WRITE(FN.UM,Y.UM.ID,R.UM)
+        CALL JOURNAL.UPDATE('')
+
+        R.NEW(EB.PWR.USER.RESET) = R.UM<EB.USE61.USER.ID>
+        R.NEW(EB.PWR.USER.PASSWORD)= Y.PASS
+        R.NEW(EB.PWR.USER.TYPE)='INT'
+    END
+!by Imran
+    RETURN
+END

@@ -1,0 +1,266 @@
+*-----------------------------------------------------------------------------
+* <Rating>1098</Rating>
+* LAST UPDATE: 08-12-2015
+* UPDATED BY: ALIN BOBY
+*-----------------------------------------------------------------------------
+!    PROGRAM ABL.S.CTR.FINAL
+    SUBROUTINE A.CTR.UPDATE(Y.RETURN)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT JBL.BP I_F.ABL.CTR.THRESOLD
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.TELLER = 'F.TELLER$HIS'
+    F.TELLER = ''
+
+    FN.THRE = 'F.ABL.CTR.THRESOLD'
+    F.THRE = ''
+
+    FN.ACCT.ACT='F.ACCT.ACTIVITY'
+    F.ACCT.ACT=''
+
+    FN.AC='F.ACCOUNT'
+    F.AC=''
+
+    FN.AC.HIS='F.ACCOUNT$HIS'
+    F.AC.HIS=''
+
+    FN.STMT='F.STMT.ENTRY'
+    F.STMT=''
+
+    Y.CATEGORY = ENQ.SELECTION<4,1>
+    Y.FROM.DATE = ENQ.SELECTION<4,2>
+    Y.FROM.DATE1 = Y.FROM.DATE[1,6]
+    Y.TODATE = ENQ.SELECTION<4,3>
+    Y.TODATE1 = Y.TODATE[1,6]
+
+!    Y.CATEGORY = 1001
+!    Y.FROM.DATE1 = 20140801
+!    Y.TODATE1 = 20140831
+
+    Y.THRE.VALUE = ''
+    R.TELLER.REC = ''
+    R.TELL.REC.IND = ''
+    R.THRE.REC = ''
+    Y.REC.POS = ''
+    Y.REC.POS1 = ''
+    Y.REC.ID = ''
+    Y.NO.TT = ''
+    FLAG = ''
+    REC.STMT=''
+    Y.STMT.ID=''
+    Y.DEP.TOTAL=''
+    Y.WITH.TOTAL=''
+    Y.TT.TR.COODE=''
+    Y.TT.ID=''
+    Y.DEP.AMT=''
+    Y.WITH.AMT=''
+    Y.CHQ.NO=''
+    Y.TT.TRANS.DEP=''
+    Y.TT.TRANS.WITH=''
+    Y.TT.TRANS.CHQ=''
+    Y.TT.TRANS.WITH.DT=''
+    Y.TT.TRANS.DEP.DT=''
+    Y.WITH.DATE=''
+    Y.DEP.DATE=''
+    Y.STMT.CNT1=''
+    Y.STMT.CNT2=''
+    REC.AC=''
+    Y.AC.TITLE=''
+    Y.AC.CUS=''
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.TELLER,F.TELLER)
+    CALL OPF(FN.THRE,F.THRE)
+    CALL OPF(FN.ACCT.ACT,F.ACCT.ACT)
+    CALL OPF(FN.STMT,F.STMT)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.AC,F.AC)
+    RETURN
+
+PROCESS:
+
+    CALL F.READ(FN.THRE,"SYSTEM",R.THRE.REC,F.THRE,F.ERR)
+    Y.THRE.VALUE = R.THRE.REC<CTR.THRESOLD.LIMIT>
+!    SEL.CMD.CTR="SELECT ":FN.ACCT.ACT:" WITH CO.CODE EQ ":ID.COMPANY:" AND ACCT.CATEG EQ ":Y.CATEGORY:" AND ( ACCT.DATE GE ":Y.FROM.DATE1:" AND ACCT.DATE LE ":Y.TODATE1:" ) AND ( TRANSACT.CODE EQ '2' OR TRANSACT.CODE EQ '52' OR TRANSACT.CODE EQ '26') BY ACCOUNT"
+    SEL.CMD.CTR="SELECT ":FN.AC:" WITH CO.CODE EQ ":ID.COMPANY:" AND CATEGORY EQ ":Y.CATEGORY
+! SEL.CMD.CTR="SELECT ":FN.AC:" WITH CO.CODE EQ ":"BD0010008":" AND CATEGORY EQ ":Y.CATEGORY
+    CALL EB.READLIST(SEL.CMD.CTR,SEL.LIST.CTR,'',CTR.REC.NO,CTR.RET.CODE)
+    LOOP
+        REMOVE Y.REC.ID FROM SEL.LIST.CTR SETTING Y.REC.POS
+    WHILE Y.REC.ID:Y.REC.POS
+        YID.LIST=''
+        OPENING.BAL=''
+        ER=''
+!        Y.REC.ID=FIELD(Y.REC.ID,"-",1)
+        CALL EB.ACCT.ENTRY.LIST(Y.REC.ID,Y.FROM.DATE,Y.TODATE,YID.LIST,OPENING.BAL,ER)
+        Y.VAL.DT.PRE=''
+        Y.VAL.DT.PAST=''
+        J=''
+        J=1
+
+        IF YID.LIST NE '' THEN
+
+            CALL F.READ(FN.AC,Y.REC.ID,REC.AC,F.AC,ERR.AC)
+            IF REC.AC THEN
+                Y.AC.TITLE = REC.AC<AC.ACCOUNT.TITLE.1>
+                Y.AC.CUS = REC.AC<AC.CUSTOMER>
+            END
+            ELSE
+                CALL F.READ(FN.AC.HIS,Y.REC.ID,REC.AC,F.AC.HIS,ERR.AC.HIS)
+                Y.AC.TITLE = REC.AC<AC.ACCOUNT.TITLE.1>
+                Y.AC.CUS = REC.AC<AC.CUSTOMER>
+            END
+
+            Y.STMT.CNT1=DCOUNT(YID.LIST,FM)
+            Y.STMT.CNT2=''
+            LOOP
+                REMOVE Y.STMT.ID FROM YID.LIST SETTING Y.STMT.POS
+            WHILE Y.STMT.ID:Y.STMT.POS
+                Y.STMT.CNT2=Y.STMT.CNT2+1
+                CALL F.READ(FN.STMT,Y.STMT.ID,REC.STMT,F.STMT,ERR.STMT)
+                Y.VAL.DT.PRE=REC.STMT<AC.STE.VALUE.DATE>
+                Y.TT.ID=REC.STMT<AC.STE.TRANS.REFERENCE>:";1"
+
+                IF REC.STMT<AC.STE.SYSTEM.ID> EQ 'TT' THEN
+                    CALL F.READ(FN.TELLER,Y.TT.ID,R.TELLER.REC,F.TELLER,ERR.TELLER)
+                    Y.TT.TR.COODE=R.TELLER.REC<TT.TE.TRANSACTION.CODE>
+                END
+
+                IF REC.STMT<AC.STE.SYSTEM.ID> EQ 'TT' AND ( Y.TT.TR.COODE EQ '5' OR Y.TT.TR.COODE EQ '10' OR Y.TT.TR.COODE EQ '14' ) THEN
+                    IF J EQ 1 THEN
+                        Y.VAL.DT.PAST=Y.VAL.DT.PRE
+                    END
+
+                    IF Y.VAL.DT.PRE EQ Y.VAL.DT.PAST THEN
+
+****For Withdrawal**********
+                        IF Y.TT.TR.COODE EQ 5 OR Y.TT.TR.COODE EQ 14 THEN
+                            Y.WITH.AMT = ABS(REC.STMT<AC.STE.AMOUNT.LCY>)
+                            Y.WITH.TOTAL=Y.WITH.TOTAL + Y.WITH.AMT
+                            Y.WITH.DATE=REC.STMT<AC.STE.VALUE.DATE>
+                            Y.CHQ.NO=REC.STMT<AC.STE.THEIR.REFERENCE>
+                            Y.TT.TRANS.WITH<-1>=Y.WITH.AMT
+                            Y.TT.TRANS.WITH.DT<-1>=Y.WITH.DATE
+                            IF Y.CHQ.NO NE '' THEN
+                                Y.TT.TRANS.CHQ<-1>=Y.CHQ.NO
+                            END
+                            Y.TR.REF1=REC.STMT<AC.STE.TRANS.REFERENCE>
+                            Y.TR.REF<-1>=Y.TR.REF1
+                        END
+
+****For Deposits************
+
+                        IF Y.TT.TR.COODE EQ 10 THEN
+                            Y.DEP.AMT = ABS(REC.STMT<AC.STE.AMOUNT.LCY>)
+                            Y.DEP.DATE= REC.STMT<AC.STE.VALUE.DATE>
+                            Y.DEP.TOTAL=Y.DEP.TOTAL + Y.DEP.AMT
+                            Y.TT.TRANS.DEP<-1>=Y.DEP.AMT
+                            Y.TT.TRANS.DEP.DT<-1>=Y.DEP.DATE
+                            Y.TR.REF1=REC.STMT<AC.STE.TRANS.REFERENCE>
+                            Y.TR.REF<-1>=Y.TR.REF1
+                        END
+                        Y.VAL.DT.PAST=Y.VAL.DT.PRE
+                        J=''
+                        IF Y.STMT.CNT1 EQ Y.STMT.CNT2 THEN
+                            GOSUB WITH.PRINT
+                            GOSUB DEP.PRINT
+                        END
+                    END
+                    ELSE
+
+                        GOSUB WITH.PRINT
+                        GOSUB DEP.PRINT
+                        Y.VAL.DT.PAST=Y.VAL.DT.PRE
+
+****For Withdrawal**********
+                        IF Y.TT.TR.COODE EQ 5 OR Y.TT.TR.COODE EQ 14 THEN
+                            Y.WITH.AMT = ABS(REC.STMT<AC.STE.AMOUNT.LCY>)
+                            Y.WITH.DATE=REC.STMT<AC.STE.VALUE.DATE>
+                            Y.WITH.TOTAL=Y.WITH.TOTAL + Y.WITH.AMT
+                            Y.CHQ.NO=REC.STMT<AC.STE.THEIR.REFERENCE>
+                            Y.TT.TRANS.WITH<-1>=Y.WITH.AMT
+                            Y.TT.TRANS.WITH.DT<-1>=Y.WITH.DATE
+                            IF Y.CHQ.NO NE '' THEN
+                                Y.TT.TRANS.CHQ<-1>=Y.CHQ.NO
+                            END
+                            Y.TR.REF1=REC.STMT<AC.STE.TRANS.REFERENCE>
+                            Y.TR.REF<-1>=Y.TR.REF1
+                        END
+
+****For Deposits************
+
+                        IF Y.TT.TR.COODE EQ 10 THEN
+                            Y.DEP.AMT = ABS(REC.STMT<AC.STE.AMOUNT.LCY>)
+                            Y.DEP.DATE= REC.STMT<AC.STE.VALUE.DATE>
+                            Y.DEP.TOTAL=Y.DEP.TOTAL + Y.DEP.AMT
+                            Y.TT.TRANS.DEP<-1>=Y.DEP.AMT
+                            Y.TT.TRANS.DEP.DT<-1>=Y.DEP.DATE
+                            Y.TR.REF1=REC.STMT<AC.STE.TRANS.REFERENCE>
+                            Y.TR.REF<-1>=Y.TR.REF1
+                        END
+                        IF Y.STMT.CNT1 EQ Y.STMT.CNT2 THEN
+                            GOSUB WITH.PRINT
+                            GOSUB DEP.PRINT
+                        END
+
+                    END
+
+                END
+                ELSE
+                    GOSUB WITH.PRINT
+                    GOSUB DEP.PRINT
+                END
+            REPEAT
+        END
+    REPEAT
+
+    RETURN
+
+WITH.PRINT:
+
+    IF Y.WITH.TOTAL GE Y.THRE.VALUE THEN
+        Y.WTH.CNT=''
+        Y.WTH.CNT=DCOUNT(Y.TT.TRANS.WITH,FM)
+        FOR K=1 TO Y.WTH.CNT
+            Y.RETURN<-1>=Y.REC.ID:"*":Y.AC.TITLE:"*":Y.AC.CUS:"*":Y.TT.TRANS.WITH.DT<K,1,1>:"*":Y.TT.TRANS.WITH<K,1,1>:"*":Y.TT.TRANS.CHQ<K,1,1>:"*":"DR":"*":Y.TR.REF<K,1,1>
+
+        NEXT
+    END
+    Y.WITH.TOTAL=''
+    Y.TT.TRANS.WITH=''
+    Y.TT.TRANS.CHQ=''
+    Y.TT.TRANS.WITH.DT=''
+ !   Y.TR.REF=''
+    RETURN
+
+DEP.PRINT:
+    IF Y.DEP.TOTAL GE Y.THRE.VALUE THEN
+        Y.DEP.CNT=''
+        Y.DEP.CNT=DCOUNT(Y.TT.TRANS.DEP,FM)
+        FOR L=1 TO Y.DEP.CNT
+
+            Y.RETURN<-1>=Y.REC.ID:"*":Y.AC.TITLE:"*":Y.AC.CUS:"*":Y.TT.TRANS.DEP.DT<L,1,1>:"*":Y.TT.TRANS.DEP<L,1,1>:"*":"":"*":"CR":"*":Y.TR.REF<L,1,1>
+
+        NEXT
+!CRT Y.DEP.TOTAL
+    END
+
+    Y.DEP.TOTAL=''
+    Y.TT.TRANS.DEP=''
+    Y.TT.TRANS.DEP.DT=''
+    Y.TR.REF=''
+RETURN
+!CRT Y.TR.REF
+!CRT Y.RETURN
+END

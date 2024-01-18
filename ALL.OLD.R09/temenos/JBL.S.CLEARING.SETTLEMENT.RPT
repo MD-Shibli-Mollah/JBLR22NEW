@@ -1,0 +1,180 @@
+*-----------------------------------------------------------------------------
+* <Rating>91</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.CLEARING.SETTLEMENT.RPT
+!------------------------------------------------------------------------------------------------------!
+!This subroutine attached as authorisation routine in VERSION of
+!1) TELLER,TD.OUT.CLEAR.SETTL
+!2) TELLER,TD.IN.CLEAR.SETTLEMENT
+!3) TELLER,OUT.CLEAR.SETTL
+!4) TELLER,IN.CLEAR.SETTLEMENT
+! to generate Settlement Voucher
+!-------------------------------------------------------------------------------------------------------!
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CHEQUE.COLLECTION
+    $INSERT I_F.COMPANY
+    $INSERT I_F.DATES
+    $INSERT I_F.TELLER
+    $INSERT I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB GENERATE.VOUCHER
+
+    RETURN
+
+INIT:
+    PRT.ID=''
+
+    FN.COM="F.COMPANY"
+    F.COM=''
+    REC.COM=''
+
+    FN.AC="F.ACCOUNT"
+    F.AC=""
+    REC.AC=""
+    LNGVAR=""
+    TXTOUT=""
+
+    FN.TT="F.TELLER"
+    F.TT=""
+
+    REC.TT=""
+    Y.TT.ID=""
+
+    Y.CR.AC=""
+    Y.CR.AC.TITLE=""
+
+    Y.DR.AC=""
+    Y.DR.AC.TITLE=""
+
+    Y.CR.TR.CODE=""
+    Y.CR.BR.CODE=""
+
+    Y.DR.TR.CODE=""
+    Y.DR.BR.CODE=""
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.COM,F.COM)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.TT,F.TT)
+
+    RETURN
+
+GENERATE.VOUCHER:
+
+    LNGVAR=R.NEW(TT.TE.AMOUNT.LOCAL.1)
+    CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+
+    BEGIN CASE
+
+    CASE R.NEW(TT.TE.TRANSACTION.CODE) EQ '36'    ;! Transfer Delivery Inward
+        Y.CR.AC=R.NEW(TT.TE.ACCOUNT.2)
+        CALL F.READ(FN.AC,Y.CR.AC,REC.AC,F.AC,ERR.CR.AC)
+        Y.CR.AC.TITLE=REC.AC<AC.ACCOUNT.TITLE.1>:" A/C No-(":Y.CR.AC:")"
+        REC.AC=""
+        Y.DR.AC=R.NEW(TT.TE.ACCOUNT.1)
+        CALL F.READ(FN.AC,Y.DR.AC,REC.AC,F.AC,ERR.CR.AC)
+        Y.DR.AC.TITLE=REC.AC<AC.ACCOUNT.TITLE.1>:" A/C No-(":Y.DR.AC:")"
+        Y.CR.TR.CODE=""
+        Y.CR.BR.CODE=RIGHT(Y.DR.AC,4)
+        Y.DR.TR.CODE="XXX"
+        Y.DR.BR.CODE="XXX"
+        PRT.ID = 'SETTL.VOUCHER.TD.INWRD'
+
+    CASE R.NEW(TT.TE.TRANSACTION.CODE) EQ '35'    ;! Transfer Delivery Outward
+        Y.CR.AC=R.NEW(TT.TE.ACCOUNT.1)
+        CALL F.READ(FN.AC,Y.CR.AC,REC.AC,F.AC,ERR.CR.AC)
+        Y.CR.AC.TITLE=REC.AC<AC.ACCOUNT.TITLE.1>:" A/C No-(":Y.CR.AC:")"
+        REC.AC=""
+        Y.DR.AC=R.NEW(TT.TE.ACCOUNT.2)
+        CALL F.READ(FN.AC,Y.DR.AC,REC.AC,F.AC,ERR.CR.AC)
+        Y.DR.AC.TITLE=REC.AC<AC.ACCOUNT.TITLE.1>:" A/C No-(":Y.DR.AC:")"
+        PRT.ID = 'SETTL.VOUCHER.TD.OUTWARD'
+        Y.CR.TR.CODE="XXX"
+        Y.CR.BR.CODE="XXX"
+        Y.DR.TR.CODE=""
+        Y.DR.BR.CODE=RIGHT(Y.DR.AC,4)
+
+    CASE R.NEW(TT.TE.TRANSACTION.CODE) EQ '30'    ;! Outward Clearing
+        Y.CR.AC=R.NEW(TT.TE.ACCOUNT.1)
+        CALL F.READ(FN.AC,Y.CR.AC,REC.AC,F.AC,ERR.CR.AC)
+        Y.CR.AC.TITLE=REC.AC<AC.ACCOUNT.TITLE.1>:" A/C No-(":Y.CR.AC:")"
+        REC.AC=""
+        Y.DR.AC=R.NEW(TT.TE.ACCOUNT.2)
+        CALL F.READ(FN.AC,Y.DR.AC,REC.AC,F.AC,ERR.CR.AC)
+        Y.DR.AC.TITLE=REC.AC<AC.ACCOUNT.TITLE.1>:" A/C No-(":Y.DR.AC:")"
+        Y.CR.TR.CODE="XXX"
+        Y.CR.BR.CODE="XXX"
+        Y.DR.TR.CODE=""
+        Y.DR.BR.CODE=RIGHT(Y.DR.AC,4)
+
+        PRT.ID = 'SETTL.VOUCHER.OUTWARD'
+
+    CASE R.NEW(TT.TE.TRANSACTION.CODE) EQ '29'    ;! Inward Clearing
+        Y.CR.AC=R.NEW(TT.TE.ACCOUNT.2)
+        CALL F.READ(FN.AC,Y.CR.AC,REC.AC,F.AC,ERR.CR.AC)
+        Y.CR.AC.TITLE=REC.AC<AC.ACCOUNT.TITLE.1>:" A/C No-(":Y.CR.AC:")"
+        REC.AC=""
+        Y.DR.AC=R.NEW(TT.TE.ACCOUNT.1)
+        CALL F.READ(FN.AC,Y.DR.AC,REC.AC,F.AC,ERR.CR.AC)
+        Y.DR.AC.TITLE=REC.AC<AC.ACCOUNT.TITLE.1>:" A/C No-(":Y.DR.AC:")"
+        Y.CR.TR.CODE=""
+        Y.CR.BR.CODE=RIGHT(Y.DR.AC,4)
+        Y.DR.TR.CODE="XXX"
+        Y.DR.BR.CODE="XXX"
+        PRT.ID = 'SETTL.VOUCHER.INWRD'
+    END CASE
+
+    CALL PRINTER.ON(PRT.ID,0)
+    PRINT
+    PRINT"                                 JANATA BANK LIMITED"
+    PRINT"                                ":R.COMPANY(EB.COM.COMPANY.NAME)
+    PRINT"                              ":R.COMPANY(EB.COM.NAME.ADDRESS)
+    PRINT
+    PRINT
+    PRINT"Credit Voucher"
+    PRINT
+    PRINT"GL Head        : ":Y.CR.AC.TITLE
+    PRINT"Date           : ":TODAY
+    PRINT"Transaction No : ":ID.NEW
+    PRINT"Amount         : ":R.NEW(TT.TE.AMOUNT.LOCAL.1):" (":TXTOUT:")"
+    PRINT"Favouring      : "
+    PRINT"IBTTran Code   : ":Y.CR.TR.CODE
+    PRINT"BrCode         : ":Y.CR.BR.CODE
+    PRINT"Description    : Clearing/TD Advice received as on ":TODAY
+    PRINT
+    PRINT
+    PRINT
+    PRINT"______________                                                         _______________"
+    PRINT"Officer                                                                   Manager"
+    PRINT
+    PRINT"________________________________________________________________________________________"
+    PRINT
+    PRINT"                                 JANATA BANK LIMITED"
+    PRINT"                                ":R.COMPANY(EB.COM.COMPANY.NAME)
+    PRINT"                              ":R.COMPANY(EB.COM.NAME.ADDRESS)
+    PRINT
+    PRINT
+    PRINT"Debit Voucher"
+    PRINT
+    PRINT"GL Head        : ":Y.DR.AC.TITLE
+    PRINT"Date           : ":TODAY
+    PRINT"Transaction No : ":ID.NEW
+    PRINT"Amount         : ":R.NEW(TT.TE.AMOUNT.LOCAL.1):" (":TXTOUT:")"
+    PRINT"Favouring      : "
+    PRINT"IBTTran Code   : ":Y.DR.TR.CODE
+    PRINT"BrCode         : ":Y.DR.BR.CODE
+    PRINT"Description    : Clearing/TD Advice received as on ":TODAY
+    PRINT
+    PRINT
+    PRINT
+    PRINT"______________                                                         _______________"
+    PRINT"Officer                                                                    Manager"
+    CALL PRINTER.CLOSE(PRT.ID,'',0)
+    CALL PRINTER.OFF
+    RETURN
+END

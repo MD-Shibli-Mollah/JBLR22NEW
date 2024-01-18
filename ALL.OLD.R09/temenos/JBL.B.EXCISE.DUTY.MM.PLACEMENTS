@@ -1,0 +1,333 @@
+*-----------------------------------------------------------------------------
+* <Rating>-124</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.EXCISE.DUTY.MM.PLACEMENTS(Y.MM.ID)
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine is used to detect and apply excise duty on all the
+* selected MM Takings
+*-------------------------------------------------------------------------
+* Project Name : National Bank Limited(Bangladesh)
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+* Y.MM.ID                       -                      Holds the MM ID
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*  NA
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+*
+* EXCISE.DUTY.MAIN.PROCESS     LOCAL        Detects whether the excise
+*                                           duty needs to be applied.
+* EB.ACCOUNTING                 CORE        Used to generate accounting
+*                                           entries
+* EB.CURR.CONV                  CORE        Used to convert a currency amt
+*                                           to another currency amount
+* MIDDLE.RATE.CONV.CHECK        CORE        This routine is used to convert
+*                                           the given foreign currency amount
+*                                           in to local currency amount(USD) and
+*                                           gives the exchange rate and equivalent local amount
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 11/02/2011 -                            New   - Rashmitha M
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE JBL.BP I_JBL.B.EXCISE.DUTY.MM.PLACEMENTS.COMMON
+    $INCLUDE GLOBUS.BP I_F.MM.MONEY.MARKET
+    $INCLUDE GLOBUS.BP I_F.FT.COMMISSION.TYPE
+    $INCLUDE GLOBUS.BP I_F.TAX
+    $INCLUDE GLOBUS.BP I_F.STMT.ENTRY
+    $INCLUDE GLOBUS.BP I_F.CATEG.ENTRY
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE JBL.BP I_F.BD.EXCISE.DUTY.SLAB
+    $INCLUDE JBL.BP I_F.EB.BD.EXCISE.DUTY.PARAM
+    $INCLUDE GLOBUS.BP I_F.COMPANY
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+****************************************************************************
+INIT:
+*****
+! Initialise Variables
+    Y.APPLY.CHARGE=''
+    R.MM.MONEY.MARKET=''
+    MM.MONEY.MARKET.ERR=''
+    R.LIQ.ACCOUNT=''
+    LIQ.ACCOUNT.ERR=''
+    R.TAX.ACCOUNT=''
+    TAX.ACCOUNT.ERR=''
+    AMT.FROM.POS='1'
+    Y.NO.OF.YRS=''
+    Y.TAX.AMOUNT='0'
+    Y.SLAB.AMT='0'
+    Y.TAX.ACCT=''
+    Y.MAT.LEN=''
+    Y.RATE=''
+
+    RETURN
+****************************************************************************
+PROCESS:
+********
+! Main Process
+    GOSUB READ.MM
+    IF Y.MAT.LEN NE '8' THEN
+        RETURN
+    END
+    CALL EXCISE.DUTY.MAIN.PROCESS(R.EB.BD.EXCISE.DUTY.PARAM,Y.CATEGORY,Y.APPLY.CHARGE)
+    GOSUB APPLY.EXCISE.DUTY
+
+    RETURN
+****************************************************************************
+READ.MM:
+********
+    CALL F.READ(FN.MM.MONEY.MARKET,Y.MM.ID,R.MM.MONEY.MARKET,F.MM.MONEY.MARKET,MM.MONEY.MARKET.ERR)
+    IF NOT(R.MM.MONEY.MARKET) THEN
+        RETURN
+    END
+    Y.CATEGORY=R.MM.MONEY.MARKET<MM.CATEGORY>
+    Y.CURRENCY=R.MM.MONEY.MARKET<MM.CURRENCY>
+    Y.VAL.DATE=R.MM.MONEY.MARKET<MM.VALUE.DATE>
+    Y.MAT.DATE=R.MM.MONEY.MARKET<MM.MATURITY.DATE>
+    Y.MAT.LEN=LEN(Y.MAT.DATE)
+    Y.PRINC.AMT=R.MM.MONEY.MARKET<MM.PRINCIPAL>
+    Y.INT.LIQ.ACCT=R.MM.MONEY.MARKET<MM.INT.LIQ.ACCT>
+
+! Get the LCCY amount for Principal amount
+    IF Y.CURRENCY EQ LCCY THEN
+        Y.PRINC.AMT.LCY=Y.PRINC.AMT
+    END ELSE
+        Y.RATE = ''
+        Y.MARKET = '1'
+        CALL MIDDLE.RATE.CONV.CHECK(Y.PRINC.AMT,Y.CURRENCY,Y.RATE,Y.MARKET,Y.PRINC.AMT.LCY,'','')
+    END
+
+    RETURN
+****************************************************************************
+APPLY.EXCISE.DUTY:
+******************
+! Apply excise duty on MM if it satisfies with the conditions given in BD.EXCISE.DUTY.PARAM
+    IF Y.APPLY.CHARGE EQ 'Y' THEN
+        GOSUB GET.DUTY.AMT
+        GOSUB CALC.TAX
+        GOSUB GEN.ENTRIES
+    END
+
+    RETURN
+****************************************************************************
+GET.DUTY.AMT:
+*************
+! Get the excise duty amount for the MM Principal amount.
+    Y.AMT=R.EB.BD.EXCISE.DUTY.SLAB<EB.BD.2.AMT.FROM>
+    CONVERT VM TO FM IN Y.AMT
+    Y.COUNT.AMT=DCOUNT(Y.AMT,FM)
+    LOOP
+    WHILE AMT.FROM.POS LE Y.COUNT.AMT
+        Y.AMT.FRM=R.EB.BD.EXCISE.DUTY.SLAB<EB.BD.2.AMT.FROM,AMT.FROM.POS>
+        Y.AMT.TO=R.EB.BD.EXCISE.DUTY.SLAB<EB.BD.2.AMT.TO,AMT.FROM.POS>
+        IF Y.AMT.TO EQ '' AND  Y.PRINC.AMT.LCY GE Y.AMT.FRM THEN
+            Y.SLAB.AMT =R.EB.BD.EXCISE.DUTY.SLAB<EB.BD.2.EXCISE.DUTY.AMT,AMT.FROM.POS>
+            EXIT
+        END ELSE
+            IF Y.PRINC.AMT.LCY GE Y.AMT.FRM AND Y.PRINC.AMT.LCY LE Y.AMT.TO THEN
+                Y.SLAB.AMT =R.EB.BD.EXCISE.DUTY.SLAB<EB.BD.2.EXCISE.DUTY.AMT,AMT.FROM.POS>
+                EXIT
+            END
+        END
+        AMT.FROM.POS++
+    REPEAT
+    Y.NO.OF.YRS=Y.MAT.DATE[1,4]-Y.VAL.DATE[1,4]
+    Y.NO.OF.YRS++
+    Y.SLAB.AMT=Y.SLAB.AMT*Y.NO.OF.YRS
+
+    RETURN
+**************************************************************************
+CALC.TAX:
+*********
+! Calculate TAX
+    Y.INT=R.MM.MONEY.MARKET<MM.TOT.INTEREST.AMT>
+    IF R.TAX THEN
+        Y.RATE=R.TAX<EB.TAX.RATE>
+        Y.TAX.ACT.CAT=R.TAX<EB.TAX.CATEGORY>
+        Y.TAX.AMOUNT=Y.INT*Y.RATE/100
+! Convert it to LCCY amount
+        Y.LCY.TAX.AMT = Y.TAX.AMOUNT
+        IF Y.TAX.AMOUNT AND Y.CURRENCY NE LCCY THEN
+            CALL EB.CURR.CONV(Y.CURRENCY,Y.TAX.AMOUNT,LCCY,Y.LCY.TAX.AMT)
+        END
+    END
+
+    RETURN
+**************************************************************************
+GEN.ENTRIES:
+************
+! Generate entries:
+    CALL F.READ(FN.ACCOUNT,Y.INT.LIQ.ACCT,R.LIQ.ACCT,F.ACCOUNT,LIQ.ACCOUNT.ERR)
+    IF NOT(R.LIQ.ACCT) THEN
+        RETURN
+    END
+! Form tax account
+    Y.INT.LIQ.CCY=R.LIQ.ACCT<AC.CURRENCY>
+    Y.SUB.DIV.CODE=R.COMPANY(EB.COM.SUB.DIVISION.CODE)
+    Y.TAX.ACCT=LCCY:Y.TAX.ACT.CAT:'0001'
+    IF C$MULTI.BOOK THEN
+        Y.TAX.ACCT:=Y.SUB.DIV.CODE
+    END
+
+! Check the Int liq acct ccy and convert the slab amount if required
+    IF Y.INT.LIQ.CCY NE LCCY THEN
+! Convert Slab amt to Int liq ccy
+        Y.FCY.SLAB.AMT=''
+        Y.RATE = ''
+        Y.MARKET = R.LIQ.ACCT<AC.CURRENCY.MARKET>
+        CALL MIDDLE.RATE.CONV.CHECK(Y.FCY.SLAB.AMT,Y.INT.LIQ.CCY,Y.RATE,Y.MARKET,Y.SLAB.AMT,'','')
+        Y.FCY.SLAB.AMT = -1 * Y.FCY.SLAB.AMT
+    END ELSE
+        Y.FCY.SLAB.AMT=''
+    END
+
+    IF Y.LCY.TAX.AMT THEN
+        GOSUB GEN.TAX.ENTRY
+! Check the Int liq acct ccy and convert the tax amount if required
+        Y.FCY.TAX.AMT = ''
+        IF Y.INT.LIQ.CCY NE LCCY THEN
+            IF Y.CURRENCY NE Y.INT.LIQ.CCY THEN
+! convert Lcy tax amount to Int liq ccy
+                Y.FCY.TAX.AMT=''
+                Y.RATE = ''
+                Y.MARKET = 1
+                CALL MIDDLE.RATE.CONV.CHECK(Y.FCY.TAX.AMT,Y.INT.LIQ.CCY,Y.RATE,Y.MARKET,Y.LCY.TAX.AMT,'','')
+                Y.FCY.TAX.AMT = -1 * Y.FCY.TAX.AMT
+            END ELSE
+                Y.FCY.TAX.AMT = Y.TAX.AMOUNT      ;* in MM currency
+            END
+        END
+    END
+
+    IF Y.SLAB.AMT EQ '0' AND Y.LCY.TAX.AMT EQ '0' THEN
+        RETURN
+    END
+
+*-----------------&below dr leg : include fcy amt,co code, exch rate
+* initialise exchange rate variable as '' at the beginning
+*exch rate is the value returned from rtn middle rate conv(check arguments)
+* fcy amt is equal to  Y.SLAB.AMT.FCY
+*--------------------
+! Statement Entry crediting excise duty and tax amount to interest Liquidation account:
+    Y.TOT.AMT.FCY = ''
+    Y.TOT.AMT.FCY = Y.FCY.SLAB.AMT + Y.FCY.TAX.AMT
+    ENTRY.REC=""
+    ENTRY.REC<AC.STE.ACCOUNT.NUMBER>=Y.INT.LIQ.ACCT
+    ENTRY.REC<AC.STE.COMPANY.CODE>     = ID.COMPANY
+    ENTRY.REC<AC.STE.AMOUNT.LCY>       = Y.LCY.TAX.AMT+Y.SLAB.AMT
+    IF Y.TOT.AMT.FCY THEN
+        ENTRY.REC<AC.STE.AMOUNT.FCY> = Y.TOT.AMT.FCY
+        ENTRY.REC<AC.STE.EXCHANGE.RATE>    = Y.RATE
+    END
+    ENTRY.REC<AC.STE.TRANSACTION.CODE> = R.FT.COMMISSION.TYPE<FT4.TXN.CODE.CR>
+    ENTRY.REC<AC.STE.THEIR.REFERENCE>  = Y.MM.ID
+    ENTRY.REC<AC.STE.NARRATIVE,1> ='Excise Duty'
+    ENTRY.REC<AC.STE.CUSTOMER.ID>      = R.LIQ.ACCOUNT<AC.CUSTOMER>
+    ENTRY.REC<AC.STE.ACCOUNT.OFFICER> = R.LIQ.ACCOUNT<AC.ACCOUNT.OFFICER>
+    ENTRY.REC<AC.STE.PRODUCT.CATEGORY> = R.LIQ.ACCOUNT<AC.CATEGORY>
+    ENTRY.REC<AC.STE.VALUE.DATE>       = TODAY
+    ENTRY.REC<AC.STE.CURRENCY>         = R.LIQ.ACCOUNT<AC.CURRENCY>
+    ENTRY.REC<AC.STE.OUR.REFERENCE>    = Y.MM.ID
+    ENTRY.REC<AC.STE.CURRENCY.MARKET> = R.LIQ.ACCOUNT<AC.CURRENCY.MARKET>
+    ENTRY.REC<AC.STE.DEPARTMENT.CODE> = "1"
+    ENTRY.REC<AC.STE.EXPOSURE.DATE>    = TODAY
+    ENTRY.REC<AC.STE.TRANS.REFERENCE> = Y.MM.ID
+    ENTRY.REC<AC.STE.SYSTEM.ID>        = 'MM'
+    ENTRY.REC<AC.STE.BOOKING.DATE>     = TODAY
+    YENTRY.REC<-1> = LOWER(ENTRY.REC)
+
+    IF Y.SLAB.AMT EQ '0' THEN
+        CALL EB.ACCOUNTING('MM','SAO',YENTRY.REC,'')
+        GOSUB UPDATE.MM
+        RETURN
+    END
+
+! Categ Entry debiting excise duty from PL category:
+    AENTRY.REC=""
+    AENTRY.REC<AC.CAT.PL.CATEGORY> = R.FT.COMMISSION.TYPE<FT4.CATEGORY.ACCOUNT>
+    AENTRY.REC<AC.CAT.PRODUCT.CATEGORY> = Y.CATEGORY
+    AENTRY.REC<AC.CAT.CURRENCY> = LCCY
+    AENTRY.REC<AC.CAT.TRANSACTION.CODE> = R.FT.COMMISSION.TYPE<FT4.TXN.CODE.DR>
+    AENTRY.REC<AC.CAT.NARRATIVE,1>="Excise Duty"
+    AENTRY.REC<AC.CAT.AMOUNT.LCY> =  -1*Y.SLAB.AMT
+    AENTRY.REC<AC.CAT.AMOUNT.FCY> = ''
+    AENTRY.REC<AC.CAT.ACCOUNT.OFFICER> = R.MM.MONEY.MARKET<MM.MIS.ACCT.OFFICER>
+    AENTRY.REC<AC.CAT.CUSTOMER.ID>      = R.MM.MONEY.MARKET<MM.CUSTOMER.ID>
+    AENTRY.REC<AC.CAT.VALUE.DATE> = TODAY
+    AENTRY.REC<AC.CAT.OUR.REFERENCE> = Y.MM.ID
+    AENTRY.REC<AC.CAT.POSITION.TYPE> = R.MM.MONEY.MARKET<MM.POSITION.TYPE>
+    AENTRY.REC<AC.CAT.EXPOSURE.DATE> = TODAY
+    AENTRY.REC<AC.CAT.TRANS.REFERENCE> = Y.MM.ID
+    AENTRY.REC<AC.CAT.SYSTEM.ID>= 'MM'
+    AENTRY.REC<AC.CAT.BOOKING.DATE> = TODAY
+    AENTRY.REC<AC.CAT.DEPARTMENT.CODE> = '1'
+    AENTRY.REC<AC.CAT.COMPANY.CODE> = ID.COMPANY
+    AENTRY.REC<AC.CAT.CURRENCY.MARKET> = R.MM.MONEY.MARKET<MM.CURRENCY.MARKET>
+    YENTRY.REC<-1> = LOWER(AENTRY.REC)
+
+    CALL EB.ACCOUNTING('MM','SAO',YENTRY.REC,'')
+    GOSUB UPDATE.MM
+
+    RETURN
+**************************************************************************
+GEN.TAX.ENTRY:
+**************
+! Statement entry debiting tax amount from Tax account:
+
+    ENTRY.REC=""
+    ENTRY.REC<AC.STE.ACCOUNT.NUMBER>   = Y.TAX.ACCT
+    ENTRY.REC<AC.STE.COMPANY.CODE>     = ID.COMPANY
+    ENTRY.REC<AC.STE.AMOUNT.LCY>       = -1 * Y.LCY.TAX.AMT
+    ENTRY.REC<AC.STE.TRANSACTION.CODE>=R.TAX<EB.TAX.TR.CODE.DR>
+    ENTRY.REC<AC.STE.THEIR.REFERENCE>  = Y.MM.ID
+    ENTRY.REC<AC.STE.NARRATIVE,1> ='Excise Duty'
+    ENTRY.REC<AC.STE.CUSTOMER.ID>      = R.MM.MONEY.MARKET<MM.CUSTOMER.ID>
+    ENTRY.REC<AC.STE.ACCOUNT.OFFICER>  =  R.MM.MONEY.MARKET<MM.MIS.ACCT.OFFICER>
+    ENTRY.REC<AC.STE.POSITION.TYPE> = R.MM.MONEY.MARKET<MM.POSITION.TYPE>
+    ENTRY.REC<AC.STE.PRODUCT.CATEGORY> = R.MM.MONEY.MARKET<MM.CATEGORY>
+    ENTRY.REC<AC.STE.VALUE.DATE>       = TODAY
+    ENTRY.REC<AC.STE.CURRENCY>         = LCCY
+    ENTRY.REC<AC.STE.OUR.REFERENCE>    = Y.MM.ID
+    ENTRY.REC<AC.STE.CURRENCY.MARKET>  = R.MM.MONEY.MARKET<MM.CURRENCY.MARKET>
+    ENTRY.REC<AC.STE.DEPARTMENT.CODE>  = "1"
+    ENTRY.REC<AC.STE.EXPOSURE.DATE>    = TODAY
+    ENTRY.REC<AC.STE.TRANS.REFERENCE>  = Y.MM.ID
+    ENTRY.REC<AC.STE.SYSTEM.ID>        = 'MM'
+    ENTRY.REC<AC.STE.BOOKING.DATE>     = TODAY
+    YENTRY.REC<-1> = LOWER(ENTRY.REC)
+
+    RETURN
+*****************************************************************************
+UPDATE.MM:
+**********
+! Update the local ref fields in MM
+    R.MM.MONEY.MARKET<MM.LOCAL.REF,POS.TAX.AMOUNT>=Y.TAX.AMOUNT
+    R.MM.MONEY.MARKET<MM.LOCAL.REF,POS.EXCISE.DUTY.AMT>=Y.SLAB.AMT
+! Convert SLAB amount in LCCY to MM ccy
+    Y.SLAB.AMT.FCY = ""
+    IF Y.CURRENCY NE LCCY THEN
+        CALL EB.CURR.CONV(LCCY,Y.SLAB.AMT,Y.CURRENCY,Y.SLAB.AMT.FCY)
+    END ELSE
+        Y.SLAB.AMT.FCY = Y.SLAB.AMT
+    END
+! Y.TAX.AMOUNT already in MM currency
+    R.MM.MONEY.MARKET<MM.LOCAL.REF,POS.NET.AMOUNT>=Y.PRINC.AMT+Y.INT-Y.TAX.AMOUNT-Y.SLAB.AMT.FCY
+    CALL F.WRITE(FN.MM.MONEY.MARKET,Y.MM.ID,R.MM.MONEY.MARKET)
+
+    RETURN
+**************************************************************************
+END

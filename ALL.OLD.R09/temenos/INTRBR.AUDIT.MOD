@@ -1,0 +1,267 @@
+***********************************************************
+* DEV: ALIN BOBY
+* START DATE: 20160505
+* LIVE:20160519
+* REQ: Abu Hena Mostofa Zamal (FAGM)
+* REPORT: INTER BRANCH MODIFICATION RECORD AUDIT REPORT (DATE-WISE)
+***********************************************************
+
+    SUBROUTINE INTRBR.AUDIT.MOD(Y.ARR1)
+**    PROGRAM INTRBR.AUDIT.MOD
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.COMPANY.SMS.GROUP
+
+
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+
+INIT:
+
+    FN.COMPANY.SMS.GROUP = "F.COMPANY.SMS.GROUP"
+    F.COMPANY.SMS.GROUP = ""
+    R.COMPANY.SMS.GROUP = ""
+
+
+    FN.COMPANY.SMS.GROUP.HIS = "F.COMPANY.SMS.GROUP$HIS"
+    F.COMPANY.SMS.GROUP.HIS = ""
+    R.COMPANY.SMS.GROUP.HIS = ""
+
+
+    Y.SDATE=ENQ.SELECTION<4,1>
+
+
+    Y.DT1=RIGHT(Y.SDATE,2):"-":RIGHT(LEFT(Y.SDATE,6),2):"-":LEFT(Y.SDATE,4)
+
+
+    NO.OF.RECORDS = 0
+    RET.CODE = ""
+    Y.ARR1=''
+    Y.SERIAL=''
+
+    NO.OF.RECORDS1=0
+    RET.CODE1=""
+
+
+    Y.FDATE1=RIGHT(Y.SDATE,6):"0000"
+    Y.TDATE1=RIGHT(Y.SDATE,6):"9999"
+    Y.DT="REPORT BASED ON : ":Y.DT1
+
+
+
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.COMPANY.SMS.GROUP,F.COMPANY.SMS.GROUP)
+    CALL OPF(FN.COMPANY.SMS.GROUP.HIS,F.COMPANY.SMS.GROUP.HIS)
+    RETURN
+
+
+
+PROCESS:
+
+
+    SEL.CMD = "SELECT " : FN.COMPANY.SMS.GROUP :" WITH DATE.TIME GE ":Y.FDATE1:" AND DATE.TIME LE ":Y.TDATE1:" AND @ID EQ 'INTRBRCOMP'"
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORDS,RET.CODE)
+
+    IF NO.OF.RECORDS NE 0 THEN
+
+
+        Y.CO.SMS.GROUP = "INTRBRCOMP"
+        CALL F.READ(FN.COMPANY.SMS.GROUP,Y.CO.SMS.GROUP,R.COMPANY.SMS.GROUP,FN.COMPANY.SMS.GROUP,Y.ERR)
+
+        IF R.COMPANY.SMS.GROUP NE '' THEN
+
+            Y.SERIAL=1
+            Y.CURR.NO = R.COMPANY.SMS.GROUP<CO.SMS.CURR.NO>
+            Y.INPUTTER = R.COMPANY.SMS.GROUP<CO.SMS.INPUTTER>
+            Y.INPUTTER=FIELD(Y.INPUTTER,"_",2,1)
+            Y.DATE.TIME = R.COMPANY.SMS.GROUP<CO.SMS.DATE.TIME>
+            Y.COMPANY.CODE = R.COMPANY.SMS.GROUP<CO.SMS.COMPANY.CODE>
+
+
+            Y.DATE=LEFT(Y.DATE.TIME,6)
+            Y.DATE2="20":Y.DATE
+            Y.YEAR2=LEFT(Y.DATE2,4)
+            Y.MONTH2=LEFT(RIGHT(Y.DATE2,4),2)
+            Y.DAY2=RIGHT(Y.DATE2,2)
+            Y.DATE2=''
+            Y.DATE2=Y.DAY2:"-":Y.MONTH2:"-":Y.YEAR2
+
+            Y.TIME=RIGHT(Y.DATE.TIME,4)
+            Y.TIME2=LEFT(Y.TIME,2):":":RIGHT(Y.TIME,2)
+
+            Y.AUTHORISER = R.COMPANY.SMS.GROUP<CO.SMS.AUTHORISER>
+            Y.AUTHORISER=FIELD(Y.AUTHORISER,"_",2,1)
+
+
+            IF Y.CURR.NO GT 1 THEN
+                Y.NO=Y.CURR.NO-1
+                Y.PREV.ID=Y.CO.SMS.GROUP:";":Y.NO
+                GOSUB PREVHIS
+
+
+                LOOP
+                    REMOVE Y.COMP.ID FROM Y.COMPANY.CODE SETTING P
+                WHILE Y.COMP.ID : P
+                    FIND Y.COMP.ID IN Y.COMPANY.CODE.P SETTING Ap, Vp THEN
+                    END ELSE
+                        IF Y.ADDBR EQ '' THEN
+                            Y.ADDBR=Y.COMP.ID
+                        END
+                        ELSE
+                            Y.ADDBR=Y.ADDBR:@VM:Y.COMP.ID
+                        END
+                    END
+                REPEAT
+
+                LOOP
+                    REMOVE Y.COMP.ID FROM Y.COMPANY.CODE.P SETTING P
+                WHILE Y.COMP.ID : P
+                    FIND Y.COMP.ID IN Y.COMPANY.CODE SETTING Ap, Vp THEN
+                    END ELSE
+                        IF Y.DELBR EQ '' THEN
+                            Y.DELBR=Y.COMP.ID
+                        END
+                        ELSE
+                            Y.DELBR=Y.DELBR:@VM:Y.COMP.ID
+                        END
+                    END
+                REPEAT
+
+
+                Y.ARR1<-1> = Y.SERIAL:"*":Y.INPUTTER:"*":Y.DATE2:"*":Y.TIME2:"*":Y.AUTHORISER:"*":Y.CURR.NO:"*":Y.DT:"*":Y.COMPANY.CODE:"*":Y.COMPANY.CODE.P:"*":Y.ADDBR:"*":Y.DELBR
+**                Y.ARR1 = Y.SERIAL:"*":Y.INPUTTER:"*":Y.DATE2:"*":Y.TIME2:"*":Y.AUTHORISER:"*":Y.CURR.NO:"*":Y.DT:"*":Y.COMPANY.CODE:"*":Y.COMPANY.CODE.P:"*":Y.ADDBR:"*":Y.DELBR
+**                CRT Y.ARR1
+            END
+            ELSE
+            END
+
+
+        END
+    END
+
+    ELSE
+    END
+
+
+    SEL.CMD1 = "SELECT " : FN.COMPANY.SMS.GROUP.HIS : " WITH DATE.TIME GE ":Y.FDATE1:" AND DATE.TIME LE ":Y.TDATE1:" AND @ID LIKE '...INTRBRCOMP...' BY-DSND CURR.NO"
+    CALL EB.READLIST(SEL.CMD1,SEL.LIST1,"",NO.OF.RECORDS1,RET.CODE1)
+    IF Y.SERIAL=1 THEN
+        Y.SERIAL1=2
+    END
+    ELSE
+        Y.SERIAL1=1
+    END
+
+    LOOP
+        REMOVE Y.COMPANY.SMS.GROUP.ID FROM SEL.LIST1 SETTING POS
+    WHILE Y.COMPANY.SMS.GROUP.ID : POS
+        CALL F.READ(FN.COMPANY.SMS.GROUP.HIS,Y.COMPANY.SMS.GROUP.ID,R.COMPANY.SMS.GROUP.HIS,FN.COMPANY.SMS.GROUP.HIS,Y.ERR1)
+        Y.CURR.NO1 = R.COMPANY.SMS.GROUP.HIS<CO.SMS.CURR.NO>
+        Y.INPUTTER1 = R.COMPANY.SMS.GROUP.HIS<CO.SMS.INPUTTER>
+        Y.INPUTTER1=FIELD(Y.INPUTTER1,"_",2,1)
+        Y.DATE.TIME1 = R.COMPANY.SMS.GROUP.HIS<CO.SMS.DATE.TIME>
+        Y.DATE1=LEFT(Y.DATE.TIME1,6)
+        Y.DATE1="20":Y.DATE1
+        Y.COMPANY.CODE1 = R.COMPANY.SMS.GROUP.HIS<CO.SMS.COMPANY.CODE>
+
+
+        Y.YEAR1=LEFT(Y.DATE1,4)
+        Y.MONTH1=LEFT(RIGHT(Y.DATE1,4),2)
+        Y.DAY1=RIGHT(Y.DATE1,2)
+        Y.DATE1=''
+        Y.DATE1=Y.DAY1:"-":Y.MONTH1:"-":Y.YEAR1
+
+        Y.TIME1=RIGHT(Y.DATE.TIME1,4)
+        Y.TIME11=LEFT(Y.TIME1,2):":":RIGHT(Y.TIME1,2)
+        Y.AUTHORISER1 = R.COMPANY.SMS.GROUP.HIS<CO.SMS.AUTHORISER>
+        Y.AUTHORISER1=FIELD(Y.AUTHORISER1,"_",2,1)
+
+
+
+        IF Y.CURR.NO1 GT 1 THEN
+            Y.NO1=Y.CURR.NO1-1
+            Y.PREV.ID=FIELD(Y.COMPANY.SMS.GROUP.ID,";",1):";":Y.NO1
+            GOSUB PREVHIS
+
+
+            LOOP
+                REMOVE Y.COMP.ID1 FROM Y.COMPANY.CODE1 SETTING P1
+            WHILE Y.COMP.ID1 : P1
+                FIND Y.COMP.ID1 IN Y.COMPANY.CODE.P SETTING Ap, Vp THEN
+                END ELSE
+                    IF Y.ADDBR EQ '' THEN
+                        Y.ADDBR=Y.COMP.ID1
+                    END
+                    ELSE
+                        Y.ADDBR=Y.ADDBR:@VM:Y.COMP.ID1
+                    END
+                END
+            REPEAT
+
+            LOOP
+                REMOVE Y.COMP.ID1 FROM Y.COMPANY.CODE.P SETTING P1
+            WHILE Y.COMP.ID1 : P1
+                FIND Y.COMP.ID1 IN Y.COMPANY.CODE1 SETTING Ap, Vp THEN
+                END ELSE
+                    IF Y.DELBR EQ '' THEN
+                        Y.DELBR=Y.COMP.ID1
+                    END
+                    ELSE
+                        Y.DELBR=Y.DELBR:@VM:Y.COMP.ID1
+                    END
+                END
+            REPEAT
+
+
+            Y.ARR1<-1> = Y.SERIAL1:"*":Y.INPUTTER1:"*":Y.DATE1:"*":Y.TIME11:"*":Y.AUTHORISER1:"*":Y.CURR.NO1:"*":Y.DT:"*":Y.COMPANY.CODE1:"*":Y.COMPANY.CODE.P:"*":Y.ADDBR:"*":Y.DELBR
+**        Y.ARR1 = Y.SERIAL1:"*":Y.INPUTTER1:"*":Y.DATE1:"*":Y.TIME11:"*":Y.AUTHORISER1:"*":Y.CURR.NO1:"*":Y.DT:"*":Y.COMPANY.CODE1:"*":Y.COMPANY.CODE.P:"*":Y.ADDBR:"*":Y.DELBR
+**        CRT Y.ARR1
+        END
+        ELSE
+        END
+
+        Y.SERIAL1 = Y.SERIAL1 + 1
+
+    REPEAT
+
+
+    RETURN
+
+
+PREVHIS:
+    Y.ADDBR=''
+    Y.DELBR=''
+    CALL F.READ(FN.COMPANY.SMS.GROUP.HIS,Y.PREV.ID,R.COMPANY.SMS.GROUP.HIS,FN.COMPANY.SMS.GROUP.HIS,Y.ERR1)
+    Y.CURR.NO.P = R.COMPANY.SMS.GROUP.HIS<CO.SMS.CURR.NO>
+    Y.INPUTTER.P = R.COMPANY.SMS.GROUP.HIS<CO.SMS.INPUTTER>
+    Y.INPUTTER.P=FIELD(Y.INPUTTER.P,"_",2,1)
+    Y.DATE.TIME.P = R.COMPANY.SMS.GROUP.HIS<CO.SMS.DATE.TIME>
+    Y.DATE.P=LEFT(Y.DATE.TIME.P,6)
+    Y.DATE.P="20":Y.DATE.P
+    Y.COMPANY.CODE.P=R.COMPANY.SMS.GROUP.HIS<CO.SMS.COMPANY.CODE>
+
+
+    Y.YEAR.P=LEFT(Y.DATE.P,4)
+    Y.MONTH.P=LEFT(RIGHT(Y.DATE.P,4),2)
+    Y.DAY.P=RIGHT(Y.DATE.P,2)
+    Y.DATE.P=''
+    Y.DATE.P=Y.DAY.P:"-":Y.MONTH.P:"-":Y.YEAR.P
+
+    Y.TIME.P=RIGHT(Y.DATE.TIME.P,4)
+    Y.TIME1.P=LEFT(Y.TIME.P,2):":":RIGHT(Y.TIME.P,2)
+    Y.AUTHORISER.P = R.COMPANY.SMS.GROUP.HIS<CO.SMS.AUTHORISER>
+    Y.AUTHORISER.P=FIELD(Y.AUTHORISER.P,"_",2,1)
+
+    RETURN
+
+END

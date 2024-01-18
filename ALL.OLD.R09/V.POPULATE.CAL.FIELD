@@ -1,0 +1,64 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE V.POPULATE.CAL.FIELD
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.SECURITY.MASTER
+    $INCLUDE GLOBUS.BP I_F.SEC.ACC.MASTER
+
+    GOSUB PROCESS
+
+    RETURN
+
+PROCESS:
+
+    BEGIN CASE
+    CASE APPLICATION = "SECURITY.MASTER"
+        GOSUB SM.POPULATE
+
+    CASE APPLICATION = "SEC.ACC.MASTER"
+        GOSUB SAM.POPULATE
+
+    END CASE
+
+    RETURN
+
+SM.POPULATE:
+
+    V.QUOTED.LISTED = R.NEW(SC.SCM.QUOTED.LISTED.NO)
+
+    IF(V.QUOTED.LISTED) THEN
+        FLD.ARRAY = "LISTED.OR.NOT"
+        APPL.ARR = "SECURITY.MASTER"
+        FLD.POS = ''
+        CALL GET.LOC.REF(APPL.ARR,FLD.ARRAY,FLD.POS)
+        V.SM.LOC.POS = FLD.POS<1,1>
+        IF V.QUOTED.LISTED EQ "NO" THEN
+            R.NEW(SC.SCM.LOCAL.REF)<1,V.SM.LOC.POS> = "N"
+        END ELSE
+            R.NEW(SC.SCM.LOCAL.REF)<1,V.SM.LOC.POS> = "L"
+        END
+    END
+
+    RETURN
+
+SAM.POPULATE:
+
+    V.PORT.TYPE = R.NEW(SC.SAM.PORTFOLIO.TYPE)
+
+    IF(V.PORT.TYPE) THEN
+        FLD.ARR = "HTM.HFT"
+        APPL.ARR = "SEC.ACC.MASTER"
+        FLD.POS = ''
+        CALL GET.LOC.REF(APPL.ARR,FLD.ARRAY,FLD.POS)
+        V.SAM.LOC.POS = FLD.POS<1,1>
+        IF V.PORT.TYPE EQ "INVESTMENT" THEN
+            R.NEW(SC.SAM.LOCAL.REF)<1,V.SAM.LOC.POS> = "HTM"
+        END ELSE
+            R.NEW(SC.SAM.LOCAL.REF)<1,V.SAM.LOC.POS> = "HFT"
+        END
+    END
+
+    RETURN

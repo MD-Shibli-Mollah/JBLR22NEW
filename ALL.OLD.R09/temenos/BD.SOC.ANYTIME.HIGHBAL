@@ -1,0 +1,48 @@
+$PACKAGE BD.Soc
+*
+* Implementation of BD.SOC.SocUpdateHighBal
+*
+* Y.ACCOUNTNO(IN) :
+*
+SUBROUTINE BD.SOC.ANYTIME.HIGHBAL(Y.ACCOUNTNO,Y.RECORD.STATUS)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.BD.SOC.BALINFO
+    
+    $USING  EB.DataAccess
+    $USING  AC.AccountOpening
+    $USING  EB.SystemTables
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+RETURN
+
+INIT:
+    FN.ACCOUNT='F.ACCOUNT'
+    F.ACCOUNT=''
+    FN.BD.SOC='F.BD.SOC.BALINFO'
+    F.BD.SOC=''
+    Y.HIGH.BALANCE=''
+ 
+*
+    EB.DataAccess.Opf(FN.ACCOUNT, F.ACCOUNT)
+    EB.DataAccess.Opf(FN.BD.SOC, F.BD.SOC)
+RETURN
+
+PROCESS:
+    EB.DataAccess.FRead(FN.ACCOUNT, Y.ACCOUNTNO, R.ACC, F.ACCOUNT, Er)
+    Y.ACC.FINAL.BALANCE=R.ACC<AC.AccountOpening.Account.WorkingBalance>
+**SOC.BAL.HIGH_BALANCE
+    Y.DATE=EB.SystemTables.getToday()
+    Y.YEAR=Y.DATE[1,4]
+    Y.SOC.ACC=Y.ACCOUNTNO:Y.YEAR
+    EB.DataAccess.FRead(FN.BD.SOC, Y.SOC.ACC, R.TEMPLATE.DATA, F.BD.SOC, ERR)
+    Y.HIGH.BALANCE=R.TEMPLATE.DATA<BD.Soc.BdSocBalInfo.SOC.BAL.MAXIMUM.BALANCE>
+    IF Y.ACC.FINAL.BALANCE GT Y.HIGH.BALANCE OR Y.RECORD.STATUS EQ 'AUTH-REV' THEN
+        R.TEMPLATE.DATA<BD.Soc.BdSocBalInfo.SOC.BAL.MAXIMUM.DATE>=Y.DATE
+        R.TEMPLATE.DATA<BD.Soc.BdSocBalInfo.SOC.BAL.MAXIMUM.BALANCE>=Y.ACC.FINAL.BALANCE
+        R.TEMPLATE.DATA<BD.Soc.BdSocBalInfo.SOC.BAL.CO.CODE>= EB.SystemTables.getIdCompany()
+        WRITE R.TEMPLATE.DATA ON F.BD.SOC, Y.SOC.ACC
+    END
+RETURN
+END

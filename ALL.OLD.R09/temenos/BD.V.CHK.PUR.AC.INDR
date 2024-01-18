@@ -1,0 +1,80 @@
+*-----------------------------------------------------------------------------
+* <Rating>60</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.CHK.PUR.AC.INDR
+!PROGRAM BD.V.CHK.PUR.AC.INDR
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This auth routine is update AC TYPE Purchase ACCOUNT
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20/04/2012 - New - Rayhan
+*
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.DRAWINGS
+    $INSERT I_F.ACCOUNT
+
+    IF R.NEW(TF.DR.DRAWING.TYPE) EQ 'SP' OR R.NEW(TF.DR.DRAWING.TYPE) EQ 'MA' THEN
+        GOSUB INITIALISE
+        GOSUB PROCESS
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.DRAWINGS = 'F.DRAWINGS'
+    F.DRAWINGS = ''
+    CALL OPF(FN.DRAWINGS,F.DRAWINGS)
+    R.DRAWINGS = ''
+    Y.DRAWINGS.ERR = ''
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    CALL OPF(FN.AC,F.AC)
+    R.AC.REC = ''
+    Y.AC.ERR = ''
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+    GOSUB GET.LOC.REF.POS
+    GOSUB CHECK.PAD.AC
+    RETURN
+
+*-----------------------------------------------------------------------------
+CHECK.PAD.AC:
+*--------------
+    Y.AC.NO = COMI
+    Y.DR.ID = ID.NEW
+    Y.TF.ID = Y.DR.ID[1,12]
+    CALL F.READ(FN.AC,Y.AC.NO,R.AC.REC,F.AC,Y.AC.ERR)
+    Y.AC.TF.ID = R.AC.REC<AC.LOCAL.REF,Y.AC.TFNO.POS>
+    Y.AC.CATEG = R.AC.REC<AC.CATEGORY>
+    IF Y.TF.ID NE Y.AC.TF.ID THEN RETURN
+    IF Y.AC.CATEG GE '1961' AND Y.AC.CATEG LE '1963' THEN
+        IF Y.TF.ID NE Y.AC.TF.ID THEN
+            AF = TF.DR.DRAWDOWN.ACCOUNT
+            ETEXT ="Purchase AC Not for this LC"
+            CALL STORE.END.ERROR
+        END
+        IF R.AC.REC<AC.LOCAL.REF,Y.AC.DRNO.POS> NE '' THEN
+            AF = TF.DR.DRAWDOWN.ACCOUNT
+            ETEXT ="Purchase AC Already Used By Other Document"
+            CALL STORE.END.ERROR
+        END
+    END
+    RETURN
+*-----------------------------------------------------------------------------
+GET.LOC.REF.POS:
+*--------------
+    CALL GET.LOC.REF("ACCOUNT","LINKED.TF.NO",Y.AC.TFNO.POS)
+    CALL GET.LOC.REF("ACCOUNT","LINKED.TFDR.REF",Y.AC.DRNO.POS)
+    RETURN
+END

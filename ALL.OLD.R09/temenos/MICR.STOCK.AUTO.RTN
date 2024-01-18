@@ -1,0 +1,52 @@
+    SUBROUTINE MICR.STOCK.AUTO.RTN
+!PROGRAM MICR.STOCK.AUTO.RTN
+*-----
+* Description : AUTO INPUT Cheque Number, Prefix, Balance, STATUS AND ENTRY DATE
+* Author      : AVIJIT SAHA
+* Date        : 23.01.2022
+*-----
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT  BP I_F.JBL.MICR.STOCK.MGT
+
+    FN.TR.TYPE='F.JBL.MICR.STOCK.MGT'
+    F.TR.TYPE=''
+
+    CALL OPF(FN.TR.TYPE, F.TR.TYPE)
+
+    Y.STOCK.ID = ID.NEW
+    Y.TR.TYPE = LEFT(Y.STOCK.ID, 2)
+
+    IF V$FUNCTION EQ "I" THEN
+
+        CALL F.READ(FN.TR.TYPE,Y.STOCK.ID,REC.STOCK,F.TR.TYPE,ERR.STK)
+
+        IF REC.STOCK EQ '' THEN
+            ALPHA.ARRAY = "A" :@VM: 1 :@FM: "B" :@VM: 2 :@FM: "C" :@VM: 3 :@FM: "D" :@VM: 4 :@FM: "E" :@VM: 5 :@FM: "F" :@VM: 6 :@FM: "G" :@VM: 7 :@FM: "H" :@VM: 8 :@FM: "I" :@VM: 9 :@FM: "J" :@VM: 10 :@FM: "K" :@VM: 11 :@FM: "L" :@VM: 12 :@FM: "M" :@VM: 13 :@FM: "N" :@VM: 14 :@FM: "O" :@VM: 15 :@FM: "P" :@VM: 16 :@FM: "Q" :@VM: 17 :@FM: "R" :@VM: 18 :@FM: "S" :@VM: 19 :@FM: "T" :@VM: 20 :@FM: "U" :@VM: 21 :@FM: "V" :@VM: 22 :@FM: "W" :@VM: 23 :@FM: "X" :@VM: 24 :@FM: "Y" :@VM: 25 :@FM: "Z" :@VM: 26
+
+            FIND RIGHT(Y.STOCK.ID, 1) IN ALPHA.ARRAY SETTING V.FLD, V.VAL ELSE NULL
+
+            ALPHA.VAL = ALPHA.ARRAY<V.FLD,2>
+
+            TYPE.ARRAY = "SB" :@VM: 10 :@FM: "CD" :@VM: 11 :@FM: "DD" :@VM: 15 :@FM: "PO" :@VM: 19 :@FM: "SD" :@VM: 21 :@FM: "TR" :@VM: 25 :@FM: "PS" :@VM: 27 :@FM: "FD" :@VM: 29 :@FM: "MT" :@VM: 31 :@FM: "FC" :@VM: 61 :@VM: 62 :@VM: 63 :@VM: 64 :@VM: 65 :@FM: "FD" :@VM: 71 :@VM: 72 :@VM: 73 :@VM: 74 :@VM: 75
+
+            FIND Y.TR.TYPE IN TYPE.ARRAY SETTING V.FLD, V.VAL ELSE NULL
+
+            Y.TR.CODE = TYPE.ARRAY<V.FLD,2>
+
+            R.NEW(MICR.STOCK.TR.PREFIX) = Y.STOCK.ID
+            R.NEW(MICR.STOCK.TR.TYPE) = Y.TR.TYPE
+            R.NEW(MICR.STOCK.TR.CODE) = Y.TR.CODE
+            R.NEW(MICR.STOCK.PREFIX.NO) = Y.TR.CODE : ALPHA.VAL
+            R.NEW(MICR.STOCK.STARTING.NO) = '0000001'
+            R.NEW(MICR.STOCK.ENDING.NO) = '9999900'
+            R.NEW(MICR.STOCK.LAST.USED.NO) = '0000000'
+            R.NEW(MICR.STOCK.BALANCE) = R.NEW(MICR.STOCK.ENDING.NO) - R.NEW(MICR.STOCK.LAST.USED.NO)
+            R.NEW(MICR.STOCK.STATUS) = "ISSUED"
+
+        END
+
+    END
+
+    RETURN

@@ -1,0 +1,36 @@
+*-----------------------------------------------------------------------------
+* <Rating>100</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.AMF.ELG.LOAD
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT JBL.BP I_F.ABL.H.SB.CHRG
+
+    $INSERT JBL.BP/REPGEN MT.AMF.ELG.VARS
+
+    FN.ACCT = 'F.ABL.H.SB.CHRG'
+    F.ACCT = ''
+
+    CALL OPF(FN.ACCT,F.ACCT)
+
+!-------Check Directory----------
+    OPEN "RPT.DATA.DIR" TO F.RPT.DATA.DIR
+    ELSE
+        CMD = "CREATE.FILE RPT.DATA.DIR TYPE=UD"
+        EXECUTE CMD
+        OPEN "RPT.DATA.DIR" TO F.RPT.DATA.DIR
+        ELSE
+            CRT "OPENING OF RPT.DATA.DIR FAILED"
+        END
+    END
+!-------------------------------
+
+    Y.FILE.DIR = 'RPT.DATA.DIR'
+
+    Y.FILE.NAME = 'MT.AMF.ELIGIBLE.LIST.':TODAY:'.':SESSION.NO:'.csv'
+    OPENSEQ Y.FILE.DIR,Y.FILE.NAME TO F.FILE.DIR ELSE NULL
+
+    RETURN
+END

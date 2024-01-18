@@ -1,0 +1,51 @@
+*************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>-10</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE  JBL.B.LOAN.LEDGER.REP(Y.LD.ID)
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This batch routine is used to execute the reports
+*-------------------------------------------------------------------------
+*Parameter Description : Not Applicable
+*--------- -----------
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*---------------------------------------------------------------------
+*Called Subroutines: Not Applicable
+*------ ------------
+*Routine Name:             Local/Core:     Description:
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 14/02/2011 -                            New   - Shiva Shankar G
+*                                                 Thesys Technologies
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE GLOBUS.BP I_F.ENQUIRY.REPORT
+    $INCLUDE JBL.BP I_JBL.B.LOAN.LEDGER.REP.COMMON
+
+    GOSUB PROCESS
+
+    RETURN
+*--------------------------------------------------------------------------------
+PROCESS:
+*----------
+    Y.PD.ID = 'PD':Y.LD.ID
+    MAT R.NEW = ''
+    ID.NEW    = "JBL.PD.BAL.REP"
+    MATREAD R.NEW FROM F.ENQUIRY.REPORT,ID.NEW THEN
+        R.NEW(ENQ.REP.LIST)<1,1>= Y.LD.ID
+        R.NEW(ENQ.REP.LIST)<1,2> =Y.PD.ID
+        R.NEW(ENQ.REP.REPORT.CONTROL) = "JBL.PD.BAL.DETS"
+        CALL ENQUIRY.REPORT.RUN
+    END
+    RETURN
+*--------------------------------------------------------------------------------
+END

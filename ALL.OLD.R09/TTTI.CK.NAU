@@ -1,0 +1,106 @@
+    SUBROUTINE TTTI.CK.NAU
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.TELLER.ID
+    $INSERT BP I_F.TT.TELLER.ID
+
+    IF V$FUNCTION EQ 'D' THEN RETURN
+
+    FN.TTI = 'F.TT.TELLER.ID'
+    F.TTI = ''
+    CALL OPF(FN.TTI,F.TTI)
+    FN.TI = 'F.TELLER.ID'
+    F.TI = ''
+    CALL OPF(FN.TI,F.TI)
+
+    IF FIELD(ID.NEW,'.',1) EQ '9999' THEN
+        T(TTTI.COUNTER.LIMIT)<3> = "NOINPUT"
+        T(TTTI.DR.CR)<3> = "NOINPUT"
+        T(TTTI.LIMIT)<3> = "NOINPUT"
+    END
+    ELSE
+        T(TTTI.SAFE.LIMIT)<3> = "NOINPUT"
+    END
+
+    IF FIELD(ID.NEW,'.',1) NE '9999' THEN
+        CALL F.READ(FN.TTI,'9999.':ID.COMPANY[6,4],R.TTI,F.TTI,ERR.TTI)
+        IF R.TTI EQ '' THEN
+            AF = 0
+            ETEXT = 'Set Vault Limit Before Setting Teller Counter Limit.'
+            CALL STORE.END.ERROR
+            RETURN
+        END
+    END
+
+    CALL F.READ(FN.TI,R.NEW(TTTI.TELLER.ID),R.TI,F.TI,ERR.TI)
+    IF R.TI<TT.TID.CATEGORY> EQ '' AND FIELD(ID.NEW,'.',1) NE '9999' THEN
+        TEXT = 'Category is not defind for the Teller ID.'
+        R.NEW(TTTI.OVERRIDE) = TEXT
+    END
+
+    Y.CCY = R.NEW(TTTI.CCY)
+    Y.DR.CR = R.NEW(TTTI.DR.CR)
+    Y.S.LIMIT = R.NEW(TTTI.SAFE.LIMIT)
+    Y.C.LIMIT = R.NEW(TTTI.COUNTER.LIMIT)
+    FOR I = 1 TO DCOUNT(Y.CCY,@VM)
+        Y.CUR.S.LIMIT = FIELD(Y.S.LIMIT,@VM,I)
+        Y.CUR.C.LIMIT = FIELD(Y.C.LIMIT,@VM,I)
+        IF FIELD(ID.NEW,'.',1) EQ '9999' THEN
+            IF Y.CUR.S.LIMIT EQ '' OR Y.CUR.S.LIMIT EQ 0 THEN
+                AF = TTTI.SAFE.LIMIT
+                AV = I
+                ETEXT = 'Input missing.'
+                CALL STORE.END.ERROR
+                RETURN
+            END
+        END
+        ELSE
+            IF Y.CUR.C.LIMIT EQ '' OR Y.CUR.C.LIMIT EQ 0 THEN
+                AF = TTTI.COUNTER.LIMIT
+                AV = I
+                ETEXT = 'Input missing.'
+                CALL STORE.END.ERROR
+                RETURN
+            END
+            IF Y.CUR.C.LIMIT GT R.TTI<TTTI.SAFE.LIMIT> THEN
+                AF = TTTI.COUNTER.LIMIT
+                AV = I
+                ETEXT = 'Counter Limit can not more than Vault Save Limit.'
+                CALL STORE.END.ERROR
+                RETURN
+            END
+        END
+        Y.CUR.CCY = FIELD(Y.CCY,@VM,I)
+        IF COUNT(Y.CCY,Y.CUR.CCY) GT 1 THEN
+            AF = TTTI.CCY
+            AV = I
+            ETEXT = Y.CUR.CCY:' Used multiple times.'
+            CALL STORE.END.ERROR
+            RETURN
+        END
+        Y.CUR.DR.CR = FIELD(Y.DR.CR,@VM,I)
+        FOR J = 1 TO DCOUNT(Y.CUR.DR.CR,@SM)
+            Y.DR.CR.CUR = FIELD(Y.CUR.DR.CR,@SM,J)
+            IF COUNT(Y.CUR.DR.CR,Y.DR.CR.CUR) GT 1 THEN
+                AF = TTTI.DR.CR
+                AV = J
+                ETEXT = Y.CUR.DR.CR:' Used multiple times.'
+                CALL STORE.END.ERROR
+                RETURN
+            END
+        NEXT J
+
+        Y.VER.ID=APPLICATION:PGM.VERSION
+        Y.WORD = ''
+        Y.CUR.LIMIT = ''
+        IF Y.VER.ID EQ 'TT.TELLER.ID,INPUT' THEN
+            Y.CUR.LIMIT = R.NEW(TTTI.COUNTER.LIMIT)<I>
+        END
+        IF Y.VER.ID EQ 'TT.TELLER.ID,VAULT' THEN
+            Y.CUR.LIMIT = R.NEW(TTTI.SAFE.LIMIT)<I>
+        END
+        CALL AMTW(Y.CUR.LIMIT,Y.WORD)
+        R.NEW(TTTI.IN.WORD) = Y.WORD
+    NEXT I
+    RETURN
+END 

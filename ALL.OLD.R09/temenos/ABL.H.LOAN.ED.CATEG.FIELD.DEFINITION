@@ -1,0 +1,68 @@
+*
+*-----------------------------------------------------------------------------
+* <Rating>-23</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.H.LOAN.ED.CATEG.FIELD.DEFINITION
+
+*-----------------------------------------------------------------------------
+* Program Description
+*-----------------------------------------------------------------------------
+* Modification History :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CATEGORY      ;* Other Inserts required for Checkfiles, etc.
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.COMPANY
+
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+
+    GOSUB DEFINE.FIELDS
+
+    RETURN
+*
+*-----------------------------------------------------------------------------
+DEFINE.FIELDS:
+
+    ID.F = "ED.CAT" ; ID.N = "6" ; ID.T = "A"
+*
+    Z=0
+*
+    Z+=1 ; F(Z)  = "START.DATE" ; N(Z) = "8..C" ; T(Z) = "D"
+    Z+=1 ; F(Z)  = "END.DATE" ; N(Z) = "8..C" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "XX.INC.OTHER.CATEG" ; N(Z) = "5" ; T(Z) = ""
+    CHECKFILE(Z) = "CATEGORY":FM:EB.CAT.SHORT.NAME:FM:"L"
+    Z+=1 ; F(Z) = "XX.INC.STAFF.CATEG" ; N(Z) = "5" ; T(Z) = ""
+    CHECKFILE(Z) = "CATEGORY":FM:EB.CAT.SHORT.NAME:FM:"L"
+    Z+=1 ; F(Z)  = "XX.INCLUDE.COMP" ; N(Z) = "15..C" ; T(Z) = "A"
+    CHECKFILE(Z) = "COMPANY":FM:EB.COM.COMPANY.NAME:FM:"L"
+
+    Z+=1 ; F(Z)  = "RESERVE.4" ; N(Z) = "35" ; T(Z) = "A" ; T(Z)<3>="NOINPUT"
+    Z+=1 ; F(Z)  = "RESERVE.3" ; N(Z) = "35" ; T(Z) = "A" ; T(Z)<3>="NOINPUT"
+    Z+=1 ; F(Z)  = "RESERVE.2" ; N(Z) = "35" ; T(Z) = "A" ; T(Z)<3>="NOINPUT"
+    Z+=1 ; F(Z)  = "RESERVE.1" ; N(Z) = "35" ; T(Z) = "A" ; T(Z)<3>="NOINPUT"
+
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > CHECKFILE(Z) = CHK.ACCOUNT
+*
+    V = Z + 9
+
+    RETURN
+*
+*-----------------------------------------------------------------------------
+INITIALISE:
+
+    MAT F = "" ; MAT N = "" ; MAT T = ""
+    MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+    ID.CHECKFILE = "" ; ID.CONCATFILE = ""
+*
+* Define often used checkfile variables
+*
+    CHK.ACCOUNT = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+END

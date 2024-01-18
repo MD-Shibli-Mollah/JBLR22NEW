@@ -1,0 +1,42 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.FDR.RECEIPT.NO.CHK
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.AZ.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+*****
+INIT:
+*****
+    FN.AZ.ACCT = 'FBNK.AZ.ACCOUNT'
+    F.AZ.ACCT = ''
+    FN.FDR.RCPT.NO = 'F.AZ.ACCOUNT.FDR.RECEIPT.NO'
+    F.FDR.RCPT.NO = ''
+    RETURN
+
+***********
+OPENFILES:
+***********
+    CALL OPF(FN.AZ.ACCT,F.AZ.ACCT)
+    RETURN
+
+*******
+PROCESS:
+*******
+    CALL GET.LOC.REF('AZ.ACCOUNT','FDR.RECEIPT.NO',Y.FDR.POS)
+    Y.FDR.RCPT.NO = R.NEW(AZ.LOCAL.REF)<1,Y.FDR.POS>
+    CALL F.READ(FN.FDR.RCPT.NO,Y.FDR.RCPT.NO,R.FDR.REC,F.FDR.RCPT.NO,Y.FDR.ERR)
+    IF R.FDR.REC NE '' THEN
+        AF = AZ.LOCAL.REF
+        AV = Y.FDR.POS
+        ETEXT = 'FDR Receipt No. Already Used'
+        CALL STORE.END.ERROR
+    END
+    RETURN

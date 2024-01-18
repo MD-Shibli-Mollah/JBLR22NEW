@@ -1,0 +1,52 @@
+******************************************************************************
+*PURPOSE: TO RESTRICT ANY KIND OF INPUT EXCEPT ORIGINAL BR                   *
+*DEVELOPED BY: Shafiul Azam                                                  *
+*MODIFIED BY: NA                                                             *
+*CREATION DATE: 12 OCTOBER 2017                                              *
+*MODIFICATION DATE:NA                                                        *
+******************************************************************************
+    SUBROUTINE BD.V.ID.SUS.REGISTER
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT BP I_F.EB.BD.SUSPENSE.REGISTER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*****
+INIT:
+*****
+    FN.ACC = 'F.ACCOUNT'
+    F.ACC = ''
+    R.ACC =''
+    ACC.ERR = ''
+    RETURN
+
+**********
+OPENFILES:
+**********
+    CALL OPF(FN.ACC,F.ACC)
+    RETURN
+
+********
+PROCESS:
+********
+    CALL F.READ(FN.ACC,COMI,R.ACC,F.ACC,ACC.ERR)
+    IF R.ACC EQ '' THEN
+        E = 'Account is missing'
+        RETURN
+    END
+    Y.ORIG.BR.ID = R.ACC<AC.CO.CODE>
+    Y.LOG.BR = ID.COMPANY
+    IF Y.ORIG.BR.ID NE '' AND (Y.ORIG.BR.ID NE Y.LOG.BR) THEN
+        E = 'INVALID COMPANY ACCESS'
+    END
+    RETURN
+
+
+END

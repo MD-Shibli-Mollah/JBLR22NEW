@@ -1,0 +1,71 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>89</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.B.BAL.CONF.LTR.ACC.RTN.SELECT
+*-------------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This subroutine will create a list file with all the ID's which needs to be
+* processed by the job.
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20110210 - New - Shiva Shankar G
+*                  Thesys Technologies
+*-------------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.ENQUIRY.REPORT
+    $INSERT JBL.BP I_F.BD.BAL.CONF.LETTER
+    $INSERT JBL.BP I_BAL.CONF.LETTER.ACC.COMMON
+
+    GOSUB PROCESS
+
+    RETURN
+*-------------------------------------------------------------------------
+PROCESS:
+*-------------------------------------------------------------------------
+
+    CALL F.READ(FN.BD.BAL.CONF.LETTER,'SYSTEM',R.BD.BAL.CONF.LETTER,F.BD.BAL.CONF.LETTER,Y.BD.BAL.CONF.LETTER.ERR)
+    Y.CATEG.FORM = R.BD.BAL.CONF.LETTER<BD.BAL.CONF.INC.CATEG.FROM>
+    Y.CATEG.TO = R.BD.BAL.CONF.LETTER<BD.BAL.CONF.INC.CATEG.TO>
+    Y.INDV.CATEG = R.BD.BAL.CONF.LETTER<BD.BAL.CONF.INDV.CATEG>
+    Y.CATEG.FORM.CNT = DCOUNT(Y.CATEG.FORM,VM)
+    Y.INDV.CATEG.CNT = DCOUNT(Y.INDV.CATEG,VM)
+
+    SEL.CMD1 = 'SELECT ':FN.ACCOUNT
+    CALL EB.READLIST(SEL.CMD1,SEL.LIST1,'',NO.OF.REC,SEL.ERR)
+
+    LOOP
+        Y.INT.CNT = 1
+        REMOVE Y.AC.ID FROM SEL.LIST1 SETTING Y.AC.POS
+    WHILE Y.AC.ID:Y.AC.POS
+        CALL F.READ(FN.ACCOUNT,Y.AC.ID,R.ACCOUNT,F.ACCOUNT,Y.ACCOUNT.ERR)
+        Y.AC.CATEG = R.ACCOUNT<AC.CATEGORY>
+        LOCATE Y.AC.CATEG IN Y.INDV.CATEG SETTING Y.POS THEN
+            IF Y.AC.ID.LIST THEN
+                Y.AC.ID.LIST:=FM:Y.AC.ID
+            END ELSE
+                Y.AC.ID.LIST = Y.AC.ID
+            END
+        END
+        LOOP
+        WHILE Y.INT.CNT LE Y.CATEG.FORM.CNT
+            Y.CATEG.FR = Y.CATEG.FORM<1,Y.INT.CNT>
+            Y.CAT.TO = Y.CATEG.TO<1,Y.INT.CNT>
+            IF Y.AC.CATEG GE Y.CATEG.FR AND Y.AC.CATEG LE Y.CAT.TO THEN
+                IF Y.AC.ID.LIST THEN
+                    Y.AC.ID.LIST:=FM:Y.AC.ID
+                END ELSE
+                    Y.AC.ID.LIST = Y.AC.ID
+                END
+            END
+            Y.INT.CNT++
+        REPEAT
+    REPEAT
+    CALL BATCH.BUILD.LIST('',Y.AC.ID.LIST)
+    RETURN
+*--------------------------------------------------------------------------------
+END

@@ -1,0 +1,320 @@
+*-----------------------------------------------------------------------------
+* <Rating>1396</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE CUS.SUPPLIMENT2(Y.RETURN)
+!PROGRAM CUS.SUPPLIMENT2
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.CHEQUE.COLLECTION
+    $INSERT GLOBUS.BP I_F.DATA.CAPTURE
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CLASS
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT JBL.BP I_F.ABL.H.MUL.CR
+    $INSERT JBL.BP I_F.ABL.H.MUL.DR
+    $INSERT JBL.BP I_F.ABL.H.MUL.MCD
+
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+    FN.AC.HIS = "F.ACCOUNT$HIS"
+    F.AC.HIS = ""
+    FN.AC.ENT = "F.ACCT.ENT.TODAY"
+    F.AC.ENT = ""
+    FN.STMT.ENT = "F.STMT.ENTRY"
+    F.STMT.ENT = ""
+    FN.TT = "F.TELLER"
+    F.TT = ""
+    FN.TT.HIS = "F.TELLER$HIS"
+    F.TT.HIS = ""
+    FN.FT = "F.FUNDS.TRANSFER"
+    F.FT = ""
+    FN.FT.HIS = "F.FUNDS.TRANSFER$HIS"
+    F.FT.HIS = ""
+    FN.CC = "F.CHEQUE.COLLECTION"
+    F.CC = ""
+    FN.DC = "F.DATA.CAPTURE"
+    F.DC = ""
+    FN.AC.CLASS = "F.ACCOUNT.CLASS"
+    F.AC.CLASS = ""
+    FN.MD = "F.ABL.H.MUL.DR"
+    F.MD = ""
+    FN.MC = "F.ABL.H.MUL.CR"
+    F.MC = ""
+    FN.MM = "F.ABL.H.MUL.MCD"
+    F.MM = ""
+
+    Y.THIS.COMPANY = ID.COMPANY
+    Y.COMPANY.CODE = ""
+    Y.AC.TITLE = ""
+    Y.CATEGORY = ""
+    Y.INST.NO = ""
+    Y.TRAN.TYPE = ""
+    Y.TRANS.AMOUNT = ""
+    FALSE = ""
+    Y.CATEG.COUNT = ""
+    Y.CATEG.LIST = ""
+    Y.SYSTEM.ID = ""
+    Y.STMT.ID.COUNT = ""
+    Y.STMT.REC.ID = ""
+    Y.INPUTT = ""
+    Y.INPUTT.VALUE = ""
+    Y.AUTHOR = ""
+    Y.D.C.M = ""
+    Y.MD.MC.M = ""
+    Y.SWIFT.MSG = ""
+    Y.MDC.INPUTT.VALUE = ""
+    Y.MDC.INPUTTER = ""
+    Y.REC.STATUS = ""
+    Y.CHEQUE.RETURN = "CHEQUE RETURN"
+    Y.STMT.TRANS.CODE = ""
+
+    Y.PRODUCT = ""
+    Y.DR.CR.MARK = ""
+    Y.INPUTTER = ""
+    Y.TR.MODE = ""
+
+**************************************************************************
+!TRANSACTION CODE FOR CASH
+    Y.CASH.TR.CODE = 4:@FM:5:@FM:6:@FM:9:@FM:10:@FM:14:@FM:32:@FM:33:@FM:109:@FM:110:@FM:111:@FM:112:@FM:113:@FM:114
+**************************************************************************
+!TRANSACTION CODE FOR CLEARING
+    Y.CLEAR.TR.CODE = 28:@FM:29:@FM:30:@FM:34:@FM:41:@FM:42:@FM:43:@FM:44:@FM:45:@FM:46:@FM:49:@FM:92:@FM:93:@FM:95
+**************************************************************************
+!TRANSACTION CODE FOR CLEARING WHICH WILL READ FROM STMT.ENTRY---134,135,136
+**************************************************************************
+!SYSTEM ID TO CHECK TRANSACTION TYPE
+    Y.SYSTEM.ID.LIST = 'TT':@FM:'FT':@FM:'CC':@FM:'DC'
+**************************************************************************
+
+    LOCATE "PRODUCT" IN ENQ.SELECTION<2,1> SETTING PROD.POS THEN
+        Y.PRODUCT = ENQ.SELECTION<4,PROD.POS>
+    END
+    LOCATE "DEBIT.CREDIT" IN ENQ.SELECTION<2,1> SETTING DR.CR.POS THEN
+        Y.DR.CR.MARK = ENQ.SELECTION<4,DR.CR.POS>
+    END
+    LOCATE "USER" IN ENQ.SELECTION<2,1> SETTING USER.POS THEN
+        Y.INPUTTER = ENQ.SELECTION<4,USER.POS>
+    END
+    LOCATE "TRANSACTION.MODE" IN ENQ.SELECTION<2,1> SETTING TRANS.MODE.POS THEN
+        Y.TR.MODE = ENQ.SELECTION<4,TRANS.MODE.POS>
+    END
+
+    Y.DR.CR = ""
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.AC.ENT,F.AC.ENT)
+    CALL OPF(FN.STMT.ENT,F.STMT.ENT)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.TT.HIS,F.TT.HIS)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    CALL OPF(FN.CC,F.CC)
+    CALL OPF(FN.DC,F.DC)
+    CALL OPF(FN.AC.CLASS,F.AC.CLASS)
+    CALL OPF(FN.MD,F.MD)
+    CALL OPF(FN.MC,F.MC)
+    CALL OPF(FN.MM,F.MM)
+    RETURN
+
+PROCESS:
+
+    CALL F.READ(FN.AC.CLASS,Y.PRODUCT,R.AC.CLASS.REC,F.AC.CLASS,Y.ERR)
+    Y.CATEG.COUNT = DCOUNT(R.AC.CLASS.REC<3>,@VM)
+    FOR I = 1 TO Y.CATEG.COUNT
+        INS R.AC.CLASS.REC<3,I> BEFORE Y.CATEG.LIST<0,0,0>
+    NEXT
+!CONVERT FM TO " " IN Y.CATEG.LIST
+
+*************************************************************************************
+!**********CATEGORY LIST MAY BE NULL IF USER PUT PRODUCT EQ ALL/NULL/""**************
+*************************************************************************************
+!IF Y.CATEG.LIST NE "" THEN
+!SEL.CMD = "SELECT ":FN.AC.ENT:" WITH @ID UNLIKE '3A...' AND CO.CODE EQ ":ID.COMPANY:" AND PRODCATEG EQ ":Y.CATEG.LIST:" BY PRODCATEG"
+!END ELSE
+!IF Y.CATEG.LIST EQ "" THEN
+!SEL.CMD = "SELECT ":FN.AC.ENT:" WITH @ID UNLIKE '3A...' AND CO.CODE EQ ":ID.COMPANY:" BY PRODCATEG"
+!END
+!END
+
+!********Changed by huraira 2014/11/02*********
+    SEL.CMD = "SELECT ":FN.AC.ENT:" WITH @ID UNLIKE '3A...'"
+!*********************end**********************
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.REC.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.REC.ID:Y.POS
+
+        CALL F.READ(FN.AC.ENT,Y.REC.ID,R.AC.ENT.REC,F.AC.ENT,Y.ERR)
+        CALL F.READ(FN.AC,Y.REC.ID,R.AC.REC,F.AC,Y.ERR)
+        IF R.AC.REC EQ "" THEN
+            CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.REC.ID,R.AC.REC,Y.ERR)
+            Y.REC.ID = FIELD(Y.REC.ID,';'1,1)
+        END
+
+!********Changed by huraira 2014/11/02*********
+        Y.ALPHA.VAL = LEFT(Y.REC.ID,3)
+        BEGIN CASE
+        CASE ISALPHA(Y.ALPHA.VAL) EQ '0' AND R.AC.REC<AC.CO.CODE> EQ ID.COMPANY
+            IF Y.CATEG.LIST NE '' THEN
+                LOCATE R.AC.REC<AC.CATEGORY> IN Y.CATEG.LIST SETTING CATEG.POS THEN
+                    GOSUB DOPROCESS
+                END ELSE
+                    CONTINUE
+                END
+            END ELSE
+                GOSUB DOPROCESS
+            END
+        END CASE
+!*********************END**********************
+    REPEAT
+    Y.RETURN = SORT(Y.RETURN)
+    RETURN
+
+DOPROCESS:
+
+    Y.AC.TITLE = R.AC.REC<AC.ACCOUNT.TITLE.1>
+    Y.CATEGORY = R.AC.REC<AC.CATEGORY>
+    Y.STMT.ID.COUNT = DCOUNT(R.AC.ENT.REC,@FM)
+
+    FOR J = 1 TO Y.STMT.ID.COUNT
+
+        Y.STMT.REC.ID = R.AC.ENT.REC<J>
+        CALL F.READ(FN.STMT.ENT,Y.STMT.REC.ID,R.STMT.REC,F.STMT.ENT,Y.ERR)
+        Y.STMT.TRANS.CODE = R.STMT.REC<AC.STE.TRANSACTION.CODE>
+        Y.COMPANY.CODE = R.STMT.REC<AC.STE.COMPANY.CODE>
+        Y.TRANS.AMOUNT = R.STMT.REC<AC.STE.AMOUNT.LCY>
+        Y.TRANS.REF = R.STMT.REC<AC.STE.TRANS.REFERENCE>
+        Y.REC.STATUS = R.STMT.REC<AC.STE.RECORD.STATUS>
+        Y.INPUTT = R.STMT.REC<AC.STE.INPUTTER>
+        Y.INPUTT.VALUE = FIELD(Y.INPUTT,"_",2,1)
+        Y.AUTHOR = R.STMT.REC<AC.STE.AUTHORISER>
+        Y.SYSTEM.ID = SUBSTRINGS(Y.TRANS.REF,1,2)
+
+        LOCATE Y.SYSTEM.ID IN Y.SYSTEM.ID.LIST SETTING Y.POS THEN
+            Y.SYSTEM.ID = Y.SYSTEM.ID
+        END ELSE
+            Y.SYSTEM.ID = ""
+        END
+
+        IF Y.TRANS.AMOUNT GT 0 THEN
+            Y.DR.CR = "CREDIT"
+        END ELSE
+            IF Y.TRANS.AMOUNT LT 0 THEN
+                Y.DR.CR = "DEBIT"
+            END
+        END
+
+        BEGIN CASE
+        CASE (Y.SYSTEM.ID EQ 'TT') AND (Y.REC.STATUS EQ "") AND (Y.COMPANY.CODE EQ Y.THIS.COMPANY) AND (Y.DR.CR.MARK EQ Y.DR.CR) AND (Y.TR.MODE EQ "ALL" OR Y.TR.MODE EQ "CASH" OR Y.TR.MODE EQ "CLEARING") AND (Y.INPUTTER EQ "ALL" OR Y.INPUTTER EQ Y.INPUTT.VALUE)
+
+            CALL F.READ(FN.TT,Y.TRANS.REF,R.TT.REC,F.TT,Y.ERR)
+            IF R.TT.REC EQ "" THEN
+                CALL F.READ(FN.TT.HIS,Y.TRANS.REF:";1",R.TT.REC,F.TT.HIS,Y.ERR)
+            END
+            Y.INST.NO = R.TT.REC<TT.TE.CHEQUE.NUMBER>
+            Y.TRAN.TYPE = R.TT.REC<TT.TE.TRANSACTION.CODE>
+
+            IF (Y.TR.MODE EQ "ALL" OR Y.TR.MODE EQ "CASH") THEN
+                LOCATE  Y.TRAN.TYPE IN Y.CASH.TR.CODE SETTING Y.POS THEN
+                    Y.RETURN<-1> = Y.CATEGORY:"*":Y.REC.ID:"*":Y.AC.TITLE:"*":Y.INST.NO:"*":Y.TRANS.AMOUNT:"*":FALSE:"*":FALSE:"*":Y.TRANS.REF:"*":Y.INPUTT:"*":Y.AUTHOR
+                END
+            END
+
+            IF (Y.TR.MODE EQ "ALL" OR Y.TR.MODE EQ "CLEARING") THEN
+                LOCATE  Y.TRAN.TYPE IN Y.CLEAR.TR.CODE SETTING Y.POS THEN
+                    Y.RETURN<-1> = Y.CATEGORY:"*":Y.REC.ID:"*":Y.AC.TITLE:"*":Y.INST.NO:"*":FALSE:"*":Y.TRANS.AMOUNT:"*":FALSE:"*":Y.TRANS.REF:"*":Y.INPUTT:"*":Y.AUTHOR
+                END
+            END
+
+        CASE (Y.SYSTEM.ID EQ 'FT') AND (Y.REC.STATUS EQ "") AND (Y.COMPANY.CODE EQ Y.THIS.COMPANY) AND (Y.DR.CR.MARK EQ Y.DR.CR) AND (Y.TR.MODE EQ "ALL" OR Y.TR.MODE EQ "TRANSFER") AND (Y.INPUTTER EQ "ALL" OR Y.INPUTTER EQ Y.INPUTT.VALUE)
+
+            CALL F.READ(FN.FT,Y.TRANS.REF,R.FT.REC,F.FT,Y.ERR)
+            IF R.FT.REC EQ "" THEN
+                CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.TRANS.REF,R.FT.REC,Y.ERR)
+                Y.TRANS.REF = FIELD(Y.TRANS.REF,";",1,1)
+            END
+            Y.INST.NO = R.FT.REC<FT.CHEQUE.NUMBER>
+            Y.D.C.M = R.FT.REC<FT.IN.SWIFT.MSG>
+            Y.MD.MC.M = SUBSTRINGS(Y.D.C.M,5,1)
+            Y.SWIFT.MSG = R.FT.REC<FT.IN.SWIFT.MSG>
+
+            IF Y.MD.MC.M EQ "D" THEN
+                CALL F.READ(FN.MD,Y.SWIFT.MSG,R.MD.REC,F.MD,Y.ERR)
+                Y.MDC.INPUTT.VALUE = R.MD.REC<MULDR.INPUTTER>
+                Y.MDC.INPUTTER = FIELD(Y.MDC.INPUTT.VALUE,"_",2,1)
+                IF ((Y.INPUTTER EQ 'ALL') OR (Y.INPUTTER EQ Y.MDC.INPUTTER)) THEN
+                    Y.INPUTT = R.MD.REC<MULDR.INPUTTER>
+                    Y.AUTHOR = R.MD.REC<MULDR.AUTHORISER>
+                END
+            END ELSE
+                IF Y.MD.MC.M EQ "C" THEN
+                    CALL F.READ(FN.MC,Y.SWIFT.MSG,R.MD.REC,F.MC,Y.ERR)
+                    Y.MDC.INPUTT.VALUE = R.MD.REC<MULCR.INPUTTER>
+                    Y.MDC.INPUTTER = FIELD(Y.MDC.INPUTT.VALUE,"_",2,1)
+                    IF ((Y.INPUTTER EQ 'ALL') OR (Y.INPUTTER EQ Y.MDC.INPUTTER)) THEN
+                        Y.INPUTT = R.MD.REC<MULCR.INPUTTER>
+                        Y.AUTHOR = R.MD.REC<MULCR.AUTHORISER>
+                    END
+                END ELSE
+                    IF Y.MD.MC.M EQ "M" THEN
+                        CALL F.READ(FN.MM,Y.SWIFT.MSG,R.MD.REC,F.MM,Y.ERR)
+                        Y.MDC.INPUTT.VALUE = R.MD.REC<MCD.INPUTTER>
+                        Y.MDC.INPUTTER = FIELD(Y.MDC.INPUTT.VALUE,"_",2,1)
+                        IF ((Y.INPUTTER EQ 'ALL') OR (Y.INPUTTER EQ Y.MDC.INPUTTER)) THEN
+                            Y.INPUTT = R.MD.REC<MCD.INPUTTER>
+                            Y.AUTHOR = R.MD.REC<MCD.AUTHORISER>
+                        END
+                    END
+                END
+            END
+
+            IF R.FT.REC NE "" THEN
+                Y.RETURN<-1> = Y.CATEGORY:"*":Y.REC.ID:"*":Y.AC.TITLE:"*":Y.INST.NO:"*":FALSE:"*":FALSE:"*":Y.TRANS.AMOUNT:"*":Y.TRANS.REF:"*":Y.INPUTT:"*":Y.AUTHOR
+            END
+
+        CASE (Y.SYSTEM.ID EQ 'CC') AND (Y.REC.STATUS EQ "") AND (Y.COMPANY.CODE EQ Y.THIS.COMPANY) AND (Y.DR.CR.MARK EQ Y.DR.CR) AND (Y.TR.MODE EQ "ALL" OR Y.TR.MODE EQ "CLEARING") AND (Y.INPUTTER EQ "ALL" OR Y.INPUTTER EQ Y.INPUTT.VALUE)
+
+            CALL F.READ(FN.CC,Y.TRANS.REF,R.CC.REC,F.CC,Y.ERR)
+            Y.INST.NO = R.CC.REC<CHQ.COL.CHEQUE.NO>
+            Y.RETURN<-1> = Y.CATEGORY:"*":Y.REC.ID:"*":Y.AC.TITLE:"*":Y.INST.NO:"*":FALSE:"*":Y.TRANS.AMOUNT:"*":FALSE:"*":Y.TRANS.REF:"*":Y.INPUTT:"*":Y.AUTHOR
+
+        CASE (Y.SYSTEM.ID EQ 'DC') AND (Y.REC.STATUS EQ "") AND (Y.COMPANY.CODE EQ Y.THIS.COMPANY) AND (Y.DR.CR.MARK EQ Y.DR.CR) AND (Y.TR.MODE EQ "ALL" OR Y.TR.MODE EQ "TRANSFER") AND (Y.INPUTTER EQ "ALL" OR Y.INPUTTER EQ Y.INPUTT.VALUE)
+
+            CALL F.READ(FN.DC,Y.TRANS.REF,R.DC.REC,F.DC,Y.ERR)
+            Y.INST.NO = R.DC.REC<DC.DC.CHEQUE.NUMBER>
+            Y.RETURN<-1> = Y.CATEGORY:"*":Y.REC.ID:"*":Y.AC.TITLE:"*":Y.INST.NO:"*":FALSE:"*":FALSE:"*":Y.TRANS.AMOUNT:"*":Y.TRANS.REF:"*":Y.INPUTT:"*":Y.AUTHOR
+
+        CASE (Y.SYSTEM.ID EQ "") AND (Y.REC.STATUS EQ "") AND (Y.COMPANY.CODE EQ Y.THIS.COMPANY) AND (Y.DR.CR.MARK EQ Y.DR.CR) AND (Y.TR.MODE EQ "ALL" OR Y.TR.MODE EQ "CLEARING" OR Y.TR.MODE EQ "TRANSFER") AND (Y.INPUTTER EQ "ALL" OR Y.INPUTTER EQ Y.INPUTT.VALUE)
+
+            IF (Y.STMT.TRANS.CODE EQ '134' OR Y.STMT.TRANS.CODE EQ '135' OR Y.STMT.TRANS.CODE EQ '136') THEN
+                Y.RETURN<-1> = Y.CATEGORY:"*":Y.REC.ID:"*":Y.AC.TITLE:"*":Y.TRANS.REF:"*":FALSE:"*":Y.TRANS.AMOUNT:"*":FALSE:"*":Y.CHEQUE.RETURN:"*":Y.INPUTT:"*":Y.AUTHOR
+            END
+
+            IF (Y.STMT.TRANS.CODE NE '134' AND Y.STMT.TRANS.CODE NE '135' AND Y.STMT.TRANS.CODE NE '136') THEN
+                Y.INST.NO = ""
+                Y.RETURN<-1> = Y.CATEGORY:"*":Y.REC.ID:"*":Y.AC.TITLE:"*":Y.INST.NO:"*":FALSE:"*":FALSE:"*":Y.TRANS.AMOUNT:"*":Y.TRANS.REF:"*":Y.INPUTT:"*":Y.AUTHOR
+            END
+
+        END CASE
+        Y.DR.CR = ""
+    NEXT
+    RETURN
+END

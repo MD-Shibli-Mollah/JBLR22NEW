@@ -1,0 +1,54 @@
+*--------------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-21</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VAL.CHK.MV.CNT
+*--------------------------------------------------------------------------------------
+* This validation routine to check the multivalue count on the local ref field.
+* Routine should not allow the user to expand the field more than 10 times.
+*--------------------------------------------------------------------------------------
+* Parameter Description
+*--------- -----------
+* NA
+*--------------------------------------------------------------------------------------
+* Called Subroutines:
+* ------ -----  -------
+* GET.LOC.REF - To get the position of the local ref fields.
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 01/02/2011 -          New - R Veena
+*                             Thesys Technologies
+**************************************************************************
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+*
+    GOSUB INIT
+    GOSUB PROCESS
+    RETURN
+*--------------------------------------------------------------------------
+INIT:
+*---
+* Initialization of the necessary variables.
+*
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    R.ACCOUNT = ''
+    Y.POS = ''
+    CALL GET.LOC.REF('ACCOUNT','ADD.FEATURES',Y.POS)
+*
+    RETURN
+*---------------------------------------------------------------------------
+PROCESS:
+*------
+    Y.LOC.VAL = R.NEW(AC.LOCAL.REF)<1,Y.POS>
+    Y.CNT = DCOUNT(Y.LOC.VAL,SM)
+    IF Y.CNT GT 10 THEN
+        ETEXT = "EB-MV.CNT.GT.TEN"
+        CALL STORE.END.ERROR
+    END
+*
+    RETURN
+*---------------------------------------------------------------------------

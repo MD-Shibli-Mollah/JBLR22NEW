@@ -1,0 +1,66 @@
+*-----------------------------------------------------------------------------
+* <Rating>80</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.TRF.NAU.ENTRY.OLD
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.COMPANY
+    $INSERT I_GTS.COMMON
+
+    IF OFS.VAL.ONLY THEN RETURN
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*---------------------------------
+INIT:
+****
+    BEGIN CASE
+    CASE APPLICATION EQ 'LETTER.OF.CREDIT' OR APPLICATION EQ 'DRAWINGS'
+        YHOLD.ID = 'LC' : ID.NEW
+    CASE APPLICATION EQ 'LD.LOANS.AND.DEPOSITS'
+        YHOLD.ID = 'LD' : ID.NEW
+    CASE APPLICATION EQ 'TELLER'
+        YHOLD.ID = 'TT' : ID.NEW
+    CASE APPLICATION EQ 'FUNDS.TRANSFER'
+        YHOLD.ID = 'FT' : ID.NEW
+    CASE APPLICATION EQ 'ACCOUNT.CLOSURE'
+        YHOLD.ID = 'ACCOUNT.CLOSURE' : ID.NEW
+    CASE APPLICATION EQ 'MD.DEAL'
+        YHOLD.ID = 'MD' : ID.NEW
+    END CASE
+
+
+    FN.ENT.HOLD = 'F.ENTRY.HOLD'
+    F.ENT.HOLD = ''
+    R.ENT.HOLD.REC = ''
+    Y.ENT.HOLD.ERR = ''
+    CALL OPF(FN.ENT.HOLD,F.ENT.HOLD)
+
+    FN.ENT.HLD.OLD = 'F.ENTRY.HOLD.OLD'
+    F.ENT.HLD.OLD = ''
+    R.ENT.HLD.OLD.REC = ''
+    Y.ENT.HLD.OLD.ERR = ''
+    CALL OPF(FN.ENT.HLD.OLD,F.ENT.HLD.OLD)
+
+    RETURN
+
+*---------------------------------------------------------
+PROCESS:
+********
+    CALL F.READ(FN.ENT.HOLD,YHOLD.ID,R.ENT.HOLD.REC,F.ENT.HOLD,Y.ENT.HOLD.ERR)
+    IF R.ENT.HOLD.REC THEN
+        CALL F.READ(FN.ENT.HLD.OLD,YHOLD.ID,R.ENT.HLD.OLD.REC,F.ENT.HLD.OLD,Y.ENT.HLD.OLD.ERR)
+        IF R.ENT.HLD.OLD.REC THEN
+            CALL F.DELETE(FN.ENT.HLD.OLD,YHOLD.ID)
+            R.ENT.HLD.OLD.REC = R.ENT.HOLD.REC
+            CALL F.WRITE(FN.ENT.HLD.OLD,YHOLD.ID,R.ENT.HLD.OLD.REC)
+        END ELSE
+            R.ENT.HLD.OLD.REC = R.ENT.HOLD.REC
+            CALL F.WRITE(FN.ENT.HLD.OLD,YHOLD.ID,R.ENT.HLD.OLD.REC)
+        END
+    END
+    RETURN
+END

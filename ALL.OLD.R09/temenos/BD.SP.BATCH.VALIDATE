@@ -1,0 +1,76 @@
+*-----------------------------------------------------------------------------
+* <Rating>350</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SP.BATCH.VALIDATE
+!    PROGRAM BD.SP.BATCH.VALIDATE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT SP.BP I_F.BD.H.SP.STOCK.ISSUE
+    $INSERT SP.BP I_F.BD.H.SP.BATCH
+    FN.SP.ISSUE='F.BD.H.SP.STOCK.ISSUE'
+    F.SP.ISSUE=''
+    FN.SP.AUTH = 'F.BD.H.SP.STOCK.ISSUE$NAU'
+    F.SP.AUTH =''
+
+    Y.VERSION.ID=APPLICATION:PGM.VERSION
+    Y.STATUS="RECEIVED FROM SOURCE"
+    CALL OPF(FN.SP.ISSUE,F.SP.ISSUE)
+    Y.TYPE=R.NEW(SP.BCH.TYPE.OF.SP)
+    Y.PREFIX=R.NEW(SP.BCH.PREFIX)
+    Y.SP.SL.ID=Y.TYPE:".":Y.PREFIX:"..."
+    Y.SP.TEM.ID=Y.TYPE:".":Y.PREFIX
+
+    Y.START=R.NEW(SP.BCH.SCRIPT.START)
+
+    Y.END=R.NEW(SP.BCH.SCRIPT.END)
+
+    Y.QUANTITY=R.NEW(SP.BCH.QUANTITY)
+    Y.DIF=(Y.END-Y.START+1)-Y.QUANTITY
+    IF Y.START GT Y.END THEN
+        ETEXT= "END WOULD GREATER THAN START"
+        CALL STORE.END.ERROR
+    END
+    ELSE IF Y.DIF NE 0 OR Y.QUANTITY GT 100 THEN
+        ETEXT= "PLEASE PROVIDE VALID QUANTITY"
+        CALL STORE.END.ERROR
+    END
+
+
+    IF Y.VERSION.ID EQ "BD.H.SP.BATCH,TRANSFER" THEN
+        IF V$FUNCTION EQ 'I' THEN
+            SEL.CMD = 'SELECT ' :FN.SP.ISSUE: ' WITH @ID LIKE ':Y.SP.SL.ID
+            CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+            IF NO.OF.RECORD THEN
+                FOR I=Y.START TO Y.END
+                    Y.SCRIPT=I
+                    Y.SP.ID=Y.SP.TEM.ID:".":Y.SCRIPT
+                    LOCATE Y.SP.ID IN SEL.LIST SETTING Y.POS THEN
+                        CALL F.READ(FN.SP.ISSUE,Y.SP.ID,R.SP.ISSUE,F.SP.ISSUE,Y.SP.ER)
+                        Y.CO.CODE=R.SP.ISSUE<SP.STK.CO.CODE>
+                        Y.STATUS=R.SP.ISSUE<SP.STK.STATUS>
+                        Y.DIS.BR.CODE = R.SP.ISSUE<SP.STK.DIS.BR.CODE>
+                        IF Y.DIS.BR.CODE NE "" THEN
+                            ETEXT= "THESE SCRIPTS ARE ALREADY DISTRIBUTED"
+                            CALL STORE.END.ERROR
+                            BREAK
+                        END
+                        IF Y.CO.CODE NE ID.COMPANY AND Y.STATUS EQ "RECEIVED FROM SOURCE" THEN
+                            ETEXT= "THESE SCRIPTS ARE NOT YOUR COMPANY"
+                            CALL STORE.END.ERROR
+                            BREAK
+                        END
+                    END
+                    ELSE
+                        ETEXT= "ALL SCRIPTS ARE NOT AVIALABLE IN STOCK "
+                        CALL STORE.END.ERROR
+                        BREAK
+                    END
+                NEXT I
+            END
+            ELSE
+                ETEXT= "ALL SCRIPTS ARE NOT EXIST IN STOCK "
+                CALL STORE.END.ERROR
+            END
+        END
+
+    END

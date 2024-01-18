@@ -1,0 +1,108 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+********************************************************************
+*Objective:This routine need to add in CUSTOMER related VERSION    *
+*for 11 digit Mobile Number checking                               *
+*Fileld : INPUT ROUTINE                                            *
+*Developer: Md. Obaydul Faruque(Mehedi)                            *
+*Release Date: 19-April-2017                                       *
+*DataSoft Systems Bangladesh Ltd.                                  *
+*Update History:
+*Update By Zakir
+*Date: 16 June 2020                                                 *
+********************************************************************
+    SUBROUTINE JBL.SMS.ALERT.CHK
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT BP I_F.BTB.SINGLE.POOL.PARAM
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*------
+INIT:
+*------
+    FN.CUS = 'F.CUSTOMER'
+    F.CUS = ''
+    FN.SIN.POOL='F.BTB.SINGLE.POOL.PARAM'
+    F.SIN.POLL=''
+    RETURN
+
+*----------
+OPENFILES:
+*----------
+    CALL OPF(FN.CUS,F.CUS)
+    CALL OPF(FN.SIN.POOL,F.SIN.POOL)
+    CALL GET.LOC.REF('CUSTOMER','SMS.ALERT',Y.SMS.ALERT.POS)
+
+    RETURN
+
+*--------
+PROCESS:
+*--------
+
+    Y.CELL.NUMBERS = R.NEW(EB.CUS.SMS.1)
+    Y.SMS.ALERT = R.NEW(EB.CUS.LOCAL.REF)<1,Y.SMS.ALERT.POS>
+
+    IF Y.SMS.ALERT EQ 'Y' THEN
+        Y.COUNT = DCOUNT(Y.CELL.NUMBERS,@VM)
+        FOR Y=1 TO Y.COUNT
+            Y.CELL.NO = FIELD(Y.CELL.NUMBERS,@VM,Y)
+
+            IF ISDIGIT(Y.CELL.NO) EQ '1' THEN
+                Y.CELL.LEN = LEN(Y.CELL.NO)
+                IF Y.CELL.LEN NE 11 THEN
+                    AF = EB.CUS.SMS.1
+                    ETEXT = 'Mobile Number Should be 11 Digit'
+                    CALL STORE.END.ERROR
+                END
+            END ELSE
+                AF = EB.CUS.SMS.1
+                ETEXT = 'Invalid Mobile Number'
+                CALL STORE.END.ERROR
+            END
+
+        NEXT Y
+    END
+
+!Y.SMS.LEN = LEN(R.NEW(EB.CUS.SMS.1))
+!Y.SMS.ALERT = R.NEW(EB.CUS.LOCAL.REF)<1,Y.SMS.ALERT.POS>
+
+!IF Y.SMS.ALERT EQ 'Y' OR Y.SMS.LEN GT 0 THEN
+!    IF ISDIGIT(R.NEW(EB.CUS.SMS.1)) EQ '1' THEN
+!        IF Y.SMS.LEN NE 11 THEN
+!            AF = EB.CUS.SMS.1
+!            ETEXT = 'Mobile Number Should be 11 Digit'
+!            CALL STORE.END.ERROR
+!        END
+!    END ELSE
+!        AF = EB.CUS.SMS.1
+!       ETEXT = 'Invalid Mobile Number'
+!        CALL STORE.END.ERROR
+!    END
+!END
+
+*Added By Zakir for BTB Single Pool
+    Y.CUS.ID = ID.NEW
+    IF R.NEW(EB.CUS.SECURE.MESSAGE) EQ 'YES' THEN
+        CALL F.READ(FN.SIN.POOL,'SYSTEM',R.SIN.POOL,F.SIN.POOL,Y.SIN.ERR)
+        FIND Y.CUS.ID IN R.SIN.POOL<SINGLE.POOL.CUSTOMER.NO> SETTING FVPOS,MVPOS,SVPOS THEN
+
+        END ELSE
+            AF = 'SECURE.MESSAGE'
+            ETEXT = 'BTB.CROSS.PAY.NOT.ALLOW'
+            CALL STORE.END.ERROR
+        END
+    END
+
+
+*End By Zakir
+
+    RETURN
+END

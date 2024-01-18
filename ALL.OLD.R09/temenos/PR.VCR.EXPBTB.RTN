@@ -1,0 +1,115 @@
+*-----------------------------------------------------------------------------
+* <Rating>557</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VCR.EXPBTB.RTN
+*----------------------------------------------------------------------------
+*displays the advse ref no when the record opend in a particular format
+*----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LETTER.OF.CREDIT
+    $INSERT I_F.INTERCO.PARAMETER
+    $INSERT I_F.PR.H.ADCODES
+    $INSERT I_F.COMPANY
+    $INSERT I_F.PR.T.BRBTB.SEQ.NO
+
+    GOSUB INITIALISE
+    GOSUB OPENFILES
+    GOSUB CHECK.REFNO
+    RETURN
+
+INITIALISE:
+
+    FN.LETTER.OF.CREDIT="F.LETTER.OF.CREDIT"
+    F.LETTER.OF.CREDIT=""
+    FN.PR.T.BRCODE.SEQ.NO="F.PR.T.BRBTB.SEQ.NO"
+    F.PR.T.BRCODE.SEQ.NO=""
+    FN.PR.H.ADCODES="F.PR.H.ADCODES"
+    F.PR.H.ADCODES=""
+    CALL OPF(FN.PR.H.ADCODES,F.PR.H.ADCODES)
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+    CALL OPF(FN.PR.T.BRCODE.SEQ.NO,F.PR.T.BRCODE.SEQ.NO)
+    RETURN
+
+CHECK.REFNO:
+
+    Y.ID = ID.NEW
+*gets  the branch code  from company
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","ADVISE.REF.NO",Y.ADV.POS)
+    IF R.NEW.LAST(TF.LC.LOCAL.REF)<1,Y.ADV.POS> EQ '' AND R.OLD(TF.LC.LOCAL.REF)<1,Y.ADV.POS> EQ '' AND V$FUNCTION EQ "I" OR V$FUNCTION EQ "A" THEN
+        Y.MNEMONIC=R.COMPANY(EB.COM.MNEMONIC)
+        Y.FIN.MNEMONIC=R.INTERCO.PARAMETER<ST.ICP.FIN.MNEMONIC>
+        Y.BRANCH.CODE1=R.INTERCO.PARAMETER<ST.ICP.BRANCH.CODE>
+        CONVERT SM TO VM IN Y.BRANCH.CODE1
+
+        Y.BRANCH.CODE=R.COMPANY(EB.COM.SUB.DIVISION.CODE)
+        CALL F.READ(FN.PR.H.ADCODES,Y.BRANCH.CODE,R.PR.H.ADCODES,F.PR.H.ADCODES,Y.ERR)
+        Y.ADCODE=R.PR.H.ADCODES<AD.ADCODE>
+
+        IF Y.BRANCH.CODE EQ '' THEN
+            ETEXT = "BRANCH CODE NOT PRESENT"
+        END ELSE
+            Y.ADVICE="BTB"
+            Y.DATE1=TODAY[1,4]
+            Y.DATE=Y.MNEMONIC:APPLICATION:PGM.VERSION:".":TODAY[1,4]
+!            CALL F.READ(FN.PR.T.BRCODE.SEQ.NO,Y.ADCODE,R.PR.T.BRCODE.SEQ.NO,F.PR.T.BRCODE.SEQ.NO,Y.ERR)
+
+!Changes Starts here
+            OPEN 'F.LOCKING' TO F.LOCKING ELSE F.LOCKING=''
+READ.ID:
+            READ.ERR  =  ''
+!     CALL F.READ(FN.PR.T.BRCODE.SEQ.NO,Y.ADCODE,R.PR.T.BRCODE.SEQ.NO,F.PR.T.BRCODE.SEQ.NO,Y.ERR)
+            READU R.PR.T.BRCODE.SEQ.NO FROM F.LOCKING,Y.DATE LOCKED
+                SLEEP 10
+                GOTO READ.ID
+            END THEN NULL
+            R.PR.T.BRCODE.SEQ.NO<1>+=1
+            IF R.PR.T.BRCODE.SEQ.NO<1> = 9999 THEN R.PR.T.BRCODE.SEQ.NO<1>=1
+            Y.SERIAL.NO1 = R.PR.T.BRCODE.SEQ.NO<1>+0
+            Y.SERIAL.NO1=FMT(Y.SERIAL.NO1,'R%4')
+            CALL  F.RELEASE("F.LOCKING",  Y.DATE,  F.LOCKING)
+!            CALL  F.WRITE("F.LOCKING",  Y.ADCODE,  R.PR.T.BRCODE.SEQ.NO)
+            WRITE R.PR.T.BRCODE.SEQ.NO TO F.LOCKING,Y.DATE ON ERROR NULL
+!Changes Ends here
+
+*generates the serial number
+!            IF NOT(R.PR.T.BRCODE.SEQ.NO) THEN
+!                Y.SERIAL.NO1='1'
+!                Y.SERIAL.NO='000':Y.SERIAL.NO1
+!                CALL CONCAT.FILE.UPDATE(FN.PR.T.BRCODE.SEQ.NO,Y.ADCODE,Y.SERIAL.NO,"I","AL")
+
+!            END ELSE
+!                SEQ.NO = R.PR.T.BRCODE.SEQ.NO<BR.SEQ.SEQUENCE.NO>
+
+!                Y.COUNT=DCOUNT(R.PR.T.BRCODE.SEQ.NO,FM)
+
+!                Y.SERIAL.NO1=Y.COUNT+1
+            BEGIN CASE
+            CASE LEN(Y.SERIAL.NO1) EQ 1
+                Y.SERIAL.NO="000":Y.SERIAL.NO1
+            CASE LEN(Y.SERIAL.NO1) EQ 2
+                Y.SERIAL.NO="00":Y.SERIAL.NO1
+            CASE LEN(Y.SERIAL.NO1) EQ 3
+                Y.SERIAL.NO="0":Y.SERIAL.NO1
+            CASE LEN(Y.SERIAL.NO1) EQ 4
+                Y.SERIAL.NO=Y.SERIAL.NO1
+            END CASE
+
+*updating the concat table
+            CALL CONCAT.FILE.UPDATE(FN.PR.T.BRCODE.SEQ.NO,Y.DATE,Y.SERIAL.NO,"I","AL")
+            CALL F.RELEASE(FN.PR.T.BRCODE.SEQ.NO,Y.DATE,F.PR.T.BRCODE.SEQ.NO)
+!            END
+
+********BTB.CONTRACT ID FORMATION***********************
+            IF R.NEW(TF.LC.LOCAL.REF)<1,Y.ADV.POS> EQ '' THEN
+                R.NEW(TF.LC.LOCAL.REF)<1,Y.ADV.POS>= Y.ADCODE:"/":Y.ADVICE:"/":Y.SERIAL.NO:"/":Y.DATE1
+            END
+        END
+    END
+
+    RETURN
+END

@@ -1,0 +1,80 @@
+*-----------------------------------------------------------------------------
+* <Rating>69</Rating>
+*-----------------------------------------------------------------------------
+* IFNO
+* PROGRAM     : PROGRAM TO CREATE A CSV FILE FOR COLLATERAL
+* DEV BY      : MD. IMRAN HASAN
+* DEV DATE    : 2021-07-03
+* UPDATE DATE : 2021-07-03
+* REQ         : ICTD
+****************************************************
+
+    PROGRAM ICTD.GET.COLLATERAL
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.LIMIT
+    $INSERT GLOBUS.BP I_F.COLLATERAL
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+
+*------
+INIT:
+*------
+
+    Y.FILE.NAME = 'COLLATERAL.DATA.':TODAY:'.csv'
+    Y.FILE.DIR = 'RPT.DATA.DIR'
+    Y.FILE.PATH = Y.FILE.DIR:'/':Y.FILE.NAME
+
+    FN.COLA = 'FBNK.COLLATERAL'
+    F.COLA = ''
+
+    RETURN
+
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.COLA,F.COLA)
+
+    RETURN
+
+*-------
+PROCESS:
+*-------
+
+    SEL.CMD='SELECT ':FN.COLA
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+
+    LOOP
+        REMOVE Y.REC.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.REC.ID:Y.POS
+        CALL F.READ(FN.COLA,Y.REC.ID,R.COLA,F.COLA,Y.ERR)
+
+
+        Y.NOMI.VAL  = R.COLA<COLL.NOMINAL.VALUE>
+        Y.EXE.VAL   = R.COLA<COLL.EXECUTION.VALUE>
+        Y.VAL.DATE  = R.COLA<LI.EXPIRY.DATE>
+
+        Y.EXP.DATE  = R.COLA<COLL.EXPIRY.DATE>
+        Y.CO.CODE   = R.COLA<COLL.CO.CODE>
+        Y.COLA.CODE = R.COLA<COLL.COLLATERAL.CODE>
+
+        Y.REC<-1> = Y.REC.ID:'|':Y.NOMI.VAL:'|':Y.EXE.VAL:'|':Y.VAL.DATE:'|':Y.EXP.DATE:'|':Y.CO.CODE:'|':Y.COLA.CODE:'|':TODAY:'|'
+
+        Y.COUNT++
+        Y.PROGRESS = MOD(Y.COUNT,5000)
+        IF Y.PROGRESS EQ 0 THEN
+            Y.PERCENT = Y.COUNT*100/NO.OF.REC
+            PRINT DROUND(Y.PERCENT,0):'% is Completed.'
+        END
+
+    REPEAT
+
+    OPEN Y.FILE.DIR TO F.FILE.DIR ELSE NULL
+    WRITE Y.REC TO F.FILE.DIR,Y.FILE.NAME
+
+    RETURN
+END

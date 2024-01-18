@@ -1,0 +1,145 @@
+*-----------------------------------------------------------------------------
+* <Rating>34</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE CET.RAISE
+*************************************************************************
+*This routine builds the CONSOL.ENT.TODAY and the EOD.CONSOL.UPDATE.DETAIL entries,
+*based on the SAVE.LIST which holds the CAL key and the difference amount. eg,
+*File &SAVEDLISTS& , Record 'MISMATCH.KEY'
+*Command->
+*0001 AC.1.TR.MWK.15079.1000......CREDIT*-9730.00
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.CONSOL.ENT.TODAY
+    $INSERT GLOBUS.BP I_F.COMPANY
+
+    EXECUTE 'COMO ON CET.RAISE.':ID.COMPANY
+
+    CRT "Routine is in Processing status"
+    CRT "***Please WAIT***"
+    GOSUB INITIALISE
+
+    GOSUB PROCESS
+    CRT "Routine has completed processing"
+
+    EXECUTE 'COMO OFF CET.RAISE.':ID.COMPANY
+    RETURN
+*****************************************************************************
+INITIALISE:
+
+    FN.CET = "F.CONSOL.ENT.TODAY"
+    FV.CET = ""
+    CALL OPF(FN.CET,FV.CET)
+
+    FN.ECU = "F.EOD.CONSOL.UPDATE.DETAIL"
+    FV.ECU = ""
+    CALL OPF(FN.ECU,FV.ECU)
+
+    CET.ID.PREFIX = DATE():"0009991001"
+    CET.ID.SUFFIX = ".01"
+    PROC.DATE = TODAY
+    MISM.KEY = ''
+    PREV.MISM.KEY = ''
+    ECU.REC = ''
+    CET.REC = ''
+    LCY = R.COMPANY(EB.COM.LOCAL.CURRENCY)
+    RETURN
+****************************************************************************
+PROCESS:
+
+    SEL.CMD = "GET.LIST MISMATCH.KEY"
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,ACCT.ERR)
+*    SEL.LIST = 'AC.1.TR.MMK.17470............MM0011703.CREDIT*4200'
+    IF SEL.LIST THEN
+        LOOP
+            PREV.MISM.KEY = MISM.KEY
+            REMOVE MISM.KEY FROM SEL.LIST SETTING POS
+        WHILE MISM.KEY:POS
+            MISM.AMT = FIELD(MISM.KEY,"*",2)
+            MISM.KEY = FIELD(MISM.KEY,"*",1)
+            CET.REC = ''
+
+* Form the CET entry ID
+
+            CET.ID = CET.ID.PREFIX:CET.ID.SUFFIX
+
+* Find ASSET.TYPE
+**************************************************************
+
+            CAL.COUNT = DCOUNT(MISM.KEY,".")
+            ASSET.TYPE  = FIELD(MISM.KEY,'.',CAL.COUNT)
+            MISM.CCY    = FIELD(MISM.KEY,'.',4)
+            CAL.KEY =""
+            ASSET.TYPE.TMP = ".":ASSET.TYPE
+            CAL.KEY = FIELD(MISM.KEY,ASSET.TYPE.TMP,1)
+            MISM.MKT = FIELD(MISM.KEY,'.',2)
+**************************************************************
+* Make the CET record
+            GOSUB UPDATE.CURRENCY
+            GOSUB CET.UPDATE
+
+* Create the EOD.CONSOL.UPDATE.DETAIL
+            GOSUB CREATE.ECU.FILE
+            CET.ID.PREFIX += 1
+        REPEAT
+    END
+    RETURN
+********************************************************************************************
+UPDATE.CURRENCY:
+    IF MISM.CCY NE LCCY THEN
+        GOSUB CALL.EXCHANGE
+        IF MISM.AMT LT 0 THEN
+            CET.REC<RE.CET.LOCAL.DR> = LOCAL.AMT
+            CET.REC<RE.CET.FOREIGN.DR> = MISM.AMT
+        END
+        ELSE
+            CET.REC<RE.CET.LOCAL.CR> = LOCAL.AMT
+            CET.REC<RE.CET.FOREIGN.CR> = MISM.AMT
+        END
+        CET.REC<RE.CET.EXCHANGE.RATE> = MID.RATE
+    END
+    ELSE
+        IF MISM.AMT LT 0 THEN
+            CET.REC<RE.CET.LOCAL.DR> = MISM.AMT
+        END
+        ELSE
+            CET.REC<RE.CET.LOCAL.CR> = MISM.AMT
+        END
+        CET.REC<RE.CET.EXCHANGE.RATE> = '1.000'
+    END
+    RETURN
+******************************************************************************************
+CET.UPDATE:
+    CET.REC<RE.CET.PRODUCT> = "AC"
+    CET.REC<RE.CET.TXN.REF> = CAL.KEY
+    CET.REC<RE.CET.CURRENCY> = MISM.CCY
+    CET.REC<RE.CET.CURRENCY.MARKET> = MISM.MKT
+    CET.REC<RE.CET.TYPE> = ASSET.TYPE
+    CET.REC<RE.CET.TXN.CODE> = "COR"
+    CET.REC<RE.CET.CONSOL.KEY> = CAL.KEY
+
+    CET.REC<RE.CET.SUPPRESS.POSITION> = "Y"
+    CRT 'Creating CET record -> ':CET.ID:' ':CET.REC
+    WRITE CET.REC TO FV.CET, CET.ID
+    RETURN
+*******************************************************************************************
+CALL.EXCHANGE:
+    RATE = "" ; AMT1 = MISM.AMT ; AMT2 = ""; MKT = MISM.MKT; CCY=MISM.CCY
+    CALL EXCHRATE(MKT,CCY,AMT1,LCCY,AMT2,"",RATE,"","",RET.CODE)
+    MID.RATE = RATE ; LOCAL.AMT = AMT2
+    RETURN
+********************************************************************************************
+CREATE.ECU.FILE:
+
+    ECU.ID = CAL.KEY:"*":PROC.DATE
+    READ ECU.REC FROM FV.ECU,ECU.ID ELSE ECU.REC =''
+    IF ECU.REC THEN
+        ECU.REC<-1> = "AC*":CET.ID
+    END ELSE
+        ECU.REC = "AC*":CET.ID
+    END
+    WRITE ECU.REC TO FV.ECU, ECU.ID
+    ECU.REC = ""
+    RETURN
+END 

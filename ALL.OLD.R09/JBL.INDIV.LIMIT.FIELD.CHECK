@@ -1,0 +1,19 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.INDIV.LIMIT.FIELD.CHECK
+
+    $INSERT I_EQUATE
+    $INSERT I_COMMON
+    $INSERT I_F.INDIV.DEALER.LIMIT
+
+    IF AF = EB.IND48.PER.DEAL.LI.CCY THEN
+        V.AMT = R.NEW(EB.IND48.OVER.NIGHT.AMT)
+        V.AMT = V.AMT<1,AV>
+        IF V.AMT GT 0 THEN
+            E = "EB-CCY.NO.CHNAGE"
+            RETURN
+        END
+    END
+
+    RETURN

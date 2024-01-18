@@ -1,0 +1,81 @@
+***Developed By: Md. Zakir Hossain**********
+***Date: 29 Sep 2019*******
+    SUBROUTINE JBL.DAY.END.CASH.MEMO(Y.ARRAY)
+!PROGRAM JBL.DAY.END.CASH.MEMO
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.DATES
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.COMPANY
+
+*-------------------------------------------------------------------------
+* Main controlling section:
+*-------------------------------------------------------------------------
+    GOSUB INITIALISATION
+    GOSUB MAIN.PROCESS
+
+    RETURN
+
+*-------------------------------------------------------------------------
+* Subroutine Section:
+* File Opening and Variable set up
+
+INITIALISATION:
+
+*-------------------------------------------------------------------------
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT = ""
+    R.ACCOUNT = ""
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    FN.TELLER = "F.TELLER"
+    F.TELLER = ""
+    R.TELLER = ''
+    CALL OPF(FN.TELLER, F.TELLER)
+
+    FN.COMPANY = "F.COMPANY"
+    F.COMPANY = ""
+    REC.COMPANY = ''
+    CALL OPF(FN.COMPANY, F.COMPANY)
+    Y.TOT.OPEN.BAL=0
+
+    RETURN
+*-------------------------------------------------------------------------
+* Main Subroutine processing:
+*
+MAIN.PROCESS:
+*
+*-------------------------------------------------------------------------
+*Opening Balance
+
+
+    Y.CURRENCY = 'BDT'
+    SEL.CMP='SELECT ':FN.COMPANY:' WITH @ID LIKE BD0010... BY @ID'
+    CALL EB.READLIST(SEL.CMP,CMP.LIST,"",NO.OF.CMP,RET.CODE)
+
+    LOOP
+        REMOVE COMP.ID FROM CMP.LIST SETTING CMP.POS
+
+    WHILE COMP.ID:CMP.POS
+        SEL.CMD = "SELECT " : FN.ACCOUNT : " WITH CATEGORY EQ 10001 10011 AND CURRENCY EQ ":Y.CURRENCY : " AND CO.CODE EQ ":COMP.ID
+
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORDS,RET.CODE)
+        LOOP
+            REMOVE TRAN.ID FROM SEL.LIST SETTING TXN.POS
+        WHILE TRAN.ID:TXN.POS
+            CALL F.READ(FN.ACCOUNT,TRAN.ID,R.ACCOUNT,F.ACCOUNT,Y.ERR)
+            Y.OPEN.BAL = R.ACCOUNT<AC.OPEN.ACTUAL.BAL>
+            Y.TOT.OPEN.BAL = Y.TOT.OPEN.BAL + Y.OPEN.BAL
+        REPEAT
+        Y.ARRAY<-1> = COMP.ID:"*":ABS(Y.TOT.OPEN.BAL)
+
+! PRINT COMP.ID:"  ":ABS(Y.TOT.OPEN.BAL)
+        Y.TOT.OPEN.BAL=0
+    REPEAT
+
+    RETURN
+END
+

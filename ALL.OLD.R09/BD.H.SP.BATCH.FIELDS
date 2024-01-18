@@ -1,0 +1,66 @@
+*-----------------------------------------------------------------------------
+* <Rating>-2</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.H.SP.BATCH.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine BD.H.SP.STOCK.ISSUE.FIELDS
+*
+* @author alin@janatabank-bd.com
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* History :
+*
+*
+* 16/11/17 - New application
+*
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("SP.BCH.ID", T24_String)  ;* Define Table id
+*-----------------------------------------------------------------------------
+    CALL Table.addFieldDefinition("BATCH.DATE1","8","D","")
+    CALL Table.addFieldDefinition("BATCH.DATE2","8","D","")
+    CALL Table.addField("TYPE.OF.SP", T24_String, "", "")
+    CALL Field.setCheckFile('BD.H.SP.CATEGORY')
+    CALL Table.addFieldWithEbLookup("SOURCE.OF.SP","SP.SOURCE","")
+    CALL Table.addField("SCRIPT.START", T24_String, "", "")
+    CALL Table.addField("SCRIPT.END", T24_String, "", "")
+    CALL Table.addField("SP.STOCK.START", T24_String, "", "")
+    CALL Table.addField("SP.STOCK.END", T24_String, "", "")
+    CALL Table.addFieldWithEbLookup("FACE.VALUE","SP.FV","")
+    CALL Table.addFieldDefinition("COUPON.START","16","A","")
+    CALL Table.addFieldDefinition("COUPON.END","16","A","")
+    CALL Table.addField("PREFIX","T24_String","","")
+    CALL Table.addFieldDefinition("FREQUENCY","3","","")
+    CALL Table.addField("REMARKS", T24_String, "", "")
+    CALL Table.addField("BR.CODE1", T24_String, "", "")
+    CALL Field.setCheckFile('COMPANY')
+    CALL Table.addField("BR.CODE2", T24_String, "", "")
+    CALL Field.setCheckFile('COMPANY')
+    CALL Table.addFieldDefinition("QUANTITY","10","","")
+
+
+    CALL Table.addReservedField('RESERVED.05')
+    CALL Table.addReservedField('RESERVED.04')
+    CALL Table.addReservedField('RESERVED.03')
+    CALL Table.addReservedField('RESERVED.02')
+    CALL Table.addReservedField('RESERVED.01')
+    CALL Table.addLocalReferenceField('XX.LOCAL.REF')
+    CALL Table.addOverrideField
+
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

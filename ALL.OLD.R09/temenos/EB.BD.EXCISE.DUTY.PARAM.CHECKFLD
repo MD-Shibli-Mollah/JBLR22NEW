@@ -1,0 +1,109 @@
+*-----------------------------------------------------------------------------
+* <Rating>-17</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE EB.BD.EXCISE.DUTY.PARAM.CHECKFLD
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This is a checkfield Routine for the table BD.EXCISE.DUTY.PARAM.
+* Checks if the categories given are of the given application
+* If INCLUDE.CAT.TO/EXCLUDE.CAT.TO is less than INCLUDE.CAT.FRM/EXCLUDE.CAT.FRM
+* it throws an error message.
+* Also checks if the internal account category entered is valid
+*-------------------------------------------------------------------------
+* Project Name : National Bank Limited(Bangladesh)
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*  NA
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+* Variable name:   Insert file:          Description:
+* COMI             I_COMMON              Will hold the last entered value
+* R.NEW            I_COMMON              Will hold the currently opened record
+* E                I_COMMON              Used to store the error
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:         Description:
+* OPF                          CORE             Which opens the file
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 07/02/2011 -                            New   - Rashmitha M
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE JBL.BP I_F.EB.BD.EXCISE.DUTY.PARAM
+
+    GOSUB PROCESS
+
+    RETURN
+***************************************************************************
+PROCESS:
+********
+    IF COMI EQ '' THEN
+        RETURN
+    END
+
+! To check if categories entered are of LD or MM
+    Y.CAT.LEN=LEN(COMI)
+    IF (ID.NEW EQ 'LD' OR ID.NEW EQ 'MM') AND (AF EQ EB.BD.30.INCLUDE.CAT.TO OR AF EQ EB.BD.30.INCLUDE.CAT.FRM OR AF EQ EB.BD.30.EXCLUDE.CAT.TO OR AF EQ EB.BD.30.EXCLUDE.CAT.FRM) THEN
+        IF COMI[1,2] NE '21' OR Y.CAT.LEN NE 5 THEN
+            E ="EB-INVALID.CAT"
+            RETURN
+        END
+    END
+
+! To check if categories entered are of AC OR AZ
+    IF (ID.NEW EQ 'AC' OR ID.NEW EQ 'AZ') AND (AF EQ EB.BD.30.INCLUDE.CAT.TO OR AF EQ EB.BD.30.INCLUDE.CAT.FRM OR AF EQ EB.BD.30.EXCLUDE.CAT.TO OR AF EQ EB.BD.30.EXCLUDE.CAT.FRM) THEN
+        IF COMI LT '1000' OR COMI GT '9999' THEN
+            E ="EB-INVALID.CAT"
+            RETURN
+        END
+    END
+
+! To check if Include category from is greater than Exclude category To
+    IF AF EQ EB.BD.30.INCLUDE.CAT.TO THEN
+        Y.INCL.CAT.FRM=R.NEW(EB.BD.30.INCLUDE.CAT.FRM)<1,AV>
+        IF COMI LT Y.INCL.CAT.FRM THEN
+            E="EB-CAT.FRM.GT.TO"
+        END
+    END
+
+! To check if Exclude category from is greater than Exclude category To
+    IF AF EQ EB.BD.30.EXCLUDE.CAT.TO THEN
+        Y.EXCL.CAT.FRM=R.NEW(EB.BD.30.EXCLUDE.CAT.FRM)<1,AV>
+        IF COMI LT Y.EXCL.CAT.FRM THEN
+            E="EB-CAT.FRM.GT.TO"
+        END
+    END
+
+! To check if there are duplicates in Company
+    IF AF EQ EB.BD.30.COMPANY THEN
+        CALL DUP
+    END
+
+! To check if the internal account category entered is valid
+    IF AF EQ EB.BD.30.INT.AC.CATEGORY THEN
+        CALL DUP
+        IF COMI LT 10000 OR COMI GT 19999 THEN
+            E="EB-INVALID.INT.ACCT.CAT"
+        END
+    END
+
+! Validation for Tax key
+    IF AF EQ EB.BD.30.TAX.KEY THEN
+        IF COMI OR (COMI EQ '0') THEN
+            CALL IN2TAX(COMI,"TAX")
+        END
+    END
+
+    RETURN
+*************************************************************************
+END

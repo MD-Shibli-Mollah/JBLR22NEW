@@ -1,0 +1,16 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.E.BUILD.TT.CODE1(ENQ.DATA)
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_ENQUIRY.COMMON
+
+    ENQ.DATA<2,-1> = 'TRANSACTION.CODE'
+    ENQ.DATA<3,-1> = 'EQ'
+    ENQ.DATA<4,-1> = '4 5 14 16 32 110 112 114 154 155 156 157'
+
+    ENQ.DATA<16> = "YES"
+
+    RETURN

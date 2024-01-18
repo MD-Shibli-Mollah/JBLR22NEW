@@ -1,0 +1,73 @@
+*-----------------------------------------------------------------------------
+* <Rating>-31</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.BR.CREDIT
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPEN
+    GOSUB PROCESS
+    RETURN
+
+*******
+INIT:
+*******
+    FN.FT='FBNK.FUNDS.TRANSFER'
+    F.FT=''
+    FN.COM='F.COMPANY'
+    F.COM=''
+    FN.AC ='FBNK.ACCOUNT'
+    F.AC =''
+    Y.ERR = ''
+    RETURN
+********
+OPEN:
+********
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.COM,F.COM)
+    CALL OPF(FN.AC,F.AC)
+    RETURN
+
+********
+PROCESS:
+********
+
+!******************FOR CREDIT***********************************
+    CALL GET.LOC.REF('FUNDS.TRANSFER','CR.BR.CODE',Y.CR.BR.CODE.POS)
+    CALL GET.LOC.REF('FUNDS.TRANSFER','CR.PL.ACCOUNT',Y.CR.PL.ACCOUNT.POS)
+    Y.CR.BR.CODE = 'BD001':R.NEW(FT.LOCAL.REF)<1,Y.CR.BR.CODE.POS>
+!*************************END***********************************
+!DEBUG
+!Y.DR.BR.CODE = 'BD001':R.NEW(FT.LOCAL.REF)<1,Y.DR.BR.CODE.POS>
+
+    Y.EXT.CR.AC = R.NEW(FT.LOCAL.REF)<1,Y.CR.PL.ACCOUNT.POS>
+    Y.EXT.DEBIT.AC = R.NEW(FT.DEBIT.ACCT.NO)
+    CALL F.READ(FN.COM,Y.CR.BR.CODE,R.BR,F.COM,E.RR)
+    Y.BR.MNEMONIC=R.BR<EB.COM.MNEMONIC>
+    IF Y.EXT.DEBIT.AC NE '' THEN
+        IF Y.EXT.DEBIT.AC[1,2] EQ 'PL' THEN
+!Y.CONCATE.DE.AC=Y.EXT.DEBIT.AC[1,7]:'\':'J65'
+            Y.CONCATE.DE.AC=Y.EXT.DEBIT.AC[1,7]
+            R.NEW(FT.DEBIT.ACCT.NO)=Y.CONCATE.DE.AC
+        END ELSE
+            R.NEW(FT.DEBIT.ACCT.NO)=Y.EXT.DEBIT.AC[1,8]:'00019999'
+        END
+    END
+    IF Y.EXT.CR.AC[1,2] EQ 'PL' THEN
+        Y.CONCATE.ACC=Y.EXT.CR.AC[1,7]:'\':Y.BR.MNEMONIC
+        R.NEW(FT.CREDIT.ACCT.NO)=Y.CONCATE.ACC
+    END ELSE
+        Y.CR.AC = Y.EXT.CR.AC[1,8]:'0001':R.NEW(FT.LOCAL.REF)<1,Y.CR.BR.CODE.POS>
+        R.NEW(FT.CREDIT.ACCT.NO)= Y.CR.AC
+        R.NEW(FT.LOCAL.REF)<1,Y.CR.PL.ACCOUNT.POS> = Y.CR.AC
+    END
+
+    R.NEW(FT.CREDIT.COMP.CODE)=Y.CR.BR.CODE
+    R.NEW(FT.DEBIT.COMP.CODE)='BD0019999'
+
+    RETURN
+END

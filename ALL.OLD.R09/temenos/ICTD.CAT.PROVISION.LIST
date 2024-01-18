@@ -1,0 +1,172 @@
+****************************************************
+*-----------------------------------------------------------------------------
+* <Rating>541</Rating>
+*-----------------------------------------------------------------------------
+* PROGRAM : PROGRAM TO VIEW PROVISION LIST IN ENQ
+* DEV BY      : MD. IMRAN HASAN
+* DEV DATE    : 2016-06-09
+* UPDATE DATE : 2018-03-22
+* REQ         : ICTD
+****************************************************
+    SUBROUTINE ICTD.CAT.PROVISION.LIST(Y.RETURN)
+!PROGRAM ICTD.CAT.PROVISION.LIST
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.ACCR.ACCT.CR
+    $INSERT GLOBUS.BP I_F.ACCR.ACCT.DR
+    $INSERT GLOBUS.BP I_F.IC.ADJUST.ACCRUAL
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CLASS
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+!Y.FROM.DATE = ENQ.SELECTION<4,1>
+!Y.TO.DATE = ENQ.SELECTION<4,2>
+!Y.CATEGORY = ENQ.SELECTION<4,3>
+
+    LOCATE "FROM.DATE" IN ENQ.SELECTION<2,1> SETTING FROM.DATE.POS THEN
+        Y.FROM.DATE = ENQ.SELECTION<4,FROM.DATE.POS>
+    END
+
+    LOCATE "TO.DATE" IN ENQ.SELECTION<2,1> SETTING TO.DATE.POS THEN
+        Y.TO.DATE = ENQ.SELECTION<4,TO.DATE.POS>
+    END
+
+    LOCATE "CAT" IN ENQ.SELECTION<2,1> SETTING CATEGORY.POS THEN
+        Y.CATEGORY = ENQ.SELECTION<4,CATEGORY.POS>
+    END
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+
+    FN.ACCR.CR = 'F.ACCR.ACCT.CR'
+    F.ACCR.CR = ''
+
+    FN.ACCR.DR = 'F.ACCR.ACCT.DR'
+    F.ACCR.DR = ''
+
+    FN.IAA = 'F.IC.ADJUST.ACCRUAL'
+    F.IAA = ''
+
+    FN.AC.CLASS = "F.ACCOUNT.CLASS"
+    F.AC.CLASS = ""
+
+    Y.CAT.LIST.ARRY = 'U-SB':@FM:'U-STD':@FM:'U-CCP':@FM:'U-CCH':@FM:'U-ECC':@FM:'U-OD':@FM:'U-STAFF':@FM:'U-TERM':@FM:'U-STAG':@FM:'U-EDS':@FM:'U-JBDS':@FM:'U-JBMAPRA':@FM:'U-JBMSS':@FM:'U-JBSDS':@FM:'U-JBSPS':@FM:'U-MDS':@FM:'U-FDLK':@FM:'U-JDS':@FM:'U-DPS'
+
+    Y.CATEG.LIST = ''
+    Y.RESULT = ''
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.ACCR.CR,F.ACCR.CR)
+    CALL OPF(FN.ACCR.DR,F.ACCR.DR)
+    CALL OPF(FN.IAA,F.IAA)
+    RETURN
+
+PROCESS:
+
+    IF LEFT(Y.CATEGORY,1) EQ 'U' THEN
+
+        LOCATE Y.CATEGORY IN Y.CAT.LIST.ARRY SETTING CAT.POS THEN
+            CALL F.READ(FN.AC.CLASS,Y.CATEGORY,R.AC.CLASS.REC,F.AC.CLASS,Y.ERR)
+            Y.CATEG.COUNT = DCOUNT(R.AC.CLASS.REC<3>,@VM)
+            FOR I = 1 TO Y.CATEG.COUNT
+                INS R.AC.CLASS.REC<3,I> BEFORE Y.CATEG.LIST<0,0,0>
+            NEXT
+            CONVERT FM TO " " IN Y.CATEG.LIST
+        END
+        ELSE
+            RETURN
+        END
+    END
+    ELSE
+        IF Y.CATEGORY EQ '' OR Y.CATEGORY EQ 'ALL' THEN
+            RETURN
+        END
+        ELSE
+            Y.CATEG.LIST = Y.CATEGORY
+        END
+    END
+
+    SEL.CMD.AC = "SELECT ":FN.AC:" WITH CO.CODE EQ ":ID.COMPANY:" AND CATEGORY EQ ":Y.CATEG.LIST
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.AC,'',AC.REC.NO,AC.RET.CODE)
+
+    LOOP
+        REMOVE Y.ACCT.ID FROM SEL.LIST.AC SETTING POS
+    WHILE Y.ACCT.ID:POS
+        Y.CR.INT.AMOUNT = ''
+        Y.DR.INT.AMOUNT = ''
+        Y.TOTAL = ''
+        Y.CR.ADJUST.AMOUNT = ''
+        Y.DR.ADJUST.AMOUNT = ''
+
+        CALL F.READ(FN.AC,Y.ACCT.ID,R.AC,F.AC,ERR.AC)
+        Y.AC.TITLE = R.AC<AC.ACCOUNT.TITLE.1>
+        Y.AC.CAT = R.AC<AC.CATEGORY>
+        Y.AC.LEG.ID = R.AC<AC.ALT.ACCT.ID>
+        Y.CUSTOMER = R.AC<AC.CUSTOMER>
+        Y.CO.CODE = R.AC<AC.CO.CODE>
+
+        IF LEFT(Y.AC.CAT,1) EQ '6' THEN
+            CALL F.READ(FN.ACCR.CR,Y.ACCT.ID,R.ACCR.CR,F.ACCR.CR,ERR.ACCR.CR)
+            IF R.ACCR.CR NE '' THEN
+                Y.CR.INT.DATE = R.ACCR.CR<IC.ACRCR.CR.INT.DATE>
+                Y.CR.INT.AMT = R.ACCR.CR<IC.ACRCR.CR.INT.AMT>
+
+                CALL F.READ(FN.IAA,Y.ACCT.ID,R.IAA,F.IAA,ERR.IAA)
+
+                Y.CR.ADJUST.AMOUNT = R.IAA<IC.ADJ.CR.ADJ.AMOUNT>
+
+                FOR I = 1 TO DCOUNT(Y.CR.INT.DATE,@VM)
+                    Y.DATE = FIELD(Y.CR.INT.DATE,@VM,I)
+                    IF Y.DATE GE Y.FROM.DATE AND Y.DATE LE Y.TO.DATE THEN
+                        Y.CR.INT.AMOUNT += FIELD(Y.CR.INT.AMT,@VM,I)
+                    END
+                NEXT
+            END
+            ELSE
+                CALL F.READ(FN.IAA,Y.ACCT.ID,R.IAA,F.IAA,ERR.IAA)
+                Y.CR.ADJUST.AMOUNT = R.IAA<IC.ADJ.CR.ADJ.AMOUNT>
+            END
+        END
+        ELSE
+            IF LEFT(Y.AC.CAT,1) EQ '1' THEN
+                CALL F.READ(FN.ACCR.DR,Y.ACCT.ID,R.ACCR.DR,F.ACCR.DR,ERR.ACCR.DR)
+
+                IF R.ACCR.DR NE '' THEN
+                    Y.DR.INT.DATE = R.ACCR.DR<IC.ACRDR.DR.INT.DATE>
+                    Y.DR.INT.AMT = R.ACCR.DR<IC.ACRDR.DR.INT.AMT>
+
+                    CALL F.READ(FN.IAA,Y.ACCT.ID,R.IAA,F.IAA,ERR.IAA)
+
+                    Y.DR.ADJUST.AMOUNT = R.IAA<IC.ADJ.DR.ADJ.AMOUNT>
+
+                    FOR I = 1 TO DCOUNT(Y.DR.INT.DATE,@VM)
+                        Y.DATE = FIELD(Y.DR.INT.DATE,@VM,I)
+                        IF Y.DATE GE Y.FROM.DATE AND Y.DATE LE Y.TO.DATE THEN
+                            Y.DR.INT.AMOUNT += FIELD(Y.DR.INT.AMT,@VM,I)
+                        END
+                    NEXT
+                END
+                ELSE
+                    CALL F.READ(FN.IAA,Y.ACCT.ID,R.IAA,F.IAA,ERR.IAA)
+                    Y.DR.ADJUST.AMOUNT = R.IAA<IC.ADJ.DR.ADJ.AMOUNT>
+                END
+            END
+        END
+
+        Y.TOTAL = (Y.CR.INT.AMOUNT + Y.CR.ADJUST.AMOUNT) - (Y.DR.INT.AMOUNT - Y.DR.ADJUST.AMOUNT)
+        Y.RESULT<-1> =Y.CUSTOMER:"*":Y.ACCT.ID:"*":Y.AC.CAT:"*":Y.AC.TITLE:"*":Y.AC.LEG.ID:"*":Y.CR.INT.AMOUNT:"*":Y.CR.ADJUST.AMOUNT:"*":Y.DR.INT.AMOUNT:"*":Y.DR.ADJUST.AMOUNT:"*":Y.TOTAL
+    REPEAT
+
+    Y.RETURN = Y.RESULT
+    RETURN
+END

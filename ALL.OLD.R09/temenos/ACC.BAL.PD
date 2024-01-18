@@ -1,0 +1,140 @@
+*-----------------------------------------------------------------------------
+* <Rating>94</Rating>
+*-----------------------------------------------------------------------------
+!    PROGRAM ACC.BAL.PD
+    SUBROUTINE ACC.BAL.PD(Y.DATA)
+    $INSERT I_COMMON
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CUSTOMER
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.PD.PAYMENT.DUE
+    $INSERT I_F.LIMIT
+    $INSERT I_F.LD.LOANS.AND.DEPOSITS
+    $INSERT I_F.LETTER.OF.CREDIT
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+INIT:
+    FN.ACC = "FBNK.ACCOUNT"
+    F.ACC = " "
+!    Y.ACC.CATEGORY = "1936"
+    Y.ACC.CATEGORY = ENQ.SELECTION<4,1>
+    FN.LMT = "FBNK.LIMIT"
+    F.LMT = " "
+
+    FN.PD = "FBNK.PD.PAYMENT.DUE"
+    F.PD = " "
+
+    FN.PD.CUST = "FBNK.PD.CUSTOMER"
+    F.PD.CUST = " "
+    RETURN
+OPENFILES:
+    CALL OPF(FN.ACC,F.ACC)
+    CALL OPF(FN.LMT,F.LMT)
+    CALL OPF(FN.PD,F.PD)
+    CALL OPF(FN.PD.CUST,F.PD.CUST)
+    RETURN
+PROCESS:
+    SEL.CMD = 'SSELECT ':FN.ACC:' WITH  CATEGORY EQ ':Y.ACC.CATEGORY:' AND CO.CODE EQ ':ID.COMPANY
+  ! SEL.CMD = 'SSELECT ':FN.ACC:' WITH  @ID EQ 0100000474864 '
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+    IF SEL.LIST THEN
+        LOOP
+            REMOVE Y.ACC.ID FROM SEL.LIST SETTING POS
+        WHILE  Y.ACC.ID:POS
+            Y.TOTAL.OD= 0.00
+            Y.WORKING.BALANCE =0.00
+            Y.AMOUNT = 0.00
+            Y.LIMIT.ID = ''
+            Y.PD.PM.ID = ''
+            Y.ACCRUAL = 0.00
+            Y.OD = 0.00
+
+            Y.ACC.NUMBER = 0.00
+            Y.SHORT.TITLE = ''
+            Y.LIMIT = 0.00
+!            Y.ACC.BALANCE = 0.00
+            Y.ACCRUAL = 0.00
+            Y.PD.BAL = 0.00
+            Y.PD.NUMBER =''
+            Y.TOTAL.AMT = 0.0
+
+
+            CALL F.READ(FN.ACC, Y.ACC.ID , R.ACCOUNT, F.ACC , Y.ERR)
+            Y.ACC.NUMBER = Y.ACC.ID
+            Y.SHORT.TITLE = R.ACCOUNT<AC.SHORT.TITLE>
+            Y.ACC.BALANCE = R.ACCOUNT<AC.WORKING.BALANCE>
+            IF Y.ACC.BALANCE EQ '' THEN
+                Y.ACC.BALANCE = 0.00
+            END
+            Y.CUSTOMER.NO = R.ACCOUNT<AC.CUSTOMER>
+            Y.LIMIT.REF = R.ACCOUNT<AC.LIMIT.REF>
+            Y.OP.ACT.BAL = R.ACCOUNT<AC.OPEN.ACTUAL.BAL>
+            Y.OPEN.ACTUAL.BAL = Y.OPEN.ACTUAL.BAL + Y.OP.ACT.BAL
+            IF Y.LIMIT.REF NE '' THEN
+                Y.LIMIT.ID = Y.CUSTOMER.NO:".000":Y.LIMIT.REF
+            END
+
+            GOSUB PROCESS.LIMIT
+            GOSUB PROCESS.GET.PD
+! Y.DATA<-1> = Y.ACC.NUMBER :'*':Y.SHORT.TITLE:'*':Y.ACC.BALANCE:'*':Y.LIMIT:'*':Y.ACCRUAL:'*':Y.PD.BAL:'*':Y.PD.NUMBER
+            Y.DATA<-1> = Y.ACC.NUMBER :'*':Y.SHORT.TITLE:'*':Y.ACC.BALANCE:'*':Y.PD.BAL:'*':Y.TOTAL.AMT:'*':Y.LIMIT:'*':Y.PD.NUMBER
+        REPEAT
+    END
+!    CRT Y.DATA
+    RETURN
+
+PROCESS.LIMIT:
+    CALL F.READ(FN.LMT, Y.LIMIT.ID , R.LIMIT, F.LMT , Y.LMT.ERR)
+    IF R.LIMIT THEN
+        Y.LIMIT = R.LIMIT<LI.INTERNAL.AMOUNT>
+    END
+    RETURN
+
+PROCESS.GET.PD:
+!DEBUG
+    CALL F.READ(FN.PD.CUST,Y.CUSTOMER.NO , R.PD.CUST, F.PD.CUST , Y.PD.CUST.ERR)
+    Y.PD.NUMBER = R.PD.CUST<1>
+    IF Y.PD.NUMBER NE '' THEN
+        Y.PD.PM.ID = Y.PD.NUMBER
+        CALL F.READ(FN.PD, Y.PD.PM.ID , R.PD.PM.DU, F.PD , Y.PD.PM.ERR)
+        Y.PD.PAY.TYPE = R.PD.PM.DU<PD.TOT.OVRDUE.TYPE>
+        Y.PD.PAY.AMT.ORIG = R.PD.PM.DU<PD.TOT.OD.TYPE.AMT>
+        Y.REPAY.ACCT = R.PD.PM.DU<PD.REPAYMENT.ACCT>
+        Y.ORG.SETTL.AC = R.PD.PM.DU<PD.ORIG.STLMNT.ACT>
+        Y.SETTL = 'NO'
+        LOCATE Y.ACC.NUMBER IN Y.ORG.SETTL.AC SETTING POS THEN
+           Y.SETTL = 'YES'
+        END
+        IF Y.REPAY.ACCT EQ Y.ACC.NUMBER OR Y.SETTL EQ 'YES' THEN
+            Y.ACCRUAL = 0.00
+            Y.OD = 0.00
+            Y.M = 0.00
+            Y.N= DCOUNT(Y.PD.PAY.TYPE,VM)
+            LOOP
+                Y.M = Y.M + 1
+            WHILE Y.M LE Y.N
+
+                IF Y.PD.PAY.TYPE<1,Y.M> NE '' THEN
+                    IF Y.PD.PAY.TYPE<1,Y.M> EQ 'PE' OR  Y.PD.PAY.TYPE<1,Y.M> EQ 'CE' THEN
+                        Y.ACCRUAL = Y.ACCRUAL + Y.PD.PAY.AMT.ORIG<1,Y.M>
+                    END
+                    ELSE
+                        Y.OD = Y.OD + Y.PD.PAY.AMT.ORIG<1,Y.M>
+                    END
+                END
+            REPEAT
+            Y.PD.BAL = -1 * Y.OD
+        END
+    END
+    ELSE
+        Y.ACCRUAL = 0.00
+        Y.OD = 0.00
+        Y.PD.BAL = 0.00
+        Y.PD.NUMBER = ''
+    END
+    Y.TOTAL.AMT = Y.ACC.BALANCE + Y.PD.BAL
+    RETURN
+END

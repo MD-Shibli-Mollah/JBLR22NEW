@@ -1,0 +1,10 @@
+*-----------------------------------------------------------------------------
+* <Rating>-1</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM TEST.INT
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    Y.LN.VAT.AMT=1234.50
+!    CALL EB.ROUND.AMOUNT('',Y.LN.VAT.AMT,"","")
+    PRINT" AMOUNT AFTER ROUNDING=== ":DROUND(Y.LN.VAT.AMT,0)
+END

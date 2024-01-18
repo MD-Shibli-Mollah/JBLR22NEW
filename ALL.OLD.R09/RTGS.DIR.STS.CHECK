@@ -1,0 +1,78 @@
+*******************************************************************************
+*Developed By: Md. Aminul Islam (Datasoft Systems)                            *
+*This routine used to check outward directory path                            *
+*Date:2016/01/12                                                              *
+*******************************************************************************
+    SUBROUTINE RTGS.DIR.STS.CHECK
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.BD.RTGS.PARAM
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.RTGS.PARAM = 'F.EB.BD.RTGS.PARAM';          F.RTGS.PARAM = ''
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.RTGS.PARAM,F.RTGS.PARAM)
+    RETURN
+
+PROCESS:
+
+    CALL F.READ(FN.RTGS.PARAM,'SYSTEM',REC.PARAM,F.RTGS.PARAM,ERR.RTGS.PARAM)
+    ROOT.DIR = REC.PARAM<EB.BD.29.ROOT.DIR>
+    OUTW.SUB.DIR = REC.PARAM<EB.BD.29.OUTW.SUB.DIR>
+    INW.SUB.DIR = REC.PARAM<EB.BD.29.INW.SUB.DIR>
+    RTGS.TXN.LOG.DIR = 'RTGS.TXN.LOG'
+    INW.CPY.FILES.DIR = 'INW.CPY.FILES'
+
+    IF NOT(ROOT.DIR) THEN
+        AF = 170
+        ETEXT = 'ROOT Directory missing in ':FN.RTGS.PARAM
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    OPEN ROOT.DIR TO F.ROOT.DIR ELSE
+        AF = 170
+        ETEXT = 'ROOT Directory missing in ':FN.RTGS.PARAM
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    OPEN ROOT.DIR:'/':OUTW.SUB.DIR TO F.OUTW.SUB.DIR ELSE
+        AF = 170
+        ETEXT = 'OUTW.SUB.DIR Directory missing in ':FN.RTGS.PARAM
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    OPEN ROOT.DIR:'/':INW.SUB.DIR TO F.INW.SUB.DIR ELSE
+        AF = 0
+        ETEXT = 'INW.SUB.DIR Directory missing in ':FN.RTGS.PARAM
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    OPEN ROOT.DIR:'/':RTGS.TXN.LOG.DIR TO F.RTGS.TXN.LOG ELSE
+        AF = 170
+        ETEXT = 'Directory missing in ':FN.RTGS.PARAM
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    OPEN ROOT.DIR:'/':INW.CPY.FILES.DIR TO F.RTGS.TXN.LOG ELSE
+        AF = 170
+        ETEXT = 'Directory missing in ':FN.RTGS.PARAM
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    RETURN
+END

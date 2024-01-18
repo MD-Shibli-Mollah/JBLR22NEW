@@ -1,0 +1,23 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VVR.CHQ.STOPPED
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.TELLER
+    Y.CHQ.NO=COMI
+
+    IF NOT(NUM(Y.CHQ.NO)) THEN
+        IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+            AF = FT.CHEQUE.NUMBER
+        END
+        IF APPLICATION EQ 'TELLER' THEN
+            AF = TT.TE.CHEQUE.NUMBER
+        END
+        ETEXT = "Cheque No. must be numeric"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    RETURN
+END

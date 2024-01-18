@@ -1,0 +1,346 @@
+    SUBROUTINE BD.ARC.GET.NARRATIVE(STMT.ID,STMT.REC,NARR)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.EB.SYSTEM.ID
+    $INSERT GLOBUS.BP I_F.TRANSACTION
+    $INSERT GLOBUS.BP I_F.STMT.NARR.PARAM
+    $INSERT GLOBUS.BP I_F.STMT.NARR.FORMAT
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.STANDARD.SELECTION
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.CATEGORY
+*
+    $INSERT GLOBUS.BP I_F.SEC.TRADE
+    $INSERT GLOBUS.BP I_F.DX.TRADE      ;* CI_10016669 S/E
+*
+    COMMON/GNCOM/C$SE.FILE.NAME, F.STMT.ENTRY , F.STANDARD.SELECTION, F.STMT.NARR.FORMAT, F.STMT.NARR.PARAM, F.TRANSACTION,
+    F.EB.SYSTEM.ID, F.CATEGORY
+
+*************************************************************************
+*  Initialise Variables
+***************************
+*
+    IF C$SE.FILE.NAME[2,3] NE R.COMPANY(EB.COM.MNEMONIC) THEN         ;* Open files
+        F.STMT.ENTRY = "" ; C$SE.FILE.NAME = "F.STMT.ENTRY"
+        CALL OPF(C$SE.FILE.NAME,F.STMT.ENTRY)
+        F.TRANSACTION = ""
+        CALL OPF("F.TRANSACTION",F.TRANSACTION)
+        F.STANDARD.SELECTION = ""
+        CALL OPF("F.STANDARD.SELECTION",F.STANDARD.SELECTION)
+        F.STMT.NARR.PARAM = ""
+        CALL OPF("F.STMT.NARR.PARAM",F.STMT.NARR.PARAM)
+        F.STMT.NARR.FORMAT = ""
+        CALL OPF("F.STMT.NARR.FORMAT",F.STMT.NARR.FORMAT)
+        F.EB.SYSTEM.ID = ''
+        CALL OPF('F.EB.SYSTEM.ID',F.EB.SYSTEM.ID)
+        F.CATEGORY = ""
+        CALL OPF("F.CATEGORY", F.CATEGORY)
+    END
+*
+* Read Stmt entry record, read Transaction record. If Narr type present
+* read Stmt Narr Param record else return
+*
+    NARR.PREFIX = STMT.ID<2>  ;* Additional Prefix
+    STMT.ID = STMT.ID<1>      ;* Strip the prefix
+*
+    IF STMT.ID = "" AND STMT.REC = "" THEN
+        RETURN
+    END ELSE
+        IF FIELD(STMT.ID,'.',1) = 'DUMMY' THEN
+            RETURN
+        END
+        IF STMT.ID <> "" AND STMT.REC = "" THEN
+            CALL F.READ("F.STMT.ENTRY",STMT.ID,STMT.REC,F.STMT.ENTRY,READ.ERROR)
+            IF STMT.REC EQ "" THEN
+                F.STMT.ENTRY.ARC = "" ; C$SE.FILE.NAME.ARC = "F.STMT.ENTRY$ARC"
+                CALL OPF(C$SE.FILE.NAME.ARC,F.STMT.ENTRY.ARC)
+                CALL F.READ("F.STMT.ENTRY$ARC",STMT.ID,STMT.REC,F.STMT.ENTRY.ARC,READ.ERROR)
+            END
+
+        END
+*
+        IF STMT.REC THEN
+            TRANS.CODE = STMT.REC<AC.STE.TRANSACTION.CODE>
+            IF TRANS.CODE MATCHES '1N0N' THEN
+                CALL F.READ("F.TRANSACTION",TRANS.CODE,TRANS.REC,F.TRANSACTION,READ.ERROR)
+                NARR.TYPE = TRANS.REC<AC.TRA.NARR.TYPE>
+            END ELSE
+                NARR.TYPE = 'LIQ'       ;* Hard codede for liquidated interest
+            END
+        END
+        IF NARR.PREFIX THEN
+            NARR.TYPE = NARR.PREFIX:"-":NARR.TYPE
+        END
+        IF NARR.TYPE <> "" THEN
+            CALL F.READ("F.STMT.NARR.PARAM",NARR.TYPE,SNP.REC,F.STMT.NARR.PARAM,READ.ERROR)
+*
+** Look for - the specific System id in the parameter and check
+** specific conditions
+** if not found check for ALL
+*
+            APPLIC.ID = STMT.REC<AC.STE.TRANS.REFERENCE>[";",1,1]
+            TXN.ID = APPLIC.ID
+            APPLIC.ID = APPLIC.ID["\",1,1]
+            STORE.APPLIC.ID = APPLIC.ID ;* May be amended
+            APPLIC.COMP.MNE = APPLIC.ID["\",2,1]
+            APPLIC.FLD = ""   ;* Extracted field
+            SYS.ID = STMT.REC<AC.STE.SYSTEM.ID>
+            SYS.POS = 1       ;* Locate position
+            LOOP
+                LOCATE SYS.ID IN SNP.REC<NR.PRM.SYSTEM.ID,SYS.POS> SETTING MATCH.POS THEN
+                    APPLIC.FILE = SNP.REC<NR.PRM.FILE,MATCH.POS>
+                    APPLIC.FLD = SNP.REC<NR.PRM.FIELD.NAME,MATCH.POS>
+                    GOSUB READ.APPLIC   ;* CI_10015618 S/E
+                    IF APPLIC.FLD = "" THEN
+                        GOSUB EXTRACT.FORMAT
+                        SYS.POS = ""
+                    END ELSE
+* Moved up the line GOSUB READ.APPLIC before IF stmt - CI_10015618
+                        GOSUB MATCH.NARR
+                        IF MATCHED = "Y" THEN
+                            GOSUB EXTRACT.FORMAT
+                            SYS.POS = ""
+                        END ELSE        ;* Look for next occurence
+                            SYS.POS += 1
+                        END
+                    END
+                END ELSE
+                    LOCATE "ALL" IN SNP.REC<NR.PRM.SYSTEM.ID,1> SETTING MATCH.POS THEN
+                        APPLIC.FILE = "STMT.ENTRY"
+                        GOSUB EXTRACT.FORMAT
+                    END
+                    SYS.POS = ""        ;* Nothing else to do
+                END
+            WHILE SYS.POS
+            REPEAT
+*
+        END
+        V$EXIT:
+    END
+    RETURN
+*
+*------------------------------------------------------------------------
+EXTRACT.FORMAT:
+*==============
+** Get the applicable format and files
+*
+    NARR.FORMAT.ID = SNP.REC<NR.PRM.NARR.FORMAT,MATCH.POS>
+    CALL BD.ARC.BUILD.NARRATIVE(NARR.FORMAT.ID,
+    TXN.ID,
+    STMT.ID,
+    STMT.REC,
+    MVSET,
+    NARR)
+*
+    RETURN
+*
+*----------
+READ.APPLIC:
+*----------
+** Attempt to read from the live file, otherwise read from history
+*
+    IF APPLIC.FILE EQ '' THEN
+        RETURN      ;* CI_10015618 S/E
+    END
+    IF APPLIC.FILE = "STMT.ENTRY" THEN
+        APPLIC.ID = STMT.ID
+    END
+    APPLIC.LIVE.FILE = "F":APPLIC.COMP.MNE:".":APPLIC.FILE
+    CALL OPF(APPLIC.LIVE.FILE,F.APPLIC.LIVE.FILE)
+    CALL F.READ(APPLIC.LIVE.FILE,APPLIC.ID,APPLIC.REC,F.APPLIC.LIVE.FILE,READ.ERROR)
+    FULL.APPLIC.FILE = APPLIC.LIVE.FILE
+
+    IF APPLIC.REC EQ "" THEN
+        APPLIC.FILE.ARC = "STMT.ENTRY$ARC"
+        APPLIC.LIVE.FILE.ARC = "F":APPLIC.COMP.MNE:".":APPLIC.FILE.ARC
+        CALL OPF(APPLIC.LIVE.FILE.ARC,F.APPLIC.LIVE.FILE.ARC)
+        CALL F.READ(APPLIC.LIVE.FILE.ARC,APPLIC.ID,APPLIC.REC,F.APPLIC.LIVE.FILE.ARC,READ.ERROR)
+    END
+*
+    IF APPLIC.REC = "" THEN
+        APPLIC.HIS.FILE = "F":APPLIC.COMP.MNE:".":APPLIC.FILE:'$HIS':FM:"NO.FATAL.ERROR"
+        FULL.APPLIC.FILE := '$HIS'
+        CALL OPF(APPLIC.HIS.FILE,F.APPLIC.HIS.FILE)
+        IF NOT(ETEXT) THEN
+            CALL EB.READ.HISTORY.REC(F.APPLIC.HIS.FILE,APPLIC.ID,APPLIC.REC,READ.ERROR)
+        END ELSE
+            ETEXT = ""
+        END
+    END
+* Only read std.sel rec for format file
+    STD.REC = ""
+    APPLIC.FILE = "STMT.ENTRY"          ;**** Reading ARC STMT SS By Rayhan
+    CALL GET.STANDARD.SELECTION.DETS(APPLIC.FILE, STD.REC)
+    LOCATE SNP.REC<NR.PRM.FIELD.NAME,MATCH.POS> IN STD.REC<SSL.SYS.FIELD.NAME,1> SETTING CNT3 THEN
+        FIELD.NO = STD.REC<SSL.SYS.FIELD.NO,CNT3>
+        FIELD.TYPE = STD.REC<SSL.SYS.TYPE,CNT3>
+        FIELD.NAME = STD.REC<SSL.SYS.FIELD.NAME,CNT3>
+    END ELSE
+        FIELD.NO = "" ; FIELD.TYPE = "" ; FIELD.NAME = ""
+    END
+    APPLIC.ID = STORE.APPLIC.ID
+* GB9600369
+    MVSET = ""
+    IF APPLIC.FILE = "SEC.TRADE" THEN
+        MVPRES = DCOUNT(APPLIC.REC<SC.SBS.CUSTOMER.NO>,VM)
+        IF MVPRES GE 2 THEN
+            ACC.NO = STMT.REC<AC.STE.ACCOUNT.NUMBER>
+            LOCATE ACC.NO IN APPLIC.REC<SC.SBS.CUST.ACC.NO,1> SETTING MVSET ELSE
+                MVSET = ''
+            END
+        END
+    END
+*
+* CI_10016669 S
+    IF APPLIC.FILE = "DX.TRADE" THEN
+        MVPRES = DCOUNT(APPLIC.REC<DX.TRA.PRI.CUST.NO>,VM)
+        IF MVPRES GE 2 THEN
+            ACC.NO = STMT.REC<AC.STE.ACCOUNT.NUMBER>
+            LOCATE ACC.NO IN APPLIC.REC<DX.TRA.PRI.ACCOUNT,1> SETTING MVSET ELSE
+                MVSET = ""
+            END
+        END
+    END
+* CI_10016669 E
+    RETURN
+*
+****************
+MATCH.NARR:
+****************
+* This routine matches a value of a field against the values
+* on a given Stmt narr param record
+*
+    MATCHED = "N"
+    IF FIELD.NO THEN          ;* May not be on STD SELECTION
+        FIELD.VALUE = ''
+        IF NUM(FIELD.NO) THEN
+            FIELD.VALUE = APPLIC.REC<FIELD.NO>
+* GB9600369
+* Get the correct field value.
+            IF (APPLIC.FILE = 'SEC.TRADE') OR (APPLIC.FILE = 'DX.TRADE') THEN   ;* CI_10016669 S/E
+                NUMMV = DCOUNT(FIELD.VALUE,VM)
+                IF NUMMV GE 2 THEN
+                    FIELD.VALUE = APPLIC.REC<FIELD.NO,MVSET>
+                END
+            END
+        END ELSE
+            GOSUB EXTRACT.FIELD.VALUE
+        END
+        IF FIELD.VALUE THEN   ;* CI_10011400s/e
+            OPERAND = SNP.REC<NR.PRM.FIELD.OPERAND,MATCH.POS>
+*
+            BEGIN CASE
+
+            CASE OPERAND = "EQ"
+                AV = 0
+                LOOP
+                    AV += 1
+                UNTIL SNP.REC<NR.PRM.FIELD.VALUE,MATCH.POS,AV> = ""
+
+* CI_10009059 S
+
+* If the value defined in STMT.NARR.PARAM for this field is
+* null,then replace ""/'' with empty.
+
+                    VALUE.DEF = ''
+
+                    VALUE.DEF = SNP.REC<NR.PRM.FIELD.VALUE,MATCH.POS,AV>
+                    IF VALUE.DEF EQ '""' OR VALUE.DEF EQ "''" THEN
+                        SNP.REC<NR.PRM.FIELD.VALUE,MATCH.POS,AV> = ''
+                    END
+* CI_10009059 E
+
+                    IF FIELD.VALUE = SNP.REC<NR.PRM.FIELD.VALUE,MATCH.POS,AV> THEN
+                        MATCHED = "Y"
+                    END
+                REPEAT
+
+            CASE OPERAND = "GE"
+                IF FIELD.VALUE GE SNP.REC<NR.PRM.FIELD.VALUE,MATCH.POS,1> THEN
+                    MATCHED = "Y"
+                END
+
+            CASE OPERAND = "LE"
+                IF FIELD.VALUE LE SNP.REC<NR.PRM.FIELD.VALUE,MATCH.POS,1> THEN
+                    MATCHED = "Y"
+                END
+
+            CASE OPERAND = "NE"
+
+* CI_10009059 S
+* If the value defined in STMT.NARR.PARAM for this field is
+* null,then replace ""/'' with empty.
+
+                VALUE.DEF = SNP.REC<NR.PRM.FIELD.VALUE,MATCH.POS,1>
+                IF VALUE.DEF EQ '""' OR VALUE.DEF EQ "''" THEN
+                    SNP.REC<NR.PRM.FIELD.VALUE,MATCH.POS,1> = ''
+                END
+
+* CI_10009059 E
+
+                IF FIELD.VALUE <> SNP.REC<NR.PRM.FIELD.VALUE,MATCH.POS,1> THEN
+                    MATCHED = "Y"
+                END
+
+            CASE OPERAND = "GT"
+                IF FIELD.VALUE > SNP.REC<NR.PRM.FIELD.VALUE,MATCH.POS,1> THEN
+                    MATCHED = "Y"
+                END
+
+            CASE OPERAND = "LT"
+                IF FIELD.VALUE < SNP.REC<NR.PRM.FIELD.VALUE,MATCH.POS,1> THEN
+                    MATCHED = "Y"
+                END
+
+            CASE OPERAND = "LK"
+                IF FIELD.VALUE MATCHES SNP.REC<NR.PRM.FIELD.VALUE,MATCH.POS,1> THEN
+                    MATCHED = "Y"
+                END
+
+            CASE OPERAND = "UL"
+                IF NOT(FIELD.VALUE MATCHES SNP.REC<NR.PRM.FIELD.VALUE,MATCH.POS,1>) THEN
+                    MATCHED = "Y"
+                END
+
+            CASE OPERAND = "RG"
+                IF FIELD.VALUE GE SNP.REC<NR.PRM.FIELD.VALUE,MATCH.POS,1> AND FIELD.VALUE LE SNP.REC<NR.PRM.FIELD.VALUE,MATCH.POS,2> THEN
+                    MATCHED = "Y"
+                END
+            END CASE
+*
+        END         ;* CI_10011400s/e
+    END
+*
+    RETURN
+*
+*-------------------
+EXTRACT.FIELD.VALUE:
+*-------------------
+*
+    NO.VALUE = ''
+    BEGIN CASE
+    CASE FIELD.TYPE = 'I'
+        ETEXT = ''
+        CALL IDESC(FULL.APPLIC.FILE,APPLIC.ID,APPLIC.REC,FIELD.NAME,FIELD.VALUE)
+        IF ETEXT THEN
+            NO.VALUE = 1
+            ETEXT = ''
+        END
+    CASE FIELD.TYPE = 'J'
+        ETEXT = ''
+        CALL IDESC(FULL.APPLIC.FILE,APPLIC.ID,APPLIC.REC,FIELD.NAME,FIELD.VALUE)
+        IF ETEXT THEN
+            NO.VALUE = 1
+            ETEXT = ''
+        END
+    CASE 1
+        NO.VALUE = 1
+    END CASE
+*
+    RETURN
+*
+*------------------------------------------------------------------------------
+*
+END

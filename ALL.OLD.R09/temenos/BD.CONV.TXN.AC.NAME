@@ -1,0 +1,91 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.CONV.TXN.AC.NAME
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.RE.CONSOL.SPEC.ENTRY
+    $INSERT I_F.STMT.ENTRY
+    $INSERT I_F.CATEG.ENTRY
+    $INSERT I_F.CATEGORY
+    $INSERT I_F.ACCOUNT
+
+    Y.REC = O.DATA
+    FN.STMT = 'F.STMT.ENTRY'
+    F.STMT = ''
+    CALL OPF(FN.STMT,F.STMT)
+
+    FN.CATEG = 'F.CATEG.ENTRY'
+    F.CATEG = ''
+    CALL OPF(FN.CATEG,F.CATEG)
+
+    FN.SPEC.DET = 'F.RE.SPEC.ENTRY.DETAIL'
+    F.SPEC.DET = ''
+    CALL OPF(FN.SPEC.DET,F.SPEC.DET)
+
+    FN.SPEC = 'F.RE.CONSOL.SPEC.ENTRY'
+    F.SPEC = ''
+    CALL OPF(FN.SPEC,F.SPEC)
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    CALL OPF(FN.AC,F.AC)
+
+    FN.CAT = 'F.CATEGORY'
+    F.CAT = ''
+    CALL OPF(FN.CAT,F.CAT)
+
+    GOSUB PROCESS
+    GOSUB RETURN.VAL
+    RETURN
+*-------------------------------------------------------------------------------
+PROCESS:
+****************
+    Y.ENTRY=FIELD(Y.REC,'*',1)
+    Y.ENT.TYPE = Y.ENTRY[1,1]
+    Y.ENTRY.NO = Y.ENTRY[2,LEN(Y.ENTRY)]
+    BEGIN CASE
+    CASE Y.ENT.TYPE EQ 'S' OR Y.ENT.TYPE EQ 'T'
+        CALL F.READ(FN.STMT,Y.ENTRY.NO,R.STMT.REC,F.STMT,Y.STMT.ERR)
+        Y.STMT.ACNO = R.STMT.REC<AC.STE.ACCOUNT.NUMBER>
+        CALL F.READ(FN.AC,Y.STMT.ACNO,R.AC.REC,F.AC,Y.AC.ERR)
+        Y.HEAD.NAME = R.AC.REC<AC.SHORT.TITLE>
+    CASE Y.ENT.TYPE EQ 'C' OR Y.ENT.TYPE EQ 'N'
+        CALL F.READ(FN.CATEG,Y.ENTRY.NO,R.CATEG.REC,F.CATEG,Y.CATEG.ERR)
+        Y.PLCATEG.NO = R.CATEG.REC<AC.CAT.PL.CATEGORY>
+        CALL F.READ(FN.CAT,Y.PLCATEG.NO,R.CAT.REC,F.CAT,Y.CAT.ERR)
+        Y.HEAD.NAME = R.CAT.REC<EB.CAT.DESCRIPTION>
+    CASE Y.ENT.TYPE EQ 'R' OR Y.ENT.TYPE EQ 'E' OR Y.ENT.TYPE EQ 'D'
+        CALL F.READ(FN.SPEC,Y.ENTRY.NO,R.SPEC,F.SPEC,Y.SPEC.ERR)
+        Y.CONSOL.KEY = R.SPEC<RE.CSE.CONSOL.KEY.TYPE>
+        Y.CONSOL.TYPE=FIELD(Y.CONSOL.KEY,".",18)
+        BEGIN CASE
+        CASE Y.CONSOL.TYPE EQ 'ISSUEBL'
+            Y.HEAD.NAME = "Customer Liability LC"
+        CASE Y.CONSOL.TYPE EQ 'ADVICEBL'
+            Y.HEAD.NAME = "Expoert LC Reg/Advice"
+        CASE Y.CONSOL.TYPE EQ 'ACPTBANKBL'
+            Y.HEAD.NAME = "Customer Liability AC Bills"
+        CASE Y.CONSOL.TYPE EQ 'COLLBL'
+            Y.HEAD.NAME = "Customer Liability CO Bills"
+        CASE Y.CONSOL.TYPE EQ 'ISSUE'
+            Y.HEAD.NAME = "Bankers Liability LC"
+        CASE Y.CONSOL.TYPE EQ 'ADVICE'
+            Y.HEAD.NAME = "Expoert LC Reg/Advice"
+        CASE Y.CONSOL.TYPE EQ 'ACPTBANK'
+            Y.HEAD.NAME = "Bankers Liability AC Bills"
+        CASE Y.CONSOL.TYPE EQ 'COLL'
+            Y.HEAD.NAME = "Bankers Liability CO Bills"
+        END CASE
+    END CASE
+
+    RETURN
+
+*-------------------------------------------------------------------------------
+RETURN.VAL:
+***********
+    O.DATA = Y.HEAD.NAME
+    RETURN
+*-------------------------------------------------------------------------------
+END

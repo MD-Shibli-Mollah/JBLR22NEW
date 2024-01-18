@@ -1,0 +1,36 @@
+*-----------------------------------------------------------------------------
+* <Rating>-13</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.HME.LOAN.REBATE.PARAM.FIELDS
+*-----------------------------------------------------------------------------
+* Description:
+*--------------
+* This file is used to hold the fields of BD.HME.LOAN.REBATE.PARAM
+*-----------------------------------------------------------------------------
+* Modification History :
+*-----------------------
+* 27/1/2011 New - Sabari.G
+*                 Thesys Technologies
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_DataTypes
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("PARAM.ID", T24_String)   ;* Define Table id
+    ID.F = "PARAM.ID" ; ID.N = "6" ; ID.T = "A" ; ID.T = '':FM:'SYSTEM'
+*-----------------------------------------------------------------------------
+    CALL Table.addFieldDefinition('TXN.CODE.DT','10.1','','')         ;* Add a new field
+    CALL Field.setCheckFile('TRANSACTION')
+    CALL Table.addFieldDefinition('TXN.CODE.CR','10.1','','')
+    CALL Field.setCheckFile('TRANSACTION')
+    CALL Table.addFieldDefinition('DT.PL.CATEG','20.1','A','')
+    CALL Field.setCheckFile('CATEGORY')
+    CALL Table.addFieldDefinition('CR.INT.ACCT.CATEG','20.1','A','')
+    CALL Field.setCheckFile('CATEGORY')
+    CALL Table.addFieldDefinition('REBATE.RATE','3.1','','')
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

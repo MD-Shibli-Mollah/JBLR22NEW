@@ -1,0 +1,56 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.DD.BR.VAL
+!----------------------------------------------------
+!Validate Branch code during Issuing and Payment for Demand Draft
+!----------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.TELLER
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT JBL.BP I_F.ABL.H.BRANCH.CODE
+!DEBUG
+
+    FN.BR='F.ABL.H.BRANCH.CODE'
+    F.BR=''
+    REC.BR=''
+    Y.BR.CODE='BRANCH'
+    Y.BR.ID=''
+    Y.BR.CODE.POS.TT=''
+    Y.BR.CODE.POS.FT=''
+    CALL GET.LOC.REF("TELLER",Y.BR.CODE,Y.BR.CODE.POS.TT)
+    CALL GET.LOC.REF("FUNDS.TRANSFER",Y.BR.CODE,Y.BR.CODE.POS.FT)
+
+    BEGIN CASE
+    CASE APPLICATION EQ 'TELLER'
+        Y.BR.ID=R.NEW(TT.TE.LOCAL.REF)<1,Y.BR.CODE.POS.TT>
+        CALL F.READ(FN.BR,Y.BR.ID,REC.BR,F.BR,ERR.BR)
+        IF REC.BR THEN
+            RETURN
+        END
+        ELSE
+            AF=TT.TE.LOCAL.REF
+            AV=Y.BR.CODE.POS.TT
+            E="Invalid Branch Code"
+            CALL ERR
+        END
+    CASE APPLICATION EQ 'FUNDS.TRANSFER'
+        Y.BR.ID=R.NEW(FT.LOCAL.REF)<1,Y.BR.CODE.POS.FT>
+        CALL F.READ(FN.BR,Y.BR.ID,REC.BR,F.BR,ERR.BR)
+        IF REC.BR THEN
+            RETURN
+        END
+        ELSE
+
+            AF=FT.LOCAL.REF
+            AV=Y.BR.CODE.POS.FT
+            E="Invalid Branch Code"
+            CALL ERR
+        END
+    CASE 1
+        RETURN
+    END CASE
+
+    RETURN
+END

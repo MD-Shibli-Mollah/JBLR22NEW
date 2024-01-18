@@ -1,0 +1,56 @@
+*-----------------------------------------------------------------------------
+* <Rating>-40</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.COLL.TYPE.CODE
+*---------------------------------------------------------------------------------------------------------
+* If the COLLATERAL.TYPE & COLLATERAL.CODE value are same, then To make the COMPANY field as
+* inputable field else its a no inputable field, and after the company is inputted then the
+* GROUP,FACE.VALUE and LOT fields from the COMPANY TABLE to be defaulted in the collateral record.
+*-------------------------------------------------------------------------------------------------------
+*
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.COLLATERAL
+    $INCLUDE GLOBUS.BP I_F.COLLATERAL.TYPE
+    $INCLUDE GLOBUS.BP I_F.COLLATERAL.CODE
+    $INCLUDE JBL.BP I_F.CO.LOAN.AGAINST.SHARE
+    GOSUB INIT
+    GOSUB PROCESS
+    GOSUB MULTI.GET.LOCAL
+INIT:
+    Y.COMPANY.CODE=''
+    FN.COLLATERAL='F.COLLATERAL'
+    F.COLLATERAL=''
+    CALL OPF(FN.COLLATERAL,F.COLLATERAL)
+    FN.LOAN.AGAINST.SHARE='F.CO.LOAN.AGAINST.SHARE'
+    F.LOAN.AGAINST.SHARE=''
+    CALL OPF(FN.LOAN.AGAINST.SHARE,F.LOAN.AGAINST.SHARE)
+*
+PROCESS:
+    IF R.NEW(COLL.COLLATERAL.CODE) EQ '230' AND R.NEW(COLL.COLLATERAL.TYPE) EQ '230' THEN
+*
+        COMPANY.CODE=COMI
+        IF COMPANY.CODE THEN
+            GOSUB MULTI.GET.LOCAL
+            CALL F.READ(FN.LOAN.AGAINST.SHARE,COMPANY.CODE,R.LOAN.AGAINST.SHARE,F.LOAN.AGAINST.SHARE,R.ERR)
+            R.NEW(COLL.LOCAL.REF)<1,Y.GROUP.POS>=R.LOAN.AGAINST.SHARE<CO.LOA38.GROUP>
+            R.NEW(COLL.LOCAL.REF)<1,Y.FACE.VALUE.POS>=R.LOAN.AGAINST.SHARE<CO.LOA38.FACE.VALUE>
+            R.NEW(COLL.LOCAL.REF)<1,Y.LOT.POS>=R.LOAN.AGAINST.SHARE<CO.LOA38.LOT>
+        END ELSE
+            R.NEW(COLL.LOCAL.REF)<1,Y.COMPANY.CODE.POS>=''
+            T.LOCREF<Y.COMPANY.CODE.POS,7>='NOINPUT'
+        END
+        RETURN
+    END
+*
+MULTI.GET.LOCAL:
+    FN.APPL='COLLATERAL'
+    FIELD.NAME='COMPANY.CODE':VM:'GROUP':VM:'FACE.VALUE':VM:'LOT'
+    FLD.POS=''
+    CALL MULTI.GET.LOC.REF(FN.APPL,FIELD.NAME,FLD.POS)
+    Y.COMPANY.CODE.POS=FLD.POS<1,1>
+    Y.GROUP.POS=FLD.POS<1,2>
+    Y.FACE.VALUE.POS=FLD.POS<1,3>
+    Y.LOT.POS=FLD.POS<1,4>
+
+    RETURN

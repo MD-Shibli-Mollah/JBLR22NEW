@@ -1,0 +1,54 @@
+*
+*-----------------------------------------------------------------------------
+* <Rating>-33</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABP.H.NOTICE.WITHDRAWAL.FIELD.DEFINITION
+*-----------------------------------------------------------------------------
+* Program Description
+*-----------------------------------------------------------------------------
+* Modification History :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT       ;* Other Inserts required for Checkfiles, etc.
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+
+    GOSUB DEFINE.FIELDS
+
+    RETURN
+*
+*-----------------------------------------------------------------------------
+DEFINE.FIELDS:
+
+    ID.F = "ACCT.NO" ; ID.N = '019.2' ; ID.T<1> = 'POSANT' ; ID.CONCATFILE = "AR"
+*
+    Z=0
+*
+    Z+=1 ; F(Z) = "NOTICE.DATE" ; N(Z) = "8.1" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "NOTICE.AMOUNT" ; N(Z) = "19" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "CHQ.NO" ; N(Z) = "15" ; T(Z) = ""
+
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > CHECKFILE(Z) = CHK.ACCOUNT
+*
+    V = Z + 9
+
+    RETURN
+*
+*-----------------------------------------------------------------------------
+INITIALISE:
+
+    MAT F = "" ; MAT N = "" ; MAT T = ""
+    MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+    ID.CHECKFILE = "" ; ID.CONCATFILE = ""
+*
+* Define often used checkfile variables
+*
+    CHK.ACCOUNT = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+END

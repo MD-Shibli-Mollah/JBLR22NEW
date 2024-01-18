@@ -1,0 +1,12 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.AUTO.POP.CNNAME
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.DRAWINGS
+    CALL GET.LOC.REF("DRAWINGS","COUNTRY.ORIGIN",Y.CN.ORG.POS)
+    R.NEW(TF.DR.LOCAL.REF)<1,Y.CN.ORG.POS>=COMI.ENRI
+    CALL REBUILD.SCREEN
+    RETURN
+END

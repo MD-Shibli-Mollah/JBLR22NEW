@@ -1,0 +1,363 @@
+*-----------------------------------------------------------------------------
+* <Rating>1660</Rating>
+*-----------------------------------------------------------------------------
+!PROGRAM FDR.YEAR.RPT
+    SUBROUTINE FDR.YEAR.RPT(Y.DATA)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.AZ.ACCOUNT
+    $INSERT I_F.STMT.ENTRY
+    $INSERT I_F.ACCR.ACCT.CR
+
+!DEBUG
+
+    Y.ACC.LIST = ''
+    Y.SEL.LIST = ''
+    FN.ACCOUNT = 'FBNK.ACCOUNT'
+    F.ACCOUNT = ''
+    FN.AZ.AC = 'FBNK.AZ.ACCOUNT'
+    F.AZ.AC = ''
+    FN.AZ.AC.HIS = 'FBNK.AZ.ACCOUNT$HIS'
+    F.AZ.AC.HIS = ''
+    FN.STMT.ENTRY = 'FBNK.STMT.ENTRY'
+    F.STMT.ENTRY = ''
+    FN.ACCR.ACCT.CR = 'F.ACCR.ACCT.CR'
+    FN.ACCR.ACCT.CR = 'F.ACCR.ACCT.CR' ;
+    Y.AZ.AC.ID = ''
+    R.AZ.AC = ''
+    AZ.AC.ERR = ''
+    Y.AZ.LIQ.LIST = ''
+    Y.DATA = ''
+
+!DEBUG
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    CALL OPF(FN.AZ.AC,F.AZ.AC)
+    CALL OPF(FN.AZ.AC.HIS,F.AZ.AC.HIS)
+    CALL OPF(FN.STMT.ENTRY,F.STMT.ENTRY)
+    CALL OPF(FN.ACCR.ACCT.CR,F.ACCR.ACCT.CR)
+    GOSUB GET.AZ.LIQ.LIST
+!CRT Y.AZ.LIQ.LIST
+
+    CMD = 'SELECT ':FN.ACCOUNT:' WITH CATEGORY EQ 1052 AND CO.CODE EQ ':ID.COMPANY
+!CMD = 'SELECT FBNK.ACCOUNT WITH @ID EQ 0100000060806 AND CO.CODE EQ BD0010332'
+    CALL EB.READLIST(CMD,Y.ACC.LIST,'',NO.OF.RECS,RET.CODE)
+    IF Y.ACC.LIST THEN
+        LOOP
+            REMOVE Y.LIQ.AC.ID FROM Y.ACC.LIST SETTING POS
+        WHILE Y.LIQ.AC.ID : POS
+            Y.ACC.TITLE = ''
+            Y.LIQ.BAL = 0.00
+            Y.PRINCIPAL  = 0.00
+            Y.PRINCIPAL.BASE  = 0.00
+            Y.INT.RATE = ''
+            Y.START.DATE = ''
+            Y.MATURITY.DATE = ''
+            Y.LEGACY.AC.ID = ''
+            Y.LIQ.TITLE = ''
+            Y.ORIG.PRINCIPAL = 0.00
+            Y.NOMINATED.ACCT = ''
+            Y.PAID.AMT = 0.00
+            Y.EXICE.AMT = 0.00
+            Y.TAX.AMT = 0.00
+            Y.REST.AMT = 0.00
+            Y.DRAWN = 0.00
+            Y.REST.AMT = 0.00
+            Y.TNR = ''
+            Y.PRROVISION = 0.00
+            Y.ORIG.START.DATE = ''
+
+            CALL F.READ(FN.ACCOUNT,Y.LIQ.AC.ID,R.LIQ.AC,F.ACCOUNT,LIQ.AC.ERR)
+            IF R.LIQ.AC THEN
+                Y.LIQ.TITLE = R.LIQ.AC<AC.SHORT.TITLE>
+                Y.LIQ.BAL = R.LIQ.AC<AC.WORKING.BALANCE>
+            END
+            FIND Y.LIQ.AC.ID IN Y.AZ.LIQ.LIST SETTING FLD.NO THEN
+                Y.AZ.AC.ID = Y.AZ.LIQ.LIST<FLD.NO,1>
+                Y.AZ.LIQ.LIST<FLD.NO>  = ''
+                IF Y.AZ.AC.ID  THEN
+                    CALL F.READ(FN.AZ.AC,Y.AZ.AC.ID,R.AZ.AC,F.AZ.AC,AZ.AC.ERR)
+                    IF R.AZ.AC THEN
+                        Y.PRINCIPAL  = R.AZ.AC<AZ.PRINCIPAL>
+                        Y.ORIG.PRINCIPAL = R.AZ.AC<AZ.ORIG.PRINCIPAL>
+                        Y.INT.RATE = R.AZ.AC<AZ.INTEREST.RATE>
+                        Y.START.DATE = R.AZ.AC<AZ.VALUE.DATE>
+                        Y.MATURITY.DATE = R.AZ.AC<AZ.MATURITY.DATE>
+                        Y.NOMINATED.ACCT = R.AZ.AC<AZ.NOMINATED.ACCOUNT>
+                        Y.VALUE.DATE = R.AZ.AC<AZ.VALUE.DATE>
+                        Y.PROVISION = R.AZ.AC<AC.ACCR.CR.AMOUNT>
+
+
+                        Y.CURR.NO = R.AZ.AC<AZ.CURR.NO>
+                        IF Y.CURR.NO EQ 1 THEN
+                            Y.ORIG.START.DATE = Y.START.DATE
+                        END
+                        ELSE
+                            CALL F.READ(FN.AZ.AC.HIS,Y.AZ.AC.ID:';1',R.AZ.AC.HIS,F.AZ.AC.HIS,AZ.AC.HIS.ERR)
+                            IF R.AZ.AC.HIS THEN
+                                Y.ORIG.START.DATE = R.AZ.AC.HIS<AZ.VALUE.DATE>
+                            END
+                        END
+                        Y.TNR = ''
+                        GOSUB GET.PAID.EXISE.AMT
+                        GOSUB GET.DURR
+                    END
+                    CALL F.READ(FN.ACCOUNT,Y.AZ.AC.ID,R.BASE.AC,F.ACCOUNT,LIQ.AC.ERR)
+                    IF R.BASE.AC THEN
+                        Y.ACC.TITLE = R.BASE.AC<AC.SHORT.TITLE>
+                        Y.LEGACY.AC.ID = R.BASE.AC<AC.ALT.ACCT.ID>
+                        Y.PRINCIPAL.BASE = R.BASE.AC<AC.WORKING.BALANCE>
+                        CALL F.READ(FN.ACCR.ACCT.CR,Y.AZ.AC.ID,R.ACCR.REC,F.ACCR.ACCT.CR,Y.ACCR.ERR)
+                        Y.PRROVISION = R.BASE.AC<AC.ACCR.CR.AMOUNT>
+                        Y.PRROV.DATE = R.ACCR.REC<IC.ACRCR.PERIOD.LAST.DATE>
+                    END
+
+                END
+            END
+            ELSE
+                Y.AZ.AC.ID = Y.LIQ.AC.ID:'-I'
+                Y.ACC.TITLE = Y.LIQ.TITLE
+                Y.DURR = ''
+            END
+            Y.DATA<-1> = Y.AZ.AC.ID :'*':Y.ACC.TITLE:'*': Y.ORIG.START.DATE:'*':Y.TNR:'*':Y.INT.RATE:'*':Y.ORIG.PRINCIPAL:'*':Y.PRINCIPAL:'*':Y.DURR:'*':ABS(Y.PAID.AMT):'*':ABS(Y.EXICE.AMT):'*':ABS(Y.DRAWN):'*':Y.PRINCIPAL + Y.LIQ.BAL:'*':Y.PRROV.DATE:'*':Y.PRROVISION:'*':Y.LIQ.BAL:'*':Y.START.DATE
+        REPEAT
+    END
+!CRT Y.AZ.LIQ.LIST
+********THIS PORTION IS TO GET THOSE AZ FOR WHICH NO LIQUIDATION FOUND OR LIQUIDATION IS NOT IN 1052 CATEGORY*************************************************************
+    IF Y.AZ.LIQ.LIST THEN
+*Some AZ still remain to consider
+        I = 0
+        J = DCOUNT(Y.AZ.LIQ.LIST,FM)
+        LOOP
+            I = I + 1
+        WHILE I LE J
+            IF Y.AZ.LIQ.LIST<I> NE '' THEN
+                Y.PRINCIPAL  = 0
+                Y.INT.RATE = 0
+                Y.START.DATE = ''
+                Y.MATURITY.DATE = ''
+                Y.ACC.TITLE = ''
+                Y.LIQ.AC.ID = ''
+                Y.LIQ.BAL = 0
+                Y.LEGACY.AC.ID = ''
+                Y.PRINCIPAL.BASE = ''
+                Y.REMARKS = ''
+                Y.PRROV.DATE = ''
+                Y.DURR = ''
+                Y.ORIG.START.DATE = ''
+                Y.PRROVISION = 0
+                Y.AZ.ID = Y.AZ.LIQ.LIST<I,1>
+                CALL F.READ(FN.AZ.AC,Y.AZ.ID,R.AZ.AC,F.AZ.AC,AZ.AC.ERR)
+                IF R.AZ.AC THEN
+                    Y.PRINCIPAL  = R.AZ.AC<AZ.PRINCIPAL>
+                    Y.INT.RATE = R.AZ.AC<AZ.INTEREST.RATE>
+                    Y.START.DATE = R.AZ.AC<AZ.VALUE.DATE>
+                    Y.MATURITY.DATE = R.AZ.AC<AZ.MATURITY.DATE>
+                    Y.LIQ.AC.ID = R.AZ.AC<AZ.NOMINATED.ACCOUNT>
+
+
+                    Y.CURR.NO = R.AZ.AC<AZ.CURR.NO>
+                    IF Y.CURR.NO EQ 1 THEN
+                        Y.ORIG.START.DATE = Y.START.DATE
+                    END
+                    ELSE
+                        CALL F.READ(FN.AZ.AC.HIS,Y.AZ.AC.ID:';1',R.AZ.AC.HIS,F.AZ.AC.HIS,AZ.AC.HIS.ERR)
+                        IF R.AZ.AC.HIS THEN
+                            Y.ORIG.START.DATE = R.AZ.AC.HIS<AZ.VALUE.DATE>
+                        END
+                    END
+                    Y.TNR = ''
+                    Y.DURR = ''
+                    GOSUB GET.DURR
+                END
+                CALL F.READ(FN.ACCOUNT,Y.AZ.ID,R.AZ.AC,F.ACCOUNT,LIQ.AC.ERR)
+                IF R.AZ.AC THEN
+                    Y.ACC.TITLE = R.AZ.AC<AC.SHORT.TITLE>
+                    Y.LEGACY.AC.ID = R.AZ.AC<AC.ALT.ACCT.ID>
+                    Y.PRINCIPAL.BASE = R.AZ.AC<AC.WORKING.BALANCE>
+
+                    Y.TOT.CAP = DCOUNT(R.AZ.AC<AC.CAP.DATE.CR.INT>,VM)
+                    Y.CAP.DATE.CR.INT = R.AZ.AC<AC.CAP.DATE.CR.INT,Y.TOT.CAP>
+                    IF Y.CAP.DATE.CR.INT THEN
+                       Y.START.DATE = Y.CAP.DATE.CR.INT
+                    END
+                    CALL F.READ(FN.ACCR.ACCT.CR,Y.AZ.ID,R.ACCR.REC,F.ACCR.ACCT.CR,Y.ACCR.ERR)
+                    Y.PRROV.DATE = R.ACCR.REC<IC.ACRCR.PERIOD.LAST.DATE>
+                    Y.PRROVISION = R.AZ.AC<AC.ACCR.CR.AMOUNT>
+
+                END
+                IF Y.LIQ.AC.ID EQ '' THEN
+                    Y.REMARKS = 'No Liquidation account found'
+                END
+                ELSE
+                    CALL F.READ(FN.ACCOUNT,Y.LIQ.AC.ID,R.LIQ.AC,F.ACCOUNT,LIQ.AC.ERR)
+                    IF R.LIQ.AC THEN
+                        Y.LIQ.BAL = R.LIQ.AC<AC.WORKING.BALANCE>
+                    END
+                    Y.REMARKS = 'Liquidation Account No:':Y.LIQ.AC.ID:' with balance ':Y.LIQ.BAL:' found is not in 1052 Category'
+                    Y.LIQ.AC.ID = ''
+                END
+                Y.DATA<-1> = Y.AZ.AC.ID :'*':Y.ACC.TITLE:'*':Y.ORIG.START.DATE:'*':Y.TNR:'*':Y.INT.RATE:'*':Y.ORIG.PRINCIPAL:'*':Y.PRINCIPAL:'*':Y.DURR:'*':ABS(Y.PAID.AMT):'*':ABS(Y.EXICE.AMT):'*':ABS(Y.DRAWN):'*':Y.PRINCIPAL + Y.LIQ.BAL:'*':Y.PRROV.DATE:'*':Y.PRROVISION:'*':Y.LIQ.BAL:'*':Y.START.DATE
+            END
+        REPEAT
+    END
+**************************************************************************
+!CRT Y.DATA
+*-----------------*
+GET.AZ.LIQ.LIST:
+*-----------------*
+!DEBUG
+    Y.AZ.CAT = ''
+    SEL.CMD = 'SELECT ':FN.AZ.AC:' WITH CO.CODE EQ ':ID.COMPANY
+    CALL EB.READLIST(SEL.CMD,Y.SEL.LIST,'',NO.OF.REC,RET.CODE)
+    IF Y.SEL.LIST THEN
+        LOOP
+            REMOVE Y.AZ.AC.ID FROM Y.SEL.LIST SETTING AC.POS
+        WHILE Y.AZ.AC.ID:AC.POS
+            CALL F.READ(FN.AZ.AC,Y.AZ.AC.ID,R.AZ.AC,F.AZ.AC,AZ.AC.ERR)
+            IF R.AZ.AC THEN
+                Y.AZ.CAT = R.AZ.AC<AZ.CATEGORY>
+                IF Y.AZ.CAT EQ 6621 THEN
+                    Y.LIQ.ID = R.AZ.AC<AZ.NOMINATED.ACCOUNT>
+                    Y.AZ.LIQ.LIST<-1> = Y.AZ.AC.ID :VM: Y.LIQ.ID
+                END
+            END
+        REPEAT
+    END
+    RETURN
+*-------------------
+GET.PAID.EXISE.AMT:
+*-------------------
+!DEBUG
+!IF Y.AZ.AC.ID EQ '0100000923405' THEN
+!DEBUG
+!END
+    Y.DURR = ''
+    Y.TRN.REF.DATE = ''
+!Y.TNR = ''
+    Y.PAID.AMT = 0.00
+    Y.TAX.AMT = 0.00
+    Y.EXICE.AMT = 0.00
+    Y.DRAWN = 0.00
+    Y.REST.AMT = 0.00
+
+    CALL EB.ACCT.ENTRY.LIST(Y.NOMINATED.ACCT,Y.ORIG.START.DATE,TODAY,Y.AC.STMT.LIST,OPEN.BALANCE,Y.AEL.ERR)
+    IF Y.AC.STMT.LIST THEN
+        LOOP
+            REMOVE Y.AC.ENTR.LIST FROM Y.AC.STMT.LIST SETTING AC.ENTR.POS
+        WHILE Y.AC.ENTR.LIST:AC.ENTR.POS
+            CALL F.READ(FN.STMT.ENTRY,Y.AC.ENTR.LIST,R.STMT,F.STMT.ENTRY, Y.ERRROR)
+            Y.TRN.CODE = R.STMT<AC.STE.TRANSACTION.CODE>
+            Y.TRN.REF = R.STMT<AC.STE.TRANS.REFERENCE>
+            Y.AMT.INL = R.STMT<AC.STE.AMOUNT.LCY>
+
+            Y.TRN.REF.AC.NO = FIELD(Y.TRN.REF,'-',1)
+
+            Y.TRN.REF.DATE.COND =  FIELD(Y.TRN.REF,'-',2)
+            IF (Y.TRN.CODE EQ '382' AND Y.TRN.REF.AC.NO EQ Y.AZ.AC.ID AND Y.TRN.REF.DATE.COND GT Y.VALUE.DATE) OR ( Y.TRN.CODE EQ  '381'AND Y.TRN.REF.AC.NO EQ 'AZ' AND Y.TRN.REF.DATE.COND EQ Y.AZ.AC.ID ) THEN
+                Y.PAID.AMT = Y.PAID.AMT + Y.AMT.INL
+                Y.TRN.REF.DATE =  FIELD(Y.TRN.REF,'-',2)
+            END
+
+            IF Y.TRN.CODE EQ '373' THEN
+                Y.EXICE.AMT = Y.EXICE.AMT + Y.AMT.INL
+            END
+
+            IF Y.TRN.CODE EQ '464' THEN
+                Y.TAX.AMT = Y.TAX.AMT + Y.AMT.INL
+            END
+
+            IF Y.TRN.CODE NE '381' AND Y.TRN.CODE NE '382' AND Y.TRN.CODE NE '373' AND Y.TRN.CODE NE '464' THEN
+                Y.REST.AMT = Y.REST.AMT + Y.AMT.INL
+            END
+        REPEAT
+
+        IF Y.TAX.AMT NE 0 THEN
+!Y.PAID.AMT = Y.PAID.AMT - ABS(Y.TAX.AMT)
+            Y.EXICE.AMT = Y.EXICE.AMT + Y.TAX.AMT
+        END
+
+        IF Y.REST.AMT >0 THEN
+            Y.PAID.AMT = Y.PAID.AMT +  Y.REST.AMT
+            Y.DRAWN = 0.00
+        END
+        ELSE
+            Y.DRAWN = Y.REST.AMT
+        END
+
+        Y.TR.TOT = Y.PAID.AMT + Y.DRAWN + Y.EXICE.AMT
+        IF Y.LIQ.BAL <= Y.TR.TOT THEN
+            Y.DRAWN = Y.DRAWN + Y.LIQ.BAL - Y.TR.TOT
+        END
+        ELSE
+            Y.PAID.AMT = Y.PAID.AMT + Y.LIQ.BAL - Y.TR.TOT
+        END
+
+        IF LEN(Y.TRN.REF.DATE) EQ 8 AND Y.TRN.REF.DATE[5,2]<= 12 AND Y.TRN.REF.DATE[7,2]<= 31 AND Y.TRN.REF.DATE GT Y.VALUE.DATE THEN
+            Y.DURR = 'C'
+            CALL CDD('',Y.VALUE.DATE,Y.TRN.REF.DATE,Y.DURR)
+            Y.DURR = Y.DURR/30
+            Y.INT.VAL = FIELD(Y.DURR,'.',1)
+            Y.DEC.VAL = FIELD(Y.DURR,'.',2)
+
+            IF Y.DEC.VAL[1,1] >=5 THEN
+                Y.DURR = Y.INT.VAL + 1:'M'
+            END
+            ELSE
+                Y.DURR = Y.INT.VAL:'M'
+            END
+        END
+
+    END
+    ELSE  ;* No entries found
+        Y.DURR = ''
+        IF Y.LIQ.BAL > 0 THEN
+            Y.PAID.AMT = Y.LIQ.BAL
+        END
+        ELSE
+            Y.EXICE.AMT = Y.LIQ.BAL
+        END
+        Y.DRAWN = 0.00
+    END
+    RETURN
+
+*---------
+GET.DURR:
+*---------
+!DEBUG
+    Y.TNR = ''
+!Y.DURR = ''
+    IF LEN(Y.START.DATE) EQ 8 AND Y.START.DATE[5,2]<= 12 AND Y.START.DATE[7,2]<= 31 THEN
+        Y.TNR = 'C'
+        CALL CDD('',Y.START.DATE,Y.MATURITY.DATE,Y.TNR)
+        IF Y.TNR GT 1094 THEN
+            Y.FLAG = 1
+!Y.FLAG = Y.TNR/360
+!Y.FLAG = FIELD(Y.FLAG,'.',1)
+        END
+        ELSE
+            Y.FLAG = 0
+        END
+        Y.TNR = Y.TNR/30
+        Y.INT.VAL = FIELD(Y.TNR,'.',1)
+        Y.DEC.VAL = FIELD(Y.TNR,'.',2)
+
+        IF Y.DEC.VAL[1,1] >=5 THEN
+            IF Y.FLAG EQ 1 THEN
+                Y.TNR = Y.INT.VAL :'M'
+            END
+            ELSE
+                Y.TNR = Y.INT.VAL + 1:'M'
+            END
+        END
+        ELSE
+            Y.TNR = Y.INT.VAL :'M'
+        END
+
+        IF LEN(Y.TNR) LT 3 THEN
+            Y.TNR = '0':Y.TNR
+        END
+
+    END
+    RETURN

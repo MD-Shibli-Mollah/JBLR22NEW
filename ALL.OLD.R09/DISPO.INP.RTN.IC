@@ -1,0 +1,108 @@
+*****************************************************************************************
+*This routine is attachted to FUNDS.TRANSFER,AUTH TELLER,LCY.CASHIN TELLER,LCY.CASHCHQ1 *
+*TELLER,BD.LCY.CASHWDL TELLER,IN.CLEAR TELLER,IN.CLEAR.SETTLEMENT                       *
+*TELLER,OUT.CLEAR.SAME.DAY FUNDS.TRANSFER,ACTR.FTHP VERSION as a input ROUTINE          *
+*Purpose: to generate ovverride message                                                 *
+*Developed By: Mohammad Abu Huraira & Md. Aminul Islam(Datasoft Systems)                *
+*Live Date: 20160925                                                                    *
+*****************************************************************************************
+    SUBROUTINE DISPO.INP.RTN.IC
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.IC.ADJUST.ACCRUAL
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.OVERRIDE
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT JBL.BP I_F.DISPO.PARAM
+
+    IF ((V$FUNCTION EQ 'D') OR (V$FUNCTION EQ 'R')) THEN RETURN
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.IC="F.IC.ADJUST.ACCRUAL"
+    F.IC=""
+    FN.AC="F.ACCOUNT"
+    F.AC=""
+    FN.DP = "F.EB.DISPO.PARAM"
+    F.DP = ""
+    FN.OVR = "F.OVERRIDE"
+    F.OVR = ""
+
+    Y.OVERR.ID=""
+    Y.OVERR.AMT=""
+    Y.BR.EXIST=""
+    DEBAMT=""
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.IC,F.IC)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.DP,F.DP)
+    CALL OPF(FN.OVR,F.OVR)
+    RETURN
+
+PROCESS:
+
+!R.NEW(IC.ADJ.OVERRIDE) = TEMP.OVERRIDE.DATA
+!R.NEW(IC.ADJ.OVERRIDE) = ''
+    ACCT.ID = ID.NEW
+    DR.AMT = R.NEW(IC.ADJ.DR.ADJ.AMOUNT)
+    Y.CR.ADJ.AMT = R.NEW(IC.ADJ.CR.ADJ.AMOUNT)
+    IF Y.CR.ADJ.AMT GT DR.AMT THEN
+        DR.AMT =Y.CR.ADJ.AMT
+    END
+    V.NO = DCOUNT(R.NEW(IC.ADJ.OVERRIDE), @VM) + 1
+    CALL F.READ(FN.DP,"SYSTEM",R.DP,F.DP,Y.DP.ERR)
+    Y.OVRRID.CNT = DCOUNT(R.DP<EB.DIS26.OVERR.ID>,@VM)
+
+    FOR I=1 TO Y.OVRRID.CNT
+        Y.BR.CODE = R.DP<EB.DIS26.BRANCH.CODE,I>
+        FINDSTR ID.COMPANY IN Y.BR.CODE SETTING BR.POS THEN
+            Y.BR.EXIST = "TRUE"
+            Y.OVERR.ID = R.DP<EB.DIS26.OVERR.ID,I>
+            Y.OVERR.AMT = R.DP<EB.DIS26.OVERR.AMT,I>
+            CALL F.READ(FN.OVR,Y.OVERR.ID,R.OVR,F.OVR,Y.OVR.ERR)
+            IF NOT(R.OVR) THEN
+                ETEXT="Override Record for Dispo missing in system"
+                CALL STORE.END.ERROR
+                RETURN
+            END
+            BREAK
+        END
+        IF Y.BR.EXIST EQ "TRUE" THEN
+            BREAK
+        END
+    NEXT I
+    IF Y.BR.EXIST EQ "TRUE" THEN
+        GOTO DISPO.PROCESS
+    END
+
+    RETURN
+
+
+DISPO.PROCESS:
+
+    CALL F.READ(FN.AC,ACCT.ID,R.AC,F.AC,Y.ERR)
+    IF (DR.AMT > Y.OVERR.AMT) THEN
+        TEXT=Y.OVERR.ID
+        TEXT<2> = R.AC<AC.CURRENCY>:@VM:ABS(DR.AMT):@VM:ACCT.ID
+        CALL STORE.OVERRIDE(V.NO)
+        Y.OVERRIDE.DATA = R.NEW(IC.ADJ.OVERRIDE)
+        TOT.OVRD.MSG = DCOUNT( Y.OVERRIDE.DATA,@VM)
+        FOR J = 1 TO TOT.OVRD.MSG
+            Y.DISP.OVRRD.MSG = FIELD(Y.OVERRIDE.DATA,@VM,J)
+            TOT.SEP = DCOUNT(Y.DISP.OVRRD.MSG,@VM)
+            Y.DISP.LAST.REC = FIELD(Y.DISP.OVRRD.MSG,@VM,TOT.SEP)
+            IF Y.DISP.LAST.REC EQ 'I' THEN
+                Y.ORIG.DISP.MSG = FIELD(Y.DISP.OVRRD.MSG,@VM,1,TOT.SEP-1)
+                R.NEW(IC.ADJ.OVERRIDE)<1,J> = Y.ORIG.DISP.MSG
+            END
+        NEXT
+    END
+    RETURN
+END

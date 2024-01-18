@@ -1,0 +1,292 @@
+**************************************************************************************
+*Developed By: Md. Zakir Hossain(Janata Bank Limited)                                *
+*This routine is attachted to BATCH record 'BNK/RTGS.OUT.TXN BATCH'                  *
+*and generate FT transactions for pacs004,pacs002,camp025 messages against           *
+*outward pacs008                                                                     *
+*Date:N/A                                                                            *
+**************************************************************************************
+!PROGRAM RTGS.OUT.TXN
+    SUBROUTINE RTGS.OUT.TXN
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT JBL.BP I_F.BD.RTGS.PARAM
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+*****
+INIT:
+*****
+
+    FN.ACC = 'F.ACCOUNT'                    ;F.ACC = ''
+    FN.FT = 'F.FUNDS.TRANSFER'              ;F.FT = ''
+    FN.FT.HIS = 'F.FUNDS.TRANSFER$HIS'      ;F.FT.HIS = ''
+    FN.RTGS.PARAM = 'F.EB.BD.RTGS.PARAM'    ;F.RTGS.PARAM = ''
+    Y.CCY = 'BDT'
+
+    CALL OPF(FN.RTGS.PARAM,F.RTGS.PARAM)
+    CALL F.READ(FN.RTGS.PARAM,'SYSTEM',REC.RTGS.PARAM,F.RTGS.PARAM,ERR.RTGS.PARAM)
+
+*assigning Inward,Outward,Txn Log and Inward file Copy directory
+    FROM.DIR = REC.RTGS.PARAM<EB.BD.29.ROOT.DIR>:'/':REC.RTGS.PARAM<EB.BD.29.INW.SUB.DIR>:'/IP4IP2IC25'
+    Y.IN.REV.ERR.TXN.LOG.DIR = REC.RTGS.PARAM<EB.BD.29.ROOT.DIR>:'/RTGS.TXN.LOG/':TODAY
+    Y.OUTW.DIR = REC.RTGS.PARAM<EB.BD.29.ROOT.DIR>:'/':REC.RTGS.PARAM<EB.BD.29.OUTW.SUB.DIR>
+    Y.OUT.BACKUP.DIR = 'RTGS.BAK/RTGS.OUTWARD/':TODAY
+
+*Assigning Log File Name & Directory Path for Inward Pacs008 Message
+
+    OPEN Y.IN.REV.ERR.TXN.LOG.DIR TO F.IN.TXN.LOG.DIR ELSE
+        CMD = 'CREATE.FILE DATA ':Y.IN.REV.ERR.TXN.LOG.DIR:' TYPE=UD'
+        EXECUTE CMD
+        CMD = 'DELETE ':Y.IN.REV.ERR.TXN.LOG.DIR:' .jbase_header'
+        EXECUTE CMD
+        OPEN Y.IN.REV.ERR.TXN.LOG.DIR TO F.IN.TXN.LOG.DIR ELSE STOP
+    END
+
+*Directory Creation for Inward Pacs002,Pacs004 & Camp025 Backup
+    Y.IN.BACKUP.DIR = 'RTGS.BAK/RTGS.INWARD/':TODAY
+    OPEN Y.IN.BACKUP.DIR TO F.IN.BACKUP.DIR ELSE
+        CMD = 'CREATE.FILE DATA ':Y.IN.BACKUP.DIR:' TYPE=UD'
+        EXECUTE CMD
+        CMD = 'DELETE ':Y.IN.BACKUP.DIR:' .jbase_header'
+        EXECUTE CMD
+        OPEN Y.IN.BACKUP.DIR TO F.IN.BACKUP.DIR ELSE STOP
+    END
+
+
+
+    Y.ERR.CODE.LIST = 'R 01':@FM:'R 02':@FM:'R 03':@FM:'R 04':@FM:'R 05':@FM:'R 06':@FM:'R 07':@FM:'R 08':@FM:'R 09':@FM:'R01':@FM:'R02':@FM:'R03':@FM:'R04':@FM:'R05':@FM:'R06':@FM:'R07':@FM:'R08':@FM:'R09'
+    CALL GET.LOC.REF('FUNDS.TRANSFER','PAY.TYPE',PAY.TYPE.POS)
+    RETURN
+
+**********
+OPENFILES:
+**********
+
+    OPEN FROM.DIR TO F.FROM.DIR ELSE STOP
+    OPEN Y.IN.BACKUP.DIR TO F.IN.BACKUP.DIR ELSE STOP
+    CALL OPF(FN.ACC,F.ACC)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    RETURN
+
+********
+PROCESS:
+********
+
+
+    EXECUTE "SH ls ":FROM.DIR:" | egrep '^IC25D":TODAY:"|^IP2D":TODAY:"|^IP4D":TODAY CAPTURING FILE.LIST
+    FOR I = 1 TO DCOUNT(FILE.LIST,@FM)
+        Y.FILE.NAME=FIELD(FILE.LIST,@FM,I)
+        IF LEFT(Y.FILE.NAME,5) EQ 'IC25D' THEN
+            PACS = 'CAMP025'
+            TXN.TYPE = 'Campt025 Return'
+            READ ALL.VALUES FROM F.FROM.DIR,Y.FILE.NAME THEN
+                L.HEADER = FIELD(ALL.VALUES,@FM,1)
+                L.VALUES = FIELD(ALL.VALUES,@FM,2)
+
+                Y.OUTW.ID = FIELD(L.VALUES,',',10)
+                Y.ERR.CODE = FIELD(L.VALUES,',',11)
+                IF Y.ERR.CODE EQ 'ERRC' THEN
+                    GOSUB OFS.POST      ;*do reverse txn for same outward 'FT' and write same record details to log file
+                    GOSUB COPY.INWARD.BACKUP
+                    GOSUB DEL.INWARD.PACS
+                END ELSE
+                    GOSUB WRITE.CAMP025.LOG       ;*if txn is success then write same txn log details to related log file
+                    GOSUB COPY.INWARD.BACKUP
+                    GOSUB DEL.INWARD.PACS
+                END
+
+            END
+
+            END ELSE IF LEFT(Y.FILE.NAME,4) EQ 'IP2D' THEN
+                PACS = 'PACS002'
+
+                TXN.TYPE = 'Pacs002 Return'
+
+                READ ALL.VALUES FROM F.FROM.DIR,Y.FILE.NAME THEN
+                    L.HEADER = FIELD(ALL.VALUES,@FM,1)
+                    L.VALUES = FIELD(ALL.VALUES,@FM,2)
+                    Y.OUTW.ID = FIELD(L.VALUES,',',10)
+                    Y.ERR.CODE = FIELD(L.VALUES,',',19)
+                    IF Y.ERR.CODE EQ 'RJCT' THEN
+                        GOSUB OFS.POST
+                        GOSUB COPY.INWARD.BACKUP
+                        GOSUB DEL.INWARD.PACS
+                    END ELSE
+                        GOSUB WRITE.PACS002.LOG
+                        GOSUB COPY.INWARD.BACKUP
+                        GOSUB DEL.INWARD.PACS
+                    END
+                END
+
+
+            END ELSE
+                PACS = 'PACS004'
+                TXN.TYPE = 'Pacs004 Return'
+                READ ALL.VALUES FROM F.FROM.DIR,Y.FILE.NAME THEN
+                    L.HEADER = FIELD(ALL.VALUES,@FM,1)
+                    L.VALUES = FIELD(ALL.VALUES,@FM,2)
+                    Y.OUTW.ID = FIELD(L.VALUES,',',12)
+                    Y.ERR.CODE = FIELD(L.VALUES,',',17)
+*************************************************NEWLY ADDED FOR CUSTOM E-PAYMENT*****************
+                    FINDSTR Y.ERR.CODE IN Y.ERR.CODE.LIST SETTING ERR.POS ELSE NULL
+                    IF ERR.POS EQ '' THEN
+                        Y.ERR.CODE = FIELD(L.VALUES,',',16)
+                        FINDSTR Y.ERR.CODE IN Y.ERR.CODE.LIST SETTING ERR.POS ELSE NULL
+                    END
+
+                    IF ERR.POS THEN
+                        GOSUB OFS.POST
+                        GOSUB COPY.INWARD.BACKUP
+                        GOSUB DEL.INWARD.PACS
+                    END ELSE
+                        GOSUB WRITE.PACS004.LOG
+                        GOSUB COPY.INWARD.BACKUP
+                        GOSUB DEL.INWARD.PACS
+                    END
+
+
+                END
+
+            END
+        NEXT I
+
+
+        RETURN
+
+*********
+OFS.POST:
+*********
+!reverse outward txn which status is error
+******************************************
+        CALL JULDATE(TODAY,Y.C)
+        Y.PAYMENT.DET='FT':RIGHT(Y.C,5):RIGHT(Y.OUTW.ID,5)
+        Y.B.USER = 'DMUSER'
+        Y.SOURCE = 'DM.OFS.SRC.VAL'
+        CALL F.READ(FN.FT, Y.PAYMENT.DET, R.FT.OUW , F.FT , Y.FT.OUW)
+        Y.CO.CODE=R.FT.OUW<FT.CO.CODE>
+        CALL LOAD.COMPANY(Y.CO.CODE)
+        OPERATOR = Y.B.USER
+        Y.OFS.MSG.POST = "FUNDS.TRANSFER,RTGS.INW.TXN/R/PROCESS,//,":Y.PAYMENT.DET
+!Y.SOURCE = 'DM.OFS.SRC'
+        RUNNING.UNDER.BATCH = 1
+        CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.OFS.MSG.POST)
+        RUNNING.UNDER.BATCH = 0
+
+        Y.GEN.FT.ID = FIELD(Y.OFS.MSG.POST,'/',1)
+        Y.OFS.ERR.CODE = FIELD(FIELD(Y.OFS.MSG.POST,'/',3),',',1)
+        CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.PAYMENT.DET,R.FTHIS.REC,Y.FTHIS.ERR)
+        IF Y.OFS.ERR.CODE EQ '1' THEN
+            Y.IS.ERROR = 'Success'
+            IF R.FTHIS.REC<FT.RECORD.STATUS> EQ 'REVE' THEN
+                R.FTHIS.REC<FT.LOCAL.REF,PAY.TYPE.POS> = TXN.TYPE
+                WRITE R.FTHIS.REC TO F.FT.HIS,Y.PAYMENT.DET
+            END
+            Y.GEN.FT.ID = Y.PAYMENT.DET
+            L.VALUES = L.VALUES:',':Y.IS.ERROR:',':Y.GEN.FT.ID
+        END
+        ELSE
+            IF R.FTHIS.REC<FT.RECORD.STATUS> EQ 'REVE' THEN
+                Y.IS.ERROR = 'Success'
+                Y.GEN.FT.ID = Y.PAYMENT.DET
+                L.VALUES = L.VALUES:',':Y.IS.ERROR:',':Y.GEN.FT.ID
+            END ELSE
+                Y.IS.ERROR = 'Error'
+                Y.ERR = FIELD(Y.OFS.MSG.POST,'/',4)
+                Y.ERRF = FIELD(Y.ERR,',',2)
+                L.VALUES = L.VALUES :',':Y.IS.ERROR:',':Y.ERRF
+            END
+        END
+        IF PACS EQ 'CAMP025' THEN
+            GOSUB WRITE.CAMP025.LOG
+
+        END ELSE
+            IF PACS EQ 'PACS004' THEN
+                GOSUB WRITE.PACS004.LOG
+
+            END ELSE
+                GOSUB WRITE.PACS002.LOG
+
+            END
+        END
+        RETURN
+
+******************
+WRITE.CAMP025.LOG:
+******************
+!write txn record to related log file
+*************************************
+        Y.INWCAMP025.TXN.LOG.PATH = Y.IN.REV.ERR.TXN.LOG.DIR:'/':Y.FILE.NAME
+        OPENSEQ Y.INWCAMP025.TXN.LOG.PATH TO F.FILE.INWCAMP025.TXN.LOG THEN NULL
+
+        WRITESEQ L.HEADER APPEND TO F.FILE.INWCAMP025.TXN.LOG ELSE
+            CRT "No file name found to WRITE TRANSACTION data"
+        END
+        WRITESEQ L.VALUES APPEND TO F.FILE.INWCAMP025.TXN.LOG ELSE
+            CRT "No file name found to WRITE TRANSACTION data"
+        END
+
+        RETURN
+
+******************
+WRITE.PACS004.LOG:
+******************
+!write txn record to related log file
+*************************************
+
+        Y.INWPACS004.TXN.LOG.PATH = Y.IN.REV.ERR.TXN.LOG.DIR:'/':Y.FILE.NAME
+        OPENSEQ Y.INWPACS004.TXN.LOG.PATH TO F.FILE.INWPACS004.TXN.LOG THEN NULL
+
+        WRITESEQ L.HEADER APPEND TO F.FILE.INWPACS004.TXN.LOG ELSE
+            CRT "No file name found to WRITE TRANSACTION data"
+        END
+
+        WRITESEQ L.VALUES APPEND TO F.FILE.INWPACS004.TXN.LOG ELSE
+            CRT "No file name found to WRITE TRANSACTION data"
+        END
+
+        RETURN
+
+******************
+WRITE.PACS002.LOG:
+******************
+!write txn record to related log file
+*************************************
+
+        Y.INWPACS002.TXN.LOG.PATH = Y.IN.REV.ERR.TXN.LOG.DIR:'/':Y.FILE.NAME
+        OPENSEQ Y.INWPACS002.TXN.LOG.PATH TO F.FILE.INWPACS002.TXN.LOG THEN NULL
+
+        WRITESEQ L.HEADER APPEND TO  F.FILE.INWPACS002.TXN.LOG ELSE
+            CRT "No file name found to WRITE TRANSACTION data"
+        END
+        WRITESEQ L.VALUES APPEND TO  F.FILE.INWPACS002.TXN.LOG ELSE
+            CRT "No file name found to WRITE TRANSACTION data"
+        END
+
+        RETURN
+
+*************
+COPY.INWARD.BACKUP:
+************
+*   Copy file from RTGS/RTGS.INWARD directory to RTGS.BAK/RTGS.INWARD/TODAY
+        CMD = 'COPY FROM ':FROM.DIR:' TO ':Y.IN.BACKUP.DIR:' ':Y.FILE.NAME:' OVERWRITING'
+        EXECUTE CMD
+        RETURN
+
+
+*************
+DEL.INWARD.PACS:
+************
+*   Delete file from RTGS/RTGS.INWARD directory
+        CMD = 'DELETE ':FROM.DIR:' ':Y.FILE.NAME
+        EXECUTE CMD
+        RETURN
+
+    END

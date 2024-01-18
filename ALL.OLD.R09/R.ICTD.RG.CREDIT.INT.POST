@@ -1,0 +1,48 @@
+****************************************************
+*-----------------------------------------------------------------------------
+* <Rating>-48</Rating>
+*-----------------------------------------------------------------------------
+* PROGRAM    : Generate Credit Interest Post Report
+* DEV BY      : MD. IMRAN HASAN
+* DEV DATE    : 2015-11-29
+* UPDATE DATE : 2015-12-06
+* REQ         : ICTD
+* Tools *******
+!TSM SERVICE - BNK/OFS.MESSAGE.SERVICE
+!TSM SERVICE - BNK/OFS.RESPONSE.QUEUE
+!ENQUIRY.REPORT,ACCT.CR.INT I ER.STMT.ACCT.CR
+****************************************************
+! SUBROUTINE R.ICTD.RG.CREDIT.INT.POST
+    PROGRAM R.ICTD.RG.CREDIT.INT.POST
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.COMPANY
+
+
+    Y.FILE.DIR = 'JBL.BP/REPGEN'
+    Y.FILE.NAME = 'PARAMETER.CR.INT.txt'
+    Y.FILE = Y.FILE.DIR :'/': Y.FILE.NAME
+
+
+    OPENSEQ Y.FILE TO F.FILE.POINT THEN
+        LOOP
+            READSEQ Y.RECORD FROM F.FILE.POINT ELSE
+                Y.RECORD = ''
+            END
+        WHILE Y.RECORD
+            Y.REC<-1> = Y.RECORD
+        REPEAT
+    END
+
+    FOR K = 1 TO DCOUNT(Y.REC,@FM)
+        L.VALUES = FIELD(Y.REC,@FM,K)
+        COMP.ID = FIELD(L.VALUES,',',1)
+        Y.CATEG.ID = FIELD(L.VALUES,',',2)
+        Y.V.MESSAGE = "ENQUIRY.REPORT,ACCT.CR.INT/V/PROCESS,//":COMP.ID:",ER.STMT.ACCT.CR.":Y.CATEG.ID
+        V.MSG.ID = ''
+        CALL OFS.POST.MESSAGE(Y.V.MESSAGE, V.MSG.ID ,"DM.OFS.SRC.VAL", "DMUSER")
+        CALL JOURNAL.UPDATE ('TEST')
+    NEXT
+
+    RETURN
+END

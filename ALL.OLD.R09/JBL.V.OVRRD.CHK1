@@ -1,0 +1,92 @@
+*Developed By: Islam
+* Convert the following overrides to error as per the janata *bank requirement and this development based on the core *override generaion:
+*Unauthorised overdraft
+* UPDATE ALIN BOBY
+
+    SUBROUTINE JBL.V.OVRRD.CHK1
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT I_F.ABL.H.MUL.PRM
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT  = ''
+    R.ACCOUNT  = ''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+
+!-----1.Manik/S---------------!
+    FN.MUL.PARAM ='F.ABL.H.MUL.PRM'
+    F.MUL.PARAM =''
+    CALL OPF(FN.MUL.PARAM,F.MUL.PARAM)
+    REC.MUL.PARAM=''
+    Y.RES.OVERDRAFT.CATEG=''
+    Y.DEBIT.AC = ''
+    Y.DEBIT.AC.CAT = ''
+    Y.CREDIT.AC=''
+    Y.CREDIT.AC.CAT=''
+    Y.LEGAL.CHRG="LEGAL.CHARGE"
+    Y.LEGAL.CHRG.POS=""
+    Y.LEG.CHG=""
+
+    CALL F.READ(FN.MUL.PARAM,'SYSTEM',REC.MUL.PARAM,F.MUL.PARAM,ERR.MUL.PARAM)
+
+    IF REC.MUL.PARAM EQ '' THEN
+        ETEXT="Parameter File Missing For Overdraft Missing"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    ELSE
+        Y.RES.OVERDRAFT.CATEG=REC.MUL.PARAM<MPM.OVERDRAFT.RES.CATEG>
+    END
+
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        Y.DEBIT.AC = R.NEW(FT.DEBIT.ACCT.NO)
+        CALL GET.LOC.REF("FUNDS.TRANSFER",Y.LEGAL.CHRG,Y.LEGAL.CHRG.POS)
+        Y.LEG.CHG = R.NEW(FT.LOCAL.REF)<1,Y.LEGAL.CHRG.POS>
+    END
+
+
+    CALL F.READ(FN.ACCOUNT,Y.DEBIT.AC,R.ACCOUNT,F.ACCOUNT,ERR.AC)
+    Y.DEBIT.AC.CAT = R.ACCOUNT<AC.CATEGORY>
+
+!-----1.Manik/E---------------!
+
+    POS = 1
+    Y.OVERRIDE.VAL = R.NEW(V-9)
+    Y.OVRRD.NO = DCOUNT(Y.OVERRIDE.VAL,VM)
+
+    CRT Y.OVRRD.NO
+    FOR I=1 TO Y.OVRRD.NO
+        Y.OVRRD.DETLS = FIELD(Y.OVERRIDE.VAL,VM,I)
+        CRT Y.OVRRD.DETLS
+        Y.OVRRD.ID = FIELD(Y.OVRRD.DETLS,'}',1)
+
+        IF (Y.OVRRD.ID='ACCT.UNAUTH.OD') THEN
+            GOSUB ACCT.UNAUTH.OD
+        END
+
+    NEXT I
+
+
+    RETURN
+
+ACCT.UNAUTH.OD:
+
+    AF = I
+!    ETEXT = 'Unauthorised Overdraft Not Possible'
+!    CALL STORE.END.ERROR
+
+    LOCATE Y.DEBIT.AC.CAT IN  Y.RES.OVERDRAFT.CATEG<1,1> SETTING Y.POS ELSE Y.POS = ''
+    IF Y.POS THEN
+        ETEXT = 'Unauthorised Overdraft Not Possible'
+        CALL STORE.END.ERROR
+    END
+
+
+
+    RETURN
+************end**********
+END

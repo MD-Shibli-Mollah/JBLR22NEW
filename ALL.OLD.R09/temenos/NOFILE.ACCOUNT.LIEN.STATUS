@@ -1,0 +1,82 @@
+*-----------------------------------------------------------------------------
+* <Rating>-51</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE NOFILE.ACCOUNT.LIEN.STATUS(Y.ARRAY)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.AZ.ACCOUNT
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB GET.LOC
+    GOSUB GET.PROCESS
+
+**************************************************************************
+INIT:
+**************************************************************************
+
+    FN.AZ.ACCOUNT = "F.AZ.ACCOUNT" ; F.AZ.ACCOUNT = ""
+    CALL OPF(FN.AZ.ACCOUNT,F.AZ.ACCOUNT)
+
+    FN.ACCOUNT = "F.ACCOUNT" ; F.ACCOUNT = ""
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    RETURN
+*****************************************************************************
+GET.LOC:
+***********************************************************************************
+    Y.APP = "ACCOUNT"
+    Y.FIELD = "LIEN.MARK"
+    Y.LOC.POS = ""
+    Y.LOC1 = ""
+    Y.LOC2 = ""
+    Y.LOC3 = ""
+    Y.FIELD1 = "LIEN.DATE"
+    Y.FIELD2 = "LIEN.REASON"
+    Y.FIELD3 = "LIEN.AGAINST"
+
+    CALL GET.LOC.REF(Y.APP,Y.FIELD,Y.LOC.POS)
+    CALL GET.LOC.REF(Y.APP,Y.FIELD1,Y.LOC1)
+    CALL GET.LOC.REF(Y.APP,Y.FIELD2,Y.LOC2)
+    CALL GET.LOC.REF(Y.APP,Y.FIELD3,Y.LOC3)
+    RETURN
+*******************************************************************************
+GET.PROCESS:
+********************************************************************************
+    Y.ID.COM = ID.COMPANY
+********************************************** UPDATE BY KAMRAN(DS) ***********************************************************************
+    Y.CATEG.LIST = '6601':@VM:'6602':@VM:'6603':@VM:'6604':@VM:'6605':@VM:'6606':@VM:'6608':@VM:'6609':@VM:'6611':@VM:'6011':@VM:'6016':@VM:'6017':@VM:'6622':@VM:'6621':@VM:'6623':@VM:'6624':@VM:'6625':@VM:'6626'
+
+    SEL = "SELECT ":FN.ACCOUNT: " WITH CO.CODE EQ ":Y.ID.COM: " AND POSTING.RESTRICT EQ 16"
+    CALL EB.READLIST(SEL,SEL.LIST,'',SEL.CNT,Y.RETURN.CODE)
+    LOOP
+        REMOVE Y.AC.AZ.ID FROM SEL.LIST SETTING Y.AZ.POS
+    WHILE Y.AC.AZ.ID:Y.AZ.POS
+!CALL F.READ(FN.AZ.ACCOUNT,Y.AC.AZ.ID,R.AZ.REC,F.AZ.ACCOUNT,Y.AZ.ERR)
+        CALL F.READ(FN.ACCOUNT,Y.AC.AZ.ID,R.AC.REC,F.ACCOUNT,Y.AC.ERR)
+        Y.LIEN.MARK = R.AC.REC<AC.LOCAL.REF,Y.LOC.POS>
+        Y.CATEGORY = R.AC.REC<AC.CATEGORY>
+        Y.POSTING.RESTRICT = R.AC.REC<AC.POSTING.RESTRICT>
+        IF (Y.CATEGORY MATCHES Y.CATEG.LIST) OR (Y.LIEN.MARK EQ 'Y') OR (Y.POSTING.RESTRICT EQ '16') THEN
+            CALL F.READ(FN.AZ.ACCOUNT,Y.AC.AZ.ID,R.AZ.REC,F.AZ.ACCOUNT,Y.AZ.ERR)
+            Y.AZ.TITLE = R.AC.REC<AC.ACCOUNT.TITLE.1>
+            Y.LIEN.DATE = R.AC.REC<AC.LOCAL.REF,Y.LOC1>
+            Y.LIEN.REASON = R.AC.REC<AC.LOCAL.REF,Y.LOC2>
+            Y.LIEN.AGAINST = R.AC.REC<AC.LOCAL.REF,Y.LOC3>
+            Y.PRINCIPAL = R.AZ.REC<AZ.PRINCIPAL>
+            Y.AUTHORISE = R.AZ.REC<AZ.AUTHORISER>
+            Y.AUTHORISER = FIELD(Y.AUTHORISE,'_',2,1)
+         ******************************************************** END *********************************************************************
+            GOSUB FORM.ARRAY
+        END
+    REPEAT
+    RETURN
+*******************************************************************************************************************************************************************
+FORM.ARRAY:
+***********************************************************************************************
+
+    Y.ARRAY<-1> = Y.AC.AZ.ID:"*":Y.AZ.TITLE:"*":Y.LIEN.DATE:"*":Y.LIEN.REASON:"*":Y.LIEN.AGAINST:"*":Y.PRINCIPAL:"*":Y.AUTHORISER:"*":Y.CATEGORY
+
+    RETURN
+END

@@ -1,0 +1,75 @@
+******************************************************************************************
+*This routine  attachted to TELLER,LCY.TILLTFR TELLER,TILL.TO.VAULT TELLER,VAULT.TO.TILL *
+*version that restrict the till transaction to different branchs                         *
+*Developed By:Md. Zahid Hasan & Md. Aminul Islam(Datasoft Systems)                       *
+*Date:13/01/2015                                                                         *
+******************************************************************************************
+    SUBROUTINE TILL.TRF.CHECK
+
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.TELLER.ID
+    $INSERT GLOBUS.BP I_F.TELLER
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*------
+INIT:
+*------
+
+    FN.TELLET = 'F.TELLER.ID'
+    F.TELLER = ''
+    Y.FROM.TELLER = R.NEW(TT.TE.TELLER.ID.2)
+    Y.TO.TELLER = R.NEW(TT.TE.TELLER.ID.1)
+
+    RETURN
+
+*---------
+OPENFILES:
+*---------
+
+    CALL OPF(FN.TELLET, F.TELLER)
+
+    RETURN
+
+*-------
+PROCESS:
+*-------
+
+    IF Y.FROM.TELLER EQ '9999' THEN
+        Y.FROM.TELL.COMPANY = ID.COMPANY
+    END
+    ELSE
+        CALL F.READ(FN.TELLET, Y.FROM.TELLER , R.TELL.FORM, F.TELLER , Y.ERR.TELL.FORM)
+        IF R.TELL.FORM THEN
+            Y.FROM.TELL.COMPANY = R.TELL.FORM<TT.TID.CO.CODE>
+        END
+    END
+
+    IF Y.TO.TELLER EQ '9999' THEN
+        Y.TO.TELL.COMPANY = ID.COMPANY
+    END
+    ELSE
+        CALL F.READ(FN.TELLET, Y.TO.TELLER , R.TELL.TO, F.TELLER , Y.ERR.TELL.TO)
+        IF R.TELL.TO THEN
+            Y.TO.TELL.COMPANY = R.TELL.TO<TT.TID.CO.CODE>
+        END
+    END
+    IF (ID.COMPANY NE Y.FROM.TELL.COMPANY) OR (ID.COMPANY NE Y.TO.TELL.COMPANY) THEN
+        IF (ID.COMPANY NE Y.FROM.TELL.COMPANY) THEN
+            Y.TELL.ID = Y.FROM.TELLER :','
+        END
+        IF (ID.COMPANY NE Y.TO.TELL.COMPANY) THEN
+            Y.TELL.ID = Y.TELL.ID : Y.TO.TELLER:','
+        END
+        Y.TELL.ID = LEFT(Y.TELL.ID,LEN(Y.TELL.ID)-1)
+        ETEXT = 'Teller ID ' :Y.TELL.ID:' are from other branch'
+        CALL STORE.END.ERROR
+    END
+    RETURN
+
+END

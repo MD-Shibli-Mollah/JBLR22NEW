@@ -1,0 +1,90 @@
+*-----------------------------------------------------------------------------
+* <Rating>159</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.CHK.PAD.AC.INDR
+!PROGRAM BD.V.CHK.PAD.AC.INDR
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This auth routine is update AC TYPE PAD ACCOUNT
+* also update error message to accept override
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20/04/2012 - New - Rayhan
+* 26/09/2018 - Update - Aminul
+*-----------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.DRAWINGS
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    IF R.NEW(TF.DR.DRAWING.TYPE) EQ 'SP' OR R.NEW(TF.DR.DRAWING.TYPE) EQ 'MA' THEN
+        GOSUB INITIALISE
+        GOSUB PROCESS
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.DRAWINGS = 'F.DRAWINGS'
+    F.DRAWINGS = ''
+    CALL OPF(FN.DRAWINGS,F.DRAWINGS)
+    R.DRAWINGS = ''
+    Y.DRAWINGS.ERR = ''
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    CALL OPF(FN.AC,F.AC)
+    R.AC.REC = ''
+    Y.AC.ERR = ''
+    Y.PAD.CATEGORY.ALL = '1970':FM:'1971':FM:'1972':FM:'1973':FM:'1974':FM:'1975':FM:'1976'
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+    GOSUB GET.LOC.REF.POS
+    GOSUB CHECK.PAD.AC
+    RETURN
+
+*-----------------------------------------------------------------------------
+CHECK.PAD.AC:
+*--------------
+
+    Y.AC.NO = COMI
+    Y.DR.ID = ID.NEW
+    Y.LC.ID = Y.DR.ID[1,12]
+    CALL F.READ(FN.AC,Y.AC.NO,R.AC.REC,F.AC,Y.AC.ERR)
+    Y.AC.LC.ID = R.AC.REC<AC.LOCAL.REF,Y.AC.TFNO.POS>
+    Y.AC.CATEG = R.AC.REC<AC.CATEGORY>
+!Check other than PAD account
+    FINDSTR Y.AC.CATEG IN Y.PAD.CATEGORY.ALL SETTING POS1 ELSE NULL
+    IF POS1 EQ '' THEN
+        Y.OVERRIDE.VAL = R.NEW(V-9)
+        Y.OVRRD.NO = DCOUNT(Y.OVERRIDE.VAL,VM)
+        TEXT = 'Debit AC Not PAD AC'
+        CALL STORE.OVERRIDE(Y.OVRRD.NO+1)
+    END
+    IF Y.LC.ID NE Y.AC.LC.ID THEN RETURN
+    IF Y.AC.CATEG GE '1970' AND Y.AC.CATEG LE '1976' THEN
+        IF Y.LC.ID NE Y.AC.LC.ID THEN
+            AF = TF.DR.DRAWDOWN.ACCOUNT
+            ETEXT ="PAD AC Not for this LC"
+            CALL STORE.END.ERROR
+        END
+        IF R.AC.REC<AC.LOCAL.REF,Y.AC.DRNO.POS> NE '' THEN
+            AF = TF.DR.DRAWDOWN.ACCOUNT
+            ETEXT ="PAD AC Already Used By Other Document"
+            CALL STORE.END.ERROR
+        END
+    END
+    RETURN
+*-----------------------------------------------------------------------------
+GET.LOC.REF.POS:
+*--------------
+    CALL GET.LOC.REF("ACCOUNT","LINKED.TF.NO",Y.AC.TFNO.POS)
+    CALL GET.LOC.REF("ACCOUNT","LINKED.TFDR.REF",Y.AC.DRNO.POS)
+    RETURN
+END

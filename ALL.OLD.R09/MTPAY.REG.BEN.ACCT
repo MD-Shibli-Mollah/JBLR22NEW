@@ -1,0 +1,59 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+!!! This routine is to return beneficiary account no and postage charge
+
+!PROGRAM MTPAY.REG.BEN.ACCT
+    SUBROUTINE MTPAY.REG.BEN.ACCT
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.COMPANY
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.FUNDS.TRANSFER
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.FT = "F.FUNDS.TRANSFER"
+    F.FT = ""
+    FN.FT.HIS = "F.FUNDS.TRANSFER$HIS"
+    F.FT.HIS = ""
+
+    Y.TRANS.ID = O.DATA
+    Y.TT.FT = SUBSTRINGS(Y.TRANS.ID,1,2)
+    Y.MT.BENF.AC = ""
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+
+    RETURN
+
+PROCESS:
+
+    BEGIN CASE
+
+    CASE Y.TT.FT EQ "FT"
+
+        CALL F.READ(FN.FT,Y.TRANS.ID,R.FT.REC,F.FT,Y.ERR)
+        IF R.FT.REC EQ "" THEN
+            CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.TRANS.ID,R.FT.REC,Y.ERR)
+        END
+        Y.MT.BENF.AC = R.FT.REC<FT.CREDIT.ACCT.NO>
+
+        O.DATA = Y.MT.BENF.AC
+
+    CASE 1
+
+        O.DATA = Y.MT.BENF.AC
+
+    END CASE
+    RETURN
+END

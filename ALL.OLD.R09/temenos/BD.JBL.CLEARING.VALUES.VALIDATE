@@ -1,0 +1,89 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.JBL.CLEARING.VALUES.VALIDATE
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*-----------------------
+* This routine is to validate the entered Amount and calculate total
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 28/08/2013 New   - Manjunath Suvarna
+*                    Sepit SoftTech Pvt. Ltd.
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE JBL.BP I_F.BD.JBL.CLEARING.VALUES
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.CLG.VALUES = 'F.BD.JBL.CLEARING.VALUES'
+    F.CLG.VALUES = ''
+
+    CALL OPF(FN.CLG.VALUES,F.CLG.VALUES)
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+*
+    Y.OT.HV = R.NEW(CLG.VAL.OUTWARD.HV)
+    Y.IN.HV = R.NEW(CLG.VAL.INWARD.HV)
+    IF Y.OT.HV NE '' AND Y.IN.HV NE '' THEN
+        Y.CNT = DCOUNT(Y.OT.HV,@VM)
+        FOR I = 1 TO Y.CNT
+            Y.OT.HV.VAL = FIELD(Y.OT.HV,VM,I,1)
+            Y.IN.HV.VAL = FIELD(Y.IN.HV,VM,I,1)
+            Y.TOT.HV = Y.OT.HV.VAL - Y.IN.HV.VAL
+            R.NEW(CLG.VAL.TOTAL.OI.HV)<1,I> = Y.TOT.HV
+        NEXT I
+    END
+*
+    Y.OT.RV = R.NEW(CLG.VAL.OUTWARD.RV)
+    Y.IN.RV = R.NEW(CLG.VAL.INWARD.RV)
+    IF Y.OT.RV NE '' AND Y.IN.RV NE '' THEN
+        Y.CNT = DCOUNT(Y.OT.RV,@VM)
+        FOR I = 1 TO Y.CNT
+            Y.OT.RV.VAL = FIELD(Y.OT.RV,VM,I,1)
+            Y.IN.RV.VAL = FIELD(Y.IN.RV,VM,I,1)
+            Y.TOT.RV = Y.OT.RV.VAL - Y.IN.RV.VAL
+            R.NEW(CLG.VAL.TOTAL.OI.RV)<1,I> = Y.TOT.RV
+        NEXT I
+    END
+*
+    Y.OT.R.HV = R.NEW(CLG.VAL.OUTWARD.RETURN.HV)
+    Y.IN.R.HV = R.NEW(CLG.VAL.INWARD.RETURN.HV)
+    IF Y.OT.R.HV NE '' AND Y.IN.R.HV NE '' THEN
+        Y.CNT = DCOUNT(Y.OT.R.HV,@VM)
+        FOR I = 1 TO Y.CNT
+            Y.OT.R.HV.VAL = FIELD(Y.OT.R.HV,VM,I,1)
+            Y.IN.R.HV.VAL = FIELD(Y.IN.R.HV,VM,I,1)
+            Y.TOT.R.HV = Y.OT.R.HV.VAL - Y.IN.R.HV.VAL
+            R.NEW(CLG.VAL.TOTAL.OI.RETURN.HV)<1,I> = Y.TOT.R.HV
+        NEXT I
+    END
+*
+    Y.OT.R.RV = R.NEW(CLG.VAL.OUTWARD.RETURN.RV)
+    Y.IN.R.RV = R.NEW(CLG.VAL.INWARD.RETURN.RV)
+    IF Y.OT.R.RV NE '' AND Y.IN.R.RV NE '' THEN
+        Y.CNT = DCOUNT(Y.OT.R.RV,@VM)
+        FOR I = 1 TO Y.CNT
+            Y.OT.R.RV.VAL = FIELD(Y.OT.R.RV,VM,I,1)
+            Y.IN.R.RV.VAL = FIELD(Y.IN.R.RV,VM,I,1)
+            Y.TOT.R.RV = Y.OT.R.RV.VAL - Y.IN.R.RV.VAL
+            R.NEW(CLG.VAL.TOTAL.OI.RETURN.RV)<1,I> = Y.TOT.R.RV
+        NEXT I
+    END
+*
+*
+    RETURN
+END

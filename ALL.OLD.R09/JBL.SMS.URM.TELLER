@@ -1,0 +1,145 @@
+*-----------------------------------------------------------------------------
+* <Rating>159</Rating>
+*-----------------------------------------------------------------------------
+***********************************************************************************************************************
+*Objective: This subroutine read parameters(application wise) from EB.SMS.TEMPLATE.DEFINE and build SMS string based  *
+*on SMS TEXT and SMS VARIABLE defined on EB.SMS.TEMPLATE.Then write that SMS in SMS.OUT folder. This message       *
+*will be send to SMS TARGET on SMS EVENT defined on EB.SMS.TEMPLATE.DEFINE.                                           *
+*Developer: Md. Imran Hasan                                                                                           *
+*Release Date: 07-FEB-2018                                                                                            * *                                                                    *
+***********************************************************************************************************************
+    SUBROUTINE JBL.SMS.URM.TELLER
+!PROGRAM JBL.SMS.URM.TELLER
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.SMS.TEMPLATE.DEFINE
+    $INSERT GLOBUS.BP I_F.TELLER.ID
+    $INSERT BP I_F.USER.MGT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*--------
+INIT:
+*--------
+    FN.SMS = 'F.EB.SMS.TEMPLATE.DEFINE'
+    F.SMS = ''
+    FN.UM = 'F.EB.USER.MGT'
+    F.UM = ''
+
+    FN.TI='F.TELLER.ID'
+    F.TI=''
+
+    Y.PRIORITY = 3
+    Y.SIGN.ON.NAME = ''
+    Y.UM.ID = ''
+    R.UM = ''
+    Y.UM.ERR = ''
+    SMS.BUILD = ''
+    SMS.DIR = 'OTP.OUT'
+    Y.EVENT.FLAG = 0
+
+
+    RETURN
+
+*----------
+OPENFILES:
+*----------
+    CALL OPF(FN.SMS,F.SMS)
+    CALL OPF (FN.UM,F.UM)
+    CALL OPF(FN.TI,F.TI)
+
+    Y.TELLER.ID=ID.NEW
+
+
+    CALL F.READ(FN.SMS,APPLICATION,R.SMS,F.SMS,ERR.SMS)
+
+    RETURN
+
+*----------
+PROCESS:
+*----------
+
+
+    Y.VER.ID = APPLICATION:PGM.VERSION
+    IF Y.VER.ID EQ "TELLER.ID,CREATE" THEN
+        Y.USER.ID = R.NEW(TT.TID.USER)
+        Y.REQUEST.FOR = 'NEW'
+    END
+    IF Y.VER.ID EQ "TELLER.ID,AUTHCLOSE" THEN
+        CALL F.READ(FN.TI,Y.TELLER.ID,R.TI,F.TI,ERR.TI)
+        Y.USER.ID = R.TI<TT.TID.USER>
+        Y.REQUEST.FOR = 'CLOSE'
+    END
+    IF Y.VER.ID EQ "TELLER.ID,AUTH" OR Y.VER.ID EQ "TELLER.ID,CHANGE" THEN
+        Y.USER.ID = R.NEW(TT.TID.USER)
+        Y.REQUEST.FOR = 'REOPEN'
+    END
+
+    SEL.CMD="SELECT ":FN.UM:" WITH USER.ID EQ ":Y.USER.ID
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORDS,RET.CODE)
+    REMOVE Y.UM.ID FROM SEL.LIST SETTING POS
+    CALL F.READ(FN.UM,Y.UM.ID,R.UM,F.UM,Y.UM.ERR)
+
+    Y.CELL.NO = R.UM<EB.USE61.MOBILE.NO>
+
+    IF Y.CELL.NO THEN
+        IF R.SMS THEN
+            SMS.COUNT = DCOUNT(R.SMS<EB.SMS7.SMS.EVENT>,@VM)
+
+            FOR J=1 TO SMS.COUNT
+                IF Y.EVENT.FLAG EQ 0 THEN
+                    Y.EVENT.ID = FIELD(R.SMS<EB.SMS7.SMS.EVENT>,@VM,J)
+                    IF Y.EVENT.ID EQ Y.REQUEST.FOR THEN
+                        GOSUB BUILD.MSG
+                        Y.EVENT.FLAG = 1
+                    END
+                END
+            NEXT
+            Y.TIME = EREPLACE(OCONV(TIME(), "MT"),":","-")
+            SMS.BUILD.FINAL = Y.USER.ID:"-":Y.TIME:"|":Y.CELL.NO:"|":SMS.BUILD:"|":"1":"|":Y.PRIORITY
+
+            IF SMS.BUILD THEN
+
+                SMS.FILE = SMS.DIR:'/':Y.CELL.NO:'-':Y.UM.ID:'-':J:V$FUNCTION:'-':Y.TIME:'.csv'
+                OPENSEQ SMS.FILE TO SMS.FILE.POINT ELSE
+                    CRT 'OPEN FAILED'
+                END
+                WRITESEQ SMS.BUILD.FINAL TO SMS.FILE.POINT ELSE
+                    CRT 'WRITE FAILED'
+                END
+                CLOSESEQ SMS.FILE.POINT
+
+            END
+        END
+    END
+
+
+    SMS.BUILD = ''
+
+    RETURN
+
+
+*----------
+BUILD.MSG:
+*----------
+
+    SMS.TXT.NO = DCOUNT(R.SMS<EB.SMS7.SMS.TEXT,J>,@SM)
+    FOR I=1 TO SMS.TXT.NO
+        SMS.TXT = FIELD(R.SMS<EB.SMS7.SMS.TEXT,J>,@SM,I)
+        SMS.FLD = FIELD(R.SMS<EB.SMS7.SMS.VARIABLE,J>,@SM,I)
+        IF SMS.FLD EQ '' THEN
+            SMS.BUILD:= SMS.TXT
+        END
+        ELSE
+            IF SMS.FLD EQ "K.USER" THEN
+                SMS.BUILD:= SMS.TXT:' ':Y.TELLER.ID:' '
+            END
+        END
+    NEXT
+    RETURN
+
+END

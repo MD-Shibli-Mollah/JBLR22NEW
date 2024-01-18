@@ -1,0 +1,61 @@
+*-----------------------------------------------------------------------------
+* <Rating>-1</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM FT.EXCISE.CHECK
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.COMPANY
+    $INSERT I_F.ACCOUNT
+
+    OPEN '','&SAVEDLISTS&' TO SAVEDLISTS ELSE
+        PRINT 'CANNOT OPEN &SAVEDLISTS&'
+    END
+    FN.FT = 'FBNK.FUNDS.TRANSFER'
+    FV.FT = ''
+    CALL OPF (FN.FT,FV.FT)
+
+    FN.ACC='FBNK.ACCOUNT'
+    FV.ACC = ''
+    CALL OPF(FN.ACC,FV.ACC)
+    ERR = ''
+    AC.ID = ''
+    SEL.CMD = "SELECT ":FN.FT
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+        Y.FT.ID = Y.ID
+        R.FT.REC = ''
+        ERR = ''
+        CALL F.READ(FN.FT, Y.FT.ID, R.FT.REC, FV.FT, ERR)
+        Y.CREDIT.ACC = R.FT.REC<FT.CREDIT.ACCT.NO>
+        Y.CO.CODE = R.FT.REC<FT.CO.CODE>
+        Y.DEBIT.ACC = R.FT.REC<FT.DEBIT.ACCT.NO>
+
+        Y.CREDIT.ACCOUNT = Y.CREDIT.ACC[13,4]
+
+        R.AC.REC = ''
+        ERR.AC = ''
+        CALL F.READ(FN.ACC,Y.DEBIT.ACC,R.AC.REC,FV.ACC, ERR.AC)
+
+        IF ERR.AC THEN
+            CONTINUE
+        END
+
+        Y.AC.CO.CODE = R.AC.REC<AC.CO.CODE>
+
+        IF Y.CO.CODE NE Y.AC.CO.CODE THEN
+            TEMP<-1> = Y.ID:"-->":Y.CO.CODE:" ":Y.DEBIT.ACC:"-->":Y.AC.CO.CODE
+        END
+
+
+
+    REPEAT
+
+    IF TEMP THEN
+        WRITE TEMP TO SAVEDLISTS, "FT.EXCISE.CORRECTION.CHECK"
+    END
+    RETURN
+END

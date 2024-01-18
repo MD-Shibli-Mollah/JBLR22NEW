@@ -1,0 +1,37 @@
+*-----------------------------------------------------------------------------
+* <Rating>80</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.EXP.COLMAT.DATE
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.DRAWINGS
+
+    Y.TENOR.DAYS = ""
+    Y.TENOR1 = ""
+    Y.DOCISS.DATE = ""
+    Y.MAT.DATE = ""
+
+    CALL GET.LOC.REF("DRAWINGS","DATE.OF.DOC.REC",Y.DR.ISSDT.POS)
+    CALL GET.LOC.REF("DRAWINGS","MATURITY.DATE",Y.DR.MATDT.POS)
+    Y.TENOR.DAYS = COMI
+    Y.ATSIGHT = "20"
+    Y.USANCE = (Y.TENOR.DAYS - 1)
+    Y.DOCISS.DATE = R.NEW(TF.DR.LOCAL.REF)<1,Y.DR.ISSDT.POS>
+    Y.MAT.DATE = R.NEW(TF.DR.LOCAL.REF)<1,Y.DR.MATDT.POS>
+
+    IF NOT(Y.TENOR.DAYS) THEN RETURN
+    IF Y.TENOR.DAYS EQ "AT SIGHT" THEN
+        Y.TENOR1 = "+":Y.ATSIGHT:"C"
+        IF R.NEW(TF.DR.LOCAL.REF)<1,Y.DR.MATDT.POS> EQ '' THEN
+            CALL CDT("",Y.DOCISS.DATE,Y.TENOR1)
+            R.NEW(TF.DR.LOCAL.REF)<1,Y.DR.MATDT.POS> = Y.DOCISS.DATE
+        END
+    END ELSE
+        Y.TENOR1 = "+":Y.USANCE:"C"
+        IF R.NEW(TF.DR.LOCAL.REF)<1,Y.DR.MATDT.POS> EQ '' THEN
+            CALL CDT("",Y.DOCISS.DATE,Y.TENOR1)
+            R.NEW(TF.DR.LOCAL.REF)<1,Y.DR.MATDT.POS> = Y.DOCISS.DATE
+        END
+    END
+    RETURN
+END

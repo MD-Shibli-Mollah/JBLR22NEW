@@ -1,0 +1,63 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-23</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VAL.BAN.COMM.DETAILS
+*-------------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This validation routine is attached to the versions LETTER.OF.CREDIT,BD.IMPSIGHT
+* LETTER.OF.CREDIT,BD.IMPUSANCE,LETTER.OF.CREDIT,BD.IMPSTDBY,LETTER.OF.CREDIT,BD.IMPMXPMT
+* for validating the commodity entered in the LC application against the
+* Banned Commodity File(BD.BANNED.COMM.ITEM.CODE)
+*-------------------------------------------------------------------------------
+* Modification History :
+* --------------------
+* 20110127 - New - Sabari.G
+*                  Thesys Technologies
+*-------------------------------------------------------------------------------
+* Common Variables :
+* ----------------
+*
+* Variable Name:         Insert File:             Description:
+* --------------         ------------             ------------
+* ETEXT                  I-COMMON                 Error Varable in the cross validations
+*-------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INCLUDE JBL.BP I_F.BD.BANNED.COMM.ITEM.CODE
+*-------------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB PROCESS
+    RETURN
+*--------------------------------------------------------------------------------
+INITIALISE:
+***********
+    FN.LETTER.OF.CREDIT = 'F.LETTER.OF.CREDIT'
+    F.LETTER.OF.CREDIT = ''
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+
+    FN.BD.BANNED.COMM.ITEM.CODE = 'F.BD.BANNED.COMM.ITEM.CODE'
+    F.BD.BANNED.COMM.ITEM.CODE = ''
+    CALL OPF(FN.BD.BANNED.COMM.ITEM.CODE,F.BD.BANNED.COMM.ITEM.CODE)
+
+    RETURN
+*--------------------------------------------------------------------------------
+PROCESS:
+********
+! Using COMI get the value entered by the user
+
+    Y.COMM.ITEM.CODE = COMI
+
+! Check the entered commodity against the BD.BANNED.COMM.ITEM.CODE file,if present
+! throw error
+
+    CALL F.READ(FN.BD.BANNED.COMM.ITEM.CODE,Y.COMM.ITEM.CODE,R.BD.BANNED.COMM.ITEM.CODE,F.BD.BANNED.COMM.ITEM.CODE,Y.ERR)
+    IF R.BD.BANNED.COMM.ITEM.CODE THEN
+        ETEXT = "EB-BAN.COMM.ITEM"
+        CALL STORE.END.ERROR
+    END
+    RETURN
+*--------------------------------------------------------------------------------
+END

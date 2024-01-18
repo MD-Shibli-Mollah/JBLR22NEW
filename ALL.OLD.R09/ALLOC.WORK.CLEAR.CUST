@@ -1,0 +1,219 @@
+*27-feb-2018
+*secondary customers interlinked to LIMIT.COL.ALLOC.WORK are also checked and corrected
+*-----------------------------------------------------------------------------
+* <Rating>558</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ALLOC.WORK.CLEAR.CUST
+*-----------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.DATES
+    $INSERT GLOBUS.BP I_SCREEN.VARIABLES
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.LIMIT
+    $INSERT GLOBUS.BP I_F.COLLATERAL.RIGHT
+    $INSERT GLOBUS.BP I_F.LIMIT.COL.ALLOC.WORK
+*-----------------------------------------------------------------------------
+*INITIALISE:
+*-----------------------------------------------------------------------------
+ *   EXECUTE "COMO ON ALLOC.WORK.CLEAR.CUST"
+    PRINT ""
+    PRINT "ENTERING INTO ALLOC.WORK.CLEAR.CUST ROUTINE"
+    PRINT "Running in company ":ID.COMPANY
+    PRINT "Date and Time is ":TIMEDATE()
+    PRINT ""
+
+    FN.LIMIT = "F.LIMIT"
+    FV.LIMIT = ""
+    PRINT "OPEN THE LIMIT FILE"
+    CALL OPF(FN.LIMIT,FV.LIMIT)
+    FN.COLLATERAL.RIGHT = "F.COLLATERAL.RIGHT"
+    FV.COLLATERAL.RIGHT = ""
+    PRINT "OPEN THE COLLATERAL.RIGHT FILE"
+    CALL OPF (FN.COLLATERAL.RIGHT,FV.COLLATERAL.RIGHT)
+    FN.ALLOC.WORK = "F.LIMIT.COL.ALLOC.WORK"
+    FV.ALLOC.WORK =''
+    PRINT "OPEN THE LIMIT.COL.ALLOC.WORK FILE"
+    CALL OPF(FN.ALLOC.WORK,FV.ALLOC.WORK)
+    SEL.CMD = ""
+    LIM.LIST = ""
+    COLL.LIST= ""
+    FN.LOCKING = "F.LOCKING"
+    FV.LOCKING = ""
+    ID.CUST=""
+    ID.COR=""
+    PRINT "OPEN THE F.LOCKING"
+    CALL OPF (FN.LOCKING,FV.LOCKING)
+    F.COLR.CUST=''
+    FN.COLR.CUST="F.COLLATERAL.RIGHT.CUST"
+    CALL OPF(FN.COLR.CUST,F.COLR.CUST)
+    PRINT "OPEN THE COLLATERAL.RIGHT.CUST FILE"
+    F.LI.COLR=''
+    FN.LI.COLR="F.LI.COLLATERAL.RIGHT"
+    CALL OPF(FN.LI.COLR,F.LI.COLR)
+    PRINT "OPEN THE LI.COLLATERAL.RIGHT FILE"
+
+
+
+*-----------------------------------------------------------------------------
+*PROCESSING LIMIT RECORDS
+*-----------------------------------------------------------------------------
+    R.CUST.ARRAY=''
+    UPDATED.R.CUST.ARR = ''
+    READLIST R.CUST.ARRAY FROM 'LI.COLL.CORRECT' ELSE
+        PRINT 'SAVEDLISTS LI.COLL.CORRECT MISSING'
+        STOP
+    END
+    NO.OF.CUSTS = DCOUNT(R.CUST.ARRAY,@FM)
+    FOR INIT = 1 TO NO.OF.CUSTS
+        ID.CUST = R.CUST.ARRAY<INIT>
+*    LOOP
+*        REMOVE ID.CUST FROM R.CUST.ARRAY SETTING POS
+*    WHILE ID.CUST:POS
+
+        ALLOC.LIST=''
+        FINAL.LIST=''; ALLOC.LIST1 = ''; ALLOC.LIST2 = ''; ALLOC.LIST3 = ''V
+        SEL.CMD1 = "SSELECT ":FN.ALLOC.WORK:" WITH LIMIT.ID LIKE ":ID.CUST:"...."
+        PRINT "EXECUTE THE SELECT :":SEL.CMD1
+        CALL EB.READLIST(SEL.CMD1,ALLOC.LIST1,'',CNT1,'')
+        SEL.CMD2 = "SSELECT ":FN.ALLOC.WORK:" WITH LIMIT.ID LIKE ....":ID.CUST
+        PRINT "EXECUTE THE SELECT :":SEL.CMD2
+        CALL EB.READLIST(SEL.CMD2,ALLOC.LIST2,'',CNT2,'')
+        SEL.CMD3 = "SSELECT ":FN.ALLOC.WORK:" WITH COLL.RIGHT LIKE ":ID.CUST:"...."
+        PRINT "EXECUTE THE SELECT :":SEL.CMD3
+        CALL EB.READLIST(SEL.CMD3,ALLOC.LIST3,'',CNT3,'')
+        IF ALLOC.LIST1 THEN
+            ALLOC.LIST<-1>=ALLOC.LIST1
+        END
+        IF ALLOC.LIST2 THEN
+            ALLOC.LIST<-1>=ALLOC.LIST2
+        END
+        IF ALLOC.LIST3 THEN
+            ALLOC.LIST<-1>=ALLOC.LIST3
+        END
+
+        TOT.CNT=CNT1+CNT2+CNT3
+
+        FOR I =1 TO TOT.CNT
+            AL.ID = ALLOC.LIST<I>
+            LOCATE AL.ID IN FINAL.LIST SETTING POS ELSE
+                FINAL.LIST<-1> = AL.ID
+            END
+        NEXT I
+
+        LOOP
+            REMOVE ALLOC.ID FROM FINAL.LIST SETTING POS
+        WHILE ALLOC.ID:POS
+            CALL F.READ(FN.ALLOC.WORK,ALLOC.ID,R.ALLOC,FV.ALLOC.WORK,ERR.ALLOC)
+            LIM.IDS=R.ALLOC<LI.ALOC.LIMIT.ID>
+            LOOP
+                REMOVE LIM.ID FROM LIM.IDS SETTING POS
+            WHILE LIM.ID:POS
+                PRINT " THE LIMIT.ID :":LIM.ID
+                LIM.CUST.ID = LIM.ID['.',1,1]
+                LOCATE LIM.CUST.ID IN R.CUST.ARRAY SETTING POS ELSE
+                    R.CUST.ARRAY<-1>=LIM.CUST.ID
+                    UPDATED.R.CUST.ARR = 1
+                    NO.OF.CUSTS = NO.OF.CUSTS + 1
+                END
+            REPEAT
+
+            PRINT "Deleting LIMIT.COL.ALLOC.WORK ":ALLOC.ID
+            DELETE FV.ALLOC.WORK,ALLOC.ID
+        REPEAT
+*        IF UPDATED.R.CUST.ARR THEN
+*            WRITELIST R.CUST.ARRAY TO 'LI.COLL.CORRECT'
+*        END
+
+
+        PRINT " THE COLLATERAL.RIGHT.CUST TO BE DELETED :":ID.CUST
+        DELETE F.COLR.CUST,ID.CUST
+
+        SEL.CMD = "SSELECT ":FN.LI.COLR:" WITH @ID LIKE ...":ID.CUST:"..."
+        PRINT "EXECUTE THE SELECT :":SEL.CMD
+        CALL EB.READLIST(SEL.CMD,LI.COLR.LIST,'','','')
+        LOOP
+            REMOVE ID.LI.COLR FROM LI.COLR.LIST SETTING POS
+        WHILE ID.LI.COLR:POS
+            PRINT " THE LI.COLLATERAL.RIGHT ID TO BE DELETED :":ID.LI.COLR
+            DELETE F.LI.COLR,ID.LI.COLR
+        REPEAT
+
+        SEL.CMD = "SSELECT ":FN.LIMIT:" WITH @ID LIKE ...":ID.CUST:"... AND FIXED.VARIABLE NE ''"
+        PRINT "EXECUTE THE SELECT :":SEL.CMD
+        CALL EB.READLIST(SEL.CMD,LIM.LIST,'','','')
+        LOOP
+            REMOVE ID.LIM FROM LIM.LIST SETTING POS
+        WHILE ID.LIM:POS
+            PRINT " THE LIMIT.ID :":ID.LIM
+            LIM.CUST.ID = ID.LIM['.',1,1]
+            IF LIM.CUST.ID NE ID.CUST THEN
+                PRINT "Skipping ":ID.LIM
+                CONTINUE      ;*Skip
+            END
+            LIM.ALLOC = ""
+            R.LIM = ""
+            ERR.LIM = ""
+            PRINT "READ THE LIMIT RECORD "
+            CALL F.READ(FN.LIMIT,ID.LIM,R.LIM,FV.LIMIT,ERR.LIM)
+            LIM.ALLOC = R.LIM<LI.ALLOC.WORK.ID>
+            IF LIM.ALLOC THEN
+                PRINT " THE ALLOC.WORK.ID IN THE LIMIT :":LIM.ALLOC
+                R.LIM<LI.ALLOC.WORK.ID> = DELETE(R.LIM<LI.ALLOC.WORK.ID>,1,0,0)
+                PRINT "DELETE THE ALLOC.WORK.ID FIELD FROM THE LIMIT AND WRITE THE RECORD."
+                CALL F.WRITE(FN.LIMIT,ID.LIM,R.LIM)
+                CALL JOURNAL.UPDATE (ID.LIM)
+            END
+        REPEAT
+*    REPEAT
+    NEXT INIT
+
+    IF UPDATED.R.CUST.ARR THEN
+        WRITELIST R.CUST.ARRAY TO 'LI.COLL.CORRECT'
+    END
+*-----------------------------------------------------------------------------
+*PROCESSING COLLATERAL.RIGHT RECORDS
+*-----------------------------------------------------------------------------
+
+    R.CORR = ''
+    READLIST R.CORR FROM 'LI.COLL.CORRECT' ELSE NULL
+
+    LOOP
+        REMOVE ID.COR FROM R.CORR SETTING POS
+    WHILE ID.COR:POS
+        SEL.CMD = "SSELECT ":FN.COLLATERAL.RIGHT:" WITH @ID LIKE ":ID.COR:"..."
+        PRINT "EXECTE THE SELECT :":SEL.CMD
+        CALL EB.READLIST(SEL.CMD,COLL.LIST,'','','')
+        LOOP
+            REMOVE ID.COL FROM COLL.LIST SETTING POS
+        WHILE ID.COL:POS
+            PRINT "THE COLLATERAL.RIGHT ID :":ID.COL
+            COLL.ALLOC = ""
+            R.COLL = ""
+            ERR.COLL = ""
+            COLR.CUST.ID = ID.COL['.',1,1]
+            IF COLR.CUST.ID NE ID.COR THEN
+                PRINT "Skipping ":ID.COL
+                CONTINUE      ;*Skip
+            END
+            PRINT "READ THE COLLATERAL.RIGHT RECORD "
+            CALL F.READ(FN.COLLATERAL.RIGHT,ID.COL,R.COLL,FV.COLLATERAL.RIGHT,ERR.COLL)
+            COLL.ALLOC = R.COLL<COLL.RIGHT.ALLOC.WORK.ID>
+            IF COLL.ALLOC THEN
+                PRINT "THE ALLOC.WORK.ID PRESENT IN THE COLLATERAL.RIGHT IS :":COLL.ALLOC
+                R.COLL<COLL.RIGHT.ALLOC.WORK.ID> = DELETE(R.COLL<COLL.RIGHT.ALLOC.WORK.ID>,1,0,0)
+                PRINT "DELETE THE ALLOC.WORK.ID FIELD FROM THE COLLATERAL.RIGHT AND WRITE THE RECORD."
+                CALL F.WRITE(FN.COLLATERAL.RIGHT,ID.COL,R.COLL)
+                CALL JOURNAL.UPDATE (ID.COL)
+            END
+        REPEAT
+    REPEAT
+
+    PRINT "Finished ALLOC.WORK.CLEAR.CUST"
+    PRINT "Date and Time is ":TIMEDATE()
+  *  EXECUTE "COMO OFF ALLOC.WORK.CLEAR.CUST"
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+*----------------------------------------------------------------------------- 

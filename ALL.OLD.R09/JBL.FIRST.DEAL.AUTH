@@ -1,0 +1,77 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.FIRST.DEAL.AUTH
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This for First Deal details storing to Live Template
+*
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 21/08/2013 - New - Manjunath Suvarna
+*                    Sepit SoftTech Pvt. Ltd.
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CURRENCY
+    $INSERT I_F.FOREX
+    $INSERT JBL.BP I_F.BD.FIRST.PAIR.DEAL.DETAILS
+*
+*
+*-----------------------------------------------------------------------------
+*
+    GOSUB INITIALISE
+    GOSUB PROCESS
+*
+    RETURN
+*
+*
+*-----------------------------------------------------------------------------
+INITIALISE:
+*
+    FN.FOREX = 'F.FOREX'
+    F.FOREX = ''
+*
+    FN.FIRST.PAIR = 'F.BD.FIRST.PAIR.DEAL.DETAILS'
+    F.FIRST.PAIR = ''
+*
+    CALL OPF(FN.FOREX,F.FOREX)
+    CALL OPF(FN.FIRST.PAIR,F.FIRST.PAIR)
+*
+    Y.APP = "FOREX"
+    Y.FLD = "DEALER.NO"
+    CALL MULTI.GET.LOC.REF(Y.APP, Y.FLD, Y.POS)
+    Y.DEALER.POS = Y.POS<1,1>
+*
+    RETURN
+*
+*
+*-----------------------------------------------------------------------------
+PROCESS:
+*
+    Y.STATUS = R.NEW(FX.RECORD.STATUS)
+    IF Y.STATUS EQ 'RNAU' THEN
+        Y.ID = ID.NEW:".":TODAY
+        CALL F.READ(FN.FIRST.PAIR,Y.ID,R.FIRST.PAIR,F.FIRST.PAIR,Y.ERR)
+        DELETE F.FIRST.PAIR,Y.ID
+    END ELSE
+        Y.CURR = R.NEW(FX.CURR.NO)
+        Y.ID = ID.NEW:".":TODAY
+        CALL F.READ(FN.FIRST.PAIR,Y.ID,R.FIRST.PAIR,F.FIRST.PAIR,Y.ERR)
+        R.FIRST.PAIR<BD.FPD.FIRST.DEAL.REF> = ID.NEW
+        R.FIRST.PAIR<BD.FPD.FIRST.DEAL.DATE> = TODAY
+        R.FIRST.PAIR<BD.FPD.FIRST.CURR.NO> = Y.CURR
+        R.FIRST.PAIR<BD.FPD.FIRST.DEALER.NO> = R.NEW(FX.LOCAL.REF)<1,Y.DEALER.POS>
+*
+        WRITE R.FIRST.PAIR TO F.FIRST.PAIR,Y.ID
+*
+    END
+*
+    RETURN
+*
+*
+*-----------------------------------------------------------------------------
+*
+END

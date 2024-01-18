@@ -1,0 +1,48 @@
+*-------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.INP.REGIS.UPD
+*-------------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This input routine is to update the LINKED.ID field in BD.LIM.LTR.REGISTER to
+* "YES"
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 07/03/2011 - New - G.Sabari
+*                    Thesys Technologies
+*-------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE JBL.BP I_F.BD.LIM.LTR.REGISTER
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-------------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.BD.LIM.LTR.REGISTER = 'F.BD.LIM.LTR.REGISTER'
+    F.BD.LIM.LTR.REGISTER = ''
+    CALL OPF(FN.BD.LIM.LTR.REGISTER,F.BD.LIM.LTR.REGISTER)
+    R.BD.LIM.LTR.REGISTER = ''
+
+    RETURN
+*-------------------------------------------------------------------------------
+PROCESS:
+********
+
+    CALL F.READ(FN.BD.LIM.LTR.REGISTER,ID.NEW,R.BD.LIM.LTR.REGISTER,F.BD.LIM.LTR.REGISTER,Y.BD.LIM.LTR.REG.ERR)
+    IF R.BD.LIM.LTR.REGISTER THEN
+        R.BD.LIM.LTR.REGISTER<BD.REG.LD.LINKED> = 'YES'
+        CALL F.WRITE(FN.BD.LIM.LTR.REGISTER,ID.NEW,R.BD.LIM.LTR.REGISTER)
+    END
+
+    RETURN
+*--------------------------------------------------------------------------------
+
+END

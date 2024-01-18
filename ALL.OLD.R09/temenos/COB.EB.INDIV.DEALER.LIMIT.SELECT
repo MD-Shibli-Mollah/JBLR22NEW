@@ -1,0 +1,18 @@
+
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE COB.EB.INDIV.DEALER.LIMIT.SELECT
+
+    $INSERT T24.BP I_COMMON
+    $INSERT T24.BP I_EQUATE
+    $INSERT T24.BP I_F.FOREX
+    $INSERT I_F.INDIV.DEALER.LIMIT
+    $INSERT I_F.OVE.DEALING.LIMIT
+    $INSERT I_COB.EB.INDIV.DEALER.LIMIT.COMMON
+
+    SEL.CMD="SELECT ":FN.INDIV.DEALER.LIMIT
+    CALL EB.READLIST(SEL.CMD,Y.LIST.ID,'',NO.OF.REC,RET.CODE)
+    CALL BATCH.BUILD.LIST('',Y.LIST.ID)
+    RETURN
+END

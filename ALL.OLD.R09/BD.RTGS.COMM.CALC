@@ -1,0 +1,61 @@
+****************************************************************************************
+*Developed By: Abu Huraira(Datasoft Systems)                                           *
+*This ruotine is used for charge calculation                                           *
+*Date:2016/01/12                                                                       *
+****************************************************************************************
+
+    SUBROUTINE BD.RTGS.COMM.CALC
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+
+    GOSUB INIT
+    GOSUB OPEN.FILE
+    GOSUB PROCESS
+
+INIT:
+
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FN = ''
+    RETURN
+
+OPEN.FILE:
+
+    CALL OPF(FN.FT,F.FN)
+    RETURN
+
+PROCESS:
+
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+!------------------------
+!IF R.NEW(FT.COMMISSION.CODE) EQ 'DEBIT PLUS CHARGES' AND R.NEW(FT.COMMISSION.TYPE) EQ '' THEN
+!ETEXT = "Charge Code Missing"
+!CALL STORE.END.ERROR
+!END ELSE
+!IF R.NEW(FT.COMMISSION.CODE) EQ 'CREDIT LESS CHARGES' AND R.NEW(FT.COMMISSION.TYPE) EQ '' THEN
+!ETEXT = "Charge Code Missing"
+!CALL STORE.END.ERROR
+!END ELSE
+!IF R.NEW(FT.COMMISSION.CODE) = 'WAIVE' THEN
+!R.NEW(FT.COMMISSION.TYPE) = ''
+!R.NEW(FT.COMMISSION.AMT)  = ''
+!END
+!END
+!END
+!------------------------
+        IF R.NEW(FT.COMMISSION.CODE) NE 'WAIVE' THEN
+            IF ((R.NEW(FT.COMMISSION.CODE) EQ '') OR (R.NEW(FT.COMMISSION.CODE) EQ 'CREDIT LESS CHARGES')) THEN
+                R.NEW(FT.COMMISSION.CODE) = 'DEBIT PLUS CHARGES'
+                R.NEW(FT.COMMISSION.TYPE) = 'RTOUTWCHG'
+            END ELSE
+                IF R.NEW(FT.COMMISSION.CODE) EQ 'DEBIT PLUS CHARGES' THEN
+                    R.NEW(FT.COMMISSION.TYPE) = 'RTOUTWCHG'
+                END
+            END
+        END ELSE
+            R.NEW(FT.COMMISSION.TYPE) = ''
+            R.NEW(FT.COMMISSION.AMT)  = ''
+        END
+    END
+    RETURN
+END

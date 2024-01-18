@@ -1,0 +1,45 @@
+*-----------------------------------------------------------------------------
+* <Rating>399</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE E.TF.TRN.REF
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.LETTER.OF.CREDIT
+    $INSERT I_F.DRAWINGS
+    TRN.REF=O.DATA
+    IF TRN.REF[1,2] NE 'TF' THEN RETURN
+    F.MNE=FIELD(TRN.REF,'\',2)
+!
+    BANK.REF.NO=3
+    LC.NO1=1
+    TRN.REF=FIELD(TRN.REF,'\',1)
+
+    IF LEN(TRN.REF) GT 12 THEN
+        FN.NAME='DRAWINGS'
+        LOCALREF=TF.DR.LOCAL.REF
+        LOCNAME="BANK.REF.NO"
+        LOCNAME1="LC.NO"
+    END ELSE
+        FN.NAME='LETTER.OF.CREDIT'
+        LOCALREF=TF.LC.LOCAL.REF
+        LOCNAME="ADVISE.REF.NO"
+    END
+!
+
+!
+    FN.NAME='F':F.MNE:'.':FN.NAME
+    CALL OPF(FN.NAME,F.NAME)
+!
+    READV TRANS.REF FROM F.NAME,TRN.REF,LOCALREF ELSE TRANS.REF=''
+    IF TRANS.REF THEN
+        CALL GET.LOC.REF(FN.NAME,LOCNAME1,LC.NO1)
+        CALL GET.LOC.REF(FN.NAME,LOCNAME,BANK.REF.NO)
+        IF TRANS.REF<1,LC.NO1> THEN O.DATA=TRANS.REF<1,LC.NO1>
+        IF TRANS.REF<1,BANK.REF.NO> THEN O.DATA=TRANS.REF<1,BANK.REF.NO>
+*        IF TRANS.REF<1,BANK.REF.NO> THEN O.DATA=TRANS.REF<1,LC.NO1>
+    END
+    CRT COMI
+    CRT O.DATA
+    RETURN
+END

@@ -1,0 +1,192 @@
+* Version 2 02/06/00  GLOBUS Release No. G14.0.00 03/07/03
+*-----------------------------------------------------------------------------
+* <Rating>190</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE AB.H.ASSET.CLASS.PARAM.CROSSVAL
+*----------------------------------------------------------------------------------------
+*
+*-----------------------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.AB.H.ASSET.CLASS.PARAM
+*-----------------------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB REPEAT.CHECK.FIELDS
+    GOSUB REAL.CROSSVAL
+    RETURN
+*-----------------------------------------------------------------------------------------
+REAL.CROSSVAL:
+*-------------
+* Real cross validation goes here....
+*
+* EN_10000101 -s
+
+
+
+    AF = IS.ASSET.CL.OPERAND
+    Y.CLASS.CNT = DCOUNT(R.NEW(IS.ASSET.CL.ASSET.CLASS),VM)
+    Y.CLASS.CTR = 1
+    LOOP
+    WHILE Y.CLASS.CTR LE Y.CLASS.CNT
+        Y.OP.CNT = DCOUNT(R.NEW(IS.ASSET.CL.OPERAND)<1,Y.CLASS.CTR>,SM)
+        IF R.NEW(IS.ASSET.CL.OPERAND)<1,Y.CLASS.CTR,Y.OP.CNT> NE '' THEN
+            AV = Y.CLASS.CTR
+            AS = Y.OP.CNT
+            ETEXT = "Value not allowed in last Sub value set"
+            CALL STORE.END.ERROR
+        END
+        IF Y.OP.CNT GT 1 THEN
+            Y.OP.CTR = Y.OP.CNT
+            LOOP
+            WHILE Y.OP.CTR NE 1
+                Y.CHK.CTR = Y.OP.CTR-1
+                IF R.NEW(IS.ASSET.CL.AMT.TYPE)<1,Y.CLASS.CTR,Y.OP.CTR> NE '' AND NOT(R.NEW(IS.ASSET.CL.OPERAND)<1,Y.CLASS.CTR,Y.CHK.CTR>) THEN
+                    AV = Y.CLASS.CTR
+                    AS = Y.CHK.CTR
+                    ETEXT = " Value Mandatory"
+                    CALL STORE.END.ERROR
+                END
+                Y.OP.CTR -= 1
+            REPEAT
+        END
+        Y.CLASS.CTR += 1
+    REPEAT
+
+    Y.WRITE.CNT = COUNT(R.NEW(IS.ASSET.CL.WRITE.OFF),VM) + 1
+    FOR Y.WRITE.COUNTER = 1 TO Y.WRITE.CNT
+        IF R.NEW(IS.ASSET.CL.WRITE.OFF)<1,Y.WRITE.COUNTER,1> EQ 'YES' THEN
+            PERC = R.NEW(IS.ASSET.CL.PROV.PERC)<1,Y.WRITE.COUNTER,1>
+            RESV.CATEG = R.NEW(IS.ASSET.CL.PROV.RESV.CATEG)<1,Y.WRITE.COUNTER,1>
+            EXP.CATEG = R.NEW(IS.ASSET.CL.PROV.EXP.CATEG)<1,Y.WRITE.COUNTER,1>
+            IF PERC THEN
+                AF = IS.ASSET.CL.PROV.PERC ; AV = Y.WRITE.COUNTER ; AS = 1
+                ETEXT = 'NOT ALLOWED WHEN WRITE.OFF SET TO "YES"'
+                CALL STORE.END.ERROR
+            END
+            IF RESV.CATEG THEN
+                AF = IS.ASSET.CL.PROV.RESV.CATEG ; AV = Y.WRITE.COUNTER ; AS = 1
+                ETEXT = 'NOT ALLOWED WHEN WRITE.OFF SET TO "YES"'
+                CALL STORE.END.ERROR
+            END
+            IF EXP.CATEG THEN
+                AF = IS.ASSET.CL.PROV.EXP.CATEG ; AV = Y.WRITE.COUNTER ; AS = 1
+                ETEXT = 'NOT ALLOWED WHEN WRITE.OFF SET TO "YES"'
+                CALL STORE.END.ERROR
+            END
+        END
+    NEXT Y.WRITE.COUNTER
+
+   Y.WI.CNT = COUNT(R.NEW(IS.ASSET.CL.WRITE.OFF),VM) + 1
+    FOR Y.WI.COUNTER = 1 TO Y.WI.CNT
+       IF R.NEW(IS.ASSET.CL.WRITE.OFF)<1,Y.WI.COUNTER,1> EQ R.NEW(IS.ASSET.CL.INCOME.RECOG)<1,Y.WI.COUNTER,1> THEN
+            AF = IS.ASSET.CL.WRITE.OFF ; AV = Y.WI.COUNTER ; AS = 1
+            ETEXT = 'WRITE.OFF NOT SAME AS INC.RECOG'
+            CALL STORE.END.ERROR
+        END
+    NEXT Y.WI.COUNTER
+
+
+    Y.MAIN.CNT = DCOUNT(R.NEW(IS.ASSET.CL.ASSET.CLASS),VM)
+    Y.MAIN.CTR = 1
+* Loop Through each of the Multi values of ASSET.CLASS
+    LOOP
+    WHILE (Y.MAIN.CTR LE Y.MAIN.CNT)
+        Y.SUB.COUNT = DCOUNT(R.NEW(IS.ASSET.CL.AMT.TYPE)<1,Y.MAIN.CTR>,SM)
+        Y.SUB.COUNTER = 1
+* Loop through each of the Subvalue of ASSET.CLASS(Decision , Operand etc...)
+        IF Y.SUB.COUNT GT 1 THEN
+            LOOP
+            WHILE (Y.SUB.COUNTER LE Y.SUB.COUNT)
+                Y.AMT.TYPE = R.NEW(IS.ASSET.CL.AMT.TYPE)<1,Y.MAIN.CTR,Y.SUB.COUNTER>
+                Y.SUB.COUNTER += 1
+                IF Y.AMT.TYPE EQ "ALL" THEN
+                    IF Y.AMT.TYPE NE R.NEW(IS.ASSET.CL.AMT.TYPE)<1,Y.MAIN.CTR,Y.SUB.COUNTER> THEN
+                        AF = IS.ASSET.CL.AMT.TYPE
+                        AV = Y.MAIN.CTR
+                        AS = Y.SUB.COUNT
+                        ETEXT = "IF AMT.TYPE IS ALL THEN OTHER AMT.TYPE NOT ALLOWED"
+                        CALL STORE.END.ERROR
+                    END
+                END ELSE
+                    IF R.NEW(IS.ASSET.CL.AMT.TYPE)<1,Y.MAIN.CTR,Y.SUB.COUNTER> EQ 'ALL' THEN
+                        AF = IS.ASSET.CL.AMT.TYPE
+                        AV = Y.MAIN.CTR
+                        AS = Y.SUB.COUNTER
+                        ETEXT = "IF AMT.TYPE IS ALL THEN OTHER AMT.TYPE NOT ALLOWED"
+                        CALL STORE.END.ERROR
+                    END
+                END
+            REPEAT  ;* Increment the Value of SM for ASSET.CLASS
+        END
+        Y.MAIN.CTR +=1
+    REPEAT          ;* Increment the Value of MV for ASSET.CLASS
+
+
+
+
+* CALL REBUILD.SCREEN
+*
+    RETURN
+*
+REPEAT.CHECK.FIELDS:
+*-------------------
+* Loop through each field and repeat the check field processing if there is any defined
+*
+    RETURN
+*-----------(Repeat.Check.Fields)
+*-----------------------------------------------------------------------------------------
+DO.CHECK.FIELD:
+*--------------
+** Repeat the check field validation - errors are returned in the variable E.
+*
+    COMI.ENRI = ""
+    BEGIN CASE
+    CASE AS
+        COMI = R.NEW(AF)<1,AV,AS>
+    CASE AV
+        COMI = R.NEW(AF)<1,AV>
+    CASE AF
+        COMI = R.NEW(AF)
+    END CASE
+*
+*      CALL XX.CHECK.FIELDS
+    IF E THEN
+        ETEXT = E
+        CALL STORE.END.ERROR
+    END ELSE
+        BEGIN CASE
+        CASE AS
+            R.NEW(AF)<1,AV,AS> = COMI
+            YENRI.FLD = AF:".":AV:".":AS ; YENRI = COMI.ENRI
+            GOSUB SET.UP.ENRI
+        CASE AV
+            R.NEW(AF)<1,AV> = COMI
+            YENRI.FLD = AF:".":AV ; YENRI = COMI.ENRI
+            GOSUB SET.UP.ENRI
+        CASE AF
+            R.NEW(AF) = COMI
+            YENRI.FLD = AF ; YENRI = COMI.ENRI
+            GOSUB SET.UP.ENRI
+        END CASE
+    END
+    RETURN
+*-----------(Do.Check.Field)
+*-----------------------------------------------------------------------------------------
+SET.UP.ENRI:
+*-----------
+    LOCATE YENRI.FLD IN T.FIELDNO<1> SETTING YPOS THEN
+        T.ENRI<YPOS> = YENRI
+    END
+    RETURN
+*-----------(Set.Up.Enri)
+*-----------------------------------------------------------------------------------------
+INITIALISE:
+*----------
+    E = ''
+    ER = ''
+    ETEXT = ''
+    CALL REBUILD.SCREEN
+    RETURN
+*-----------(Initialise)
+*-----------------------------------------------------------------------------------------
+END

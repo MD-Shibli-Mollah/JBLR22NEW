@@ -1,0 +1,65 @@
+*-----------------------------------------------------------------------------
+* <Rating>-5</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM TESTACCOUNT
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+*    $INSERT I_F.STMT.PRINTED
+    $INSERT I_F.STOCK.REGISTER
+
+    FN.CPY = 'F.COMPANY'
+    FV.CPY = ''
+    CALL OPF(FN.CPY,FV.CPY)
+    FN.LCK='F.LOCKING'
+    FV.LCK=''
+    CALL OPF(FN.LCK,FV.LCK)
+    FN.TS='F.TSA.STATUS'
+    FV.TS= ''
+    CALL OPF(FN.TS,FV.TS)
+
+    FN.ACCOUNT = 'F.ACCOUNT'
+    FV.ACCOUNT = ''
+    R.ACCOUNT = ''
+
+    FN.STMT = 'F.STMT.PRINTED'
+    FV.STM = ''
+    CALL OPF(FN.STMT,FV.STM)
+    Y.STMT.ID = '0100005137581-20150111'
+
+*FN.FT = 'F.FUNDS.TRANSFER'
+*FV.FT = ''
+*R.FT = ''
+    CALL OPF(FN.ACCOUNT, FV.ACCOUNT)
+*CALL OPF(FN.FT,FV.FT)
+*Y.FT.ID = 'FT14050N1SS5'
+    YACCT.ID = '0100002892191'
+*    R.CPY=''
+*R.STMT.REC = ''
+*    AGENT.NUMBER='2'
+*    READ R.TSA.STATUS FROM FV.TS, '2' THEN
+    CRT "391: TIME BEFORE READ :":FN.ACCOUNT:"  :":OCONV(TIME(), "MTS")
+
+*    SERVICE.NAME = 'COB'
+*    READ R.LOCKING FROM FV.LCK, SERVICE.NAME THEN ;* Set by 1ST job in batch
+
+CALL F.READU(FN.ACCOUNT, YACCT.ID, R.ACCOUNT, FV.ACCOUNT, YERR, '')
+*CALL F.READ(FN.CPY,'BD0010102',R.CPY,FV.CPY,YERR)
+    CALL F.READU(FN.STMT,Y.STMT.ID, R.STMT.REC,FV.STM, YERR1,'')
+
+    CRT "391: TIME AFTER READ :":FN.ACCOUNT:"  :":OCONV(TIME(), "MTS")
+
+*       END
+*    END
+*CALL F.READ(FN.FT,Y.FT.ID,R.FT,FV.FT,ERR1)
+
+*CRT "391: TIME BEFORE READU :":FN.FT:"  :":OCONV(TIME(), "MTS")
+
+*PRINT YERR
+*PRINT Y.FT.ID:ERR1
+*PRINT R.STMT.REC<1>
+*PRINT R.CPY<1>
+PRINT YACCT.ID
+
+    RETURN
+END

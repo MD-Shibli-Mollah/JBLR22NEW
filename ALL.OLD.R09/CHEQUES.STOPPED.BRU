@@ -1,0 +1,127 @@
+*-----------------------------------------------------------------------------
+* <Rating>528</Rating>
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+*Developed By: MD ROBIUL ISLAM
+*This routine provide the cheque stop payment branch wise and take as argument
+*Account.No, Category and Cheque Type
+*Published Date: 25 JULY 2016
+*-----------------------------------------------------------------------------
+    SUBROUTINE CHEQUES.STOPPED.BRU(Y.RETURN)
+!PROGRAM CHEQUES.STOPPED.BRU
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.POSTING.RESTRICT
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.PAYMENT.STOP
+    $INSERT GLOBUS.BP I_F.CHEQUES.STOPPED
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+    FN.AC.HIS = "F.ACCOUNT$HIS"
+    F.AC.HIS = ""
+
+    FN.PR = "F.POSTING.RESTRICT"
+    F.PR = ""
+    FN.PAY.STOP = "F.PAYMENT.STOP"
+    F.PAY.STOP = ""
+    FN.CHQ.STOP="F.CHEQUES.STOPPED"
+    F.CHQ.STOP=""
+    Y.THIS.COMPANY = ID.COMPANY
+    Y.ACC.NO=""
+    Y.CHQ.TYP=""
+    Y.CATEGORY=""
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.PR,F.PR)
+    CALL OPF(FN.PAY.STOP,F.PAY.STOP)
+    CALL OPF(FN.CHQ.STOP,F.CHQ.STOP)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    RETURN
+
+PROCESS:
+    LOCATE "ACC.NO" IN ENQ.SELECTION<2,1> SETTING PROD.POS THEN
+        Y.ACC.NO = ENQ.SELECTION<4,PROD.POS>
+    END
+
+    LOCATE "CATEGORY" IN ENQ.SELECTION<2,1> SETTING PROD.POS THEN
+        Y.CATEGORY = ENQ.SELECTION<4,PROD.POS>
+    END
+
+    LOCATE "CHQ.TYP" IN ENQ.SELECTION<2,1> SETTING PROD.POS THEN
+        Y.CHQ.TYP = ENQ.SELECTION<4,PROD.POS>
+    END
+
+    IF Y.ACC.NO NE ""  THEN
+        SEL.CMD = "SELECT ":FN.PAY.STOP:" WITH @ID EQ ":Y.ACC.NO :" AND CO.CODE EQ ":Y.THIS.COMPANY
+    END ELSE
+        SEL.CMD = "SELECT ":FN.PAY.STOP:" WITH CO.CODE EQ ":Y.THIS.COMPANY
+    END
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+
+        REMOVE Y.REC.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.REC.ID:Y.POS
+        SEL.CMD = "SELECT ":FN.CHQ.STOP:" WITH @ID LIKE ": Y.REC.ID :"..."
+        CALL EB.READLIST(SEL.CMD,SEL.LIST1,"",NO.OF.RECORD.CHQ,RET.CODE)
+
+        LOOP
+
+            REMOVE Y.REC.ID FROM SEL.LIST1 SETTING Y.POS
+        WHILE Y.REC.ID:Y.POS
+            CALL F.READ(FN.CHQ.STOP,Y.REC.ID,R.REF,F.CHQ.STOP,Y.ERR)
+            Y.CHQ.STP.CHQ.TYP = R.REF<CHQ.STP.CHQ.TYP>
+            Y.STOP.DATE       =R.REF<CHQ.STP.STOP.DATE>
+            Y.PAYM.STOP.TYPE  =R.REF<CHQ.STP.PAYM.STOP.TYPE>
+            Y.ACCOUNT=FIELD(Y.REC.ID,"*",1)
+            Y.CHQ.NO=FIELD(Y.REC.ID,"*",2)
+            Y.BEN   =R.REF<CHQ.STP.BENEFICIARY>
+
+            CALL F.READ(FN.AC,Y.ACCOUNT,R.AC.REC,F.AC,Y.ERR)
+            IF R.AC.REC EQ "" THEN
+                CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.ACCOUNT,R.AC.REC,Y.ERR)
+            END
+            Y.AC.TITLE = R.AC.REC<AC.ACCOUNT.TITLE.1>
+            Y.CATEGORY.ACC=R.AC.REC<AC.CATEGORY>
+
+            IF Y.CHQ.TYP NE "" AND Y.CHQ.TYP EQ Y.CHQ.STP.CHQ.TYP  THEN
+                IF Y.CATEGORY NE "" AND Y.CATEGORY.ACC EQ Y.CATEGORY THEN
+                    Y.RETURN<-1> =Y.CHQ.STP.CHQ.TYP:"\":Y.ACCOUNT:"\":Y.AC.TITLE:"\":Y.CHQ.NO:"\":Y.STOP.DATE:"\":Y.BEN:"\":Y.PAYM.STOP.TYPE:"\":Y.REC.ID
+                END
+                ELSE
+                    IF Y.CATEGORY EQ "" THEN
+                        Y.RETURN<-1> =Y.CHQ.STP.CHQ.TYP:"\":Y.ACCOUNT:"\":Y.AC.TITLE:"\":Y.CHQ.NO:"\":Y.STOP.DATE:"\":Y.BEN:"\":Y.PAYM.STOP.TYPE:"\":Y.REC.ID
+                    END
+                END
+            END
+            ELSE
+                IF Y.CHQ.TYP EQ "" THEN
+                    IF Y.CATEGORY NE "" AND Y.CATEGORY.ACC EQ Y.CATEGORY THEN
+                        Y.RETURN<-1> =Y.CHQ.STP.CHQ.TYP:"\":Y.ACCOUNT:"\":Y.AC.TITLE:"\":Y.CHQ.NO:"\":Y.STOP.DATE:"\":Y.BEN:"\":Y.PAYM.STOP.TYPE:"\":Y.REC.ID
+                    END
+                    ELSE
+                        IF Y.CATEGORY EQ "" THEN
+                            Y.RETURN<-1> =Y.CHQ.STP.CHQ.TYP:"\":Y.ACCOUNT:"\":Y.AC.TITLE:"\":Y.CHQ.NO:"\":Y.STOP.DATE:"\":Y.BEN:"\":Y.PAYM.STOP.TYPE:"\":Y.REC.ID
+                        END
+                    END
+                END
+            END
+        REPEAT
+    REPEAT
+    Y.RETURN = SORT(Y.RETURN)
+    RETURN
+END

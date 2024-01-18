@@ -1,0 +1,127 @@
+**************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>-53</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VAL.LC.AMT
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+! This validation routine attached to versions
+!
+! LETTER.OF.CREDIT,BD.IMPSIGHT
+! LETTER.OF.CREDIT,BD.IMPUSANCE
+! LETTER.OF.CREDIT,BD.IMPSTDBY
+! LETTER.OF.CREDIT,BD.IMPMXPMT
+! and used for validating the amount entered in LC application
+! against the parameter file (LC.PARAMETERS)
+*-------------------------------------------------------------------------
+*Parameter Description : Not Applicable
+*--------- -----------
+*
+* <parameter description if used>
+*
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+*Variable name:   Insert file:          Description:
+* TODAY            I_COMMON              Will hold Todays date used for
+*                                        writing in flat file
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:     Description:
+*
+* MULTI.GET.LOC.REF          Core           This core routine is used to get the
+*                                           positions of the local ref fields.
+*
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 27/01/2011 -                   New             - Shiva Shankar G
+*                                                 Thesys Technologies
+* 11/4/2011  -                   Amended         - NaveenKumar N
+*                                                 Thesys Technologies 
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INCLUDE GLOBUS.BP I_F.LC.PARAMETERS
+    $INCLUDE GLOBUS.BP I_F.CURRENCY
+    $INSERT GLOBUS.BP I_F.COMPANY
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*--------------------------------------------------------------------------
+INITIALISE:
+*----------
+    FN.LETTER.OF.CREDIT = 'F.LETTER.OF.CREDIT'
+    F.LETTER.OF.CREDIT = ''
+    R.LETTER.OF.CREDIT = ''
+    Y.LETTER.OF.CREDIT.ERR = ''
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+
+    FN.LC.PARAMETERS = 'F.LC.PARAMETERS'
+    F.LC.PARAMETERS = ''
+    R.LC.PARAMETERS = ''
+    Y.LC.PARAMETERS.ERR = ''
+    CALL OPF(FN.LC.PARAMETERS,F.LC.PARAMETERS)
+
+    FN.CURRENCY = 'F.CURRENCY'
+    F.CURRENCY = ''
+    CALL OPF(FN.CURRENCY,F.CURRENCY)
+
+    APPLN.NAME = 'LETTER.OF.CREDIT':FM:'LC.PARAMETERS'
+    FLD.LIST = 'CIB.STATUS':FM:'CIB.AMOUNT'
+    FLD.POS = ''
+
+    RETURN
+*--------------------------------------------------------------------------------
+PROCESS:
+*=======
+! By using MULTI.GET.LOC.REF, get the positions of local reference fields from the core
+! application LETTER.OF.CREDIT and LC.PARAMETERS
+
+    CALL MULTI.GET.LOC.REF(APPLN.NAME,FLD.LIST,FLD.POS)
+
+    Y.CIB.STAT.POS = FLD.POS<1,1>
+    Y.CIB.AMT.POS = FLD.POS<2,1>
+
+*CALL F.READ(FN.LETTER.OF.CREDIT,ID.NEW,R.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT,Y.LETTER.OF.CREDIT.ERR)
+
+    Y.CIB.STATUS = R.NEW(TF.LC.LOCAL.REF)<1,Y.CIB.STAT.POS>
+
+    Y.LC.AMOUNT  = COMI
+
+! Check for the status if the status is set as NO then continue the loop else return
+
+    IF Y.CIB.STATUS EQ 'NO' OR Y.CIB.STATUS EQ '' THEN
+        GOSUB CHECK.LC.PARAM.AMT
+    END
+    RETURN
+*---------------------------------------------------------------------------------------------------------------
+CHECK.LC.PARAM.AMT:
+*------------------
+    Y.LD.PARAM.ID = R.COMPANY(EB.COM.FINANCIAL.COM)
+    CALL F.READ(FN.LC.PARAMETERS,Y.LD.PARAM.ID,R.LC.PARAMETERS,F.LC.PARAMETERS,Y.LC.PARAMETERS.ERR)
+    Y.CIB.AMOUNT = R.LC.PARAMETERS<LC.PARA.LOCAL.REF,Y.CIB.AMT.POS>
+
+    IF R.NEW(TF.LC.LC.CURRENCY) NE LCCY THEN
+        Y.LC.CURRENCY = R.NEW(TF.LC.LC.CURRENCY)
+        Y.TO.CCY = LCCY
+        CALL EB.CURR.CONV(Y.LC.CURRENCY,Y.LC.AMOUNT,Y.TO.CCY,Y.TO.AMT)
+        Y.LC.AMOUNT = Y.TO.AMT
+    END
+    IF Y.CIB.AMOUNT LT Y.LC.AMOUNT THEN
+        AF    = TF.LC.LC.AMOUNT
+        ETEXT = 'EB-EXCEED.CIB.LMT'
+        CALL STORE.END.ERROR
+    END
+    RETURN
+*-------------------------------------------------------------------------------------------
+END

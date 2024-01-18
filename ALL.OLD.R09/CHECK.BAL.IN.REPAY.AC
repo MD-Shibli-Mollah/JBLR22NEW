@@ -1,0 +1,55 @@
+*-----------------------------------------------------------------------------
+* <Rating>90</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE CHECK.BAL.IN.REPAY.AC
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.AZ.ACCOUNT
+    $INSERT I_F.ACCOUNT
+!DEBUG
+    IF APPLICATION NE 'AZ.ACCOUNT' THEN RETURN
+    ETEXT = ''
+    IF R.NEW(AZ.REPAY.ACCOUNT) NE '' THEN
+        POS = 1
+        Y.OVERRIDE.VAL = R.NEW(V-9)
+        Y.OVRRD.NO = DCOUNT(Y.OVERRIDE.VAL,VM)
+
+        CRT Y.OVRRD.NO
+        FOR I = 1 TO Y.OVRRD.NO
+            Y.OVRRD.DETLS = FIELD(Y.OVERRIDE.VAL,VM,I)
+            Y.OVRRD.ID = FIELD(Y.OVRRD.DETLS,'}',1)
+            IF (Y.OVRRD.ID = 'ACCT.UNAUTH.OD') THEN
+                AF = I
+                ETEXT = 'Insufficient Balance on ':R.NEW(AZ.REPAY.ACCOUNT)
+                CALL STORE.END.ERROR
+            END
+        NEXT I
+
+!FN.AC = 'F.ACCOUNT'
+!F.AC = ''
+!R.AC = ''
+!Y.REPAY.AC.BAL = 0
+!CALL OPF(FN.AC,F.AC)
+!Y.REPAY.AC = R.NEW(AZ.REPAY.ACCOUNT)
+!Y.PRINCIPLE = R.NEW(AZ.PRINCIPAL)
+!CALL F.READ(FN.AC,Y.REPAY.AC,R.AC,F.AC,ERR)
+!IF R.AC THEN
+!   Y.REPAY.AC.BAL = R.AC<AC.WORKING.BALANCE>
+!  IF Y.REPAY.AC.BAL LT Y.PRINCIPLE THEN
+!     ETEXT = 'Balance of A/c No: ':Y.REPAY.AC :' is ':Y.REPAY.AC.BAL
+! END
+!   END
+!    ELSE
+!       ETEXT = 'Debit Account Not found'
+!  END
+    END
+    ELSE
+        ETEXT = 'Debit Account Mandatory'
+        CALL STORE.END.ERROR
+    END
+!  IF ETEXT NE '' THEN
+!     CALL STORE.END.ERROR
+!END
+
+END

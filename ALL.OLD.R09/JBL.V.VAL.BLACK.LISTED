@@ -1,0 +1,59 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>80</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VAL.BLACK.LISTED
+*-------------------------------------------------------------------------------
+* This routine is to check and throws the error when Blaclisted id is provided
+* in LC.EXPIRY.PLACE.
+*-------------------------------------------------------------------------------
+* Modification History :
+* --------------------
+* 20110127 - New - Naveen Kumar N
+*-------------------------------------------------------------------------------
+* Common Variables :
+* ----------------
+* R.NEW - Holds the current record values
+* ETEXT - Error Varable in the cross validations
+* AF    - Current Field number at the field validation
+* AV    - Current Value number at the field validation
+* AS    - Current SUB value number at the field validation
+* COMI  - Holds the current inputted field value and used at field validation
+*-------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INCLUDE GLOBUS.BP I_F.COUNTRY
+*-------------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+    RETURN
+*--------------------------------------------------------------------------------
+INIT:
+*****
+    FN.BD.BLACKLIST.COUNTRY  = "F.BD.BLACKLIST.COUNTRY"           ; FN.COUNTRY = "F.COUNTRY"
+    F.BD.BLACKLIST.COUNTRY   = ""                                 ; F.COUNTRY  = ""
+    R.BD.BLACKLIST.COUNTRY   = ""                                 ; R.COUNTRY  = ""
+    E.BD.BLACKLIST.COUNTRY   = ""                                 ; E.COUNTRY  = ""
+    CALL OPF(FN.BD.BLACKLIST.COUNTRY,F.BD.BLACKLIST.COUNTRY)      ; CALL OPF(FN.COUNTRY,F.COUNTRY)
+    RETURN
+*--------------------------------------------------------------------------------
+PROCESS:
+********
+    IF MESSAGE EQ "VAL" THEN RETURN
+    Y.COUNTRY       = COMI
+    CALL CACHE.READ(FN.BD.BLACKLIST.COUNTRY,"SYSTEM",R.BD.BLACKLIST.COUNTRY,E.BD.BLACKLIST.COUNTRY)
+
+    LOCATE Y.COUNTRY IN R.BD.BLACKLIST.COUNTRY<1,1> SETTING COUNTRY.POS THEN
+        AF          = TF.LC.EXPIRY.PLACE
+        ETEXT       = "EB-BLACKLISTED.COUNTRY"
+        CALL STORE.END.ERROR
+    END
+*
+    CALL F.READ(FN.COUNTRY,COMI,R.COUNTRY,F.COUNTRY,E.COUNTRY)
+    IF R.COUNTRY THEN
+        COMI.ENRI = R.COUNTRY<EB.COU.COUNTRY.NAME>
+    END
+    RETURN
+*---------------------------------------------------------------------------------
+END

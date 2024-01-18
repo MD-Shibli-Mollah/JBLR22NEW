@@ -1,0 +1,38 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.PD.CAPTURE.RTN
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.PD.CAPTURE
+    $INSERT I_F.ACCOUNT
+
+!-------------------------------------------------------------------------------!
+!This Subroutine is used to populate the LIMIT.PROD                             !
+!during PD.CAPTURE based on the settlement account.                             !
+!-------------------------------------------------------------------------------!
+    FN.PD.CAP='F.PD.CAPTURE'
+    F.PD.CAP=''
+
+    FN.AC='F.ACCOUNT'
+    F.AC=''
+    Y.AC.ID=''
+    REC.AC=''
+
+    Y.LIMIT.PROD.POS=''
+    Y.LIMT.PROD="LIMIT.PROD"
+
+    CALL GET.LOC.REF("ACCOUNT",Y.LIMT.PROD,Y.LIMIT.PROD.POS)
+
+    CALL OPF(FN.PD.CAP,F.PD.CAP)
+    CALL OPF(FN.AC,F.AC)
+
+    Y.AC.ID=R.NEW(PD.CAP.SETTLEMENT.ACCT)<1,1>
+    CALL F.READ(FN.AC,Y.AC.ID,REC.AC,F.AC,ERR.AC)
+
+    R.NEW(PD.CAP.PD.LOC.REF.NO)<1,1>=1
+    R.NEW(PD.CAP.PD.LOC.REF.DATA)<1,1>=REC.AC<AC.LOCAL.REF,Y.LIMIT.PROD.POS>
+
+    RETURN
+
+END

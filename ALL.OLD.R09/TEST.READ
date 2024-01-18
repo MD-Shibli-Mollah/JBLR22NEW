@@ -1,0 +1,47 @@
+*-----------------------------------------------------------------------------
+* <Rating>-33</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM TEST.READ
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.STOCK.ENTRY
+
+    GOSUB OPEN
+    GOSUB READ
+    RETURN
+
+OPEN:
+    FN.STOCK.ENTRY = "F.STOCK.ENTRY"
+    F.STOCK.ENTRY = ""
+    CALL OPF(FN.STOCK.ENTRY,F.STOCK.ENTRY)
+
+    FN.SECTOR = "FBNK.CUSTOMER"
+    F.SECTOR = ""
+    CALL OPF(FN.SECTOR,F.SECTOR)
+    RETURN
+
+READ:
+    REC.ID = "SE1200108789"
+
+    GOSUB MILLI.SEC
+    CRT " START TIME = " : TIME.IN.MIL.SEC
+    CALL F.READ(FN.STOCK.ENTRY, REC.ID, R.STOCK.ENTRY, F.STOCK.ENTRY, STOCK.ERR)
+*    CALL F.READ(FN.SECTOR,REC.ID,R.SECTOR,F.SECTOR,SEC.ERR)
+    CRT " DISPLAY THE RECORD  :" :R.STOCK.ENTRY
+
+*    CRT " DISPLAY THE RECORD  :" :R.SECTOR
+    GOSUB MILLI.SEC
+    CRT " END TIME   = ": TIME.IN.MIL.SEC
+    RETURN
+
+MILLI.SEC:
+    F.SEQ = ''
+    ms = SYSTEM(12)
+    timenow = TIME()
+    MIL.SEC = INT(MOD(ms,1000))
+    MIL.SEC=FMT(MIL.SEC,"R%3")
+    TIME.IN.MIL.SEC = OCONV(timenow,'MTS'):':':MIL.SEC
+*    CRT TIME.IN.MIL.SEC
+    RETURN
+END

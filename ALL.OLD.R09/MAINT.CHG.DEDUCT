@@ -1,0 +1,140 @@
+*-----------------------------------------------------------------------------
+* <Rating>166</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MAINT.CHG.DEDUCT(Y.RETURN)
+!PROGRAM MAINT.CHG.DEDUCT
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.AC = 'F.ACCOUNT'; F.AC = ''
+    FN.AC.HIS = 'F.ACCOUNT$HIS'; F.AC.HIS = ''
+    FN.FT = 'F.FUNDS.TRANSFER'; F.FT = ''
+    FN.FT.HIS = 'F.FUNDS.TRANSFER$HIS'; F.FT.HIS = ''
+
+    LOCATE "START.DATE" IN ENQ.SELECTION<2,1> SETTING START.DATE.POS THEN
+        Y.START.DATE = ENQ.SELECTION<4,START.DATE.POS>
+    END
+    LOCATE "END.DATE" IN ENQ.SELECTION<2,1> SETTING END.DATE.POS THEN
+        Y.END.DATE = ENQ.SELECTION<4,END.DATE.POS>
+    END
+    LOCATE "CATEGORY" IN ENQ.SELECTION<2,1> SETTING CATEGORY.POS THEN
+        Y.CATEGORY = ENQ.SELECTION<4,CATEGORY.POS>
+    END
+
+    Y.NO.DAYS = 'C'
+    Y.DAYS = '+1C'
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    RETURN
+
+PROCESS:
+
+******************************************
+!list all dates between begin and end date
+******************************************
+    IF Y.START.DATE GT Y.END.DATE THEN
+        RETURN
+    END ELSE
+        CALL CDD ('', Y.START.DATE, Y.END.DATE, Y.NO.DAYS)
+        Y.BEGIN.DT = Y.START.DATE
+        FOR I = 1 TO Y.NO.DAYS + 1
+            CALL JULDATE(Y.BEGIN.DT,JULIAN.DATE)
+            Y.DATE.LIST<-1> = 'FT':JULIAN.DATE[3,5]:'...'
+            CALL CDT('', Y.BEGIN.DT, Y.DAYS)
+        NEXT
+    END
+    FT.ID.CNT = DCOUNT(Y.DATE.LIST,FM)
+
+********************************
+!select FT Record from live file
+********************************
+    SEL.CMD.FT = "SELECT ":FN.FT:" WITH ("
+    FOR I = 1 TO FT.ID.CNT
+        IF I = 1 THEN
+            SEL.CMD.FT := "@ID LIKE ":Y.DATE.LIST<I>
+        END ELSE
+            SEL.CMD.FT := " OR @ID LIKE ":Y.DATE.LIST<I>
+        END
+    NEXT
+    SEL.CMD.FT := ") AND CO.CODE EQ ":ID.COMPANY
+
+******************************
+!select FT Record from History
+******************************
+    SEL.CMD.FT.HIS = "SELECT ":FN.FT.HIS:" WITH ("
+    FOR I = 1 TO FT.ID.CNT
+        IF I = 1 THEN
+            SEL.CMD.FT.HIS := "@ID LIKE ":Y.DATE.LIST<I>
+        END ELSE
+            SEL.CMD.FT.HIS := " OR @ID LIKE ":Y.DATE.LIST<I>
+        END
+    NEXT
+    SEL.CMD.FT.HIS := ") AND CO.CODE EQ ":ID.COMPANY
+
+    CALL EB.READLIST(SEL.CMD.FT,SEL.LIST.FT,"",NO.OF.RECORD.FT,FT.RET.CODE)
+    CALL EB.READLIST(SEL.CMD.FT.HIS,SEL.LIST.FT.H,"",NO.OF.RECORD.FT.H,FT.H.RET.CODE)
+
+****************************************
+!read FT record from both history & live
+****************************************
+    IF NO.OF.RECORD.FT NE '0' THEN
+        FOR I = 1 TO NO.OF.RECORD.FT
+            Y.FT.ID = SEL.LIST.FT<I>
+            CALL F.READ(FN.FT,Y.FT.ID,FT.REC,F.FT,Y.FT.ERR)
+            IF FT.REC<FT.TRANSACTION.TYPE> EQ 'ACHY' THEN
+                Y.DR.AC = FT.REC<FT.DEBIT.ACCT.NO>
+                CALL F.READ(FN.AC,Y.DR.AC,R.AC.REC,F.AC,Y.AC.ERR)
+                IF NOT(R.AC.REC) THEN
+                    CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.DR.AC,R.AC.REC,Y.AC.HIS.ERR)
+                END
+                Y.CATEG = R.AC.REC<AC.CATEGORY>
+                IF Y.CATEG EQ Y.CATEGORY THEN
+                    Y.AC.TITLE = R.AC.REC<AC.ACCOUNT.TITLE.1>:R.AC.REC<AC.ACCOUNT.TITLE.2>
+                    Y.BALANCE.DATE = FT.REC<FT.DEBIT.VALUE.DATE>
+                    Y.DR.AMT = FT.REC<FT.DEBIT.AMOUNT>
+                    CALL EB.GET.ACCT.BALANCE(Y.DR.AC,Y.ACCT.REC,Y.BALANCE.TYPE,Y.BALANCE.DATE,Y.SYSTEM.DATE,Y.BALANCE,Y.CREDIT.MVMT,Y.DEBIT.MVMT,Y.ERR.MSG)
+                    Y.RETURN<-1> = Y.CATEG:"*":Y.DR.AC:"*":Y.AC.TITLE:"*":Y.DR.AMT:"*":Y.BALANCE
+                END
+            END
+        NEXT
+    END
+    IF NO.OF.RECORD.FT.H NE '0' THEN
+        FOR I = 1 TO NO.OF.RECORD.FT.H
+            Y.FT.ID = FIELD(SEL.LIST.FT.H<I>,";",1)
+            CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.FT.ID,FT.REC,Y.FT.ERR)
+            IF FT.REC<FT.TRANSACTION.TYPE> EQ 'ACHY' THEN
+                Y.DR.AC = FT.REC<FT.DEBIT.ACCT.NO>
+                CALL F.READ(FN.AC,Y.DR.AC,R.AC.REC,F.AC,Y.AC.ERR)
+                IF NOT(R.AC.REC) THEN
+                    CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.DR.AC,R.AC.REC,Y.AC.HIS.ERR)
+                END
+                Y.CATEG = R.AC.REC<AC.CATEGORY>
+                IF Y.CATEG EQ Y.CATEGORY THEN
+                    Y.AC.TITLE = R.AC.REC<AC.ACCOUNT.TITLE.1>:R.AC.REC<AC.ACCOUNT.TITLE.2>
+                    Y.BALANCE.DATE = FT.REC<FT.DEBIT.VALUE.DATE>
+                    Y.DR.AMT = FT.REC<FT.DEBIT.AMOUNT>
+                    CALL EB.GET.ACCT.BALANCE(Y.DR.AC,Y.ACCT.REC,Y.BALANCE.TYPE,Y.BALANCE.DATE,Y.SYSTEM.DATE,Y.BALANCE,Y.CREDIT.MVMT,Y.DEBIT.MVMT,Y.ERR.MSG)
+                    Y.RETURN<-1> = Y.CATEG:"*":Y.DR.AC:"*":Y.AC.TITLE:"*":Y.DR.AMT:"*":Y.BALANCE
+                END
+            END
+        NEXT
+    END
+    RETURN
+END

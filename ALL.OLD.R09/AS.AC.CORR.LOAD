@@ -1,0 +1,29 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE AS.AC.CORR.LOAD
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.ACCOUNT.STATEMENT
+
+    COMMON/CHK/FN.ACC,F.ACC
+    COMMON/CHK/FN.AS,F.AS
+    COMMON/CHK/FN.ACL,F.ACL
+
+    FN.ACC = 'F.ACCOUNT'
+    F.ACC = ''
+    CALL OPF(FN.ACC,F.ACC)
+
+    FN.AS = 'F.ACCOUNT.STATEMENT'
+    F.AS = ''
+    CALL OPF(FN.AS,F.AS)
+
+    FN.ACL = 'F.ACCOUNT.CLOSURE'
+    F.ACL = ''
+    CALL OPF(FN.ACL,F.ACL)
+
+    RETURN
+
+END

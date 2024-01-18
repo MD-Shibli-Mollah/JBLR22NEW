@@ -1,0 +1,69 @@
+*-----------------------------------------------------------------------------
+* <Rating>-61</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.H.INSTRUMENT.FIELD.DEFINITIONS
+*-------------------------------------------------------------------------
+*
+*-------------------------------------------------------------------------
+* Modification History :
+*-------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT       ;* Other Inserts required for Checkfiles, e
+    $INSERT I_F.CUSTOMER
+    $INSERT I_F.SEC.ACC.MASTER
+*-------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB DEFINE.FIELDS
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+DEFINE.FIELDS:
+    ID.F = "@ID" ; ID.N = "16" ; ID.T = "COM"
+*
+    Z=0
+    Z+=1 ; F(Z) = "DISCRIPTION" ; N(Z) = "35" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "PO.ACCOUNT" ; N(Z) = "16.1.C" ; T(Z) = "ACC"
+    CHECKFILE(Z) = "ACCOUNT" : FM : AC.ACCOUNT.TITLE.1
+    Z+=1 ; F(Z) = "DD.ACCOUNT" ; N(Z) = "16.1.C" ; T(Z) = "ACC"
+    CHECKFILE(Z) = "ACCOUNT" : FM : AC.ACCOUNT.TITLE.1
+    Z+=1 ; F(Z) = "SDR.ACCOUNT" ; N(Z) = "16.1.C" ; T(Z) = "ACC"
+    CHECKFILE(Z) = "ACCOUNT" : FM : AC.ACCOUNT.TITLE.1
+    Z+=1 ; F(Z) = "PS.ACCOUNT" ; N(Z) = "16.1.C" ; T(Z) = "ACC"
+    CHECKFILE(Z) = "ACCOUNT" : FM : AC.ACCOUNT.TITLE.1
+    Z+=1 ; F(Z) = "TT.ACCOUNT" ; N(Z) = "16.1.C" ; T(Z) = "ACC"
+    CHECKFILE(Z) = "ACCOUNT" : FM : AC.ACCOUNT.TITLE.1
+    Z+=1 ; F(Z) = "SUNDRY.ASST" ; N(Z) = "20.1.C" ; T(Z) = "A"
+    CHECKFILE(Z) = "ACCOUNT" : FM : AC.ACCOUNT.TITLE.1
+
+    Z+=1 ; F(Z) = "RESERVED6" ; N(Z) = "10" ; T(Z) = "A" ; T(Z)<3> = "NOINPUT"
+    Z+=1 ; F(Z) = "RESERVED5" ; N(Z) = "10" ; T(Z) = "A" ; T(Z)<3> = "NOINPUT"
+    Z+=1 ; F(Z) = "RESERVED4" ; N(Z) = "10" ; T(Z) = "A" ; T(Z)<3> = "NOINPUT"
+    Z+=1 ; F(Z) = "RESERVED3" ; N(Z) = "10" ; T(Z) = "A" ; T(Z)<3> = "NOINPUT"
+    Z+=1 ; F(Z) = "RESERVED2" ; N(Z) = "10" ; T(Z) = "A" ; T(Z)<3> = "NOINPUT"
+    Z+=1 ; F(Z) = "RESERVED1" ; N(Z) = "10" ; T(Z) = "A" ; T(Z)<3> = "NOINPUT"
+*
+
+
+    V = Z + 9
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+INITIALISE:
+    MAT F = "" ; MAT N = "" ; MAT T = ""
+    MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+    ID.CHECKFILE = "" ; ID.CONCATFILE = ""
+*
+* Define often used checkfile variables
+*
+    CHK.ACCOUNT = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+    CHK.CUSTOMER = "CUSTOMER":FM:EB.CUS.SHORT.NAME:FM:'.A'
+    CHK.CUSTOMER.SECURITY = "CUSTOMER.SECURITY":FM:0:FM:'':FM:"CUSTOMER"
+    CHK.SAM = "SEC.ACC.MASTER":FM:SC.SAM.ACCOUNT.NAME:FM:'..S'
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+END

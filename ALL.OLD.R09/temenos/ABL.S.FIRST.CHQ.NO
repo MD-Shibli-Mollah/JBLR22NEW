@@ -1,0 +1,115 @@
+*-----------------------------------------------------------------------------
+* <Rating>-43</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.FIRST.CHQ.NO
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CHEQUE.ISSUE
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.TELLER
+    $INSERT I_F.PR.H.INSTRUMENT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+INIT:
+    FN.CHQ.ISSUE = 'F.CHEQUE.ISSUE'
+    F.CHQ.ISSUE = ''
+
+    FN.INSTRUMENT = 'F.PR.H.INSTRUMENT'
+    F.INSTRUMENT = ''
+
+    Y.CHQ.TYPE = ''
+    Y.CHQ.ACC = ''
+    REC.INSTRUMENT = ''
+    Y.CHQ.ISSUE.ID = ''
+    REC.CHQ.ISSUE = ''
+    Y.FIRST.CHQ.NO = ''
+    Y.CUR.CHQ.NO = ''
+
+    Y.CURR.CHQ = 'CURR.CHQ.NO'
+    Y.CURR.CHQ.POS = ''
+    CALL GET.LOC.REF("CHEQUE.ISSUE",Y.CURR.CHQ,Y.CURR.CHQ.POS)
+
+    Y.END.CHQ='CHQ.END.NO'
+    Y.END.CHQ.POS = ''
+    CALL GET.LOC.REF("CHEQUE.ISSUE",Y.END.CHQ,Y.END.CHQ.POS)
+
+    Y.LOC.INST ='PR.CHEQUE.NO'
+    Y.LOC.INST.POS = ''
+
+    CALL GET.LOC.REF(APPLICATION,Y.LOC.INST,Y.LOC.INST.POS)
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.CHQ.ISSUE,F.CHQ.ISSUE)
+    CALL OPF(FN.INSTRUMENT,F.INSTRUMENT)
+
+    RETURN
+
+PROCESS:
+
+    CALL F.READ(FN.INSTRUMENT,ID.COMPANY,REC.INSTRUMENT,F.INSTRUMENT,ERR.INSTR)
+
+    IF ERR.INSTR NE '' THEN
+*        ETEXT ="Setup Instrument payable account at company level"
+*        CALL STORE.END.ERROR
+        E = "Setup Instrument payable account at company level"
+        CALL ERR
+        RETURN
+    END
+
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        Y.CHQ.TYPE = R.NEW(FT.CHEQ.TYPE)
+    END
+
+    ELSE
+        Y.CHQ.TYPE = R.NEW(TT.TE.CHEQ.TYPE)
+    END
+
+    BEGIN CASE
+
+    CASE   Y.CHQ.TYPE EQ 'PO'
+        Y.CHQ.ACC = REC.INSTRUMENT<INS.PO.ACCOUNT>
+    CASE   Y.CHQ.TYPE EQ 'PS'
+        Y.CHQ.ACC = REC.INSTRUMENT<INS.PS.ACCOUNT>
+    CASE   Y.CHQ.TYPE EQ 'SDR'
+        Y.CHQ.ACC = REC.INSTRUMENT<INS.SDR.ACCOUNT>
+    CASE   Y.CHQ.TYPE EQ 'DD'
+        Y.CHQ.ACC = REC.INSTRUMENT<INS.DD.ACCOUNT>
+    CASE 1
+    END CASE
+
+    SEL.CMD.CHQ = "SELECT ":FN.CHQ.ISSUE:" WITH @ID LIKE '":Y.CHQ.TYPE:"...' AND ACCOUNT.NO EQ ":Y.CHQ.ACC:" AND CHQ.TYPE EQ '":Y.CHQ.TYPE:"' BY-DSND SEQ.NO "
+
+    CALL EB.READLIST(SEL.CMD.CHQ,SEL.LIST.CHQ,'',NO.OF.REC,RET.CHQ)
+    REMOVE Y.CHQ.ISSUE.ID FROM SEL.LIST.CHQ SETTING POS.CHQ.REG
+
+    CALL F.READ(FN.CHQ.ISSUE,Y.CHQ.ISSUE.ID,REC.CHQ.ISSUE,F.CHQ.ISSUE,ERR.CHQ.ISSUE)
+    Y.FIRST.CHQ.NO = REC.CHQ.ISSUE<CHEQUE.IS.LOCAL.REF,Y.CURR.CHQ.POS>
+    Y.CUR.CHQ.NO = REC.CHQ.ISSUE<CHEQUE.IS.LOCAL.REF,Y.END.CHQ.POS>
+
+    IF Y.FIRST.CHQ.NO EQ '' THEN
+        E="Need to issue the instrument first"
+        CALL ERR
+        RETURN
+    END
+    ELSE
+        IF Y.FIRST.CHQ.NO EQ Y.CUR.CHQ.NO THEN
+            E="Need to issue the instrument first"
+            CALL ERR
+        END
+        ELSE
+            R.NEW(LOCAL.REF.FIELD)<1,Y.LOC.INST.POS> = REC.CHQ.ISSUE<CHEQUE.IS.LOCAL.REF,Y.CURR.CHQ.POS>
+        END
+
+
+    END
+
+    RETURN
+END

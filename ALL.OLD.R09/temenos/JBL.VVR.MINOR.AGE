@@ -1,0 +1,28 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.VVR.MINOR.AGE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    FN.CUSTOMER = 'F.CUSTOMER'
+    F.CUSTOMER = ''
+    CALL OPF(FN.CUSTOMER,F.CUSTOMER)
+    Y.CUS.ID = R.NEW(AC.CUSTOMER)
+    CALL F.READ(FN.CUSTOMER,Y.CUS.ID,Y.CUS.REC,F.CUSTOMER,CUS.ERR)
+    Y.CUS.DOB = Y.CUS.REC<EB.CUS.DATE.OF.BIRTH>
+    Y.CUS.FULL.NAME = Y.CUS.REC<EB.CUS.NAME.1>
+    R.NEW(AC.ACCOUNT.TITLE.1) = Y.CUS.FULL.NAME
+    CALL CDD('',Y.CUS.DOB,TODAY,DAYS)
+    Y.AGE = DAYS/365
+    IF Y.AGE GT 18 THEN
+        AF = 1
+        ETEXT = "SORRY GREATER THAN 18 YRS NOT FOR THE MINOR ACCOUNT"
+       CALL STORE.END.ERROR
+    END
+
+
+    RETURN
+END

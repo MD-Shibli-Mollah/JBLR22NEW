@@ -1,0 +1,58 @@
+*-----------------------------------------------------------------------------
+* <Rating>-21</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM CORRECT.PTA
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_PM.ACTIVITY.ONITE.COMMON
+    $INSERT I_F.PM.TRAN.ACTIVITY
+
+    EXECUTE "COMO ON CORRECT.PTA"
+    GOSUB INITIALISE
+    GOSUB MAINPARA
+
+    EXECUTE "COMO OFF CORRECT.PTA"
+
+    RETURN
+
+INITIALISE:
+***********
+
+    FN.PM.TRAN.ACTIVITY = 'F.PM.TRAN.ACTIVITY'
+    FV.PM.TRAN.ACTIVITY = ''
+    CALL OPF(FN.PM.TRAN.ACTIVITY,FV.PM.TRAN.ACTIVITY)
+    RETURN
+
+
+
+MAINPARA:
+**************
+
+   
+    SEL.CMD = 'GET.LIST PROBLEM.ENTRY'
+    NO.OF.REC="" ; R.AC.STMT=""
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.REC,RET.CODE)
+    LOOP
+        REMOVE PROB.ID FROM SEL.LIST SETTING POS1
+    WHILE PROB.ID:POS1
+
+
+        CALL F.READ(FN.PM.TRAN.ACTIVITY,PROB.ID,R.PM.TRAN.ACTIVITY,FV.PM.TRAN.ACTIVITY,YERR)
+
+
+        IF NOT(YERR) THEN
+            PRINT "PM.TRAN.ACTIVITY IS IN LIVE ":PROB.ID
+            R.PM.TRAN.ACTIVITY<PM.APPLICATION> = "PD.PAYMENT.DUE"
+            WRITE R.PM.TRAN.ACTIVITY TO FV.PM.TRAN.ACTIVITY,PROB.ID
+        END ELSE
+
+            PRINT "The problematic contract is not present in LIVE ":PROB.ID
+
+        END
+
+    REPEAT
+    RETURN
+
+STOP
+
+END

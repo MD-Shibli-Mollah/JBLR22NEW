@@ -1,0 +1,195 @@
+    SUBROUTINE SDSA.BK.WRITE.MCD
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT BP I_F.JBL.H.BK.MCD
+    $INSERT BP I_F.BD.BREAKUP
+!DEBUG
+    IF V$FUNCTION NE 'A' THEN RETURN
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.FT = 'F.JBL.H.BK.MCD'
+    F.FT = ''
+    FN.CAT = 'F.CATEGORY'
+    F.CAT = ''
+    FN.SDSA = 'F.BD.BREAKUP'
+    F.SDSA = ''
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.CAT,F.CAT)
+    CALL OPF(FN.SDSA,F.SDSA)
+    RETURN
+
+PROCESS:
+    Y.ADJ.BR.CODE = ID.COMPANY[6,4]
+    Y.DR.AC = R.NEW(MCD.BK.DEBIT.ACCT.NO)
+    Y.CR.AC = R.NEW(MCD.BK.CREDIT.ACCT.NO)
+    Y.DR.REF = R.NEW(MCD.BK.DR.REF.NO)
+    Y.CR.REF = R.NEW(MCD.BK.CR.REF.NO)
+    Y.DR.AMT = R.NEW(MCD.BK.DEBIT.AMOUNT)
+    Y.CR.AMT = R.NEW(MCD.BK.CREDIT.AMOUNT)
+    Y.DR.FT = R.NEW(MCD.BK.DR.FT.REF)
+    Y.CR.FT = R.NEW(MCD.BK.CR.FT.REF)
+    Y.REC.STS = R.NEW(MCD.BK.RECORD.STATUS)
+    FOR I = 1 TO DCOUNT(Y.DR.AC,@VM)
+        Y.REF.NO = ''
+        Y.FT.TT = ''
+        Y.DATE = TIMEDATE()
+        Y.DATE = LEFT(Y.DATE,8)
+        Y.DATE = EREPLACE (Y.DATE,":","")
+        Y.DATE = FIELD(R.NEW(MCD.BK.DEBIT.VALUE.DATE),@VM,1):Y.DATE
+        Y.AC = FIELD(Y.DR.AC,@VM,I)
+        Y.REF.NO = FIELD(Y.DR.REF,@VM,I)
+        Y.AL=''
+        IF LEFT(Y.AC,3) EQ "BDT" THEN
+            Y.CATEGORY=RIGHT(LEFT(Y.AC,8),5)
+            CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.ERR)
+            CALL GET.LOC.REF('CATEGORY','A.L',Y.AL.POS)
+            Y.AL=R.CAT<EB.CAT.LOCAL.REF,Y.AL.POS>
+            IF RIGHT(Y.AC,4) NE RIGHT(ID.COMPANY,4) THEN RETURN
+        END
+        ELSE IF LEFT(Y.AC,2) EQ "PL" THEN
+            Y.CATEGORY=RIGHT(Y.AC,5)
+            CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.ERR)
+            CALL GET.LOC.REF('CATEGORY','A.L',Y.AL.POS)
+            Y.AL=R.CAT<EB.CAT.LOCAL.REF,Y.AL.POS>
+            IF Y.AL EQ "" THEN
+                IF LEFT(Y.AC,3) EQ "PL5" THEN
+                    Y.AL="L"
+                END
+
+                IF LEFT(Y.AC,3) EQ "PL6" THEN
+                    Y.AL="A"
+                END
+            END
+        END
+        Y.DR.CR = 'DR'
+        Y.FT.TT = FIELD(Y.DR.FT,@VM,I)
+        Y.CCY = 'BDT'
+        Y.AMT = FIELD(Y.DR.AMT,@VM,I)
+        IF Y.DR.CR EQ 'DR' AND Y.AL EQ 'A' THEN
+            Y.ORG.ADJ = 'ORG'
+        END
+        IF Y.DR.CR EQ 'CR' AND Y.AL EQ 'A' THEN
+            Y.ORG.ADJ = 'ADJ'
+        END
+        IF Y.DR.CR EQ 'DR' AND Y.AL EQ 'L' THEN
+            Y.ORG.ADJ = 'ADJ'
+        END
+        IF Y.DR.CR EQ 'CR' AND Y.AL EQ 'L' THEN
+            Y.ORG.ADJ = 'ORG'
+        END
+        Y.SDSA.ID = Y.AC:'*':Y.REF.NO:'*':Y.DATE:'*':Y.ADJ.BR.CODE:'*':Y.AL:'*':Y.DR.CR:'*':Y.FT.TT:'*':Y.CCY:'*':Y.AMT:'*':Y.ORG.ADJ
+!                     1          2           3              4           5           6          7          8         9           10
+        Y.REF.NAME = FIELD(R.NEW(MCD.BK.DR.PAYEE.NAME),@VM,I)
+        Y.REF.DETAILS = FIELD(R.NEW(MCD.BK.DR.PAYMENT.DETAILS),@VM,I)
+        Y.INPUTTER = FIELD(R.NEW(MCD.BK.INPUTTER),@VM,1)
+        Y.DATE.TIME = FIELD(R.NEW(MCD.BK.DATE.TIME),@VM,1)
+        IF Y.AL NE '' AND Y.REF.NO NE '' AND Y.FT.TT NE '' THEN
+            GOSUB WRITE.DATA
+        END
+    NEXT I
+    FOR I = 1 TO DCOUNT(Y.CR.AC,@VM)
+        Y.REF.NO = ''
+        Y.FT.TT = ''
+        Y.DATE = TIMEDATE()
+        Y.DATE = LEFT(Y.DATE,8)
+        Y.DATE = EREPLACE (Y.DATE,":","")
+        Y.DATE = FIELD(R.NEW(MCD.BK.CREDIT.VALUE.DATE),@VM,1):Y.DATE
+        Y.AC = FIELD(Y.CR.AC,@VM,I)
+        Y.REF.NO = FIELD(Y.CR.REF,@VM,I)
+        Y.AL=''
+        IF LEFT(Y.AC,3) EQ "BDT" THEN
+            Y.CATEGORY=RIGHT(LEFT(Y.AC,8),5)
+            CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.ERR)
+            CALL GET.LOC.REF('CATEGORY','A.L',Y.AL.POS)
+            Y.AL=R.CAT<EB.CAT.LOCAL.REF,Y.AL.POS>
+            IF RIGHT(Y.AC,4) NE RIGHT(ID.COMPANY,4) THEN RETURN
+        END
+        ELSE IF LEFT(Y.AC,2) EQ "PL" THEN
+            Y.CATEGORY=RIGHT(Y.AC,5)
+            CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.ERR)
+            CALL GET.LOC.REF('CATEGORY','A.L',Y.AL.POS)
+            Y.AL=R.CAT<EB.CAT.LOCAL.REF,Y.AL.POS>
+            IF Y.AL EQ "" THEN
+                IF LEFT(Y.AC,3) EQ "PL5" THEN
+                    Y.AL="L"
+                END
+
+                IF LEFT(Y.AC,3) EQ "PL6" THEN
+                    Y.AL="A"
+                END
+            END
+        END
+        Y.DR.CR = 'CR'
+        Y.FT.TT = FIELD(Y.CR.FT,@VM,I)
+        Y.CCY = 'BDT'
+        Y.AMT = FIELD(Y.CR.AMT,@VM,I)
+        IF Y.DR.CR EQ 'DR' AND Y.AL EQ 'A' THEN
+            Y.ORG.ADJ = 'ORG'
+        END
+        IF Y.DR.CR EQ 'CR' AND Y.AL EQ 'A' THEN
+            Y.ORG.ADJ = 'ADJ'
+        END
+        IF Y.DR.CR EQ 'DR' AND Y.AL EQ 'L' THEN
+            Y.ORG.ADJ = 'ADJ'
+        END
+        IF Y.DR.CR EQ 'CR' AND Y.AL EQ 'L' THEN
+            Y.ORG.ADJ = 'ORG'
+        END
+        Y.SDSA.ID = Y.AC:'*':Y.REF.NO:'*':Y.DATE:'*':Y.ADJ.BR.CODE:'*':Y.AL:'*':Y.DR.CR:'*':Y.FT.TT:'*':Y.CCY:'*':Y.AMT:'*':Y.ORG.ADJ
+!                     1          2           3              4           5           6          7          8         9           10
+        Y.REF.NAME = FIELD(R.NEW(MCD.BK.CR.PAYEE.NAME),@VM,I)
+        Y.REF.DETAILS = FIELD(R.NEW(MCD.BK.CR.PAYMENT.DETAILS),@VM,I)
+        Y.INPUTTER = FIELD(R.NEW(MCD.BK.INPUTTER),@VM,1)
+        Y.DATE.TIME = FIELD(R.NEW(MCD.BK.DATE.TIME),@VM,1)
+        IF Y.AL NE '' AND Y.REF.NO NE '' AND Y.FT.TT NE '' THEN
+            GOSUB WRITE.DATA
+        END
+    NEXT I
+    RETURN
+
+WRITE.DATA:
+    IF Y.REC.STS EQ 'RNAU' THEN
+        Y.REV.AC = FIELDS(Y.SDSA.ID,'*',1)
+        Y.REV.REF = FIELDS(Y.SDSA.ID,'*',2)
+        Y.REV.BR = FIELDS(Y.SDSA.ID,'*',4)
+        Y.REV.AL = FIELDS(Y.SDSA.ID,'*',5)
+        Y.REV.DC = FIELDS(Y.SDSA.ID,'*',6)
+        Y.REV.FT = FIELDS(Y.SDSA.ID,'*',7)
+        Y.REV.CCY = FIELDS(Y.SDSA.ID,'*',8)
+        Y.REV.AMT = FIELDS(Y.SDSA.ID,'*',9)
+        Y.REV.OA = FIELDS(Y.SDSA.ID,'*',10)
+        SEL.CMD = 'SELECT ':FN.SDSA:' WITH @ID LIKE ':Y.REV.AC:'*...'
+        CALL EB.READLIST(SEL.CMD, SEL.LIST, F.SDSA, NO.OF.REC, RET.CODE)
+        FOR J = 1 TO NO.OF.REC
+            IF FIELD(SEL.LIST<J>,'*',2) EQ Y.REV.REF AND  FIELD(SEL.LIST<J>,'*',7) EQ Y.REV.FT AND DCOUNT(SEL.LIST<J>,'*') EQ 10 THEN
+                CALL F.READ(FN.SDSA,SEL.LIST<J>,R.REV.DETAILS,F.SDSA,ERR.REV.DETAILS)
+                Y.REV.DATE = FIELD(SEL.LIST<J>,'*',3)
+                Y.SDSA.ID = Y.REV.AC:'*':Y.REV.REF:'*':Y.REV.DATE:'*':Y.REV.BR:'*':Y.REV.AL:'*':Y.REV.DC:'*':Y.REV.FT:'*':Y.REV.CCY:'*':Y.REV.AMT:'*':Y.REV.OA:'*':'REV'
+!                               1            2             3              4           5            6             7             8            9           10          11
+                J = NO.OF.REC
+            END
+        NEXT J
+    END
+    CALL F.READ(FN.SDSA,Y.SDSA.ID,R.SDSA,F.SDSA,ERRR)
+    R.SDSA=''
+    R.SDSA<BD.BK.REF.NAME> = Y.REF.NAME
+    R.SDSA<BD.BK.REF.DETAILS> = Y.REF.DETAILS
+    R.SDSA<BD.BK.JBL.BK.ID> = ID.NEW
+    R.SDSA<BD.BK.CURR.NO> += 1
+    R.SDSA<BD.BK.INPUTTER> = Y.INPUTTER
+    R.SDSA<BD.BK.DATE.TIME> = Y.DATE.TIME
+    R.SDSA<BD.BK.AUTHORISER> = OPERATOR
+    R.SDSA<BD.BK.CO.CODE> = ID.COMPANY
+    WRITE R.SDSA TO F.SDSA,Y.SDSA.ID
+    RETURN
+END

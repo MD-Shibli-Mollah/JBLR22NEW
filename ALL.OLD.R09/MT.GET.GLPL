@@ -1,0 +1,120 @@
+*-----------------------------------------------------------------------------
+* <Rating>1160</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.GET.GLPL(Y.RCCORD.ID)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_F.HOLD.CONTROL
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.CATEGORY
+
+    $INSERT JBL.BP/REPGEN MT.GET.GLPL.VARS
+
+    FOR H = 1 TO 2
+
+        IF H EQ 1 THEN
+            REPORTNAME = 'CRF.JBGL'
+        END
+        ELSE
+            REPORTNAME = 'CRF.JBPL'
+        END
+
+        SEL.CMD='SELECT ':FN.HC:' WITH REPORT.NAME EQ ':REPORTNAME:' AND COMPANY.ID EQ ':Y.RCCORD.ID:' AND BANK.DATE EQ ':Y.BANKDATE
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+        Y.HC.ID = ''
+        Y.FLAG.LINE = 0
+
+        IF SEL.LIST NE '' THEN
+
+            FOR J=1 TO DCOUNT(SEL.LIST,@FM)
+                Y.HC.ID = FIELD(SEL.LIST,@FM,J)
+                CALL F.READ(FN.HC,Y.HC.ID,R.HC,F.HC,ERR.CODE.HC)
+
+                Y.REPORT.NAME = R.HC<HCF.REPORT.NAME>
+                Y.DATE.CREATED = R.HC<HCF.DATE.CREATED>
+                Y.BANK.DATE = R.HC<HCF.BANK.DATE>
+                Y.TIME.CREATED = R.HC<HCF.TIME.CREATED>
+                Y.COMPANY.ID = R.HC<HCF.COMPANY.ID>
+                Y.COUNTER = 1
+                Y.PATH = "/t24appsvr/jbllivetest/bnk/bnk.data/eb/&HOLD&/":Y.HC.ID
+                OPENSEQ Y.PATH TO F.FILE.VAR THEN
+                    LOOP
+                        READSEQ DATA.VALUES FROM F.FILE.VAR ELSE EOF = 1
+                    WHILE NOT(EOF)
+                        Y.CONSOL = TRIM(SUBSTRINGS(DATA.VALUES,0,74))
+                        Y.BALANCE = EREPLACE(TRIM(SUBSTRINGS(DATA.VALUES,75,50)),",","")
+                        Y.AC = SUBSTRINGS(Y.CONSOL,0,2)
+
+                        Y.REPORT.LINE = TRIM(SUBSTRINGS(DATA.VALUES,0,4))
+                        Y.COA.DESC = TRIM(SUBSTRINGS(DATA.VALUES,16,50))
+
+                        IF REPORTNAME EQ 'CRF.JBPL' AND (Y.REPORT.LINE EQ '6520' OR Y.REPORT.LINE EQ '1205') AND Y.FLAG.LINE EQ 0 THEN
+
+                            Y.DATA.LINE = REPORTNAME:'|':Y.HC.ID:'|':Y.REPORT.LINE:'|':Y.DATE.CREATED:'|':Y.BANK.DATE:'|':'':'|':'':'|':'':'|':Y.BALANCE:'|':TODAY:'|':Y.COMPANY.ID:'|':Y.COA.DESC:'|':''
+
+                            WRITESEQ Y.DATA.LINE APPEND TO F.FILE.DIR ELSE NULL
+
+                            Y.FLAG.LINE = 1
+
+                        END
+                        ELSE
+
+                            LOCATE Y.AC IN Y.LINE.CODE.ARRAY SETTING LINE.CODE.POS THEN
+
+                                Y.FLAG = 1
+
+                                IF Y.AC EQ 'PL' THEN
+                                    Y.CAT.CODE = EREPLACE(SUBSTRINGS(Y.CONSOL,4,5),".","")
+                                    CALL F.READ(FN.CAT,Y.CAT.CODE,R.CAT,F.CAT,ERR.CODE.CAT)
+                                    Y.CAT.DESC = R.CAT<EB.CAT.DESCRIPTION>
+                                    Y.CAT.CODE = EREPLACE(SUBSTRINGS(Y.CONSOL,1,8),".","")
+                                END
+                                ELSE
+                                    Y.CAT.CODE = EREPLACE(SUBSTRINGS(Y.CONSOL,13,5),".","")
+                                    CALL F.READ(FN.CAT,Y.CAT.CODE,R.CAT,F.CAT,ERR.CODE.CAT)
+                                    Y.CAT.DESC = R.CAT<EB.CAT.DESCRIPTION>
+                                    Y.CAT.CODE = EREPLACE(SUBSTRINGS(Y.CONSOL,9,9),".","")
+                                END
+
+                                Y.DATA<-1>= REPORTNAME:'|':Y.HC.ID:'|':'LINE':'|':Y.DATE.CREATED:'|':Y.BANK.DATE:'|':Y.CONSOL:'|':Y.CAT.CODE:'|':'COACODE':'|':Y.BALANCE:'|':TODAY:'|':Y.COMPANY.ID:'|':'COADESC':'|':Y.CAT.DESC
+
+                            END
+                            ELSE
+                                Y.COA.CODE = TRIM(SUBSTRINGS(DATA.VALUES,5,11))
+                                Y.COA.DESC = TRIM(SUBSTRINGS(DATA.VALUES,16,50))
+                                Y.LINE.BALANCE = EREPLACE(TRIM(SUBSTRINGS(DATA.VALUES,75,50)),",","")
+                                IF NUM(Y.LINE.BALANCE) AND LEN(Y.REPORT.LINE) EQ 4 THEN
+                                    IF Y.FLAG EQ 1 THEN
+                                        Y.DATA1 = EREPLACE(Y.DATA,'LINE',Y.REPORT.LINE)
+                                        Y.DATA2 = EREPLACE(Y.DATA1,'COACODE',Y.COA.CODE)
+                                        Y.DATA3 = EREPLACE(Y.DATA2,'COADESC',Y.COA.DESC)
+
+                                        FOR K=1 TO DCOUNT(Y.DATA3,@FM)
+                                            WRITESEQ FIELD(Y.DATA3,@FM,K) APPEND TO F.FILE.DIR ELSE NULL
+                                        NEXT K
+
+                                        Y.DATA = ''
+                                        Y.FLAG = 0
+                                    END
+                                END
+                            END
+                        END
+
+                        Y.COUNTER++
+                    REPEAT
+                    EOF = 0
+                END
+                ELSE
+                    ETEXT =  "File not found : ": Y.HC.ID
+                    CALL STORE.END.ERROR
+                    RETURN
+                END
+            NEXT J
+        END
+    NEXT H
+    RETURN
+END

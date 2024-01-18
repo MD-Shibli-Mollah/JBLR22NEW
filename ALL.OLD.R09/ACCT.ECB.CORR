@@ -1,0 +1,74 @@
+*-----------------------------------------------------------------------------
+* <Rating>-21</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ACCT.ECB.CORR
+
+* This subroutine corrects the CO.CODE in EB.CONTRACT.BALANCES,
+*if it  doesn't matches with the CO.CODE in the Acccount record.
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.EB.CONTRACT.BALANCES
+
+
+    EXECUTE "COMO ON ACCT.ECB.CORR"
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    EXECUTE "COMO OFF ACCT.ECB.CORR"
+    RETURN
+
+OPENFILES:
+
+    FN.ACC ="F.ACCOUNT"
+    FV.ACC =""
+    CALL OPF(FN.ACC,FV.ACC)
+
+    FN.ECB ="F.EB.CONTRACT.BALANCES"
+    FV.ECB =""
+    CALL OPF(FN.ECB,FV.ECB)
+
+    RETURN
+
+PROCESS:
+
+    R.ACC="";R.ECB="";SEL.LIST="";ACC.ID=''
+
+    SEL.CMD = 'GET.LIST AC.LIST'
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.REC,ERR)
+
+    LOOP
+
+        REMOVE ACC.ID FROM SEL.LIST SETTING POS
+
+    WHILE ACC.ID:POS
+        PRINT "Processing Account : ":ACC.ID
+        READ R.ACC FROM FV.ACC,ACC.ID ELSE
+            PRINT "ACCOUNT RECORD NOT FOUND : ":ACC.ID
+            CONTINUE
+        END
+
+        READU R.ECB FROM FV.ECB,ACC.ID ELSE
+            PRINT "ECB Record not found : ":ACC.ID
+            RELEASE FV.ECB,ACC.ID
+            CONTINUE
+        END
+
+        IF R.ACC AND R.ECB THEN
+            ACC.COM.CODE = R.ACC<AC.CO.CODE>
+            ECB.COM.CODE = R.ECB<ECB.CO.CODE>
+
+            IF ACC.COM.CODE NE ECB.COM.CODE THEN
+
+                R.ECB<ECB.CO.CODE> = ACC.COM.CODE
+                PRINT "Correcting CO.CODE : ":ECB.COM.CODE:": with :":ACC.COM.CODE:": for ECB :":ACC.ID
+                WRITE R.ECB TO FV.ECB,ACC.ID
+
+            END
+        END
+        RELEASE FV.ECB,ACC.ID
+    REPEAT
+
+    RETURN
+END

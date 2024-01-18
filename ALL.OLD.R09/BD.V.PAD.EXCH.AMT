@@ -1,0 +1,45 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.PAD.EXCH.AMT
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This routine Calculate LD.AMOUNT base in Exchange Rate & Purchase Fc Amount
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20/04/2012 - New - Rayhan
+*
+*-----------------------------------------------------------------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LD.LOANS.AND.DEPOSITS
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+
+INITIALISE:
+*----------
+    CALL GET.LOC.REF("LD.LOANS.AND.DEPOSITS","BILL.DOC.VAL",Y.DOCVAL.POS)
+    CALL GET.LOC.REF("LD.LOANS.AND.DEPOSITS","EXCHANGE.RATE",Y.RATE.POS)
+
+    RETURN
+
+PROCESS:
+*-------
+    Y.EXCH.RATE = COMI
+    Y.BILL.DOC.VAL = R.NEW(LD.LOCAL.REF)<1,Y.DOCVAL.POS>[4,LEN(R.NEW(LD.LOCAL.REF)<1,Y.DOCVAL.POS>)]
+    IF R.NEW(LD.AMOUNT) EQ '' THEN
+        IF COMI NE '' THEN
+            R.NEW(LD.AMOUNT)<1,1> = Y.BILL.DOC.VAL * Y.EXCH.RATE
+        END ELSE
+            R.NEW(LD.AMOUNT)<1,1> = Y.BILL.DOC.VAL * 1
+        END
+    END
+
+    RETURN
+END

@@ -1,0 +1,48 @@
+*-----------------------------------------------------------------------------
+* <Rating>-23</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE TSA.STATUS.UPDATE(TSA.STATUS)
+
+* Routine to update the TSA.STATUS when the Agent Crashes out due to Fatal Error or due
+* to locking senario
+*
+* Incoming Argument:
+*  TSA.STATUS = Status to be updated in the field AGENT.STATUS
+*
+***************************************************************************************
+
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_TSA.COMMON
+    $INSERT I_F.TSA.STATUS
+
+*
+*-------------------------------------------------------------------
+*
+
+    GOSUB INITIALISATION
+    GOSUB UPDATE.STATUS
+
+    RETURN
+*-------------------------------------------------------------------
+UPDATE.STATUS:
+    EXECUTE 'COMO ON MUL.CHECK_':OCONV(TIME(), "MTS")
+    PRINT "FILE POINTER OF F.TSA.STATUS :":F.TSA.STATUS
+    EXECUTE 'COMO OFF'
+    READU R.TSA.STATUS FROM F.TSA.STATUS,AGENT.NUMBER THEN  ;*Lock the agent
+        R.TSA.STATUS<TS.TSS.AGENT.STATUS> = TSA.STATUS      ;*Set it
+        WRITE R.TSA.STATUS ON F.TSA.STATUS,AGENT.NUMBER     ;*Write it back
+    END ELSE        ;*Otherwise
+        RELEASE F.TSA.STATUS,AGENT.NUMBER         ;*Release the lock
+    END
+
+    RETURN
+
+*--------------------------------------------------------------------
+INITIALISATION:
+
+    RETURN
+*--------------------------------------------------------------------
+END
+

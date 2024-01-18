@@ -1,0 +1,27 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.CUSTOMER.SELECT
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_GTS.COMMON
+
+    $INSERT JBL.BP/REPGEN MT.CUSTOMER.VARS
+
+    SEL.CMD ='SELECT ':FN.CUS
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+    CRT 'TOTAL NO OF CUSTOMER SELECTED: ': DCOUNT(SEL.LIST,@FM)
+    IF DCOUNT(SEL.LIST,@FM) GT 0 THEN
+! CRT 'DO YOU RUN THIS PROCESS? (Y/N)'
+! INPUT USER.CHOICE
+! IF USER.CHOICE EQ 'Y' THEN
+        CALL BATCH.BUILD.LIST('',SEL.LIST)
+! END
+    END
+    RETURN
+END

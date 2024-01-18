@@ -1,0 +1,48 @@
+*-----------------------------------------------------------------------------
+* <Rating>-21</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.LC.JOB.NO.RTN
+*--------------------------------------------------------------------------------
+* This is a Validation Rtn
+* This rtn will update the job entitlement value from the job register, when the
+* respective JOB.NO is given
+*---------------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LETTER.OF.CREDIT
+    $INSERT I_F.BD.BTB.JOB.REGISTER
+
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+    RETURN
+
+INITIALISE:
+
+    FN.LETTER.OF.CREDIT="F.LETTER.OF.CREDIT"
+    F.LETTER.OF.CREDIT=""
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+
+    FN.BD.BTB.JOB.REGISTER = "F.BD.BTB.JOB.REGISTER"
+    F.BD.BTB.JOB.REGISTER = ""
+    CALL OPF(FN.BD.BTB.JOB.REGISTER,F.BD.BTB.JOB.REGISTER)
+
+
+
+    RETURN
+
+PROCESS:
+*gets the local ref position
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","JOB.ENT.CUR",Y.JOB.BTB.ENT.CUR.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","JOB.ENTIT.AMT",Y.JOB.BTB.ENT.AMT.POS)
+    Y.JOB.NO = COMI
+    CALL F.READ(FN.BD.BTB.JOB.REGISTER,Y.JOB.NO,R.BD.BTB.JOB.REGISTER,F.BD.BTB.JOB.REGISTER,Y.JOB.REG.ERR)
+    IF Y.JOB.REG.ERR THEN
+        ETEXT = 'JOB NUMBER DOES NOT EXIST'
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.BTB.ENT.CUR.POS> = R.BD.BTB.JOB.REGISTER<BTB.JOB.JOB.CURRENCY>
+    R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.BTB.ENT.AMT.POS> = R.BD.BTB.JOB.REGISTER<BTB.JOB.TOT.BTB.AVL.AMT>
+
+    RETURN

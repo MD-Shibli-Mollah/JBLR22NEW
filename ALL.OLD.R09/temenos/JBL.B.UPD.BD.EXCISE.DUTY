@@ -1,0 +1,195 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.UPD.BD.EXCISE.DUTY(Y.AC.ID)
+*------------------------------------------------------------------------
+*Subroutine Description:
+*-----------------------
+* This routine is an accounting subroutine used to update table EB.BD.EXCISE.DUTY.
+*-------------------------------------------------------------------------
+* Project Name : National Bank Limited(Bangladesh)
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+* NA
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*  NA
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+*
+* EB.CURR.CONV                  CORE        Used to convert a currency amt
+*                                           to another currency amount
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 04/03/2011 -                            New   - Rashmitha M
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT.CLASS
+    $INCLUDE JBL.BP I_F.EB.BD.EXCISE.DUTY
+    $INCLUDE JBL.BP I_JBL.B.UPD.BD.EXCISE.DUTY.COMMON
+    $INCLUDE GLOBUS.BP I_F.AZ.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.DATES
+
+    GOSUB INIT
+    GOSUB PROCESS
+    RETURN
+*-------------------------------------------------------------------------
+INIT:
+*****
+! Initialise variables
+    R.EB.BD.EXCISE.DUTY=''
+    EB.BD.EXCISE.DUTY.ERR=''
+    R.AZ.ACCOUNT=''
+    AZ.ACCOUNT.ERR=''
+    R.ACCOUNT=''
+    ACCOUNT.ERR=''
+    Y.BED.AMT.LCY=0
+    Y.BED.AMT.FCY=0
+    Y.AMT.LCY=0
+    Y.AMT.FCY=0
+    Y.COUNT=0
+    CAT.POS=''
+    Y.TOT.AZ.MAT.AMT=0
+
+    RETURN
+*-------------------------------------------------------------------------
+PROCESS:
+********
+! Process
+    GOSUB READ.ACCOUNT
+    Y.SAV.CAT=R.ACCOUNT.CLASS.SAVINGS<AC.CLS.CATEGORY>
+    CONVERT VM TO FM IN Y.SAV.CAT
+! Process only current/Savings and deposit acounts
+    IF (Y.CATEGORY GE 1000 AND Y.CATEGORY LE 1999) OR R.AZ.ACCOUNT THEN
+        GOSUB MAIN.PROCESS
+    END ELSE
+        LOCATE Y.CATEGORY IN Y.SAV.CAT SETTING CAT.POS THEN
+            GOSUB MAIN.PROCESS
+        END
+    END
+
+    RETURN
+*-------------------------------------------------------------------------
+READ.ACCOUNT:
+*************
+! Read ACCOUNT
+    CALL F.READ(FN.ACCOUNT,Y.AC.ID,R.ACCOUNT,F.ACCOUNT,ACCOUNT.ERR)
+    Y.BAL.AMT=R.ACCOUNT<AC.OPEN.ACTUAL.BAL>
+    Y.CURRENCY=R.ACCOUNT<AC.CURRENCY>
+    Y.CATEGORY=R.ACCOUNT<AC.CATEGORY>
+    IF Y.CURRENCY EQ LCCY THEN
+        Y.AMT.LCY=Y.BAL.AMT
+    END ELSE
+        Y.AMT.FCY=Y.BAL.AMT
+        CALL EB.CURR.CONV(Y.CURRENCY,Y.BAL.AMT,LCCY,Y.AMT.LCY)
+    END
+    CALL F.READ(FN.AZ.ACCOUNT,Y.AC.ID,R.AZ.ACCOUNT,F.AZ.ACCOUNT,AZ.ACCOUNT.ERR)
+
+    RETURN
+*-------------------------------------------------------------------------
+MAIN.PROCESS:
+*************
+! Main Process
+    Y.EB.BD.EXCISE.DUTY.ID= Y.AC.ID:'-':(TODAY[1,4])
+    GOSUB READ.EB.BD.EXCISE.DUTY
+
+! Determine credit or debit balance:
+    IF Y.AMT.LCY LT 0 THEN
+        Y.BED.AMT.LCY=R.EB.BD.EXCISE.DUTY<EB.BD.46.HIGHEST.DT.BAL.LCY>
+        Y.BED.AMT.FCY=R.EB.BD.EXCISE.DUTY<EB.BD.46.HIGHEST.DT.BAL.FCY>
+    END ELSE
+        Y.BED.AMT.LCY=R.EB.BD.EXCISE.DUTY<EB.BD.46.HIGHEST.CR.BAL.LCY>
+        Y.BED.AMT.FCY=R.EB.BD.EXCISE.DUTY<EB.BD.46.HIGHEST.CR.BAL.FCY>
+    END
+
+! Check if nominated account:
+    IF R.EB.BD.EXCISE.DUTY AND R.EB.BD.EXCISE.DUTY<EB.BD.46.AZ.MAT.DATE> THEN
+        Y.DATE.COUNT=DCOUNT(R.EB.BD.EXCISE.DUTY<EB.BD.46.AZ.MAT.DATE>,VM)
+        Y.MAT.DATE= R.EB.BD.EXCISE.DUTY<EB.BD.46.AZ.MAT.DATE>
+        Y.MAT.AMT= R.EB.BD.EXCISE.DUTY<EB.BD.46.AZ.MAT.AMT>
+        CONVERT VM TO FM IN Y.MAT.DATE
+        CONVERT VM TO FM IN Y.MAT.AMT
+        Y.DATE=TODAY
+        Y.LAST.WORK.DAY=R.DATES(EB.DAT.LAST.WORKING.DAY)
+        LOOP
+        WHILE Y.DATE GT Y.LAST.WORK.DAY
+            LOOP
+            WHILE Y.DATE.COUNT GT 0
+                Y.DATE.POS=''
+                LOCATE Y.DATE IN Y.MAT.DATE SETTING Y.DATE.POS THEN
+                    Y.TOT.AZ.MAT.AMT+=Y.MAT.AMT<Y.DATE.POS>
+                    DEL Y.MAT.DATE<Y.DATE.POS>
+                    DEL Y.MAT.AMT<Y.DATE.POS>
+                    Y.COUNT++
+                END
+                Y.DATE.COUNT--
+            REPEAT
+            Y.DAYS='-1C'
+            CALL CDT('',Y.DATE,Y.DAYS)
+            Y.MAT.DATE= R.EB.BD.EXCISE.DUTY<EB.BD.46.AZ.MAT.DATE>
+            Y.MAT.AMT= R.EB.BD.EXCISE.DUTY<EB.BD.46.AZ.MAT.AMT>
+        REPEAT
+        IF Y.COUNT GT 0 THEN
+            IF Y.CURRENCY EQ LCCY THEN
+                Y.AMT.LCY-=Y.TOT.AZ.MAT.AMT
+            END ELSE
+                Y.AMT.FCY-= Y.TOT.AZ.MAT.AMT
+                CALL EB.CURR.CONV(Y.CURRENCY,Y.AMT.FCY,LCCY,Y.AMT.LCY)
+            END
+        END
+        GOSUB CHECK.AND.WRITE.HIGHEST.BAL
+        RETURN
+    END
+
+! For accounts (other than nominated accts) and deposits
+    GOSUB CHECK.AND.WRITE.HIGHEST.BAL
+
+    RETURN
+*-------------------------------------------------------------------------
+READ.EB.BD.EXCISE.DUTY:
+***********************
+! Read EB.BD.EXCISE.DUTY
+    CALL F.READ(FN.EB.BD.EXCISE.DUTY,Y.EB.BD.EXCISE.DUTY.ID,R.EB.BD.EXCISE.DUTY,F.EB.BD.EXCISE.DUTY,EB.BD.EXCISE.DUTY.ERR)
+    IF NOT(R.EB.BD.EXCISE.DUTY) THEN
+        RETURN
+    END
+
+    RETURN
+*-------------------------------------------------------------------------
+WRITE.EB.BD.EXCISE.DUTY:
+************************
+! Update EB.BD.EXCISE.DUTY
+    CALL F.WRITE(FN.EB.BD.EXCISE.DUTY,Y.EB.BD.EXCISE.DUTY.ID,R.EB.BD.EXCISE.DUTY)
+
+    RETURN
+*-------------------------------------------------------------------------
+CHECK.AND.WRITE.HIGHEST.BAL:
+****************************
+! Check if the txn amt is GT then the existing highest value
+    IF ABS(Y.AMT.LCY) GT ABS(Y.BED.AMT.LCY) THEN
+        IF Y.AMT.LCY LT 0 THEN
+            R.EB.BD.EXCISE.DUTY<EB.BD.46.HIGHEST.DT.BAL.LCY>=Y.AMT.LCY
+            IF Y.CURRENCY NE LCCY THEN
+                R.EB.BD.EXCISE.DUTY<EB.BD.46.HIGHEST.DT.BAL.FCY>=Y.AMT.FCY
+            END
+        END ELSE
+            R.EB.BD.EXCISE.DUTY<EB.BD.46.HIGHEST.CR.BAL.LCY>= Y.AMT.LCY
+            IF Y.CURRENCY NE LCCY THEN
+                R.EB.BD.EXCISE.DUTY<EB.BD.46.HIGHEST.CR.BAL.FCY>= Y.AMT.FCY
+            END
+        END
+        R.EB.BD.EXCISE.DUTY<EB.BD.46.CATEGORY>=Y.CATEGORY
+        GOSUB WRITE.EB.BD.EXCISE.DUTY
+    END
+
+    RETURN
+*-------------------------------------------------------------------------
+END

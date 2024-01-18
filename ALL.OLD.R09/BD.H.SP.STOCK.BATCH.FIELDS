@@ -1,0 +1,96 @@
+*-----------------------------------------------------------------------------
+* <Rating>-46</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.H.SP.STOCK.BATCH.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine BD.H.SP.STOCK.BATCH.FIELDS
+*
+* @author alin boby
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* History :
+* 20180102
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("SP.SBC.ID", T24_String)  ;* Define Table id
+*-----------------------------------------------------------------------------
+    CALL Table.addField("XX.SP.PACKS", T24_String, "", "")
+    CALL Table.addFieldDefinition("SALES.ACK.DATE","8","D","")
+    CALL Table.addFieldDefinition("TOTAL.FV","20","AMT","")
+    CALL Table.addField("TYPE.OF.SP", T24_String, "", "")
+    CALL Field.setCheckFile('BD.H.SP.CATEGORY')
+    CALL Table.addFieldDefinition("TOTAL.COM","20","AMT","")
+    CALL Table.addFieldDefinition("COM.CLAIM.DATE","8","D","")
+    CALL Table.addFieldDefinition("COM.ACK.DATE","8","D","")
+    CALL Table.addField("COM.REF.NO", T24_String, "", "")
+
+*    CALL Table.addFieldWithEbLookup("SOURCE.OF.SP","SP.SOURCE","")
+*    CALL Table.addField("SCRIPT.NO", T24_String, "", "")
+*    CALL Table.addField("PREFIX", T24_String, "", "")
+*    CALL Table.addFieldDefinition("COUPON.START.NO","16","A","")
+*    CALL Table.addFieldDefinition("COUPON.END.NO","16","A","")
+*    CALL Table.addFieldWithEbLookup("FACE.VALUE","SP.FV","")
+*    CALL Table.addFieldDefinition("FREQUENCY","3","","")
+*    CALL Table.addFieldDefinition("FLAT.INTT.RATE","5","AMT","")
+*    CALL Table.addFieldDefinition("XX<NO.OF.MONTH","3","","")
+*    CALL Table.addFieldDefinition("XX>FREQ.INTT.RATE","5","AMT","")
+*    CALL Table.addFieldDefinition("SOURCE.TAX","5","AMT","")
+*    CALL Table.addField("REMARKS", T24_String, "", "")
+*    CALL Table.addField("DIS.BR.CODE", T24_String, "", "")
+*    CALL Field.setCheckFile('COMPANY')
+*    CALL Table.addFieldDefinition("DIS.DATE","8","D","")
+*    CALL Table.addField("CUSTOMER.NO", T24_Customer, "", "")
+*    CALL Table.addFieldDefinition("CUSTOMER.NAME","35","A":FM:"":FM:"NOINPUT","")
+*    CALL Table.addFieldDefinition("JOINT.INDIVIDUAL","10","":FM:"JOINT_INDIVIDUAL","")
+*    CALL Table.addField("XX.JHOLDER.CUS.NO", T24_Customer, "", "")
+*    CALL Table.addField("REG.NO", T24_String, "", "")
+*    CALL Table.addFieldDefinition("ISSUE.DATE","8","D","")
+*    CALL Table.addFieldDefinition("IS.DUPLICATE","3","":FM:"YES","")
+*    CALL Table.addField("OLD.SCRIPT.NO", T24_String, "", "")
+*    CALL Table.addField("DUPLICATE.REASON", T24_Text, "", "")
+*    CALL Table.addField("XX<NOMINEE.NAME", T24_String, "", "")
+*    CALL Table.addField("XX-RELATION", T24_String, "", "")
+*    CALL Table.addField("XX-XX.PERMANENT.ADDRESS", T24_String, "", "")
+*    CALL Table.addField("XX-XX.PRESENT.ADDRESS", T24_String, "", "")
+*    CALL Table.addFieldDefinition("XX-NOMINEE.DOB","8","D","")
+*    CALL Table.addFieldDefinition("XX>NOMINEE.AMT","20","AMT","")
+*    CALL Table.addField("STATUS", T24_String, "", "")
+*    CALL Table.addFieldDefinition("MATURITY.DATE","8","D","")
+*    CALL Table.addField("MATURITY.STATUS", T24_String, "", "")
+*    CALL Table.addField("TRAN.REFRENCE1", T24_String, "", "")
+*    CALL Table.addField("TRAN.REFRENCE2", T24_String, "", "")
+*    CALL Table.addFieldDefinition("CLOSE.DATE","8","D","")
+*    CALL Table.addFieldDefinition("COMMISSION.AMT","20","AMT","")
+*    CALL Table.addFieldDefinition("COM.CLAIM.DATE","8","D","")
+*    CALL Table.addFieldWithEbLookup("FT.OR.TT","SP.ISSUE","")
+*    CALL Table.addFieldDefinition("XX.REIM.DATE","8","D","")
+*    CALL Table.addFieldDefinition("APPL.AMT","20","AMT","")
+*    CALL Table.addFieldDefinition("APPL.RATE","5","AMT","")
+*    CALL Table.addField("REF.NO", T24_String, "", "")
+*    CALL Table.addField("ACCOUNT.NO", T24_Account, "", "")
+
+    CALL Table.addReservedField('RESERVED.05')
+    CALL Table.addReservedField('RESERVED.04')
+    CALL Table.addReservedField('RESERVED.03')
+    CALL Table.addReservedField('RESERVED.02')
+    CALL Table.addReservedField('RESERVED.01')
+    CALL Table.addLocalReferenceField('XX.LOCAL.REF')
+    CALL Table.addOverrideField
+
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

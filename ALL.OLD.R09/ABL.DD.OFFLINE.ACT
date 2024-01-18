@@ -1,0 +1,31 @@
+*-----------------------------------------------------------------------------
+* <Rating>-10</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.DD.OFFLINE.ACT
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.PR.H.INSTRUMENT
+    $INSERT I_F.COMPANY
+    $INSERT I_F.TELLER
+
+    Y.BR.MNE = ''
+    CALL DBR("COMPANY":FM:EB.COM.MNEMONIC,ID.COMPANY,Y.BR.MNE)
+    FN.INS='F':Y.BR.MNE:'.PR.H.INSTRUMENT'
+    F.INS=''
+    R.INS=''
+    Y.ERR=''
+    Y.ACCOUNT.NO=''
+
+    CALL OPF(FN.INS,F.INS)
+    Y.ID=ID.COMPANY
+    CALL F.READ(FN.INS,Y.ID,R.INS,F.INS,Y.ERR)
+
+    IF COMI EQ 'DD With Advice' THEN
+        R.NEW(TT.TE.ACCOUNT.1) = R.INS<INS.DD.ACCOUNT>
+    END
+    IF COMI EQ 'DD Without Advice' THEN
+        R.NEW(TT.TE.ACCOUNT.1) = R.INS<INS.SUNDRY.ASST>
+    END
+
+    RETURN
+END

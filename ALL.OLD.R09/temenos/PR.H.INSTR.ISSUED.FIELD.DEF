@@ -1,0 +1,69 @@
+*-----------------------------------------------------------------------------
+* <Rating>-67</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.H.INSTR.ISSUED.FIELD.DEF
+*-------------------------------------------------------------------------
+*
+*-------------------------------------------------------------------------
+* Modification History :
+*-------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT       ;* Other Inserts required for Checkfiles, e
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_F.CHEQUE.TYPE
+*-------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB DEFINE.FIELDS
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+DEFINE.FIELDS:
+    ID.F = "INSTRUMENT.REF.NO" ; ID.N = "30" ; ID.T = "A"
+*
+    Z=0
+
+    Z+=1 ; F(Z) = "CHEQUE.TYPE" ; N(Z) = "10" ; T(Z) = "A"
+    CHECKFILE(Z) = CHK.CHQ.TYPE
+    Z+=1 ; F(Z) = "DATE.OF.ISSUE" ; N(Z) = "8" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "CHEQUE.NUMBER" ; N(Z) = "15" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "PAY.TO" ; N(Z) = "35" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "ISSUE.AMOUNT" ; N(Z) = "19" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "COMM.AMT" ; N(Z) = "19" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "VAT.AMT" ; N(Z) = "19" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "ISSUE.TXN.REF" ; N(Z) = "35" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "TXN.COMPANY" ; N(Z) = "10" ; T(Z) = "COM"
+    Z+=1 ; F(Z) = "DATE.OF.PRESENTED" ; N(Z) = "8" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "COLL.TXN.REF" ; N(Z) = "35" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "COLL.TXN.COMPANY" ; N(Z) = "10" ; T(Z) = "COM"
+
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > CHECKFILE(Z) = CHK.ACCOUNT
+*
+    V = Z + 9
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+INITIALISE:
+    MAT F = "" ; MAT N = "" ; MAT T = ""
+    MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+    ID.CHECKFILE = "" ; ID.CONCATFILE = ""
+*
+* Define often used checkfile variables
+*
+    CHK.ACCOUNT = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+    CHK.CUSTOMER = "CUSTOMER":FM:EB.CUS.SHORT.NAME:FM:'.A'
+    CHK.CUSTOMER.SECURITY = "CUSTOMER.SECURITY":FM:0:FM:'':FM:"CUSTOMER"
+    CHK.CHQ.TYPE = "CHEQUE.TYPE":FM:CHEQUE.TYPE.DESCRIPTION:FM:"L"
+
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+END

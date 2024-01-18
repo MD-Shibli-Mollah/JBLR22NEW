@@ -1,0 +1,214 @@
+*-----------------------------------------------------------------------------
+* <Rating>540</Rating>
+*-----------------------------------------------------------------------------
+* IFNO
+* PROGRAM     : PROGRAM TO CREATE A CSV FILE FOR FUNDS TRANSFER LIST
+* DEV BY      : MD. IMRAN HASAN
+* DEV DATE    : 2016-07-24
+* UPDATE DATE : 2020-09-08
+* REQ         : ICTD
+****************************************************
+
+    PROGRAM FT.LIST
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT JBL.BP I_F.DISPO.PARAM
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    GOSUB WRITE.TO.FILE
+
+*------
+INIT:
+*------
+    OPEN "CUSTOMER.SUPPLEMENT" TO F.CUSTOMER.SUPPLEMENT ELSE
+        CMD = "CREATE.FILE CUSTOMER.SUPPLEMENT TYPE=UD"
+        EXECUTE CMD
+        OPEN "CUSTOMER.SUPPLEMENT" TO F.CUSTOMER.SUPPLEMENT ELSE
+            CRT "OPENING OF CUSTOMER.SUPPLEMENT FAILED"
+        END
+    END
+
+    Y.FILE.NAME = 'FT.LIST.':TODAY:'.csv'
+    Y.FILE.DIR = 'CUSTOMER.SUPPLEMENT'
+    Y.FILE.PATH = Y.FILE.DIR:'/':Y.FILE.NAME
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+
+    FN.CAT = 'F.CATEGORY'
+    F.CAT = ''
+
+    FN.AC.H = "F.ACCOUNT$HIS"
+    F.AC.H = ""
+    R.AC.H = ""
+
+    FN.DP = 'F.EB.DISPO.PARAM'
+    F.DP = ''
+    Y.DV.YN = 0
+
+!Y.DATA = 'DR.CR.MAKER':'|':'T24.ID':'|':'LEGECY.AC.NO':'|':'ACCOUNT.TITLE':'|':'CATEGORY':'|':'AC.CO.CODE':'|':'TXN.AMOUNT':'|':'TXN.ID':'|':'TXN.CODE':'|':'VALUE.DATE':'|':'CHEQUE.NUMBER':'|':'TXN.CO.CODE':'|':'PERTICULARS':'|':'INPUTER':'|':'MULTI.ID':'|':'DV.YN':'|':'COMMISSION.AMT':'|':'COMMISSION.TYPE':'|':'TAX.AMT':'|':'TAX.TYPE':'|':'TOTAL.CHARGE.AMT':'|':'AMOUNT.DEBITED'
+
+    RETURN
+
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.CAT,F.CAT)
+    CALL OPF(FN.AC.H,F.AC.H)
+    CALL OPF(FN.DP,F.DP)
+
+    CALL GET.LOC.REF("FUNDS.TRANSFER","FT.DR.DETAILS",Y.FT.DR.DETAILS.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","FT.CR.DETAILS",Y.FT.CR.DETAILS.POS)
+    RETURN
+
+*-------
+PROCESS:
+*-------
+
+    CALL F.READ(FN.DP,"SYSTEM",R.DP,F.DP,DP.ERR)
+    Y.CNT.AMT = DCOUNT(R.DP<EB.DIS26.OVERR.AMT>,@VM)
+    Y.DIS.MIN.AMT = MINIMUM(R.DP<EB.DIS26.OVERR.AMT>)
+
+    SEL.CMD = 'SELECT ':FN.FT
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+    FOR I = 1 TO NO.OF.REC
+        REMOVE Y.REC.ID FROM SEL.LIST SETTING Y.POS
+
+*********************** Read FT Transaction ****************************
+        CALL F.READ(FN.FT,Y.REC.ID,R.FT,F.FT,FT.ERR)
+        Y.TXN.AMT=R.FT<FT.DEBIT.AMOUNT>
+        IF Y.TXN.AMT EQ '' THEN
+            Y.TXN.AMT=R.FT<FT.CREDIT.AMOUNT>
+        END
+        Y.TXN.CO.CODE=R.FT<FT.CO.CODE>
+        Y.DV.YN = 0
+        IF Y.TXN.AMT GT Y.DIS.MIN.AMT THEN
+            FOR J=1 TO Y.CNT.AMT
+                Y.AMT = R.DP<2,J>
+                Y.BR.CODE = R.DP<3,J>
+                FIND Y.TXN.CO.CODE IN Y.BR.CODE SETTING POS THEN
+                    IF Y.TXN.AMT GT Y.AMT THEN
+                        Y.DV.YN = 1
+                    END
+                    ELSE
+                        Y.DV.YN = 0
+                    END
+                    BREAK
+                END
+            NEXT J
+        END
+        Y.TXN.ID=Y.REC.ID
+        Y.TXN.CODE=R.FT<FT.TRANSACTION.TYPE>
+        Y.VALUE.DATE=R.FT<FT.DEBIT.VALUE.DATE>
+        Y.CHEQUE.NUMBER=R.FT<FT.CHEQUE.NUMBER>
+
+****************** Read Debit Account Information *************************
+        Y.DR.T24.ID=R.FT<FT.DEBIT.ACCT.NO>
+        Y.DR.PERTICULARS = R.FT<FT.DEBIT.THEIR.REF> : R.FT<FT.LOCAL.REF,Y.FT.DR.DETAILS.POS>
+        CALL F.READ(FN.AC, Y.DR.T24.ID, R.DR.AC, F.AC, AC.DR.ERR)
+        IF R.DR.AC EQ '' THEN
+            CALL F.READ.HISTORY(FN.AC.H,Y.DR.T24.ID,R.DR.H.REC,F.AC.H,YERR)
+            Y.DR.LEG.ID=R.DR.H.REC<AC.ALT.ACCT.ID>
+            Y.DR.AC.TITLE=R.DR.H.REC<AC.ACCOUNT.TITLE.1>
+            Y.DR.CATEGORY=R.DR.H.REC<AC.CATEGORY>
+        END
+        ELSE
+            Y.DR.LEG.ID=R.DR.AC<AC.ALT.ACCT.ID>
+            Y.DR.AC.TITLE=R.DR.AC<AC.ACCOUNT.TITLE.1>
+            Y.DR.CATEGORY=R.DR.AC<AC.CATEGORY>
+        END
+
+        IF LEFT(Y.DR.T24.ID,2) EQ 'PL' THEN
+            Y.DR.PL.CAT.ID = SUBSTRINGS(Y.DR.T24.ID,3,5)
+            CALL F.READ(FN.CAT,Y.DR.PL.CAT.ID,R.CAT,F.CAT,CAT.ERR)
+            Y.DR.AC.TITLE = R.CAT<EB.CAT.DESCRIPTION>
+            Y.DR.CATEGORY=Y.DR.PL.CAT.ID
+        END
+
+        Y.DR.AC.CO.CODE=R.FT<FT.DEBIT.COMP.CODE>
+
+**************** Read Credit Account Information ****************************
+        Y.CR.T24.ID=R.FT<FT.CREDIT.ACCT.NO>
+        Y.CR.PERTICULARS = R.FT<FT.CREDIT.THEIR.REF> : R.FT<FT.LOCAL.REF,Y.FT.CR.DETAILS.POS>
+        CALL F.READ(FN.AC, Y.CR.T24.ID, R.CR.REC, F.AC, AC.ERR)
+
+        IF R.CR.REC EQ '' THEN
+            CALL F.READ.HISTORY(FN.AC.H,Y.CR.T24.ID,R.CR.H.REC,F.AC.H,YERR)
+            Y.CR.LEG.ID=R.CR.H.REC<AC.ALT.ACCT.ID>
+            Y.CR.AC.TITLE=R.CR.H.REC<AC.ACCOUNT.TITLE.1>
+            Y.CR.CATEGORY=R.CR.H.REC<AC.CATEGORY>
+        END
+        ELSE
+            Y.CR.LEG.ID=R.CR.REC<AC.ALT.ACCT.ID>
+            Y.CR.AC.TITLE=R.CR.REC<AC.ACCOUNT.TITLE.1>
+            Y.CR.CATEGORY=R.CR.REC<AC.CATEGORY>
+        END
+
+        IF LEFT(Y.CR.T24.ID,2) EQ 'PL' THEN
+            Y.CR.PL.CAT.ID = SUBSTRINGS(Y.CR.T24.ID,3,5)
+            CALL F.READ(FN.CAT,Y.CR.PL.CAT.ID,R.CAT,F.CAT,CAT.ERR)
+            Y.CR.AC.TITLE = R.CAT<EB.CAT.DESCRIPTION>
+            Y.CR.CATEGORY=Y.CR.PL.CAT.ID
+        END
+
+        Y.COMMISSION.AMT = R.FT<FT.COMMISSION.AMT>
+        Y.COMMISSION.TYPE = R.FT<FT.COMMISSION.TYPE>
+        Y.TAX.AMT = R.FT<FT.TAX.AMT>
+        Y.TAX.TYPE = R.FT<FT.TAX.TYPE>
+
+        Y.TOTAL.CHARGE.AMT = R.FT<FT.TOTAL.CHARGE.AMOUNT>
+        Y.AMOUNT.DEBITED = R.FT<FT.AMOUNT.DEBITED>
+
+        Y.CR.AC.CO.CODE=R.FT<FT.CREDIT.COMP.CODE>
+
+        Y.INPUTER = R.FT<FT.INPUTTER>
+        Y.MULTI.ID = R.FT<FT.IN.SWIFT.MSG>
+        Y.AUTHORISER = R.FT<FT.AUTHORISER>
+
+        IF Y.AUTHORISER NE '' THEN
+
+            Y.DATA<-1> ='DEBIT':'|':Y.DR.T24.ID:'|':Y.DR.LEG.ID:'|':Y.DR.AC.TITLE:'|':Y.DR.CATEGORY:'|':Y.DR.AC.CO.CODE:'|':Y.TXN.AMT:'|':Y.TXN.ID:'|':Y.TXN.CODE:'|':Y.VALUE.DATE:'|':Y.CHEQUE.NUMBER:'|':Y.TXN.CO.CODE :'|':Y.DR.PERTICULARS:'|':Y.INPUTER:'|':Y.MULTI.ID:'|':Y.DV.YN:'|':Y.COMMISSION.AMT:'|':Y.COMMISSION.TYPE:'|':Y.TAX.AMT:'|':Y.TAX.TYPE:'|':Y.TOTAL.CHARGE.AMT:'|':Y.AMOUNT.DEBITED:'|'
+            Y.DATA<-1> ='CREDIT':'|':Y.CR.T24.ID:'|':Y.CR.LEG.ID:'|':Y.CR.AC.TITLE:'|':Y.CR.CATEGORY:'|':Y.CR.AC.CO.CODE:'|':Y.TXN.AMT:'|':Y.TXN.ID:'|':Y.TXN.CODE:'|':Y.VALUE.DATE:'|':Y.CHEQUE.NUMBER:'|':Y.TXN.CO.CODE:'|':Y.CR.PERTICULARS:'|':Y.INPUTER:'|':Y.MULTI.ID:'|':Y.DV.YN:'|':Y.COMMISSION.AMT:'|':Y.COMMISSION.TYPE:'|':Y.TAX.AMT:'|':Y.TAX.TYPE:'|':Y.TOTAL.CHARGE.AMT:'|':Y.AMOUNT.DEBITED:'|'
+
+        END
+
+        Y.PROGRESS = MOD(I,5000)
+        IF Y.PROGRESS EQ 0 THEN
+            Y.PERCENT = I*100/NO.OF.REC
+            CRT DROUND(Y.PERCENT,0):'% IS DONE.'
+        END
+    NEXT I
+    IF NO.OF.REC NE 0 THEN
+        CRT '100% IS DONE.'
+    END
+    ELSE
+        CRT 'NO RECORD FOUND.'
+    END
+    RETURN
+*-------------
+WRITE.TO.FILE:
+*-------------
+    IF NOT(Y.FILE.NAME) THEN
+        CRT "No file name found to write CUSTOMER SUPPLEMENT data"
+    END
+    ELSE
+        WRITE Y.DATA TO F.CUSTOMER.SUPPLEMENT,Y.FILE.NAME
+    END
+    IF DCOUNT(Y.DATA,@FM) EQ 1 THEN
+        CRT 'NO TRANSFER TXN DATA IS FOUND.'
+    END
+    ELSE
+        CRT (DCOUNT(Y.DATA,@FM) -1):' TRANSFER TXN DATA IS FOUND.'
+    END
+!RETURN
+END

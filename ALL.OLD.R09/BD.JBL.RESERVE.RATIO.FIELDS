@@ -1,0 +1,92 @@
+*-----------------------------------------------------------------------------
+* <Rating>-33</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.JBL.RESERVE.RATIO.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine YOURAPPLICATION.FIELDS
+*
+* @author : manjunath.s@sepit.net
+*
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* Modification History :
+*
+* 27/08/2013 - EN_10003543
+*            New Template changes
+*
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+*    CALL Table.defineId("TABLE.NAME.ID", T24_String)        ;* Define Table id
+    ID.F = "ID"; ID.N ="11"; ID.T ="D"
+
+*-----------------------------------------------------------------------------
+    fieldName = "AVG.DEPOSIT"
+    fieldLength = "19.1"
+    fieldType = "AMT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "CRR.PERCENT"
+    fieldLength = "10.1"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "CRR.AMOUNT"
+    fieldLength = "19"
+    fieldType = "AMT":FM:"":FM:"NOINPUT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "LIEN.AMOUNT"
+    fieldLength = "19.1"
+    fieldType = "AMT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "TOTAL.CRR.LIEN"
+    fieldLength = "19"
+    fieldType = "AMT":FM:"":FM:"NOINPUT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "SLR.PERCENT"
+    fieldLength = "10.1"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "SLR.AMOUNT"
+    fieldLength = "19"
+    fieldType = "AMT":FM:"":FM:"NOINPUT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+*
+    CALL Table.addLocalReferenceField('XX.LOCAL.REF')       ;* Local Ref Field Provision
+*
+*******TO POPULTATE RESERVE FIELDS******************************************************************
+*
+    CALL Table.addField("RESERVED.5", T24_String, Field_NoInput,"")
+    CALL Table.addField("RESERVED.4", T24_String, Field_NoInput,"")
+    CALL Table.addField("RESERVED.3", T24_String, Field_NoInput,"")
+    CALL Table.addField("RESERVED.2", T24_String, Field_NoInput,"")
+    CALL Table.addField("RESERVED.1", T24_String, Field_NoInput,"")
+*
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

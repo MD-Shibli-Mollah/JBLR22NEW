@@ -1,0 +1,53 @@
+****************************************************************************************
+*Purpose: This routine attachted to VERSION ACCOUNT,LN.RESCHEDULE as a INPUT ROUTINE   *
+*and is used to check the RESCHEDULE related validation, it also calculate the no of   *
+*reschedule                                                                            *
+*Developed By: Md. Aminul Islam(Datasoft Systems Ltd.)                                 *
+****************************************************************************************
+    SUBROUTINE RESCH.RESTRUCT.INP.RTN
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+********************
+INIT:
+********************
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+    Y.APPLICATION       = 'ACCOUNT'
+    FIELD.NAME          = 'RESCH.REF.NO':VM:'RESCH.DATE':VM:'':'NO.OF.RESCH'
+    FIELD.POS           = ''
+    CALL MULTI.GET.LOC.REF(Y.APPLICATION,FIELD.NAME,FIELD.POS)
+    RESCH.REF.NO.POS  = FIELD.POS<1,1>
+    RESCH.DATE.POS  = FIELD.POS<1,2>
+    NO.OF.RESCH.POS = FIELD.POS<1,3>
+    R.NEW(AC.LOCAL.REF)<1,NO.OF.RESCH.POS> = R.OLD(AC.LOCAL.REF)<1,NO.OF.RESCH.POS>
+    RETURN
+
+********************
+OPENFILES:
+********************
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    RETURN
+
+********************
+PROCESS:
+********************
+
+    IF (R.NEW(AC.LOCAL.REF)<1,RESCH.REF.NO.POS> EQ R.OLD(AC.LOCAL.REF)<1,RESCH.REF.NO.POS>) THEN
+        AF = AC.LOCAL.REF
+        AV = RESCH.REF.NO.POS
+        ETEXT = 'REQUIRED.RESCHEDULE.RESTRUCTURE.REF.NO'
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    R.NEW(AC.LOCAL.REF)<1,NO.OF.RESCH.POS> = R.OLD(AC.LOCAL.REF)<1,NO.OF.RESCH.POS> + 1
+
+    RETURN
+END

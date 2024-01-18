@@ -1,0 +1,46 @@
+  *-----------------------------------------------------------------------------
+* <Rating>-40</Rating>
+  *-----------------------------------------------------------------------------
+  * This routine is used to default the Total Provision Amt from MD.PROV.BALANCES
+  * file to the LOCAL.REF field in MD.DEAL
+      SUBROUTINE MD.PROVIS.AMT
+      $INSERT GLOBUS.BP I_COMMON
+      $INSERT GLOBUS.BP I_EQUATE
+      $INSERT GLOBUS.BP I_F.MD.DEAL
+      $INSERT GLOBUS.BP I_F.MD.PROV.BALANCES
+
+
+      GOSUB INITIALISATION
+      GOSUB OPENFILES
+      GOSUB MAINPARA
+
+  INITIALISATION:
+
+      FN.MD.DEAL = 'FBNK.MD.DEAL'
+      F.MD.DEAL = ''
+      FN.MD.PROV.BALANCES = 'FBNK.MD.PROV.BALANCES'
+      F.MD.PROV.BALANCES = ''
+      RETURN
+
+  OPENFILES:
+
+      CALL OPF(FN.MD.DEAL,F.MD.DEAL)
+      CALL OPF(FN.MD.PROV.BALANCES,F.MD.PROV.BALANCES)
+
+      RETURN
+
+  MAINPARA:
+     MD.REC.ID = ID.NEW
+     CALL F.READ('F.MD.PROV.BALANCES',MD.REC.ID,REC,F.MD.PROV.BALANCES,PR.ERR)
+     TOT.PROV.AMT = REC<MD.PRO.OUTS.PROV.AMOUNT>
+     GOSUB CALCULATE.LOC.REF.POSITION
+     R.NEW(MD.DEA.LOCAL.REF)<1,LOC.FLD.POS>=TOT.PROV.AMT
+     RETURN
+
+ CALCULATE.LOC.REF.POSITION:
+
+     LOC.REF.FLD='MARGIN.AMT'
+     LOC.FLD.POS=''
+          CALL GET.LOC.REF('MD.DEAL',LOC.REF.FLD,LOC.FLD.POS)
+     RETURN
+ END

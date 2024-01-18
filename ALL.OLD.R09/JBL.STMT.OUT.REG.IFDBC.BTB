@@ -1,0 +1,123 @@
+*-----------------------------------------------------------------------------
+* <Rating>357</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.STMT.OUT.REG.IFDBC.BTB(Y.RETURN)
+!PROGRAM JBL.STMT.OUT.REG.IFDBC.BTB
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.DRAWINGS
+    $INSERT GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_F.CURRENCY
+    $INSERT JBL.BP I_F.BD.BTB.JOB.REGISTER
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+
+*----------
+INIT:
+*----------
+!Y.INPUT.DATE = '20131231'
+!Y.LC.TYPE = 'BFSC BFSU BLSC BLSU GFSC GFSU GLSC GLSU BFUC BFUU BLUC BLUU ZFUC ZFUU ZLUC ZLUU EFSC EFSU ELSC ELSU'
+    Y.COMPANY = ID.COMPANY
+    Y.SL.NO = 0
+    FN.DRAW = 'FBNK.DRAWINGS'
+    F.DRAW = ""
+    FN.LC = 'FBNK.LETTER.OF.CREDIT'
+    F.LC = ""
+    FN.JOB.REG = 'F.BD.BTB.JOB.REGISTER'
+    F.JOB.REG = ""
+    FN.CUS = 'F.CUSTOMER'
+    F.CUS = ""
+    FN.CURR = 'F.CURRENCY'
+    F.CURR = ""
+    CALL GET.LOC.REF('DRAWINGS','EXPORTER.NAME',Y.EXPT.NAME.POS)
+    CALL GET.LOC.REF('DRAWINGS','IMPORTER.NAME',Y.IMP.NAME.POS)
+    CALL GET.LOC.REF('DRAWINGS','JOB.NUMBER',Y.JOB.NO.POS)
+    CALL GET.LOC.REF('DRAWINGS','DATE.OF.PAYMENT',Y.DATE.OF.PAYMENT.POS)
+    RETURN
+
+*----------
+OPENFILE:
+*----------
+    CALL OPF(FN.DRAW,F.DRAW)
+    CALL OPF(FN.LC,F.LC)
+    CALL OPF(FN.JOB.REG,F.JOB.REG)
+    CALL OPF(FN.CUS,F.CUS)
+    CALL OPF(FN.CURR,F.CURR)
+    RETURN
+
+*-----------
+PROCESS:
+*-----------
+    LOCATE 'FROM.DATE' IN ENQ.SELECTION<2,1> SETTING FROM.POS THEN
+        Y.INPUT.DATE =  ENQ.SELECTION<4,FROM.POS>
+    END
+
+!SEL.CMD = 'SELECT ':FN.DRAW :' WITH VALUE.DATE LE ':Y.INPUT.DATE:' AND LC.CREDIT.TYPE EQ ':Y.LC.TYPE:' AND CO.CODE EQ ':Y.COMPANY
+    SEL.CMD = 'SELECT ':FN.DRAW :' WITH CATEGORY GE 23305 ':'AND CATEGORY LE 23346':' AND CO.CODE EQ ':Y.COMPANY
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.DRAW.REC,RET.CODE)
+
+    LOOP
+        REMOVE Y.LC.ID FROM SEL.LIST SETTING POS
+    WHILE Y.LC.ID : POS
+
+        CALL F.READ(FN.DRAW,Y.LC.ID,R.BTB.DR.LC,F.DRAW,Y.BTB.ERR)
+        Y.VALUE.DT = R.BTB.DR.LC<TF.DR.VALUE.DATE>
+        Y.DRAW.TYPE = R.BTB.DR.LC<TF.DR.DRAWING.TYPE>
+
+        IF (Y.VALUE.DT LE Y.INPUT.DATE) AND (Y.DRAW.TYPE EQ 'CO' OR Y.DRAW.TYPE EQ 'AC') THEN
+            Y.IFDBC.NO = Y.LC.ID
+            Y.BTB.LC.NO = Y.IFDBC.NO[1,12]
+            Y.IFDBC.DT = R.BTB.DR.LC<TF.DR.VALUE.DATE>
+            Y.DOC.AMT.USD = R.BTB.DR.LC<TF.DR.DOCUMENT.AMOUNT>
+            Y.PRESENTOR.CUST = R.BTB.DR.LC<TF.DR.PRESENTOR.CUST>
+            Y.SUPP.REF.NAME = R.BTB.DR.LC<TF.DR.PRESENTOR.REF>
+
+            CALL F.READ(FN.CURR,'USD',R.CURR,F.CURR,Y.CURR.ERR)
+            Y.CURR.RATE = R.CURR<EB.CUR.MID.REVAL.RATE,1>
+            Y.DOC.AMT.BDT = Y.DOC.AMT.USD * Y.CURR.RATE
+
+            Y.SUPP.NAME = R.BTB.DR.LC<TF.DR.LOCAL.REF,Y.EXPT.NAME.POS>
+            Y.JOB.NO = R.BTB.DR.LC<TF.DR.LOCAL.REF,Y.JOB.NO.POS>
+            Y.BENFC.NAME = R.BTB.DR.LC<TF.DR.LOCAL.REF,Y.IMP.NAME.POS>
+            Y.DATE.OF.PAYMENT = R.BTB.DR.LC<TF.DR.LOCAL.REF,Y.DATE.OF.PAYMENT.POS>
+
+            CALL F.READ(FN.LC,Y.BTB.LC.NO,R.BTB.LC.REC,F.LC,Y.LC.ERR)
+            Y.OLD.LC.NO = R.BTB.LC.REC<TF.LC.OLD.LC.NUMBER>
+            Y.LC.ISS.DT = R.BTB.LC.REC<TF.LC.ISSUE.DATE>
+            Y.MAT.DT = R.BTB.LC.REC<TF.LC.EXPIRY.DATE>
+
+            CALL F.READ(FN.CUS,Y.PRESENTOR.CUST,R.CUS,F.CUS,Y.CUS.ERR)
+            Y.SUPP.BNK.NAME = R.CUS<EB.CUS.SHORT.NAME>
+
+            CALL F.READ(FN.JOB.REG,Y.JOB.NO,R.JOB,F.JOB.REG,Y.JOB.ERR)
+            Y.EXP.LC.ID.CNT = DCOUNT(R.JOB<BTB.JOB.EX.TF.REF>,@VM)
+
+            IF Y.EXP.LC.ID.CNT EQ 1 THEN
+                Y.SL.NO = Y.SL.NO + 1
+                Y.EXP.LC.ID = R.JOB<BTB.JOB.EX.TF.REF>
+                Y.EXP.ISS.DT = R.JOB<BTB.JOB.EX.ISSUE.DATE>
+                Y.RETURN<-1> = Y.BENFC.NAME:"*":Y.IFDBC.NO:"*":Y.IFDBC.DT:"*":Y.DOC.AMT.USD:"*":Y.OLD.LC.NO:"*":Y.LC.ISS.DT:"*":Y.SUPP.NAME:"*":Y.SUPP.BNK.NAME:"*":Y.SUPP.REF.NAME:"*":Y.JOB.NO:"*":Y.SL.NO:"*":Y.EXP.LC.ID:"*":Y.EXP.ISS.DT:"*":Y.MAT.DT:"*":Y.DOC.AMT.BDT:"*":Y.INPUT.DATE:'*':Y.DATE.OF.PAYMENT
+!                                     1               2               3             4              5               6                7                8                   9                    10          11             12             13           14              15               16                     17
+            END
+            IF Y.EXP.LC.ID.CNT GT 1 THEN
+                FOR I = 1 TO Y.EXP.LC.ID.CNT
+                    IF I EQ 1 THEN
+                        Y.SL.NO = Y.SL.NO + 1
+                        Y.EXP.LC.ID = R.JOB<BTB.JOB.EX.TF.REF,I>
+                        Y.EXP.ISS.DT = R.JOB<BTB.JOB.EX.ISSUE.DATE,I>
+                        Y.RETURN<-1> = Y.BENFC.NAME:"*":Y.IFDBC.NO:"*":Y.IFDBC.DT:"*":Y.DOC.AMT.USD:"*":Y.OLD.LC.NO:"*":Y.LC.ISS.DT:"*":Y.SUPP.NAME:"*":Y.SUPP.BNK.NAME:"*":Y.SUPP.REF.NAME:"*":Y.JOB.NO:"*":Y.SL.NO:"*":Y.EXP.LC.ID:"*":Y.EXP.ISS.DT:"*":Y.MAT.DT:"*":Y.DOC.AMT.BDT:"*":Y.INPUT.DATE:'*':Y.DATE.OF.PAYMENT
+                    END ELSE
+                        Y.EXP.LC.ID = R.JOB<BTB.JOB.EX.TF.REF,I>
+                        Y.EXP.ISS.DT = R.JOB<BTB.JOB.EX.ISSUE.DATE,I>
+                        Y.RETURN<-1> = '':"*":'':"*":'':"*":'':"*":'':"*":'':"*":'':"*":'':"*":'':"*":'':"*":'':"*":Y.EXP.LC.ID:"*":Y.EXP.ISS.DT:"*":'':'*':'*'
+                    END
+                NEXT I
+            END
+        END
+    REPEAT
+    RETURN

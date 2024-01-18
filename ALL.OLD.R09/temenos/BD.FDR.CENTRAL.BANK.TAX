@@ -1,0 +1,83 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.FDR.CENTRAL.BANK.TAX( PASS.CUSTOMER, PASS.DEAL.AMOUNT, PASS.DEAL.CCY, PASS.CCY.MKT, PASS.CROSS.RATE, PASS.CROSS.CCY, PASS.DWN.CCY, PASS.DATA, PASS.CUST.CDN,R.TAX,TAX.AMOUNT)
+
+* Developed By- msiddque@temenos.com
+* Dated 14/11/2012
+* This routine calculate TAX amount based on TIN given or not and attached in CALC.ROUTINE field of TAX Application
+* Condition 1 : If TIN given then Tax will be 10%
+* Condition 2 : If TIN not given then Tax will be 15%
+*Revision History*
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.AZ.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+
+INIT:
+
+    FN.CUS="F.CUSTOMER"
+    F.CUS=""
+    REC.CUS=""
+    FN.AZ.AC = "F.AZ.ACCOUNT"
+    F.AZ.AC = ""
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.CUS,F.CUS)
+    CALL OPF(FN.AZ.AC,F.AZ.AC)
+    CALL OPF(FN.AC,F.AC)
+
+    RETURN
+
+PROCESS:
+
+    Y.AC.ID = PASS.DATA<38,1>
+    IF Y.AC.ID ELSE
+        RETURN
+    END
+    Y.TIN.GIVEN="TIN.GIVEN"
+    Y.TIN.GIVEN.POS=""
+    CALL GET.LOC.REF("CUSTOMER",Y.TIN.GIVEN,Y.TIN.GIVEN.POS)
+    CALL GET.LOC.REF("AZ.ACCOUNT","ST.DEDUCT",Y.ST.DEDUCT.POS)
+
+    CALL F.READ(FN.CUS,PASS.CUSTOMER,REC.CUS,F.CUS,ERR.CUS)
+    CALL F.READ(FN.AZ.AC,Y.AC.ID,R.AZ.AC,F.AZ.AC,ERR.AZ.AC)
+    Y.ST.DEDUCT = R.AZ.AC<AZ.LOCAL.REF,Y.ST.DEDUCT.POS>
+    IF R.AZ.AC EQ "" THEN
+        CALL F.READ(FN.AC,Y.AC.ID,R.AC,F.AC,ERR.AC)
+        Y.MAS.AC = R.AC<AC.MASTER.ACCOUNT>
+        IF Y.MAS.AC THEN
+            CALL F.READ(FN.AZ.AC,Y.MAS.AC,R.AZ.AC,F.AZ.AC,ERR.AZ.AC)
+            Y.ST.DEDUCT = R.AZ.AC<AZ.LOCAL.REF,Y.ST.DEDUCT.POS>
+        END
+
+    END
+
+    IF Y.ST.DEDUCT NE "" THEN
+        TAX.AMOUNT=(PASS.DEAL.AMOUNT*Y.ST.DEDUCT)/100
+    END
+
+    ELSE
+        IF REC.CUS<EB.CUS.LOCAL.REF,Y.TIN.GIVEN.POS> EQ 'Y' THEN
+            TAX.AMOUNT=(PASS.DEAL.AMOUNT*10)/100
+        END ELSE
+            TAX.AMOUNT =(PASS.DEAL.AMOUNT*15)/100
+        END
+    END
+    RETURN
+
+END

@@ -1,0 +1,77 @@
+*-----------------------------------------------------------------------------
+* <Rating>-21</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.UPD.BD.EXCISE.DUTY.LOAD
+**************************************************************************
+* Subroutine Description:
+*-----------------------
+* This Load Routine is used to open all the required files.
+*-------------------------------------------------------------------------
+* Parameter Description:
+*--------- -----------
+* NA
+*-------------------------------------------------------------------------
+* Common Variable Description
+*------  ------- -----------
+* Variable name:               Insert file:          Description:
+* TODAY                        I_COMMON              Will hold Today's date
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* NA
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 04/03/2011 -                             New   - Rashmitha M
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.AZ.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT.CLASS
+    $INCLUDE JBL.BP I_F.EB.BD.EXCISE.DUTY
+    $INCLUDE JBL.BP I_JBL.B.UPD.BD.EXCISE.DUTY.COMMON
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+    RETURN
+*--------------------------------------------------------------------------
+INITIALISE:
+*---------
+*
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+*
+
+    FN.AZ.ACCOUNT = 'F.AZ.ACCOUNT'
+    F.AZ.ACCOUNT = ''
+    CALL OPF(FN.AZ.ACCOUNT,F.AZ.ACCOUNT)
+*
+
+    FN.EB.BD.EXCISE.DUTY = 'F.EB.BD.EXCISE.DUTY'
+    F.EB.BD.EXCISE.DUTY = ''
+    CALL OPF(FN.EB.BD.EXCISE.DUTY,F.EB.BD.EXCISE.DUTY)
+
+*
+    FN.ACCOUNT.CLASS='F.ACCOUNT.CLASS'
+    F.ACCOUNT.CLASS=''
+    CALL OPF(FN.ACCOUNT.CLASS,F.ACCOUNT.CLASS)
+    R.ACCOUNT.CLASS.SAVINGS=''
+    ACCOUNT.CLASS.ERR=''
+*
+    RETURN
+*------------------------------------------------------------------------------------------
+PROCESS:
+*------
+! Read ACCOUNT.CLASS with iID as 'SAVINGS'
+
+    CALL F.READ(FN.ACCOUNT.CLASS,'SAVINGS',R.ACCOUNT.CLASS.SAVINGS,F.ACCOUNT.CLASS,ACCOUNT.CLASS.ERR)
+    IF NOT(R.ACCOUNT.CLASS.SAVINGS) THEN
+        RETURN
+    END
+*
+    RETURN
+*-------------------------------------------------------------------------------------------------------
+END

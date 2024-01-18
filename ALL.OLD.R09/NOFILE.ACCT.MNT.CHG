@@ -1,0 +1,203 @@
+*-----------------------------------------------------------------------------
+* <Rating>11</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE NOFILE.ACCT.MNT.CHG(Y.ARR)
+*-----------------------------------------------------------------------------------------------------------
+*
+*-----------------------------------------------------------------------------------------------------------
+*
+* This is a Nofile Enquiry Routine used to display Total number of Current,Savings and Term deposit accounts
+* for which Maintenance charge is calculated and the respective Maintenance charge amount.
+*
+*
+*@author        emmanuel.livingston@capgemini.com
+*
+*-----------------------------------------------------------------------------------------------------------
+*
+*-----------------------------------------------------------------------------------------------------------
+* Modification History:
+*-----------------------------------------------------------------------------------------------------------
+*
+* 05/08/2011            -Janatha Bank Limited
+*                        New changes
+*
+*-----------------------------------------------------------------------------------------------------------
+*
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.FT.COMMISSION.TYPE
+    $INSERT GLOBUS.BP I_F.IC.CHARGE.PRODUCT
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.COMPANY
+*
+*-----------------------------------------------------------------------------------------------------------
+* Main controlling section:
+*-----------------------------------------------------------------------------------------------------------
+*
+    GOSUB INITIALISATION
+    GOSUB MAIN.PROCESS
+*
+    RETURN
+*
+*-----------------------------------------------------------------------------------------------------------
+* Subroutine Section:
+*-----------------------------------------------------------------------------------------------------------
+INITIALISATION:
+*-----------------------------------------------------------------------------------------------------------
+* File Opening and Variable set up
+*-----------------------------------------------------------------------------------------------------------
+*
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT = ""
+    R.ACCOUNT = ""
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+*
+    FN.FT.COMMISSION.TYPE = "F.FT.COMMISSION.TYPE"
+    F.FT.COMMISSION.TYPE = ""
+    R.FT.COMMISSION.TYPE = ""
+    CALL OPF(FN.FT.COMMISSION.TYPE,F.FT.COMMISSION.TYPE)
+*
+    FN.IC.CHARGE.PRODUCT = "F.IC.CHARGE.PRODUCT"
+    F.IC.CHARGE.PRODUCT = ""
+    R.IC.CHARGE.PRODUCT = ""
+    CALL OPF(FN.IC.CHARGE.PRODUCT,F.IC.CHARGE.PRODUCT)
+*
+    FN.COMPANY = "F.COMPANY"
+    F.COMPANY = ""
+    R.COMPNY = ""
+    CALL OPF(FN.COMPANY,F.COMPANY)
+*
+    RETURN
+*
+*-----------------------------------------------------------------------------------------------------------
+MAIN.PROCESS:
+*-----------------------------------------------------------------------------------------------------------
+* Main Subroutine processing:
+*-----------------------------------------------------------------------------------------------------------
+*
+*-----------------------------------------------------------------------------------------------------------
+* Getting the Branch code of the Company and getting the Mnemonic of the respective company
+*-----------------------------------------------------------------------------------------------------------
+*
+    LOCATE "COMPANY.CODE" IN  D.FIELDS SETTING POS ELSE NULL
+    Y.BANK.CODE = D.RANGE.AND.VALUE<POS>
+*
+    CALL F.READ(FN.COMPANY,Y.BANK.CODE,R.COMPNY,F.COMPANY,Y.ERR)
+    Y.BANK.MNEMONIC = R.COMPNY<EB.COM.MNEMONIC>
+*
+*-----------------------------------------------------------------------------------------------------------
+* FT.COMMISSION.TYPE of the Current account,Savings account and Term Deposit Account are given
+*-----------------------------------------------------------------------------------------------------------
+*
+    Y.FT.COMM.TYPE.CURR = "ACCTMNTCHG"
+    Y.FT.COMM.TYPE.SB = "ACCMNTCHGSB"
+    Y.FT.COMM.TYPE.TD = "MNTCHGFD"
+*
+    SEL.CURR.CMD = "SELECT ":FN.IC.CHARGE.PRODUCT:" WITH GEN.CHARGE.KEY EQ ":Y.FT.COMM.TYPE.CURR
+    CALL EB.READLIST(SEL.CURR.CMD,SEL.CURR.LIST,"",NO.OF.RECORDS,RET.CODE)
+*
+    Y.IC.PRODUCT.CURR = SEL.CURR.LIST
+*
+    SEL.SAVE.CMD = "SELECT ":FN.IC.CHARGE.PRODUCT:" WITH GEN.CHARGE.KEY EQ ":Y.FT.COMM.TYPE.SB
+    CALL EB.READLIST(SEL.SAVE.CMD,SEL.SAVE.LIST,"",NO.OF.RECORDS,RET.CODE)
+*
+    Y.IC.PRODUCT.SAVE = SEL.SAVE.LIST
+*
+    SEL.TD.CMD = "SELECT ":FN.IC.CHARGE.PRODUCT:" WITH GEN.CHARGE.KEY EQ ":Y.FT.COMM.TYPE.TD
+    CALL EB.READLIST(SEL.TD.CMD,SEL.TD.LIST,"",NO.OF.RECORDS,RET.CODE)
+*
+    Y.IC.PRODUCT.TD = SEL.TD.LIST
+*
+    GOSUB TOT.ACCT.MAINTENANCE
+*
+    RETURN
+*
+*-----------------------------------------------------------------------------------------------------------
+TOT.ACCT.MAINTENANCE:
+*-----------------------------------------------------------------------------------------------------------
+* Calculate the Maintenance charge details half yearly wise:
+*-----------------------------------------------------------------------------------------------------------
+*
+    Y.DATE = TODAY
+    Y.MONTH = Y.DATE[5,2]
+    Y.YEAR = Y.DATE[1,4]
+*
+*-----------------------------------------------------------------------------------------------------------
+*
+    IF Y.MONTH GE '7' AND Y.MONTH LE '12' THEN
+        Y.CHG.DATE = Y.YEAR:"06"
+    END ELSE
+        Y.CHG.YEAR = Y.YEAR - 1
+        Y.CHG.DATE = Y.CHG.YEAR:"12"
+    END
+*
+*-----------------------------------------------------------------------------------------------------------
+* Calculating the total number of Current Accounts, Savings Accounts and Term deposit accounts for which
+* Maintenance charge is been calculated
+*-----------------------------------------------------------------------------------------------------------
+*
+    Y.CURR.ACCT.COUNT = "COUNT F":Y.BANK.MNEMONIC:".ACCOUNT WITH IC.PRODUCT EQ ":Y.IC.PRODUCT.CURR:" AND IC.LST.PROD.CAP LIKE ":Y.CHG.DATE:"..."
+    EXECUTE Y.CURR.ACCT.COUNT CAPTURING Y.CURR.ACCT
+*
+    Y.TOTAL.CURR.ACCT = FIELD(Y.CURR.ACCT,' ',2,1)
+*
+    Y.SAVE.ACCT.COUNT = "COUNT F":Y.BANK.MNEMONIC:".ACCOUNT WITH IC.PRODUCT EQ ":Y.IC.PRODUCT.SAVE:" AND IC.LST.PROD.CAP LIKE ":Y.CHG.DATE:"..."
+    EXECUTE Y.SAVE.ACCT.COUNT CAPTURING Y.SAVE.ACCT
+*
+    Y.TOTAL.SAVINGS.ACCT = FIELD(Y.SAVE.ACCT,' ',2,1)
+*
+    Y.TD.ACCT.COUNT = "COUNT F":Y.BANK.MNEMONIC:".ACCOUNT WITH IC.PRODUCT EQ ":Y.IC.PRODUCT.TD:" AND IC.LST.PROD.CAP LIKE ":Y.CHG.DATE:"..."
+    EXECUTE Y.TD.ACCT.COUNT CAPTURING Y.TD.ACCT
+*
+    Y.TOTAL.TD.ACCT = FIELD(Y.TD.ACCT,' ',2,1)
+*
+*-----------------------------------------------------------------------------------------------------------
+*
+    IF Y.TOTAL.CURR.ACCT = 'No' THEN
+        Y.TOTAL.CURR.ACCT = 0
+    END
+*
+    IF Y.TOTAL.SAVINGS.ACCT = 'No' THEN
+        Y.TOTAL.SAVINGS.ACCT = 0
+    END
+*
+    IF Y.TOTAL.TD.ACCT = 'No' THEN
+        Y.TOTAL.TD.ACCT = 0
+    END
+*
+*-----------------------------------------------------------------------------------------------------------
+* Total Maintenance charge for each of the Current,savings and Term deposit accounts are calculated
+*-----------------------------------------------------------------------------------------------------------
+*
+    CALL F.READ(FN.FT.COMMISSION.TYPE,Y.FT.COMM.TYPE.CURR,R.FT.COMMISSION.TYPE,F.FT.COMMISSION.TYPE,Y.ERR)
+    Y.CURR.ACCT.MNT.CHG = R.FT.COMMISSION.TYPE<FT4.FLAT.AMT>
+*
+    CALL F.READ(FN.FT.COMMISSION.TYPE,Y.FT.COMM.TYPE.SB,R.FT.COMMISSION.TYPE,F.FT.COMMISSION.TYPE,Y.ERR)
+    Y.SB.ACCT.MNT.CHG = R.FT.COMMISSION.TYPE<FT4.FLAT.AMT>
+*
+    CALL F.READ(FN.FT.COMMISSION.TYPE,Y.FT.COMM.TYPE.TD,R.FT.COMMISSION.TYPE,F.FT.COMMISSION.TYPE,Y.ERR)
+    Y.TD.ACCT.MNT.CHG = R.FT.COMMISSION.TYPE<FT4.FLAT.AMT>
+*
+    Y.CURR.ACCT.MNT.CHG = Y.TOTAL.CURR.ACCT * Y.CURR.ACCT.MNT.CHG
+    Y.SAVINGS.ACCT.MNT.CHG = Y.TOTAL.SAVINGS.ACCT * Y.SB.ACCT.MNT.CHG
+    Y.TD.ACCT.MNT.CHG = Y.TOTAL.TD.ACCT * Y.TD.ACCT.MNT.CHG
+*
+*-----------------------------------------------------------------------------------------------------------
+*
+    Y.CURR.CHECK = ISALPHA(Y.TOTAL.CURR.ACCT)
+    Y.SAVE.CHECK = ISALPHA(Y.TOTAL.SAVINGS.ACCT)
+    Y.TD.CHECK = ISALPHA(Y.TOTAL.TD.ACCT)
+
+    IF Y.CURR.CHECK = Y.SAVE.CHECK = Y.TD.CHECK = 1 THEN
+        Y.ARR<-1> = "NO RECORDS TO DISPLAY"
+    END ELSE
+    IF Y.TOTAL.CURR.ACCT = Y.TOTAL.SAVINGS.ACCT = Y.TOTAL.TD.ACCT = 0 THEN
+        Y.ARR<-1> = "NO RECORDS TO DISPLAY"
+    END ELSE
+        Y.ARR<-1> = Y.TOTAL.CURR.ACCT:"*":Y.TOTAL.SAVINGS.ACCT:"*":Y.TOTAL.TD.ACCT:"*":Y.CURR.ACCT.MNT.CHG:"*":Y.SAVINGS.ACCT.MNT.CHG:"*":Y.TD.ACCT.MNT.CHG:'*':Y.BANK.CODE
+    END
+END
+*
+    RETURN
+END

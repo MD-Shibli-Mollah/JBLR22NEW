@@ -1,0 +1,219 @@
+*----------------------------------------------------------------------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>157</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.AZ.INST.FAIL
+*----------------------------------------------------------------------------------------------------------------------------------------------
+* Subroutine Description:
+*----------------------------------------------------------------------------------------------------------------------------------------------
+* This is a batch routine attached to end of day process
+* The Purpose of this Routine is to check  instalment failure for any RD and
+* if it has failed more than allowed failure then account should be freezed
+*----------------------------------------------------------------------------------------------------------------------------------------------
+* Parameter Description
+*----------------------------------------------------------------------------------------------------------------------------------------------
+* N/A
+*----------------------------------------------------------------------------------------------------------------------------------------------
+* Common Variable Description
+*----------------------------------------------------------------------------------------------------------------------------------------------
+* Variable name:   Insert file:          Description:
+* R.NEW           I_COMMON              It holds the currently opened record
+*----------------------------------------------------------------------------------------------------------------------------------------------
+* Called Subroutines:
+*----------------------------------------------------------------------------------------------------------------------------------------------
+* Routine Name:          Local/Core :     Description:
+*
+* F.READ                 CORE             Used to read a record from a file
+*
+*----------------------------------------------------------------------------------------------------------------------------------------------
+* Modification History:
+*----------------------------------------------------------------------------------------------------------------------------------------------
+* 24/02/2011 -          New   - Archana
+*                               Thesys Technologies
+*----------------------------------------------------------------------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.AZ.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.AZ.SCHEDULES
+    $INCLUDE GLOBUS.BP I_F.AZ.PRODUCT.PARAMETER
+    $INCLUDE GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INCLUDE GLOBUS.BP I_F.DATES
+    $INCLUDE GLOBUS.BP I_F.ENQUIRY.REPORT
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT.CLASS
+
+    GOSUB INITIATE
+    GOSUB PROCESS
+
+    RETURN
+
+*----------------------------------------------------------------------------------------------------------------------------------------------
+INITIATE:
+*----------------------------------------------------------------------------------------------------------------------------------------------
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    FN.AZ.ACCOUNT = 'F.AZ.ACCOUNT'
+    F.AZ.ACCOUNT = ''
+    CALL OPF(FN.AZ.ACCOUNT,F.AZ.ACCOUNT)
+
+    FN.AZ.PRODUCT.PARAMETER = 'F.AZ.PRODUCT.PARAMETER'
+    F.AZ.PRODUCT.PARAMETER = ''
+    CALL OPF(FN.AZ.PRODUCT.PARAMETER,F.AZ.PRODUCT.PARAMETER)
+
+    FN.FUNDS.TRANSFER.NAU = 'F.FUNDS.TRANSFER$NAU'
+    F.FUNDS.TRANSFER.NAU = ''
+    CALL OPF(FN.FUNDS.TRANSFER.NAU,F.FUNDS.TRANSFER.NAU)
+
+    FN.AZ.SCHEDULES = 'F.AZ.SCHEDULES'
+    F.AZ.SCHEDULES = ''
+    CALL OPF(FN.AZ.SCHEDULES,F.AZ.SCHEDULES)
+
+    FN.ENQUIRY.REPORT = 'F.ENQUIRY.REPORT'
+    F.ENQUIRY.REPORT = ''
+    CALL OPF(FN.ENQUIRY.REPORT,F.ENQUIRY.REPORT)
+
+    FN.ACCOUNT.CLASS = 'F.ACCOUNT.CLASS'
+    F.ACCOUNT.CLASS = ''
+    CALL OPF(FN.ACCOUNT.CLASS,F.ACCOUNT.CLASS)
+
+    Y.APPN = 'AZ.ACCOUNT':FM:'AZ.PRODUCT.PARAMETER':FM:'ACCOUNT'
+    Y.FLDS = 'IN.FAIL.MARKER':FM:'INST.FAIL.ALLOW':VM:'UPTO.THE.YEAR':FM:'RD.FREEZE.DATE'
+    Y.POS = ''
+
+    CALL MULTI.GET.LOC.REF(Y.APPN,Y.FLDS,Y.POS)
+    Y.IN.FAIL.MARKER.POS = Y.POS<1,1>
+    Y.INST.FAIL.ALLOW.POS = Y.POS<2,1>
+    Y.UPTO.THE.YEAR.POS = Y.POS<2,2>
+    Y.RD.FREEZE.DATE.POS = Y.POS<3,1>
+
+    Y.TODAY = TODAY
+    Y.LAST.WORKING.DATE = R.DATES(EB.DAT.LAST.WORKING.DAY)
+    RETURN
+
+*----------------------------------------------------------------------------------------------------------------------------------------------
+PROCESS:
+*----------------------------------------------------------------------------------------------------------------------------------------------
+
+    Y.ACCOUNT.CLASS.ID = 'U-RDFREEZE'
+
+    CALL F.READ(FN.ACCOUNT.CLASS,Y.ACCOUNT.CLASS.ID,R.ACCOUNT.CLASS,F.ACCOUNT.CLASS,ERR.ACCOUNT.CLASS)
+    IF R.ACCOUNT.CLASS THEN
+        Y.CATEG.LIST = R.ACCOUNT.CLASS<AC.CLS.CATEGORY>
+        CHANGE FM TO VM IN Y.CATEG.LIST
+    END
+
+    SEL.FT = 'SELECT ':FN.FUNDS.TRANSFER.NAU:' WITH (PROCESSING.DATE GE ':Y.LAST.WORKING.DATE:' AND PROCESSING.DATE LT ':Y.TODAY:') AND INWARD.PAY.TYPE LIKE AZ...'
+
+    CALL EB.READLIST(SEL.FT,Y.FT.LIST,'',NO.OF.FT,FT.ERR)
+
+    LOOP
+        REMOVE Y.FT.ID FROM Y.FT.LIST SETTING FT.POS
+    WHILE (Y.FT.ID:FT.POS)
+        CALL F.READ(FN.FUNDS.TRANSFER.NAU,Y.FT.ID,R.FUNDS.TRANSFER.NAU,F.FUNDS.TRANSFER.NAU,ERR.FUNDS.TRANSFER.NAU)
+        IF R.FUNDS.TRANSFER.NAU THEN
+            Y.AZ.STATUS = R.FUNDS.TRANSFER.NAU<FT.INWARD.PAY.TYPE>
+            Y.FT.CR.AC = FIELD(Y.AZ.STATUS,'-',2)
+            CALL F.READ(FN.AZ.ACCOUNT,Y.FT.CR.AC,R.AZ.ACCOUNT,F.AZ.ACCOUNT,ERR.AZ.ACCOUNT)
+            IF R.AZ.ACCOUNT THEN
+                Y.AZ.CATEGORY = R.AZ.ACCOUNT<AZ.CATEGORY>
+                IF Y.AZ.CATEGORY MATCHES Y.CATEG.LIST THEN
+                    Y.IN.FAIL.MARKER = R.AZ.ACCOUNT<AZ.LOCAL.REF,Y.IN.FAIL.MARKER.POS>
+                    Y.APP.ID = R.AZ.ACCOUNT<AZ.ALL.IN.ONE.PRODUCT>
+                    Y.AZ.CREATE.DATE = R.AZ.ACCOUNT<AZ.CREATE.DATE>
+                    Y.IN.FAIL.MARKER += 1
+                    R.AZ.ACCOUNT<AZ.LOCAL.REF,Y.IN.FAIL.MARKER.POS> = Y.IN.FAIL.MARKER
+                    CALL F.WRITE(FN.AZ.ACCOUNT,Y.FT.CR.AC,R.AZ.ACCOUNT)
+                    GOSUB CALL.APP.CHK
+                END
+            END
+        END
+    REPEAT
+
+    RETURN
+
+*----------------------------------------------------------------------------------------------------------------------------------------------
+CALL.APP.CHK:
+*----------------------------------------------------------------------------------------------------------------------------------------------
+
+    CALL F.READ(FN.AZ.PRODUCT.PARAMETER,Y.APP.ID,R.AZ.PRODUCT.PARAMETER,F.AZ.PRODUCT.PARAMETER,ERR.AZ.PRODUCT.PARAMETER)
+    IF R.AZ.PRODUCT.PARAMETER THEN
+        Y.UPTO.THE.YEAR = R.AZ.PRODUCT.PARAMETER<AZ.APP.LOCAL.REF,Y.UPTO.THE.YEAR.POS>
+        Y.INST.FAIL.ALLOW = R.AZ.PRODUCT.PARAMETER<AZ.APP.LOCAL.REF,Y.INST.FAIL.ALLOW.POS>
+        GOSUB CHK.CATEG
+        IF Y.IN.FAIL.MARKER GT Y.INST.FAIL.ALLOW THEN
+            CALL F.READ(FN.ACCOUNT,Y.FT.CR.AC,R.ACCOUNT,F.ACCOUNT,ERR.ACCOUNT)
+            IF R.ACCOUNT THEN
+                R.ACCOUNT<AC.POSTING.RESTRICT> = 2
+                R.ACCOUNT<AC.LOCAL.REF,Y.RD.FREEZE.DATE.POS> = Y.TODAY
+                CALL F.WRITE(FN.ACCOUNT,Y.FT.CR.AC,R.ACCOUNT)
+                IF Y.UPTO.THE.YEAR NE '' THEN
+                    GOSUB SEND.MSG1
+                END ELSE
+                    GOSUB SEND.MSG
+                END
+            END
+        END
+    END
+
+    RETURN
+
+*----------------------------------------------------------------------------------------------------------------------------------------------
+CHK.CATEG:
+*----------------------------------------------------------------------------------------------------------------------------------------------
+
+    IF Y.UPTO.THE.YEAR NE '' THEN
+        NOF.DAYS = 'C'
+        CALL CDD('1',Y.AZ.CREATE.DATE,Y.TODAY,NOF.DAYS)
+        BEGIN CASE
+        CASE NOF.DAYS LT 365
+            Y.YEAR = 1
+        CASE NOF.DAYS GE 365 AND NOF.DAYS LT 1825
+            Y.YEAR = 5
+        CASE NOF.DAYS GE 1825
+            Y.YEAR = 10
+        END CASE
+    END ELSE
+        Y.YEAR = ''
+    END
+*Y.UPTO.THE.YEAR = R.AZ.PRODUCT.PARAMETER<AZ.APP.LOCAL.REF,Y.UPTO.THE.YEAR.POS>
+*Y.INST.FAIL.ALLOW = R.AZ.PRODUCT.PARAMETER<AZ.APP.LOCAL.REF,Y.INST.FAIL.ALLOW.POS>
+    CHANGE SM TO FM IN Y.UPTO.THE.YEAR
+    CHANGE SM TO FM IN Y.INST.FAIL.ALLOW
+    LOCATE Y.YEAR  IN Y.UPTO.THE.YEAR SETTING YR.POS THEN
+        Y.INST.FAIL.ALLOW = Y.INST.FAIL.ALLOW<YR.POS>
+    END
+    IF Y.INST.FAIL.ALLOW EQ '' THEN Y.INST.FAIL.ALLOW = 0
+
+    RETURN
+
+*----------------------------------------------------------------------------------------------------------------------------------------------
+SEND.MSG:
+*----------------------------------------------------------------------------------------------------------------------------------------------
+
+    MAT R.NEW = ''
+    ID.NEW = "JBL.INST.FAIL.REP"
+    MATREAD R.NEW FROM F.ENQUIRY.REPORT,ID.NEW THEN
+        R.NEW(ENQ.REP.LIST)<1,1> = Y.FT.CR.AC
+        R.NEW(ENQ.REP.REPORT.CONTROL) = "JBL.INSTL.FAIL"
+        CALL ENQUIRY.REPORT.RUN
+    END
+    RETURN
+
+*----------------------------------------------------------------------------------------------------------------------------------------------
+SEND.MSG1:
+*----------------------------------------------------------------------------------------------------------------------------------------------
+
+    MAT R.NEW = ''
+    ID.NEW = "JBL.JBSPS.INST.FAIL.REP"
+    MATREAD R.NEW FROM F.ENQUIRY.REPORT,ID.NEW THEN
+        R.NEW(ENQ.REP.LIST)<1,1> = Y.FT.CR.AC
+        R.NEW(ENQ.REP.REPORT.CONTROL) = "JBL.INSTL.FAIL"
+        CALL ENQUIRY.REPORT.RUN
+    END
+    RETURN
+
+*----------------------------------------------------------------------------------------------------------------------------------------------
+END
+*----------------------------------------------------------------------------------------------------------------------------------------------

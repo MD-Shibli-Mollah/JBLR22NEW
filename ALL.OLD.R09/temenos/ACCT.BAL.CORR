@@ -1,0 +1,51 @@
+*-----------------------------------------------------------------------------
+* <Rating>100</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ACCT.BAL.CORR
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.EB.CONTRACT.BALANCES
+    $INSERT GLOBUS.BP I_F.COMPANY
+
+    MNEM = R.COMPANY(3)
+
+    EXECUTE "COMO ON ACCT.BAL.CORR_":MNEM
+
+    FN.ACC = "F.ACCOUNT"
+    FV.ACC = ""
+    CALL OPF(FN.ACC,FV.ACC)
+
+    F.ECB="F.EB.CONTRACT.BALANCES"
+    FN.ECB=""
+    CALL OPF(F.ECB,FN.ECB)
+
+
+    SEL.CMD = "" ; SEL.LIST = "" ; Y.NOR = "" ; Y.RET.CODE = ""
+    Y.ACC.IDS = "" ; DIFF.AMTS = "" ; Y.CNT = ""; R.ECB=""; DIFF.AMT = ""
+
+    SEL.CMD = "GET.LIST ACC.LIST"
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",Y.NOR,Y.RET.CODE)
+
+    IF SEL.LIST THEN
+        Y.ACC.IDS = FIELDS(SEL.LIST,"*",1,1)
+        DIFF.AMT = FIELDS(SEL.LIST,"*",2,1)
+        Y.CNT = DCOUNT(Y.ACC.IDS,@FM)
+        FOR I = 1 TO Y.CNT
+            R.ACC = ""
+            READU R.ACC FROM FV.ACC,Y.ACC.IDS<I> ELSE R.ACC = ""
+                PRINT "ACCOUNT RECORD AFTER READ : ":R.ACC
+            IF R.ACC THEN
+                R.ACC<AC.WORKING.BALANCE> += DIFF.AMT<I>
+                PRINT "ACCOUNT RECORD BEFORE WRITE : ":R.ACC
+                WRITE R.ACC TO FV.ACC,Y.ACC.IDS<I>
+            END
+            RELEASE FV.ACC, Y.ACC.IDS<I>
+        NEXT I
+    END
+
+    EXECUTE "COMO OFF ACCT.BAL.CORR_":MNEM
+    RETURN
+
+END

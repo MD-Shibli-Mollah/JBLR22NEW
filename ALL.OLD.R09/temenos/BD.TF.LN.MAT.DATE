@@ -1,0 +1,72 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+**************************************************************************
+*---------------------------------
+*Company Name   : Datasoft
+*Developed By   : Mehedi
+*
+*----------------------------------------------------------------------
+*Subroutine Type:
+*
+*Attached To    :
+*
+*Attached As    : Attached as a Validation Routine.
+*
+*In Parameter   : N/A
+*
+*Out Parameter  : N/A
+*---------------------------------------------------------------------------------------
+*Description    : This routine create Demand Loan Maturity Date added by Tenor Days
+*
+*---------------------------------------------------------------------------------------
+    SUBROUTINE BD.TF.LN.MAT.DATE
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+*------
+INIT:
+*------
+    FN.LC = 'F.LETTER.OF.CREDIT'
+    F.LC = ''
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    RETURN
+
+*-----------
+OPENFILES:
+*-----------
+    CALL OPF(FN.LC,F.LC)
+    CALL OPF(FN.AC,F.AC)
+
+    CALL GET.LOC.REF('ACCOUNT','LOAN.MAT.DATE',Y.LN.MAT.DT.POS)
+    CALL GET.LOC.REF('ACCOUNT','LINKED.TF.NO',Y.LINKED.TF.NO.POS)
+    CALL GET.LOC.REF('LETTER.OF.CREDIT','TENOR.DAYS',Y.TENOR.DAYS.POS)
+    RETURN
+
+*-----------
+PROCESS:
+*-----------
+    Y.LN.START.DT = COMI
+    Y.TF.NO = R.NEW(AC.LOCAL.REF)<1,Y.LINKED.TF.NO.POS>
+    CALL F.READ(FN.LC,Y.TF.NO,R.TF.REC,F.LC,Y.TF.ERR)
+    Y.TENOR.DY = R.TF.REC<TF.LC.LOCAL.REF,Y.TENOR.DAYS.POS>
+    IF Y.TENOR.DY EQ 'AT SIGHT' THEN
+        Y.TENOR.DY = '21'
+    END
+    Y.LN.MAT.DATE = Y.LN.START.DT
+    Y.CDT.PARAM = '+':Y.TENOR.DY:'C'
+    CALL CDT('',Y.LN.MAT.DATE,Y.CDT.PARAM)
+    R.NEW(AC.LOCAL.REF)<1,Y.LN.MAT.DT.POS> = Y.LN.MAT.DATE
+    RETURN
+END

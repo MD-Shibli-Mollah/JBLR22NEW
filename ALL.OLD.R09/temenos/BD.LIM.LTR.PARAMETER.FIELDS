@@ -1,0 +1,56 @@
+*-----------------------------------------------------------------------------
+* <Rating>-11</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.LIM.LTR.PARAMETER.FIELDS
+*-----------------------------------------------------------------------------
+* Description:
+*--------------
+* This file is used to hold the fields of BD.LIM.LTR.PARAMETER
+*-----------------------------------------------------------------------------
+* Modification History :
+*-----------------------
+* 01/03/2011 - New - G.Sabari
+*                    Thesys Technologies
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_DataTypes
+*-----------------------------------------------------------------------------
+    ID.F = "PARAM.ID" ; ID.N = "6" ; ID.T = "A" ; ID.T = '':FM:'SYSTEM'
+*---------------------------------------------------------------------------------
+    CALL Table.addOptionsField('DEBIT.SETTL.ACCT','YES_NO',Field_Mandatory,'')
+    CALL Table.addOptionsField('AUTO.DEBIT','YES_NO',Field_Mandatory,'')
+    CALL Table.addOptionsField('XX<CHG.TYPE','VAT_ADVANCE.INCOME.TAX_DEVELOPMENT.SURCHARGE_LICENSE.FEE_TRANSPORT.CHARGE_OTHER.CHARGES','','')
+    CALL Table.addFieldDefinition('XX>CHG.CR.ACCT','15','A','')
+    CALL Field.setCheckFile('CATEGORY')
+    CALL Table.addFieldDefinition('PADINT.CR.ACCT','15.1','A','')
+    CALL Field.setCheckFile('CATEGORY')
+    CALL Table.addFieldDefinition('PAD.CR.TXN.CODE','5.1','','')
+    CALL Field.setCheckFile('TRANSACTION')
+    CALL Table.addFieldDefinition('PAD.DR.TXN.CODE','5.1','','')
+    CALL Field.setCheckFile('TRANSACTION')
+    CALL Table.addFieldDefinition('CHG.CR.TXN.CODE','5.1','','')
+    CALL Field.setCheckFile('TRANSACTION')
+    CALL Table.addFieldDefinition('CHG.DR.TXN.CODE','5.1','','')
+    CALL Field.setCheckFile('TRANSACTION')
+    CALL Table.addFieldDefinition('OTH.CR.TXN.CODE','5.1','','')
+    CALL Field.setCheckFile('TRANSACTION')
+    CALL Table.addFieldDefinition('OTH.DR.TXN.CODE','5.1','','')
+    CALL Field.setCheckFile('TRANSACTION')
+    CALL Table.addFieldDefinition('MAR.CR.TXN.CODE','5.1','','')
+    CALL Field.setCheckFile('TRANSACTION')
+    CALL Table.addFieldDefinition('MAR.DR.TXN.CODE','5.1','','')
+    CALL Field.setCheckFile('TRANSACTION')
+
+    CALL Table.addReservedField('XX.RESERVED.05')
+    CALL Table.addReservedField('XX.RESERVED.04')
+    CALL Table.addReservedField('XX.RESERVED.03')
+    CALL Table.addReservedField('XX.RESERVED.02')
+    CALL Table.addReservedField('XX.RESERVED.01')
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+
+END

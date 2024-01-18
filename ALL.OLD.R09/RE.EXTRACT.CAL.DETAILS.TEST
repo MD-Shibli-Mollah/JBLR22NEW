@@ -1,0 +1,305 @@
+*-----------------------------------------------------------------------------
+* <Rating>-175</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE RE.EXTRACT.CAL.DETAILS.TEST(CONSOL.KEY, CAL.REC, ASSET.TYPE, MAT.RANGE, INCL.IND, MVMT.TYPE, PROCESSING.DATE, SPLIT.DATES, SPLIT.BALANCES, SPLIT.BALANCES.LCL, BALANCE, BALANCE.LCL, CONTRACT.LIST, DR.CR.MVMT, DR.CR.MVMT.LCL, ERR.MSG)
+*------------------------------------------------------------------------------
+
+*------------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CONSOLIDATE.ASST.LIAB
+*
+** Subroutine to return the BALANCE and BALANCE.LCL for a given Consol Key, asset type
+** and maturity range. Additionally it can also return a list of contracts for that
+** Key
+** CONSOL.KEY    (IN)   - Id to CAL
+** CAL.REC       (IN)   - Optional CAL record, will be read if not supplied
+** ASSET.TYPE    (IN)   - Asset type to return balance
+** MAT.RANGE     (IN)   - Maturity Range to return balance
+** INCL.IND      (IN)   - Maturity Inclusive option for the report
+** MVMT.TYPE     (IN)   - C closing or M movement determines balance figure returned
+** PROCESSING.DATE (IN) - Date for maturity analysis split to go up to
+** SPLIT.DATES  (I/O)   - List of date bands supplied optionally to return balances
+** SPLIT.BALANCES (OUT) - Associated split of total balance for key with SPLIT.DATES
+** SPLIT.BALANCE.LCL (OUT) - Associated local equiv balance with SPLIT.DATES
+** BALANCE       (OUT)  - Balance in key currency
+** BALANCE.LCL   (OUT)  - Local equivalent of Balance
+** CONTRACT.LIST (I/O)  - In Y or C indicates contract list required, return list of cotnract ids
+** DR.CR.MVMT    (OUT)  - <1> = Debit Movement, 2 = Credit Movement
+** DR.CR.MVMT.LCL(OUT)  - Local equivalent of DR.CR Movement
+** ERR.MSG       (OUT)  - Any error messages
+*
+*------------------------------------------------------------------------------
+ DEBUG
+    GOSUB INITIALISE
+    GOSUB EXTRACT.BALANCES
+    GOSUB EXTRACT.CONTRACT.IDS
+*
+    RETURN
+*
+*------------------------------------------------------------------------------
+INITIALISE:
+*==========
+*
+DEBUG
+    IF CAL.REC = '' THEN
+        CALL F.READ("F.CONSOLIDATE.ASST.LIAB", CONSOL.KEY, CAL.REC, F.CONSOLIDATE.ASST.LIAB, "")
+    END
+*
+    CCY = CONSOL.KEY[".",4,1]
+    BALANCE = ''
+    BALANCE.LCL = ''
+    SPLIT.BALANCES = ''
+    SPLIT.BALANCES.LCL = ''
+    DR.CR.MVMT = ''
+    DR.CR.MVMT.LCL = ''
+*
+    RETURN
+*
+*------------------------------------------------------------------------------
+EXTRACT.BALANCES:
+*================
+*
+DEBUG
+    LOCATE ASSET.TYPE IN CAL.REC<RE.ASL.TYPE,1> SETTING TYPE.POS THEN
+        IF MAT.RANGE THEN
+            GOSUB MATURITY.ANALYSIS.BALANCES
+        END ELSE
+            GOSUB ACCUMULATE.BALANCES
+            GOSUB SPREAD.BALANCES       ;* Allocate balances to SPLIT.DATES periods
+        END
+    END
+*
+    RETURN
+*
+*------------------------------------------------------------------------------
+MATURITY.ANALYSIS.BALANCES:
+*==========================
+** Extract balances where the maturity range specified matches
+*
+DEBUG
+    PROCESSING.MAT.SPLIT = 1
+    IF CAL.REC<RE.ASL.SCHD.AMOUNT, TYPE.POS> = '' THEN      ;* No maturity splits for the asset type
+        IF MAT.RANGE[1,1] = "\" THEN    ;* Only return balance for the no start date period
+            GOSUB ACCUMULATE.BALANCES   ;* Add up all the schedule amounts
+            GOSUB SPREAD.BALANCES       ;* Spread across the SPLIT.DATES
+        END
+    END ELSE
+        BEGIN CASE
+            CASE MVMT.TYPE = "C"
+                GOSUB BUILD.MAT.DATE.RANGES ;* Convert ranges into date periods
+                GOSUB PROCESS.SCHED.AMOUNTS ;* Check each MAT split to see if it is the period
+            CASE MAT.RANGE[1,1] = "\"       ;* Only return balance for the no start date period
+                GOSUB ACCUMULATE.BALANCES   ;* Add up all the schedule amounts
+                GOSUB SPREAD.BALANCES       ;* Spread across the SPLIT.DATES
+        END CASE
+    END
+*
+    RETURN
+*
+*-----------------------------------------------------------------------------
+BUILD.MAT.DATE.RANGES:
+*=====================
+** See if we have already converted the maturity range to a set of valid dates
+** which we will hold in common. If not found then convert the start and end
+** period and store it internally
+** C$MAT.INFO<1,X> =  Processing Date - Mat Range Value (E.g. 1M)
+** C$MAT.INFO<2,X> =  Range Date
+*
+DEBUG
+    IN.VALUE = MAT.RANGE["\",1,1]       ;* Convert Start Date
+    OUT.VALUE = ''
+    CALL RE.CONVERT.MAT.SPLIT(PROCESSING.DATE, INCL.IND, IN.VALUE, OUT.VALUE)
+    START.RANGE = OUT.VALUE
+*
+    IN.VALUE = MAT.RANGE["\",2,1]
+    CALL RE.CONVERT.MAT.SPLIT(PROCESSING.DATE, INCL.IND, IN.VALUE, OUT.VALUE)
+    END.RANGE = OUT.VALUE
+*
+    RETURN
+*
+*------------------------------------------------------------------------------
+ACCUMULATE.BALANCES:
+*===================
+** Add up all the balances according to the movement type
+*
+DEBUG
+    PROCESSING.MAT.SPLIT = ''
+    IF MVMT.TYPE = "C" THEN   ;* Closing balances only
+        IF CAL.REC<RE.ASL.CURRENCY> <> LCCY THEN
+            BALANCE.LCL += CAL.REC<RE.ASL.LOCAL.BALANCE,TYPE.POS>
+            BALANCE.LCL += CAL.REC<RE.ASL.LOCAL.DEBIT.MVE,TYPE.POS>
+            BALANCE.LCL += CAL.REC<RE.ASL.LOCAL.CREDT.MVE,TYPE.POS>
+        END ELSE
+            BALANCE.LCL += CAL.REC<RE.ASL.BALANCE,TYPE.POS>
+            BALANCE.LCL += CAL.REC<RE.ASL.DEBIT.MOVEMENT,TYPE.POS>
+            BALANCE.LCL += CAL.REC<RE.ASL.CREDIT.MOVEMENT,TYPE.POS>
+        END
+        BALANCE += CAL.REC<RE.ASL.BALANCE,TYPE.POS>
+        BALANCE += CAL.REC<RE.ASL.DEBIT.MOVEMENT,TYPE.POS>
+        BALANCE += CAL.REC<RE.ASL.CREDIT.MOVEMENT,TYPE.POS>
+    END ELSE        ;* Movements only
+        IF CAL.REC<RE.ASL.CURRENCY> <> LCCY THEN
+            BALANCE.LCL += CAL.REC<RE.ASL.LOCAL.DEBIT.MVE,TYPE.POS>
+            DR.CR.MVMT.LCL<1> += CAL.REC<RE.ASL.LOCAL.DEBIT.MVE,TYPE.POS>
+            BALANCE.LCL += CAL.REC<RE.ASL.LOCAL.CREDT.MVE,TYPE.POS>
+            DR.CR.MVMT.LCL<2> += CAL.REC<RE.ASL.LOCAL.CREDT.MVE,TYPE.POS>
+        END ELSE
+            BALANCE.LCL += CAL.REC<RE.ASL.DEBIT.MOVEMENT,TYPE.POS>
+            DR.CR.MVMT.LCL<1> += CAL.REC<RE.ASL.DEBIT.MOVEMENT,TYPE.POS>
+            BALANCE.LCL += CAL.REC<RE.ASL.CREDIT.MOVEMENT,TYPE.POS>
+            DR.CR.MVMT.LCL<2> += CAL.REC<RE.ASL.CREDIT.MOVEMENT,TYPE.POS>
+        END
+        BALANCE += CAL.REC<RE.ASL.DEBIT.MOVEMENT,TYPE.POS>
+        DR.CR.MVMT<1> += CAL.REC<RE.ASL.DEBIT.MOVEMENT,TYPE.POS>
+        BALANCE += CAL.REC<RE.ASL.CREDIT.MOVEMENT,TYPE.POS>
+        DR.CR.MVMT<2> += CAL.REC<RE.ASL.CREDIT.MOVEMENT,TYPE.POS>
+    END
+*
+    RETURN
+*
+*------------------------------------------------------------------------------
+SPREAD.BALANCES:
+*===============
+** You can specify that the balance to be returned is spread over a band of dates
+** if defined in SPLIT.DATES then we need to analyse the schedule amounts in the
+** record to see which band they fall in
+** Spread balances are always the closing balance you cannot include movements only
+*
+DEBUG
+    IF SPLIT.DATES THEN
+        *
+        IF CAL.REC<RE.ASL.SCHD.AMOUNT,TYPE.POS> = "" THEN
+            IF CAL.REC<RE.ASL.CURRENCY> <> LCCY THEN
+                SPLIT.BALANCES.LCL<1> += CAL.REC<RE.ASL.LOCAL.BALANCE, TYPE.POS> + CAL.REC<RE.ASL.LOCAL.CREDT.MVE, TYPE.POS> + CAL.REC<RE.ASL.LOCAL.DEBIT.MVE,TYPE.POS>
+            END ELSE
+                SPLIT.BALANCES.LCL<1> += CAL.REC<RE.ASL.BALANCE,TYPE.POS> + CAL.REC<RE.ASL.CREDIT.MOVEMENT,TYPE.POS> + CAL.REC<RE.ASL.DEBIT.MOVEMENT,TYPE.POS>
+            END
+            SPLIT.BALANCES<1> += CAL.REC<RE.ASL.BALANCE,TYPE.POS> + CAL.REC<RE.ASL.CREDIT.MOVEMENT,TYPE.POS> + CAL.REC<RE.ASL.DEBIT.MOVEMENT,TYPE.POS>
+        END ELSE
+            GOSUB PROCESS.SCHED.AMOUNTS
+        END
+    END
+*
+    RETURN
+*
+*-----------------------------------------------------------------------------
+PROCESS.SCHED.AMOUNTS:
+*=====================
+** Add the maturity schedules into the split balances if the dates match the
+** period supplied
+*
+DEBUG
+    LCL.SCHEDS = CAL.REC<RE.ASL.SCHD.LCL.AMT, TYPE.POS>
+    CCY.SCHEDS = CAL.REC<RE.ASL.SCHD.AMOUNT, TYPE.POS>
+    MAT.DATES = CAL.REC<RE.ASL.MAT.DATE, TYPE.POS>
+    LOOP
+        REMOVE SCHD.MAT.DATE FROM MAT.DATES SETTING YD
+    WHILE SCHD.MAT.DATE NE ''    ;* Values of zero or null are possible be careful
+        REMOVE LCL.SCHED.AMT FROM LCL.SCHEDS SETTING YD1
+        REMOVE CCY.SCHED.AMT FROM CCY.SCHEDS SETTING YD1
+        IF SCHD.MAT.DATE NE '' THEN
+            GOSUB CONVERT.MAT.DATE:
+            *
+            ** Compare the date to see if it falls in the period if so include it in the
+            ** balances
+            *
+            GOSUB CHECK.MAT.RANGE
+            IF INCLUDE.SCHED THEN
+                *
+                ** Maturity Split lines will only return a value for a closing type report
+                ** so if we have requested movements only for such a line then we cannot
+                ** return any balance
+                ** Also we willcome through this code to do the splitting for lines with
+                ** no maturity split so we shouldn't update the balance in this case
+                ** as it's done already in ACCUMULATE.BALANCES
+                *
+                GOSUB GET.BALANCES
+
+            END
+        END
+    REPEAT
+*
+    RETURN
+*
+*-----------------------------------------------------------------------------
+CONVERT.MAT.DATE:
+*================
+** Convert call notice periods to a date from the processing date
+*
+DEBUG
+    IF SCHD.MAT.DATE = 0 THEN
+        SCHD.MAT.DATE = PROCESSING.DATE
+    END ELSE
+        IF LEN(SCHD.MAT.DATE) < 4 THEN  ;* Call notice needs to be converted by adding the days to the current date
+            REF.DATE = PROCESSING.DATE
+            CALL CDT("",REF.DATE,"+1W") ;* Based on NWD then
+            DAYS = "+":SCHD.MAT.DATE:"C"          ;* Add the number of calendar days
+            CALL CDT("", REF.DATE, DAYS)
+            SCHD.MAT.DATE = REF.DATE
+        END
+    END
+*
+    RETURN
+*
+*------------------------------------------------------------------------------
+EXTRACT.CONTRACT.IDS:
+*====================
+** Return a list of the underlying contracts if requested
+*
+DEBUG
+    IF CONTRACT.LIST[1,1] MATCHES "Y":VM:"C" THEN
+        CONTRACT.LIST = ''
+        CALL RE.RETURN.CONTRACT.LIST(CONSOL.KEY, ASSET.TYPE, CONTRACT.LIST)
+    END ELSE
+        CONTRACT.LIST = ''
+    END
+*
+    RETURN
+*
+*------------------------------------------------------------------------------
+CHECK.MAT.RANGE:
+*===============
+DEBUG
+    IF NOT(PROCESSING.MAT.SPLIT) THEN   ;* We are using this for the spread balance part
+        INCLUDE.SCHED = 1     ;* So everything needs to be included
+    END ELSE
+        INCLUDE.SCHED = ''
+        IF SCHD.MAT.DATE > START.RANGE THEN
+            IF END.RANGE = 'REST' OR SCHD.MAT.DATE <= END.RANGE THEN
+                INCLUDE.SCHED = 1
+            END
+        END
+    END
+
+    RETURN
+*
+*------------------------------------------------------------------------------
+GET.BALANCES:
+*============
+DEBUG
+    IF MVMT.TYPE = 'C' AND PROCESSING.MAT.SPLIT THEN
+        IF CAL.REC<RE.ASL.CURRENCY> NE LCCY THEN
+            BALANCE.LCL += LCL.SCHED.AMT
+        END ELSE
+            BALANCE.LCL += CCY.SCHED.AMT
+        END
+        BALANCE += CCY.SCHED.AMT
+    END
+*
+    IF SPLIT.DATES THEN       ;* See if we need to return this according to the report split
+        LOCATE SCHD.MAT.DATE IN SPLIT.DATES<1> BY "AR" SETTING Y.DATE.POS ELSE
+            NULL
+        END
+        IF CAL.REC<RE.ASL.CURRENCY> <> LCCY THEN
+            SPLIT.BALANCES.LCL<Y.DATE.POS> += LCL.SCHED.AMT
+        END ELSE
+            SPLIT.BALANCES.LCL<Y.DATE.POS> += CCY.SCHED.AMT
+        END
+        SPLIT.BALANCES<Y.DATE.POS> += CCY.SCHED.AMT
+    END
+
+    RETURN
+*
+*------------------------------------------------------------------------------
+    END

@@ -1,0 +1,54 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+****************************************************************************************
+*Purpose:This program calculates Total Installment Amount by considering Principal     *
+*Installment Amount,Interest Installment Amount.                                       *
+*Developed By: Md. Zahid Hasan,Datasoft Systems Bangladesh Limited                     *
+*Date:07/05/2014                                                                       *
+****************************************************************************************
+    SUBROUTINE JBL.CALC.TOTAL.INST.AMT
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.ACC = 'FBNK.ACCOUNT'
+    F.ACC = ''
+
+    LN.PRIN.INST.AMT = ''
+    LN.INT.INST.AMT = ''
+    LN.TOT.INST.AMT = ''
+
+    Y.PRIN.INST.AMT.POS = ''
+    Y.INT.INST.AMT.POS = ''
+    Y.TOT.INST.AMT.POS = ''
+
+    CALL GET.LOC.REF("ACCOUNT","PRIN.INST.AMT",Y.PRIN.INST.AMT.POS)
+    CALL GET.LOC.REF("ACCOUNT","INT.INST.AMT",Y.INT.INST.AMT.POS)
+    CALL GET.LOC.REF("ACCOUNT","INSTALL.AMOUNT",Y.TOT.INST.AMT.POS)
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.ACC,F.ACC)
+    RETURN
+
+PROCESS:
+    LN.PRIN.INST.AMT = R.NEW(AC.LOCAL.REF)<1,Y.PRIN.INST.AMT.POS>
+    LN.INT.INST.AMT = R.NEW(AC.LOCAL.REF)<1,Y.INT.INST.AMT.POS>
+    Y.OLD.COMI = COMI
+
+    LN.TOT.INST.AMT = LN.PRIN.INST.AMT + Y.OLD.COMI
+
+    R.NEW(AC.LOCAL.REF)<1,Y.TOT.INST.AMT.POS> =  LN.TOT.INST.AMT
+    COMI = Y.OLD.COMI
+
+    RETURN
+END

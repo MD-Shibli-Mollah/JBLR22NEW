@@ -1,0 +1,38 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE TT.VAL.CASH.BB.AC
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.TELLER
+    $INSERT I_F.ACCOUNT
+
+    FN.TT = 'F.TELLER'
+    F.TT  = ''
+    CALL OPF(FN.TT,F.TT)
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC  = ''
+    CALL OPF(FN.AC,F.AC)
+    Y.AC.ID=''
+    R.AC.REC=''
+    Y.CAT=''
+    IF APPLICATION EQ 'TELLER' THEN
+        Y.AC.ID=R.NEW(TT.TE.ACCOUNT.2)
+        CALL F.READ(FN.AC,Y.AC.ID,R.AC.REC,F.AC,Y.AC.ERR)
+
+        IF  R.AC.REC<AC.CATEGORY> EQ '5011' OR  R.AC.REC<AC.CATEGORY> EQ '5012' THEN
+
+        END
+        ELSE
+            AF = TT.TE.ACCOUNT.2
+            ETEXT = "Sorry Not a Valid Bangladesh Account"
+            CALL STORE.END.ERROR
+        END
+
+
+    END
+
+    RETURN
+END

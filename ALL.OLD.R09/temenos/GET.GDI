@@ -1,0 +1,68 @@
+*-----------------------------------------------------------------------------
+* <Rating>-32</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE GET.GDI
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCT.GEN.CONDITION
+    $INSERT GLOBUS.BP I_F.GROUP.DEBIT.INT
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.AGC = 'F.ACCT.GEN.CONDITION'
+    F.AGC = ''
+    SEL.CMD.AGC = ''
+    SEL.LIST.AGC = ''
+
+    FN.GDI = 'F.GROUP.DEBIT.INT'
+    F.GDI = ''
+    SEL.CMD.GDI = ''
+    SEL.LIST.GDI = ''
+
+    FN.ACC = 'F.ACCOUNT'
+    F.ACC = ''
+    Y.DR.INT.RATE = ''
+
+    CALL GET.LOC.REF("ACCOUNT","INT.RATE",Y.INT.RATE.POS)
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.AGC,F.AGC)
+    CALL OPF(FN.GDI,F.GDI)
+    CALL OPF(FN.ACC,F.ACC)
+
+    RETURN
+
+PROCESS:
+
+    F.CATEG = R.NEW(AC.CATEGORY)
+    SEL.CMD.AGC = 'SELECT ':FN.AGC:' WITH VALUE EQ ':F.CATEG
+    CALL EB.READLIST(SEL.CMD.AGC,SEL.LIST.AGC,'',NO.OF.REC.AGC,ERR.AGC)
+    LOOP
+        REMOVE AGC.ID FROM SEL.LIST.AGC SETTING POS1
+    WHILE AGC.ID:POS1
+        SEL.CMD.GDI = 'SELECT ':FN.GDI:' WITH @ID LIKE ':AGC.ID:'BDT... BY-DSND @ID'
+        CALL EB.READLIST(SEL.CMD.GDI,SEL.LIST.GDI,'',NO.OF.REC.GDI,ERR.AGC)
+        LOOP
+            REMOVE GDI.ID FROM SEL.LIST.GDI SETTING POS2
+        WHILE GDI.ID:POS2
+            CALL F.READ(FN.GDI,GDI.ID,R.GDI,F.GDI,ERR.GDI)
+            Y.DR.INT.RATE = R.GDI<IC.GDI.DR.INT.RATE> + R.GDI<IC.GDI.DR2.INT.RATE>
+            BREAK
+        REPEAT
+    REPEAT
+
+    R.NEW(AC.LOCAL.REF)<1,Y.INT.RATE.POS> = Y.DR.INT.RATE
+
+    RETURN
+
+END

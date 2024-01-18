@@ -1,0 +1,90 @@
+*-----------------------------------------------------------------------------
+* <Rating>469</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM DIR.FILE.READ
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+
+INIT:
+
+    Y.DIR ='CUS.SUPP.DIR'
+    Y.PREV.CO.CODE =''
+    Y.DESTINATION ='CUS.SUPP.DIR/DESTINATION'
+    Y.FLAG = '0'
+    RETURN
+
+
+OPENFILES:
+
+    OPEN Y.DIR TO JBASE.DIR ELSE STOP
+    OPEN "CUS.SUPP.DIR/DESTINATION" TO F.DESTINATION ELSE
+        CMD = "CREATE.FILE CUS.SUPP.DIR/DESTINATION TYPE=UD"
+        EXECUTE CMD
+        OPEN "CUS.SUPP.DIR/DESTINATION" TO F.DESTINATION ELSE
+            CRT "OPENING OF CUS.SUPP.DIR/DESTINATION FAILED"
+        END
+    END
+
+    RETURN
+
+PROCESS:
+
+    SEL.CMD = 'SELECT CUS.SUPP.DIR WITH @ID LIKE CUS.SUPP.':TODAY:'...'
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.FILE.NAME FROM SEL.LIST SETTING Y.POS
+    WHILE Y.FILE.NAME:Y.POS
+        READ FILE.VALUES FROM JBASE.DIR,Y.FILE.NAME THEN
+            Y.ALL.DATA<-1> = FILE.VALUES
+        END
+    REPEAT
+
+    Y.ALL.DATA = SORT(Y.ALL.DATA)
+
+    Y.TOT.REC = DCOUNT(Y.ALL.DATA,FM)
+    FOR I=1 TO Y.TOT.REC
+        Y.IND = FIELD(Y.ALL.DATA,FM,I)
+        IF Y.IND NE '' THEN
+            Y.CO.CODE = FIELD(Y.IND,'*',1)
+            IF Y.FLAG EQ '1' THEN
+                IF Y.CO.CODE NE Y.PREV.CO.CODE THEN
+                    Y.BR.FN = Y.PREV.CO.CODE:'.':TODAY:'.csv'
+                    OPENSEQ Y.DESTINATION,Y.BR.FN TO F.DESTINATION THEN NULL
+                    WRITESEQ Y.BR.WISE.DATA TO F.DESTINATION ELSE
+                        CRT "Unable to write"
+                        CLOSESEQ F.DESTINATION
+                    END
+                    CRT Y.CO.CODE
+                    Y.BR.WISE.DATA = Y.IND
+                END
+                ELSE
+                    Y.BR.WISE.DATA<-1> = Y.IND
+                END
+                Y.PREV.CO.CODE = Y.CO.CODE
+            END
+            ELSE
+                Y.BR.WISE.DATA<-1> = Y.IND
+                Y.PREV.CO.CODE = Y.CO.CODE
+                Y.FLAG = '1'
+            END
+        END
+    NEXT
+
+    Y.BR.FN = Y.CO.CODE:'.':TODAY:'.csv'
+    OPENSEQ Y.DESTINATION,Y.BR.FN TO F.DESTINATION THEN NULL
+    WRITESEQ Y.BR.WISE.DATA TO F.DESTINATION ELSE
+        CRT "Unable to write"
+        CLOSESEQ F.DESTINATION
+    END
+
+    RETURN
+
+END

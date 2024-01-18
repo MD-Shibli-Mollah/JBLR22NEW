@@ -1,0 +1,76 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.MARK.CAUTION.ID.VAL
+!*********************************************************************************************************
+! Purpose : This Routine add as a ID routine to validate the @ID of ABL.H.DD.DETAILS. Add in ABL.H.DD.DETAILS,ABL.DD.MARK.CUATION
+! Date    : 2013/06/09
+! ********************************************************************************************************
+! Modification History :
+!
+!*********************************************************************************************************
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ABL.H.DD.DETAILS
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+!DEBUG
+INIT:
+    FN.DD.DETAILS="F.ABL.H.DD.DETAILS"
+    F.DD.DETAILS=""
+    REC.DD.DETAILS=""
+    RETURN
+
+
+OPENFILES:
+    CALL OPF(FN.DD.DETAILS,F.DD.DETAILS)
+    RETURN
+
+PROCESS:
+
+    CALL F.READ(FN.DD.DETAILS,COMI,REC.DD.DETAILS,F.DD.DETAILS,ERR.DD.DETAILS)
+
+    IF REC.DD.DETAILS EQ '' THEN
+        T(DDT.ISSUE.REF.NO)<3>="NOINPUT"
+        T(DDT.ADV.PAY.REF.NO)<3>="NOINPUT"
+        T(DDT.ADV.DATE.OF.PAY)<3>="NOINPUT"
+        T(DDT.INS.PAY.REF.NO)<3>="NOINPUT"
+        T(DDT.INS.DATE.OF.PAY)<3>="NOINPUT"
+        T(DDT.ISSUE.ADVICE.NO)<3>="NOINPUT"
+        T(DDT.PAY.ADVICE.NO)<3>="NOINPUT"
+        T(DDT.INS.PAID)<3>="NOINPUT"
+        T(DDT.ADVICE)<3>="NOINPUT"
+        T(DDT.CANCEL)<3>="NOINPUT"
+        T(DDT.DUPLICATE)<3>="NOINPUT"
+
+    END
+    ELSE
+        T(DDT.DATE.OF.ISSUE)<3>="NOINPUT"
+        T(DDT.INS.PRINTED.NO)<3>="NOINPUT"
+        T(DDT.BENIFICIARY)<3>="NOINPUT"
+        T(DDT.PURCHASER)<3>="NOINPUT"
+        T(DDT.AMOUNT)<3>="NOINPUT"
+        T(DDT.CHARGE)<3>="NOINPUT"
+        T(DDT.VAT)<3>="NOINPUT"
+        T(DDT.ISSUE.REF.NO)<3>="NOINPUT"
+        T(DDT.ADV.PAY.REF.NO)<3>="NOINPUT"
+        T(DDT.ADV.DATE.OF.PAY)<3>="NOINPUT"
+        T(DDT.INS.PAY.REF.NO)<3>="NOINPUT"
+        T(DDT.INS.DATE.OF.PAY)<3>="NOINPUT"
+        T(DDT.ISSUE.ADVICE.NO)<3>="NOINPUT"
+        T(DDT.PAY.ADVICE.NO)<3>="NOINPUT"
+        T(DDT.INS.PAID)<3>="NOINPUT"
+        T(DDT.ADVICE)<3>="NOINPUT"
+        T(DDT.CANCEL)<3>="NOINPUT"
+        T(DDT.DUPLICATE)<3>="NOINPUT"
+        T(DDT.INS.TYPE)<3>="NOINPUT"
+    END
+
+
+
+    RETURN
+
+END

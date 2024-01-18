@@ -1,0 +1,79 @@
+*-----------------------------------------------------------------------------
+* <Rating>-31</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SP.LOST.INFO
+* Subroutine Description :
+*------------------------
+* This routine is use for retrive lost script no data for
+* duplicate script issue
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20170801 - New - Md. Sarowar Mortoza
+*                  Datasoft Systems BD Ltd.
+*
+* 20180423  Update - ALIN BOBY
+*-------------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT I_F.BD.H.SP.STOCK.ISSUE
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+*** </region>*-----------------------------------------------------------------------------
+***---------------------------------------------------------------
+INIT:
+    FN.SPSTK='F.BD.H.SP.STOCK.ISSUE'
+    F.SPSTK=''
+    Y.ID=''
+    RETURN
+***---------------------------------------------------------------
+***---------------------------------------------------------------
+OPENFILE:
+    CALL OPF(FN.SPSTK,F.SPSTK)
+    RETURN
+***---------------------------------------------------------------
+***---------------------------------------------------------------
+PROCESS:
+    Y.LOST.SP=R.NEW(SP.STK.OLD.SCRIPT.NO)
+    Y.LOST.TYPE=R.NEW(SP.STK.TYPE.OF.SP)
+    Y.ID=Y.LOST.TYPE:".":Y.LOST.SP
+
+    SEL.CMD = 'SELECT ':FN.SPSTK:' WITH SP.SL.ID EQ ':Y.ID
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+    IF SEL.LIST THEN
+        REMOVE Y.SP.ID FROM SEL.LIST SETTING Y.POS
+        CALL F.READ(FN.SPSTK,Y.SP.ID,R.SPSTK,F.SPSTK,Y.ERR)
+        R.NEW(SP.STK.CUSTOMER.NO)=R.SPSTK<SP.STK.CUSTOMER.NO>
+        R.NEW(SP.STK.CUSTOMER.NAME)=R.SPSTK<SP.STK.CUSTOMER.NAME>
+        R.NEW(SP.STK.JOINT.INDIVIDUAL)=R.SPSTK<SP.STK.JOINT.INDIVIDUAL>
+        R.NEW(SP.STK.JHOLDER.CUS.NO)=R.SPSTK<SP.STK.JHOLDER.CUS.NO>
+        R.NEW(SP.STK.REG.NO)=R.SPSTK<SP.STK.REG.NO>
+        R.NEW(SP.STK.FREQUENCY)=R.SPSTK<SP.STK.FREQUENCY>
+        R.NEW(SP.STK.MATURITY.DATE)=R.SPSTK<SP.STK.MATURITY.DATE>
+        R.NEW(SP.STK.FLAT.INTT.RATE)=R.SPSTK<SP.STK.FLAT.INTT.RATE>
+        R.NEW(SP.STK.NO.OF.MONTH)=R.SPSTK<SP.STK.NO.OF.MONTH>
+        R.NEW(SP.STK.FREQ.INTT.RATE)=R.SPSTK<SP.STK.FREQ.INTT.RATE>
+        R.NEW(SP.STK.SOURCE.TAX)=R.SPSTK<SP.STK.SOURCE.TAX>
+        R.NEW(SP.STK.COMMISSION.AMT)=R.SPSTK<SP.STK.COMMISSION.AMT>
+        R.NEW(SP.STK.NOMINEE.NAME)=R.SPSTK<SP.STK.NOMINEE.NAME>
+        R.NEW(SP.STK.RELATION)=R.SPSTK<SP.STK.RELATION>
+        R.NEW(SP.STK.PERMANENT.ADDRESS)=R.SPSTK<SP.STK.PERMANENT.ADDRESS>
+        R.NEW(SP.STK.PRESENT.ADDRESS)=R.SPSTK<SP.STK.PRESENT.ADDRESS>
+        R.NEW(SP.STK.NOMINEE.DOB)=R.SPSTK<SP.STK.NOMINEE.DOB>
+        R.NEW(SP.STK.NOMINEE.AMT)=R.SPSTK<SP.STK.NOMINEE.AMT>
+        R.NEW(SP.STK.STATUS)=R.SPSTK<SP.STK.STATUS>
+        R.NEW(SP.STK.ACCOUNT.NO)=R.SPSTK<SP.STK.ACCOUNT.NO>
+    END
+    IF R.NEW(SP.STK.FACE.VALUE) NE R.SPSTK<SP.STK.FACE.VALUE> THEN
+        ETEXT="Duplicate SP Issue Face value must be equal orginal Face value"
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+***----------------------------------------------------------------
+END

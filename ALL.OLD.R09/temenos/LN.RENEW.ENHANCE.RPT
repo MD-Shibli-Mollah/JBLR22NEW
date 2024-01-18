@@ -1,0 +1,226 @@
+    SUBROUTINE LN.RENEW.ENHANCE.RPT(Y.DATA)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT GLOBUS.BP I_F.LIMIT
+    $INSERT GLOBUS.BP I_F.COLLATERAL
+    $INSERT GLOBUS.BP I_F.PD.PAYMENT.DUE
+    $INSERT GLOBUS.BP I_F.ACCOUNT.DEBIT.INT
+    $INSERT GLOBUS.BP I_F.COLLATERAL.CODE
+!$INSERT GLOBUS.BP I_F.STMT.ENTRY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*******************************
+INIT:
+*******************************
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ' '
+    FN.CATEGORY = 'F.CATEGORY'
+    F.CATEGORY = ''
+    FN.LIMIT = 'F.LIMIT'
+    F.LIMIT = ' '
+    FN.PD = 'F.PD.PAYMENT.DUE'
+    F.PD = ' '
+!FN.STMT = 'FBNK.STMT.ENTRY'
+!F.STMT = ''
+!FN.AC.STMT.PR = 'FBNK.ACCT.STMT.PRINT'
+!F.AC.STMT.PR = ''
+!R.AC.STMT.PR = ''
+!FN.STMT.PR = 'FBNK.STMT.PRINTED'
+!F.STMT.PR = ''
+!R.STMT.PR = ''
+!Y.STMT.PR.ERR = ''
+
+    CALL GET.LOC.REF('ACCOUNT','LOAN.AMOUNT',Y.LOAN.AMOUNT.POS)
+    CALL GET.LOC.REF('ACCOUNT','NATIONAL.ID',Y.NATIONAL.ID.POS)
+    CALL GET.LOC.REF('ACCOUNT','PAST.DUE.REF',Y.PAST.DUE.REF.POS)
+    CALL GET.LOC.REF('ACCOUNT','RES.DATE',Y.RES.DATE.POS)
+    CALL GET.LOC.REF('ACCOUNT','RESCH.REF.NO',Y.RESCH.REF.NO.POS)
+    CALL GET.LOC.REF('ACCOUNT','NO.OF.RESCH',Y.NO.OF.RESCH.POS)
+    CALL GET.LOC.REF('LIMIT','RENEW.REF.NO',Y.RENEW.REF.NO.POS)
+    CALL GET.LOC.REF('LIMIT','RENEW.REF.DATE',Y.RENEW.REF.DATE.POS)
+    CALL GET.LOC.REF('LIMIT','NO.OF.RENEW',Y.NO.OF.RENEW.POS)
+    CALL GET.LOC.REF('LIMIT','ENHANCE.REF.NO',Y.ENHANCE.REF.NO.POS)
+    CALL GET.LOC.REF('LIMIT','ENHANC.REF.DATE',Y.ENHANC.REF.DATE.POS)
+    CALL GET.LOC.REF('LIMIT','NO.OF.ENHANCE',Y.NO.OF.ENHANCE.POS)
+
+    LOCATE 'CATEGORY' IN ENQ.SELECTION<2,1> SETTING CATEGORY.POS THEN
+        Y.CATEGORY =  ENQ.SELECTION<4,CATEGORY.POS>
+    END
+
+    RETURN
+
+*******************************
+OPENFILES:
+*******************************
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    CALL OPF(FN.LIMIT,F.LIMIT)
+    CALL OPF(FN.PD,F.PD)
+!CALL OPF(FN.STMT,F.STMT)
+!CALL OPF(FN.AC.STMT.PR,F.AC.STMT.PR)
+!CALL OPF(FN.STMT.PR, F.STMT.PR)
+
+    RETURN
+
+*******************************
+PROCESS:
+*******************************
+    IF Y.CATEGORY NE 'ALL' THEN
+        SEL.CMD.ACC = "SELECT ":FN.ACCOUNT:" WITH CATEGORY EQ ":Y.CATEGORY:" AND CO.CODE EQ ":ID.COMPANY
+    END ELSE
+        SEL.CMD.ACC = "SELECT ":FN.ACCOUNT:" WITH CO.CODE EQ ":ID.COMPANY
+    END
+    CALL EB.READLIST(SEL.CMD.ACC,SEL.LIST.ACC,'',NO.OF.REC.ACC,RET.CODE.ACC)
+
+    FOR I = 1 TO NO.OF.REC.ACC
+        Y.ACCOUNT.ID = FIELD(SEL.LIST.ACC,@FM,I)
+        CALL F.READ(FN.ACCOUNT,Y.ACCOUNT.ID,R.ACCOUNT,F.ACCOUNT,Y.ERROR.ACCOUNT)
+        Y.CUSTOMER = R.ACCOUNT<AC.CUSTOMER>
+        Y.LIMIT.REF = R.ACCOUNT<AC.LIMIT.REF>
+        Y.LIMIT.ID = Y.CUSTOMER:'.000':Y.LIMIT.REF
+        CALL F.READ(FN.LIMIT, Y.LIMIT.ID, R.LIMIT, F.LIMIT , Y.ERR.LIMIT)
+
+        IF (R.ACCOUNT AND R.LIMIT<LI.LOCAL.REF,Y.NO.OF.RENEW.POS> GT 0) OR (R.ACCOUNT<AC.LOCAL.REF,Y.NO.OF.RESCH.POS> GT 0) THEN
+            Y.NAME = R.ACCOUNT<AC.SHORT.TITLE>
+            Y.BALANCE = R.ACCOUNT<AC.WORKING.BALANCE>
+            Y.CATEGORY = R.ACCOUNT<AC.CATEGORY>
+            Y.SANCTIONED.AMOUNT = R.ACCOUNT<AC.LOCAL.REF,Y.LOAN.AMOUNT.POS>
+            Y.NATIONAL.ID = R.ACCOUNT<AC.LOCAL.REF,Y.NATIONAL.ID.POS>
+            Y.RESCHEDULE.DATE = R.ACCOUNT<AC.LOCAL.REF,Y.RES.DATE.POS>
+            Y.RESCH.REF.NO = R.ACCOUNT<AC.LOCAL.REF,Y.RESCH.REF.NO.POS>
+            Y.NO.OF.RESCH = R.ACCOUNT<AC.LOCAL.REF,Y.NO.OF.RESCH.POS>
+            Y.PAST.DUE.REF = R.ACCOUNT<AC.LOCAL.REF,Y.PAST.DUE.REF.POS>
+            Y.DATE.LAST.CR.CUST = R.ACCOUNT<AC.DATE.LAST.CR.CUST>
+            Y.RESCHEDULE.AMT = ''
+
+            GOSUB GET.CATEGORY.DATA
+            GOSUB GET.LIMIT.DATA
+            GOSUB GET.PD.DATA
+!GOSUB GET.PERIOD.DATA
+
+            Y.TOT.WORK.BAL = ABS(Y.BALANCE) + ABS(Y.PD.AMT) + ABS(Y.TOTAL.PE+Y.TOTAL.PS)
+            IF Y.SAN.DATE EQ '' AND Y.EXP.DATE EQ '' THEN
+                Y.PERIOD = ''
+            END ELSE
+                IF Y.DATE.LAST.CR.CUST NE '' THEN
+                    Y.DAYS = 'C'
+                    CALL CDD('',Y.DATE.LAST.CR.CUST,TODAY,Y.DAYS)
+                    Y.MONTHS = Y.DAYS/30
+                    Y.PERIOD = DROUND(Y.MONTHS,0)
+                END
+                ELSE
+                    Y.PERIOD = ''
+                END
+            END
+            Y.DATA<-1> = Y.NAME  : '*' :Y.NATIONAL.ID: '*' : Y.CATEGORY.DESC : '*' : Y.ACCOUNT.ID : '*' :Y.SAN.DATE : '*' : Y.EXP.DATE : '*' : Y.RESCHEDULE.DATE : '*' : Y.SANCTIONED.AMOUNT : '*' : Y.LIMIT.AMT : '*' : Y.RESCHEDULE.AMT :'*' : Y.TOT.WORK.BAL : '*' : Y.EXP.DATE : '*' : Y.PERIOD : '*' : Y.RENEW.REF.NO : '*' : Y.RENEW.REF.DATE : '*' : Y.NO.OF.RENEW : '*' : Y.ENHANCE.REF.NO : '*' : Y.ENHANC.REF.DATE : '*' : Y.NO.OF.ENHANCE : '*' : Y.RESCH.REF.NO : '*' : Y.NO.OF.RESCH
+!                           1                    2                    3                 4                    5                    6                    7                         8                       9                       10                  11                      12                13                14                       15                     16                      17                      18                        19                       20                   21
+        END
+    NEXT I
+    RETURN
+
+*******************************
+GET.CATEGORY.DATA:
+*******************************
+
+    CALL F.READ(FN.CATEGORY,Y.CATEGORY,R.CATEGORY,F.CATEGORY,Y.ERROR.CATEGORY)
+    IF R.CATEGORY THEN
+        Y.CATEGORY.DESC = R.CATEGORY<EB.CAT.DESCRIPTION>
+    END ELSE
+        Y.CATEGORY.DESC = ''
+    END
+
+    RETURN
+
+*******************************
+GET.LIMIT.DATA:
+*******************************
+    IF R.LIMIT THEN
+        Y.SAN.DATE = R.LIMIT<LI.APPROVAL.DATE>
+        Y.EXP.DATE = R.LIMIT<LI.EXPIRY.DATE>
+        Y.LIMIT.AMT = R.LIMIT<LI.INTERNAL.AMOUNT>
+        Y.RENEW.REF.NO = R.LIMIT<LI.LOCAL.REF,Y.RENEW.REF.NO.POS>
+        Y.RENEW.REF.DATE = R.LIMIT<LI.LOCAL.REF,Y.RENEW.REF.DATE.POS>
+        Y.NO.OF.RENEW =  R.LIMIT<LI.LOCAL.REF,Y.NO.OF.RENEW.POS>
+        Y.ENHANCE.REF.NO = R.LIMIT<LI.LOCAL.REF,Y.ENHANCE.REF.NO.POS>
+        Y.ENHANC.REF.DATE = R.LIMIT<LI.LOCAL.REF,Y.ENHANC.REF.DATE.POS>
+        Y.NO.OF.ENHANCE = R.LIMIT<LI.LOCAL.REF,Y.NO.OF.ENHANCE.POS>
+    END
+    ELSE
+        Y.LIMIT.AMT = 0
+        Y.SAN.DATE = ''
+        Y.EXP.DATE = ''
+        Y.RENEW.REF.NO = ''
+        Y.RENEW.REF.DATE = ''
+        Y.NO.OF.RENEW = ''
+        Y.ENHANCE.REF.NO = ''
+        Y.ENHANC.REF.DATE = ''
+        Y.NO.OF.ENHANCE = ''
+    END
+
+    RETURN
+
+******************************
+GET.PD.DATA:
+******************************
+    CALL F.READ(FN.PD, Y.PAST.DUE.REF, R.PD, F.PD , Y.ERR.PD)
+    IF R.PD THEN
+        Y.PD.AMT = R.PD<PD.TOTAL.AMT.TO.REPAY>
+        Y.TOT.OVRDUE.TYPE.NO = DCOUNT(R.PD<PD.TOT.OVRDUE.TYPE>,@VM)
+        FOR M = 1 TO Y.TOT.OVRDUE.TYPE.NO
+            Y.TOT.OVRDUE.TYPE = R.PD<PD.TOT.OVRDUE.TYPE,M>
+            IF Y.TOT.OVRDUE.TYPE EQ 'PE' THEN
+                Y.PE = R.PD<PD.TOT.OD.TYPE.AMT,M>
+                Y.TOTAL.PE = Y.TOTAL.PE + ABS(Y.PE)
+            END
+            IF Y.TOT.OVRDUE.TYPE EQ 'PS' THEN
+                Y.PS = R.PD<PD.TOT.OD.TYPE.AMT,M>
+                Y.TOTAL.PS = Y.TOTAL.PS+ABS(Y.PS)
+            END
+        NEXT M
+    END
+    ELSE
+        Y.PD.AMT = 0
+        Y.TOTAL.PE = 0
+        Y.TOTAL.PS = 0
+    END
+
+    RETURN
+
+*********************
+!GET.PERIOD.DATA:
+*********************
+! Y.EXPIRE.DATE = ''
+! CALL F.READ(FN.AC.STMT.PR, Y.ACCOUNT.ID, R.AC.STMT.PR, F.AC.STMT.PR, Y.AC.STMT.PR.ERR)
+! R.AC.STMT.NO = DCOUNT(R.AC.STMT.PR,FM)
+! FOR I = 1 TO R.AC.STMT.NO + 1
+!     Y.ACC.STMT.PRINT.ID = FIELD(R.AC.STMT.PR,FM,I)
+!     Y.ACC.STMT.PRINT.DATE = FIELD(Y.ACC.STMT.PRINT.ID,'/',1)
+!     Y.STMT.PR.ID = Y.ACCOUNT.ID:'-':Y.ACC.STMT.PRINT.DATE
+!     CALL F.READ(FN.STMT.PR, Y.STMT.PR.ID, R.STMT.PR, F.STMT.PR, Y.STMT.PR.ERR)
+!     R.STMT.PR.NO = DCOUNT(R.STMT.PR,FM)
+!     FOR J = 1 TO R.STMT.PR.NO + 1
+!         Y.STMT.ID = FIELD(R.STMT.PR,FM, J)
+!
+!         CALL F.READ(FN.STMT, Y.STMT.ID, R.STMT, F.STMT, Y.STMT.ERR)
+!         Y.AMOUNT.LCY = R.STMT<AC.STE.AMOUNT.LCY>
+!
+!        IF Y.AMOUNT.LCY GT 0 THEN
+!           Y.TEMP.EXP.DATE = R.STMT<AC.STE.BOOKING.DATE>
+!          IF Y.TEMP.EXP.DATE GT Y.EXPIRE.DATE THEN
+!             Y.EXPIRE.DATE = Y.TEMP.EXP.DATE
+!         END
+!    END
+
+! NEXT J
+!NEXT I
+
+!RETURN
+
+END

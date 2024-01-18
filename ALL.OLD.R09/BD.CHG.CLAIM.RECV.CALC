@@ -1,0 +1,129 @@
+*-----------------------------------------------------------------------------
+* <Rating>-32</Rating>
+*-----------------------------------------------------------------------------
+******************************************************************************
+*
+*Company Name   :
+*Developed By   : Huraira
+*
+*-----------------------------------------------------------------------------
+*Subroutine Type: convertion routine
+*
+*Attached To    : The Enquiry 'E.GTEE.SUMMRY.REPORT.FR'
+*
+*Attached As    : Conversion Routine for the field '@ID'
+*
+*In Parameter   : '@ID'
+*
+*Out Parameter  : 'Claim Chg Name' 'Claim Chg Date' Claim Chg Amt' 'Claim Chg Recv Date'
+*                 'Claim Chg Recv Amt'
+*-----------------------------------------------------------------------------
+*Description    : This Routine return Different Claim chg name,Chg Amt,chg date
+*                 Recv chg date,chg amt
+*-----------------------------------------------------------------------------
+*Modification Details:
+*
+*-----------------------------------------------------------------------------
+*Modification History :
+*
+******************************************************************************
+
+    SUBROUTINE BD.CHG.CLAIM.RECV.CALC
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.MD.DEAL
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    Y.DATA = O.DATA
+    FN.DEAL = "F.MD.DEAL"
+    F.DEAL = ""
+
+    Y.CHG.NAME= ""; Y.CHG.CLAIM.DATE = ""; Y.CHG.CLIM.AMT = ""; Y.CHG.RECEV.DATE = ""; Y.CHG.RECV.AMT = ""
+    Y.CHG.CLIM.AMT1= ""; Y.CHG.RECV.AMT1=""; Y.CHG.CLIM.AMT2= ""; Y.CHG.RECV.AMT2= ""; Y.CHG.CLIM.AMT3= ""; Y.CHG.RECV.AMT3= ""; Y.CHG.CLIM.AMT4= ""; Y.CHG.RECV.AMT4= ""; Y.CHG.CLIM.AMT5= ""; Y.CHG.RECV.AMT5= ""; Y.CHG.CLIM.AMT6= ""; Y.CHG.RECV.AMT6= ""; Y.CHG.CLIM.AMT7= ""; Y.CHG.RECV.AMT7= ""; Y.CHG.CLIM.AMT8= ""; Y.CHG.RECV.AMT8= ""
+
+    Y.LIAB.REV.DT = ""
+    Y.TODAY = TODAY
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.DEAL,F.DEAL)
+    CALL GET.LOC.REF("MD.DEAL","CHG.CLIM.NAME",CHG.CLIM.NAME.POS)
+    CALL GET.LOC.REF("MD.DEAL","CHG.CLIM.DATE",CHG.CLIM.DATE.POS)
+    CALL GET.LOC.REF("MD.DEAL","CHG.CLIM.AMT",CHG.CLIM.AMT.POS)
+    CALL GET.LOC.REF("MD.DEAL","CHG.RECV.DATE",CHG.RECV.DATE.POS)
+    CALL GET.LOC.REF("MD.DEAL","CHG.RECV.AMT",CHG.RECV.AMT.POS)
+    RETURN
+
+PROCESS:
+
+    CALL F.READ(FN.DEAL,Y.DATA,R.DEAL.REC,F.DEAL,Y.ERR)
+    Y.CR.CNT = DCOUNT(R.DEAL.REC<MD.DEA.LOCAL.REF,CHG.CLIM.NAME.POS>,@SM)
+
+    FOR I=1 TO Y.CR.CNT
+        Y.CHG.NAME= R.DEAL.REC<MD.DEA.LOCAL.REF,CHG.CLIM.NAME.POS,I>
+        Y.CHG.CLAIM.DATE = R.DEAL.REC<MD.DEA.LOCAL.REF,CHG.CLIM.DATE.POS,I>
+        Y.CHG.CLIM.AMT = R.DEAL.REC<MD.DEA.LOCAL.REF,CHG.CLIM.AMT.POS,I>
+        Y.CHG.RECEV.DATE = R.DEAL.REC<MD.DEA.LOCAL.REF,CHG.RECV.DATE.POS,I>
+        Y.CHG.RECV.AMT = R.DEAL.REC<MD.DEA.LOCAL.REF,CHG.RECV.AMT.POS,I>
+
+        BEGIN CASE
+        CASE (Y.CHG.NAME EQ 'COMMISSION.ON.LG') OR (Y.CHG.NAME EQ 'AMENDMENT.COMM.ON.LG') OR (Y.CHG.NAME EQ 'MINIMUM.COMM.ON.LG')
+            Y.CHG.CLIM.DATE = Y.CHG.CLAIM.DATE
+            Y.CHG.CLIM.AMT1 += Y.CHG.CLIM.AMT
+            Y.CHG.RECV.DATE = Y.CHG.RECEV.DATE
+            Y.CHG.RECV.AMT1 += Y.CHG.RECV.AMT
+
+        CASE (Y.CHG.NAME EQ 'VAT.ON.LC.COMM') OR (Y.CHG.NAME EQ 'VAT.ON.AMENDMENT') OR (Y.CHG.NAME EQ 'VAT.ON.MINIMUM.LG.COMM')
+            Y.CHG.CLIM.AMT2 += Y.CHG.CLIM.AMT
+            Y.CHG.RECV.AMT2 += Y.CHG.RECV.AMT
+
+        CASE (Y.CHG.NAME EQ 'POSTAGE.CHG')
+            Y.CHG.CLIM.AMT3 += Y.CHG.CLIM.AMT
+            Y.CHG.RECV.AMT3 += Y.CHG.RECV.AMT
+
+        CASE (Y.CHG.NAME EQ 'VAT.ON.POSTAGE.CHG')
+            Y.CHG.CLIM.AMT4 += Y.CHG.CLIM.AMT
+            Y.CHG.RECV.AMT4 += Y.CHG.RECV.AMT
+
+        CASE (Y.CHG.NAME EQ 'SWIFT.CHG')
+            Y.CHG.CLIM.AMT5 += Y.CHG.CLIM.AMT
+            Y.CHG.RECV.AMT5 += Y.CHG.RECV.AMT
+
+        CASE (Y.CHG.NAME EQ 'VAT.ON.SWIFT.CHG')
+            Y.CHG.CLIM.AMT6 += Y.CHG.CLIM.AMT
+            Y.CHG.RECV.AMT6 += Y.CHG.RECV.AMT
+
+
+        CASE (Y.CHG.NAME EQ 'STAMP.CHG')
+            Y.CHG.CLIM.AMT7 += Y.CHG.CLIM.AMT
+            Y.CHG.RECV.AMT7 += Y.CHG.RECV.AMT
+
+        CASE (Y.CHG.NAME EQ 'ADD.CONFIRMATION.CHG')
+            Y.CHG.CLIM.AMT8 += Y.CHG.CLIM.AMT
+            Y.CHG.RECV.AMT8 += Y.CHG.RECV.AMT
+        END CASE
+    NEXT
+
+    Y.AUTO.EXP = R.DEAL.REC<MD.DEA.AUTO.EXPIRY>
+    Y.ONLINE.MAT = R.DEAL.REC<MD.DEA.ONLINE.MAT>
+    Y.MATURITY.DATE = R.DEAL.REC<MD.DEA.MATURITY.DATE>
+
+!IF (Y.AUTO.EXP EQ 'YES' OR Y.ONLINE.MAT EQ 'YES') AND Y.MATURITY.DATE LE Y.TODAY THEN
+*----------Added By Mehedi---------------
+    IF Y.MATURITY.DATE LE Y.TODAY THEN
+*----------------------------------------
+        Y.LIAB.REV.DT = Y.MATURITY.DATE
+    END ELSE
+        Y.LIAB.REV.DT = ""
+    END
+
+    O.DATA = Y.CHG.CLIM.DATE:"*":Y.CHG.CLIM.AMT1:"*":Y.CHG.CLIM.AMT2:"*":Y.CHG.CLIM.AMT3:"*":Y.CHG.CLIM.AMT4:"*":Y.CHG.CLIM.AMT5:"*":Y.CHG.CLIM.AMT6:"*":Y.CHG.CLIM.AMT7:"*":Y.CHG.CLIM.AMT8:"*":Y.CHG.RECV.DATE:"*":Y.CHG.RECV.AMT1:"*":Y.CHG.RECV.AMT2:"*":Y.CHG.RECV.AMT3:"*":Y.CHG.RECV.AMT4:"*":Y.CHG.RECV.AMT5:"*":Y.CHG.RECV.AMT6:"*":Y.CHG.RECV.AMT7:"*":Y.CHG.RECV.AMT8:"*":Y.LIAB.REV.DT
+    RETURN

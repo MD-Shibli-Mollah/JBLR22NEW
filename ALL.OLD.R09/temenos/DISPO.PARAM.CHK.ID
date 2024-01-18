@@ -1,0 +1,15 @@
+****************************************************************************************
+*This routine is attachted to EB.DISPO.PARAM EB.TABLE.PROCEDURE                        *
+*Purpose: return error message against ID                                              *
+*Developed By: Md. Aminul Islam(Datasoft Systems)                                      *
+*Live Date:20160925                                                                    *
+****************************************************************************************
+    SUBROUTINE DISPO.PARAM.CHK.ID
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+
+    IF COMI NE 'SYSTEM' THEN
+        E='RECORD ID MUST BE SYSTEM'
+    END
+    RETURN
+END

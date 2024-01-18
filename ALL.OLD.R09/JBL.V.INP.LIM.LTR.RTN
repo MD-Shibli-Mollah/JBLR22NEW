@@ -1,0 +1,114 @@
+*-------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-31</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.INP.LIM.LTR.RTN
+*-------------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This input routine will calculate the LANDED.COST and LIM.LTR.AMOUNT
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 04/03/2011 - New - G.Sabari
+*                    Thesys Technologies
+*-------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE JBL.BP I_F.BD.LIM.LTR.PARAMETER
+    $INCLUDE JBL.BP I_F.BD.LIM.LTR.REGISTER
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-------------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.BD.LIM.LTR.PARAMETER = 'F.BD.LIM.LTR.PARAMETER'
+    F.BD.LIM.LTR.PARAMETER  = ''
+    CALL OPF(FN.BD.LIM.LTR.PARAMETER,F.BD.LIM.LTR.PARAMETER)
+    R.BD.LIM.LTR.PARAMETER  = ''
+
+    FN.BD.LIM.LTR.REGISTER = 'F.BD.LIM.LTR.REGISTER'
+    F.BD.LIM.LTR.REGISTER  = ''
+    CALL OPF(FN.BD.LIM.LTR.REGISTER,F.BD.LIM.LTR.REGISTER)
+    R.BD.LIM.LTR.REGISTER  = ''
+
+    Y.LIM.LTR.AMOUNT = ''; Y.PAID.INT.LIM.LTR.AMT = ''; Y.CHG.AMT.LIM.LTR.AMT = '' ; Y.OTH.LIM.LTR.AMT = ''
+
+    RETURN
+*-------------------------------------------------------------------------------
+PROCESS:
+********
+
+    GOSUB PROCESS.CHG.AMT
+
+    RETURN
+*----------------------------------------------------------------------------------
+PROCESS.CHG.AMT:
+****************
+
+    Y.INVOICE.VAL = R.NEW(BD.REG.INVOICE.VALUE)
+    Y.PAID.INT    = R.NEW(BD.REG.PAD.INTEREST)
+*Y.CHARGE.AMT  = SUM(R.NEW(BD.REG.CHG.AMOUNT))
+    Y.OTH.CHG.AMT = SUM(R.NEW(BD.REG.OTH.CHGS.AMT))
+    R.NEW(BD.REG.LANDED.COST) = Y.INVOICE.VAL+Y.PAID.INT+Y.OTH.CHG.AMT
+
+    Y.CHG.COUNT = DCOUNT(R.NEW(BD.REG.CHG.TYPE),@VM)
+    Y.CHG.COUNT.INT = 1
+    Y.CHARGE.AMT = 0
+    LOOP
+    WHILE Y.CHG.COUNT.INT LE Y.CHG.COUNT
+        IF R.NEW(BD.REG.CHG.AMT.TYPE)<1,Y.CHG.COUNT.INT> = "Percentage" THEN
+            Y.CHARGE.AMT += Y.INVOICE.VAL * (R.NEW(BD.REG.CHG.AMOUNT)<1,Y.CHG.COUNT.INT> / 100)
+        END ELSE
+            Y.CHARGE.AMT += R.NEW(BD.REG.CHG.AMOUNT)<1,Y.CHG.COUNT.INT>
+        END
+        Y.CHG.COUNT.INT += 1
+    REPEAT
+
+    R.NEW(BD.REG.LANDED.COST) += Y.CHARGE.AMT
+    Y.PAID.INT.PAYMT = R.NEW(BD.REG.PAD.INT.PAYMT)
+    IF Y.PAID.INT.PAYMT[4,1] EQ 'C' THEN
+        Y.PAID.INT.LIM.LTR.AMT = Y.PAID.INT
+    END
+
+    Y.CHARGE.AMOUNT.TYPE     = R.NEW(BD.REG.CHG.PAY.METHOD)
+    Y.CHARGE.AMOUNT          = R.NEW(BD.REG.CHG.AMOUNT)
+    Y.CHARGE.AMOUNT.TYPE.CNT = DCOUNT(Y.CHARGE.AMOUNT.TYPE,VM)
+    Y.CHARGE.AMOUNT.TYPE.INT = 1
+    LOOP
+    WHILE Y.CHARGE.AMOUNT.TYPE.INT LE Y.CHARGE.AMOUNT.TYPE.CNT
+        Y.CHARGE.AMOUNT.TYPE.VAL = Y.CHARGE.AMOUNT.TYPE<1,Y.CHARGE.AMOUNT.TYPE.INT>
+        Y.CHARGE.AMOUNT.VAL      = Y.CHARGE.AMOUNT<1,Y.CHARGE.AMOUNT.TYPE.INT>
+        IF Y.CHARGE.AMOUNT.TYPE.VAL[4,1] EQ 'C' THEN
+            IF R.NEW(BD.REG.CHG.AMT.TYPE)<1,Y.CHARGE.AMOUNT.TYPE.INT> = "Percentage" THEN
+                Y.CHARGE.AMOUNT.VAL = Y.INVOICE.VAL * (Y.CHARGE.AMOUNT.VAL / 100)
+            END
+            Y.CHG.AMT.LIM.LTR.AMT+= Y.CHARGE.AMOUNT.VAL
+        END
+        Y.CHARGE.AMOUNT.TYPE.INT++
+    REPEAT
+
+    Y.OTH.METHOD = R.NEW(BD.REG.OTH.CHG.PAYMTD)
+    Y.OTH.CHARGES.AMT = R.NEW(BD.REG.OTH.CHGS.AMT)
+    Y.OTH.METHOD.CNT = DCOUNT(Y.OTH.METHOD,VM)
+    Y.OTH.METHOD.INT = 1
+    LOOP
+    WHILE Y.OTH.METHOD.INT LE Y.OTH.METHOD.CNT
+        Y.OTH.METHOD.VAL      = Y.OTH.METHOD<1,Y.OTH.METHOD.INT>
+        Y.OTH.CHARGES.AMT.VAL = Y.OTH.CHARGES.AMT<1,Y.OTH.METHOD.INT>
+        IF Y.OTH.METHOD.VAL[4,1] EQ 'C' THEN
+            Y.OTH.LIM.LTR.AMT+=Y.OTH.CHARGES.AMT.VAL
+        END
+        Y.OTH.METHOD.INT++
+    REPEAT
+    Y.LIM.LTR.AMOUNT = Y.PAID.INT.LIM.LTR.AMT + Y.CHG.AMT.LIM.LTR.AMT + Y.OTH.LIM.LTR.AMT
+    R.NEW(BD.REG.LIM.LTR.AMOUNT) = R.NEW(BD.REG.LANDED.COST)-Y.LIM.LTR.AMOUNT
+
+    RETURN
+*------------------------------------------------------------------------------------------------------
+
+END

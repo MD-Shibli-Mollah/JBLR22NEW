@@ -1,0 +1,92 @@
+
+*-----------------------------------------------------------------------------
+* <Rating>60</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SP.BATCH.INP
+!    PROGRAM BD.BATCH.INP
+
+* Subroutine Description :
+********1.BD.H.SP.BATCH,INPUT (FOR BATCH INPUT)--INPUT ROUTINE********************
+********2.BD.H.SP.BATCH,TRANSFER (FOR BATCH TRANSFER)--INPUT ROUTINE**************
+
+*------------------------
+* This routine is use for default value in BATCH INPUT AND TRANSFER
+*-------------------------------------------------------------------------------
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT SP.BP I_F.BD.H.SP.CATEGORY
+    $INSERT SP.BP I_F.BD.H.SP.BATCH
+
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+
+***---------------------------------------------------------------
+INIT:
+    FN.SPCATG='F.BD.H.SP.CATEGORY'
+    F.SPCATG=''
+
+    Y.SP.POS=''
+
+    RETURN
+***---------------------------------------------------------------
+***---------------------------------------------------------------
+OPENFILE:
+    CALL OPF(FN.SPCATG,F.SPCATG)
+
+
+
+    RETURN
+***---------------------------------------------------------------
+***---------------------------------------------------------------
+PROCESS:
+
+    Y.VERSION.ID=APPLICATION:PGM.VERSION
+
+    IF Y.VERSION.ID EQ "BD.H.SP.BATCH,INPUT" AND V$FUNCTION EQ 'I' THEN
+
+        GOSUB GET.FACE.VAL
+
+        Y.FREQ=R.SPCATG<SP.CATG.FREQUENCY>
+        R.NEW(SP.BCH.FREQUENCY)=Y.FREQ
+        Y.CAT.NUM.COUP=R.SPCATG<SP.CATG.NO.OF.COUPON>
+
+        IF  Y.CAT.NUM.COUP NE '' THEN
+            R.NEW(SP.BCH.COUPON.START)=1
+            R.NEW(SP.BCH.COUPON.END)=Y.CAT.NUM.COUP
+        END
+        ELSE
+            R.NEW(SP.BCH.COUPON.START)=''
+            R.NEW(SP.BCH.COUPON.END)=''
+        END
+
+    END
+    ELSE IF Y.VERSION.ID EQ "BD.H.SP.BATCH,TRANSFER" AND V$FUNCTION EQ 'I' THEN
+
+        GOSUB GET.FACE.VAL
+
+    END
+
+
+
+GET.FACE.VAL:
+
+    Y.CATG.ID=R.NEW(SP.BCH.TYPE.OF.SP)
+    CALL F.READ(FN.SPCATG,Y.CATG.ID,R.SPCATG,F.SPCATG,Y.ERR)
+    Y.CAT.FACE.VAL=R.SPCATG<SP.CATG.FACE.VALUE>
+    Y.CAT.PREFIX=R.SPCATG<SP.CATG.PREFIX>
+    Y.FACE.VAL=R.NEW(SP.BCH.FACE.VALUE)
+    LOCATE Y.FACE.VAL IN Y.CAT.FACE.VAL<1,1> SETTING Y.FACE.POS THEN
+        Y.PREFIX=Y.CAT.PREFIX<1,Y.FACE.POS>
+        R.NEW(SP.BCH.PREFIX)=Y.PREFIX
+    END ELSE
+        ETEXT = 'CHOOSE FACE VALUE ACCORDING TO TYPE'
+        CALL STORE.END.ERROR
+    END
+    RETURN
+
+
+END

@@ -1,0 +1,45 @@
+*-----------------------------------------------------------------------------
+!PROGRAM JBL.FRD.AC.NATURE
+    SUBROUTINE JBL.FRD.AC.NATURE
+
+!-----------------------------------------------------------------------------!
+**********FRD AC NATURE
+
+*DEV MOHAMMAD ROBIUL ISLAM
+!------------------------------------------------------------------------------!
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT BP  I_F.API.SYS.INFO
+
+
+    FN.ACCOUNT ='F.ACCOUNT'
+    F.ACCOUNT=''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    Y.MESSAGE='Others'
+
+    FN.SYS.INFO ='F.EB.API.SYS.INFO'
+    F.SYS.INFO=''
+    CALL OPF(FN.SYS.INFO,F.SYS.INFO)
+    CALL F.READ(FN.SYS.INFO,'FRD',R.SYS,F.SYS.INFO,SYS.INFO.ERR)
+
+    Y.CR.AC=R.NEW(FT.CREDIT.ACCT.NO)
+
+    CALL F.READ(FN.ACCOUNT,Y.CR.AC,R.AC,F.ACCOUNT,ACCOUNT.ERR)
+    CALL GET.LOC.REF('FUNDS.TRANSFER','FRD.AC.NATURE',Y.FRD.AC.NATURE)
+    Y.CATEGORY=R.AC<AC.CATEGORY>
+    Y.IND.AC=R.SYS<EB.API64.IND.CATEGORY>
+
+
+    FIND Y.CATEGORY IN Y.IND.AC SETTING Ap, Vp THEN
+        Y.MESSAGE="Personal"
+    END
+
+!FIND Y.CATEGORY IN Y.COM.AC SETTING Ap, Vp THEN
+!Y.MESSAGE="Commercial"
+!END
+
+    R.NEW(FT.LOCAL.REF)<1,Y.FRD.AC.NATURE>=Y.MESSAGE
+

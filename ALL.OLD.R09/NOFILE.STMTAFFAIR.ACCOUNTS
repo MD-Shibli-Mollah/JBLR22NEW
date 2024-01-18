@@ -1,0 +1,106 @@
+*-----------------------------------------------------------------------------
+* <Rating>-92</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE NOFILE.STMTAFFAIR.ACCOUNTS(Y.ARRAY)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ACCOUNT.CLASS
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.CATEGORY
+    $INSERT I_F.LD.LOANS.AND.DEPOSITS
+
+    GOSUB INIT
+    GOSUB GET.PROCESS
+
+
+**************************************************************************
+INIT:
+**************************************************************************
+
+    FN.ACCOUNT = "F.ACCOUNT" ; F.ACCOUNT = ""
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    FN.LD = "F.LD.LOANS.AND.DEPOSITS" ; F.LD.LOANS.AND.DEPOSITS = ""
+    CALL OPF(FN.LD,F.LD.LOANS.AND.DEPOSITS)
+
+    FN.ACCOUNT.CLASS = "F.ACCOUNT.CLASS" ; F.ACCOUNT.CLASS = ""
+    CALL OPF(FN.ACCOUNT.CLASS,F.ACCOUNT.CLASS)
+
+    FN.CATEGORY = "F.CATEGORY" ; F.CATEGORY = ""
+    CALL OPF(FN.CATEGORY,F.CATEGORY)
+
+    RETURN
+*******************************************************************************
+GET.PROCESS:
+*******************************************************************************
+    Y.ID.COM = ID.COMPANY
+
+
+    Y.CAT.ARR = '6005':@VM:'6008':@VM:'6011':@VM:'6015':@VM:'6016'
+    Y.CAT.ARR:= @VM:'6017':@VM:'6020':@VM:'6021':@VM:'6022':@VM:'6026':@VM:'6027'
+    Y.CAT.ARR:= @VM:'6028':@VM:'6029':@VM:'6030':@VM:'6031':@VM:'6032':@VM:'6041'
+    Y.CAT.ARR:= @VM:'6601':@VM:'6602':@VM:'6603':@VM:'6604':@VM:'6605':@VM:'6606'
+    Y.CAT.ARR:= @VM:'6607':@VM:'6608':@VM:'6609':@VM:'6620':@VM:'6621'
+
+    SEL = "SELECT ":FN.ACCOUNT.CLASS:" WITH  @ID EQ U-SB U-STD U-CD "
+    CALL EB.READLIST(SEL,SEL.LIST,'',SEL.CNT,Y.AC.RET.CODE)
+    LOOP
+        REMOVE Y.AC.CLS.ID FROM SEL.LIST SETTING Y.AC.CLS.POS
+    WHILE Y.AC.CLS.ID:Y.AC.CLS.POS
+        CALL F.READ(FN.ACCOUNT.CLASS,Y.AC.CLS.ID,R.AC.CLS.REC,F.ACCOUNT.CLASS,Y.ERR)
+        Y.CATEGORY = R.AC.CLS.REC<AC.CLS.CATEGORY>
+
+
+        Y.COUNT = DCOUNT(Y.CATEGORY,@VM)
+        FOR J = 1 TO Y.COUNT
+
+            Y.CAT<-1> = Y.CATEGORY<1,J>
+
+        NEXT J
+    REPEAT
+    SEL1 = "SELECT ":FN.ACCOUNT: " WITH CO.CODE EQ ":Y.ID.COM
+    CALL EB.READLIST(SEL1,Y.SEL1.LIST,'',SEL1.CNT,Y.ACT.RET.CODE)
+    CONVERT FM TO VM IN Y.CAT
+    Y.CAT:= @VM:Y.CAT.ARR
+    Y.COUNT = DCOUNT(Y.CAT,@VM)
+
+    FOR J = 1 TO Y.COUNT
+        Y.CNT = 0
+        Y.CAT1 = Y.CAT<1,J>
+        SEL1.LIST = Y.SEL1.LIST
+
+        LOOP
+            REMOVE Y.AC.ID FROM SEL1.LIST SETTING Y.AC.POS
+        WHILE Y.AC.ID:Y.AC.POS
+            CALL F.READ(FN.ACCOUNT,Y.AC.ID,R.AC.REC,F.ACCOUNT,Y.ERR1)
+            Y.CATEGORY = R.AC.REC<AC.CATEGORY>
+            IF Y.CATEGORY = Y.CAT1 THEN
+
+                Y.CNT = Y.CNT + 1
+            END
+        REPEAT
+
+        CALL F.READ(FN.CATEGORY,Y.CAT1,R.CAT.REC,F.CATEGORY,Y.ERR2)
+        Y.CAT.DESCRIPTION = R.CAT.REC<EB.CAT.DESCRIPTION>
+
+        GOSUB FORM.ARRAY
+
+    NEXT J
+
+    Y.CAT.DESCRIPTION = "Loans&Advances"
+
+    SEL2 = "SELECT ":FN.LD: " WITH CO.CODE EQ ":Y.ID.COM
+    CALL EB.READLIST(SEL2,SEL2.LIST,'',SEL2.CNT,Y.RET2.CODE)
+
+    Y.CNT = SEL2.CNT
+
+    GOSUB FORM.ARRAY
+    RETURN
+******************************************************************************************************
+FORM.ARRAY:
+*****************************************************************************************************
+
+    Y.ARRAY<-1>= Y.CAT.DESCRIPTION:"*":Y.CNT
+    RETURN
+END

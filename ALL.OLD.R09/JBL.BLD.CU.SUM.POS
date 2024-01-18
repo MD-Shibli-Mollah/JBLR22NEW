@@ -1,0 +1,37 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.BLD.CU.SUM.POS(ENQ.DATA)
+*-----------------------------------------------------------------------------
+* Subroutine Descripyion:
+* -----------------------
+* This build routine is to fetch all the limits that are outstanding on a given date.
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20110208 - New - Sabari.G
+*                  Thesys Technologies
+*------------------------------------------------------------------------------- 
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_ENQUIRY.COMMON
+*-------------------------------------------------------------------------------
+
+    LOCATE "MATURITY.DATE" IN ENQ.DATA<2,1> SETTING Y.DATE.POS THEN
+        Y.DATE = ENQ.DATA<4,Y.DATE.POS>
+    END
+
+    Y.SEL = ENQ.DATA<2>
+    Y.SEL.COUNT = DCOUNT(Y.SEL,VM)
+    ENQ.DATA<2,Y.DATE.POS> = 'MATURITY.DATE'
+    ENQ.DATA<3,Y.DATE.POS> = 'GE'
+    ENQ.DATA<4,Y.DATE.POS> = Y.DATE
+
+    Y.SEL.COUNT +=1
+    ENQ.DATA<2,Y.SEL.COUNT> = 'VALUE.DATE'
+    ENQ.DATA<3,Y.SEL.COUNT> = 'LE'
+    ENQ.DATA<4,Y.SEL.COUNT> = Y.DATE
+
+    RETURN
+END

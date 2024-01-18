@@ -1,0 +1,27 @@
+*-----------------------------------------------------------------------------
+* <Rating>-31</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE LIMIT.TYPE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    Y.LIMIT.ID = O.DATA
+    Y.LIMIT.TYPE = ""
+
+    IF MOD(Y.LIMIT.ID,100) EQ 0 THEN
+        Y.LIMIT.TYPE = "HEAD PARENT"
+    END
+    ELSE
+        IF MOD(Y.LIMIT.ID,10) EQ 0 THEN
+            Y.LIMIT.TYPE = "PARENT"
+        END
+        ELSE
+            Y.LIMIT.TYPE = "CHILD"
+        END
+    END
+
+    O.DATA = Y.LIMIT.TYPE
+
+    RETURN
+END

@@ -1,0 +1,64 @@
+*-----------------------------------------------------------------------------
+* <Rating>119</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.CHECK.TF.CUS
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_GTS.COMMON
+    $INSERT I_F.CUSTOMER
+
+    IF OFS.VAL.ONLY THEN RETURN
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    Y.CUS.ID = COMI
+    FN.CUS = "FBNK.CUSTOMER"
+    F.CUS = ""
+    R.CUS.REC = ""
+    Y.CUS.ERR = ""
+    Y.ITEM = ""
+    Y.COUNT = 1
+    Y.DOC.NAME = ""
+    Y.POS1 = ""
+    Y.POS2 = ""
+    Y.REQ.DOC = "ERC>>IRC>>VAT.REGISTRATION.NO>>TIN"
+    Y.CUR.DOC = ""
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.CUS, F.CUS)
+    RETURN
+PROCESS:
+*---DOC.NAME SHELL NOT REPEAT
+    CALL F.READ(FN.CUS, Y.CUS.ID, R.CUS.REC, F.CUS, Y.CUS.ERR)
+    Y.DOC.NAME = R.CUS.REC<EB.CUS.LEGAL.DOC.NAME>
+    Y.ITEM = DCOUNT(Y.REQ.DOC, ">>")
+    LOOP
+    WHILE Y.COUNT LE Y.ITEM
+        Y.CUR.DOC = FIELD(Y.REQ.DOC, ">>", Y.COUNT)
+        FINDSTR Y.CUR.DOC IN Y.DOC.NAME SETTING Y.POS1, Y.POS2 THEN
+            GOSUB CHK.DATE.ID
+        END ELSE GOSUB PRINT.ERROR
+        Y.COUNT += 1
+    REPEAT
+    RETURN
+
+CHK.DATE.ID:
+    IF R.CUS.REC<EB.CUS.LEGAL.ID, Y.POS2> EQ "" THEN
+        TEXT = Y.DOC.NAME<1,Y.POS2>:" ID not found."
+        CALL STORE.OVERRIDE(CURR.NO)
+    END
+    IF (Y.CUR.DOC EQ 'ERC' OR Y.CUR.DOC EQ 'IRC') AND R.CUS.REC<EB.CUS.LEGAL.EXP.DATE,Y.POS2> LT TODAY THEN
+        TEXT = Y.DOC.NAME<1,Y.POS2>:" has expired."
+        CALL STORE.OVERRIDE(CURR.NO)
+    END
+    RETURN
+
+PRINT.ERROR:
+    TEXT = Y.CUR.DOC:" Not found."
+    CALL STORE.OVERRIDE(CURR.NO)
+    RETURN
+END

@@ -1,0 +1,55 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.PRC.REGISTER.ID
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This ID routine will generate the ID's for BD.BTB.JOB.REGISTER table
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 04/03/2011 - New -
+*
+*-------------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.BD.PRC.REGISTER
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-------------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.PRC.NAU = 'F.BD.PRC.REGISTER$NAU'
+    F.PRC.NAU = ''
+    CALL OPF(FN.PRC.NAU,F.PRC.NAU)
+
+    FN.PRC = 'F.BD.PRC.REGISTER'
+    F.PRC = ''
+    CALL OPF(FN.PRC,F.PRC)
+
+    RETURN
+*-------------------------------------------------------------------------------
+PROCESS:
+********
+    IF V$FUNCTION EQ 'I' THEN
+        CALL F.READ(FN.PRC,ID.NEW,R.PRC.REC,F.PRC,Y.PRC.ERR)
+        IF R.PRC.REC THEN
+            ID.NEW = ID.NEW
+            RETURN
+        END ELSE
+            E = 'Invalid PRC Number'
+            GOSUB CHECK.ID.RETURN
+        END
+    END
+    RETURN
+
+CHECK.ID.RETURN:
+    RETURN TO CHECK.ID.RETURN
+*-------------------------------------------------------------------------------
+
+END

@@ -1,0 +1,78 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-35</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.CHECK.FTT.DETS
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This routine is
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20/04/2012 - New - Rayhan
+*
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.BD.IFDBP.REGISTER
+    $INSERT I_F.CURRENCY
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+    CALL OPF(FN.FT,F.FT)
+    R.FT.REC = ''
+    Y.FT.ERR = ''
+
+    FN.IFDBP = 'F.BD.IFDBP.REGISTER'
+    F.IFDBP = ''
+    CALL OPF(FN.IFDBP,F.IFDBP)
+    R.IFDBP.REC = ''
+    Y.IFDBP.ERR = ''
+
+    FN.CUR = "F.CURRENCY"
+    F.CUR = ""
+    CALL OPF(FN.CUR,F.CUR)
+    R.CUR.REC = ""
+    Y.CUR.ERR = ""
+
+    Y.MID.RATE = ''
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+    GOSUB GET.LOC.REF.POS
+    Y.DR.CUR = R.NEW(FT.DEBIT.CURRENCY)
+    Y.IFDBP.NO = R.NEW(FT.LOCAL.REF)<1,Y.FT.FTTNO.POS>
+    CALL F.READ(FN.IFDBP,Y.IFDBP.NO,R.IFDBP.REC,F.IFDBP,Y.IFDBP.ERR)
+    IF R.IFDBP.REC THEN
+        AF = FT.LOCAL.REF
+        AV = Y.FT.FTTNO.POS
+        ETEXT ="Number Already Existing in IFDBP Register"
+        CALL STORE.END.ERROR
+    END
+    !IF Y.DR.CUR NE LCCY THEN
+    !    CALL F.READ(FN.CUR,Y.DR.CUR,R.CUR.REC,F.CUR,Y.CUR.ERR)
+    !    FINDSTR '3' IN R.CUR.REC<EB.CUR.CURRENCY.MARKET> SETTING POS,POS1 THEN
+    !        Y.MID.RATE = R.CUR.REC<EB.CUR.BUY.RATE,POS1>
+    !        R.NEW(FT.TREASURY.RATE) = Y.MID.RATE
+    !    END
+    !END
+    RETURN
+*-----------------------------------------------------------------------------
+GET.LOC.REF.POS:
+*--------------
+    CALL GET.LOC.REF("FUNDS.TRANSFER","FTT.NUMBER",Y.FT.FTTNO.POS)
+    RETURN
+END

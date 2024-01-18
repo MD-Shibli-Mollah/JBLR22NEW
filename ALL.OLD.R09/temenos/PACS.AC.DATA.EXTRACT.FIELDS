@@ -1,0 +1,43 @@
+*-----------------------------------------------------------------------------
+* <Rating>-2</Rating>
+*-----------------------------------------------------------------------------
+
+    SUBROUTINE PACS.AC.DATA.EXTRACT.FIELDS
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("@ID", T24_String) ;* Define Table id
+*-----------------------------------------------------------------------------
+    CALL Table.addField("XX.ACCOUNT.NUMBER", T24_String, "", '')
+    CALL Field.setCheckFile("ACCOUNT")
+    CALL Table.addField("LIST.FILE.PATH",T24_BigString , '', '')
+    CALL Table.addField("FILE.NAME", T24_String, '', '')
+    CALL Table.addField("LOG.FILE.PATH",T24_BigString , Field_Mandatory , '')
+    CALL Table.addField("ENTRY.START.DATE", T24_Date, '', '')
+    CALL Table.addOptionsField("GL.EXTRACT.REQ", 'YES_NO', "", '')
+    CALL Field.setDefault('NO')
+    CALL Table.addField("GL.START.DATE", T24_Date, '', '')
+    CALL Table.addField("XX.GL.BRANCH.REQ", T24_String, '', '')
+    CALL Table.addOptionsField("WORKING.BAL.CHK", 'YES_NO', "", '')
+    CALL Field.setDefault('NO')
+    CALL Table.addOptionsField("FWD.ENT.DETS.REQD", 'YES_NO', "", '')
+    CALL Field.setDefault('NO')
+    CALL Table.addOptionsField("DATE.EXPO.REQD", 'YES_NO', "", '')
+    CALL Field.setDefault('NO')
+    CALL Table.addOptionsField("CLEAR.LOG.FILES", 'YES_NO', "", '')
+    CALL Field.setDefault('NO')
+    CALL Table.addField("EXECUTION.STATUS",T24_String ,Field_NoInput , '')
+    CALL Field.setDefault('')
+    CALL Table.addReservedField("RESERVED.05")
+    CALL Table.addReservedField("RESERVED.04")
+    CALL Table.addReservedField("RESERVED.03")
+    CALL Table.addReservedField("RESERVED.02")
+    CALL Table.addReservedField("RESERVED.01")
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END 

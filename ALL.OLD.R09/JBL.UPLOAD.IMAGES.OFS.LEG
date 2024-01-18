@@ -1,0 +1,150 @@
+*
+*-----------------------------------------------------------------------------
+* <Rating>342</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.UPLOAD.IMAGES.OFS.LEG
+*-------------------------------------------------------------
+* This routine is used to read the Flat File which contains the
+* Image details and upload that details to globus thro' OFS.
+* The Flat file generation should be in this format
+* 1st Field - Legacy Account No
+* 2nd Field - Image Reference
+* All these Fields should be seperated by *
+* This Flat File has to be placed in the Folder MIG.DIR
+* with the File Name as IMAGES
+*-------------------------------------------------------------
+*
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.OFS.REQUEST.DETAIL
+    $INSERT GLOBUS.BP I_F.ALTERNATE.ACCOUNT
+    $INSERT GLOBUS.BP I_F.IM.DOCUMENT.IMAGE
+    $INSERT GLOBUS.BP I_F.IM.DOCUMENT.UPLOAD
+
+    GOSUB INITALISE
+    GOSUB PROCESS.FLAT.FILE
+
+    RETURN
+*--------------------------------------------------------------
+INITALISE:
+
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT = ""
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    FN.ALTERNATE.ACCOUNT = "F.ALTERNATE.ACCOUNT"
+    F.ALTERNATE.ACCOUNT = ""
+    CALL OPF(FN.ALTERNATE.ACCOUNT,F.ALTERNATE.ACCOUNT)
+    ALT.ACC.ERR = ''
+
+    FN.OFS.DETAIL = "F.OFS.REQUEST.DETAIL"
+    F.OFS.DETAIL = ""
+    CALL OPF(FN.OFS.DETAIL,F.OFS.DETAIL)
+    OFS.ERR1 = ''
+
+    FN.SEQ.FILE.PATH = 'MIG.BP'
+!CRT @(-1):
+!CRT @(7,1):" Input the Image File Name ":
+!INPUT FN.SEQ.FILE.NAME
+!CRT @(7,2):" Input the Error File name to be Stored ":
+!INPUT FN.WRITESEQ.FILE
+
+    FN.SEQ.FILE.NAME = 'KHULNA.IMAGE.20120303.csv'
+    FN.WRITESEQ.FILE = 'IMAGESERRLEGB49'
+    OPENSEQ FN.SEQ.FILE.PATH,FN.SEQ.FILE.NAME TO F.SEQ.FILE ELSE NULL
+    OPENSEQ FN.SEQ.FILE.PATH,FN.WRITESEQ.FILE TO F.WRITESEQ.FILE ELSE NULL
+    EOF = ''
+
+    RETURN
+*-------------------------------------------------------------
+PROCESS.FLAT.FILE:
+
+    LOOP
+        READSEQ IMAGE.DETAILS FROM F.SEQ.FILE ELSE EOF = 'Y'
+    WHILE NOT(EOF) DO
+        GOSUB CLEAR.OLD.VAL
+
+* Reading Each Record in Flat  file
+        Y.LEGACY.ACCT.NO = FIELD(IMAGE.DETAILS,',',1)
+        Y.IMAGE.REF = FIELD(IMAGE.DETAILS,',',2)
+        IMAGE.TYP = 'SIGNATURES'
+        IMAGE.APPLN = ''
+        Y.BRANCH.CODE = ''
+        MULTIMEDIA.TYPE = 'IMAGE'
+        IMAGE.EXT = 'JPG' ;
+
+        OFS.SOURCE.ID = "DM.OFS.SRC"
+
+        CALL F.READ(FN.ALTERNATE.ACCOUNT,Y.LEGACY.ACCT.NO,R.ALTERNATE.ACC,F.ALTERNATE.ACCOUNT,ALT.ACC.ERR)
+
+        Y.GLOBUS.ACC = R.ALTERNATE.ACC<1>
+        CALL F.READ(FN.ACCOUNT,Y.GLOBUS.ACC,R.ACCOUNT,F.ACCOUNT,ACC.ERR)
+        IF R.ACCOUNT THEN
+            Y.SHORT.NAME = R.ACCOUNT<AC.SHORT.TITLE>
+            Y.ACCOUNT.TITLE  = R.ACCOUNT<AC.ACCOUNT.TITLE.1>
+            CONVERT "," TO "" IN Y.ACCOUNT.TITLE
+
+* storing it in OFS text
+            APPLN = "IM.DOCUMENT.IMAGE,OFS"
+            MAIN.TXT  = "IMAGE.TYPE::=":IMAGE.TYP:",IMAGE.APPLICATION::="
+            MAIN.TXT := IMAGE.APPLN:",COMPANY.MNEMONIC::=":Y.BRANCH.CODE
+            MAIN.TXT := ",IMAGE.REFERENCE::=":Y.LEGACY.ACCT.NO:",SHORT.DESCRIPTION::="
+            MAIN.TXT := Y.LEGACY.ACCT.NO:",DESCRIPTION::=":Y.ACCOUNT.TITLE
+            MAIN.TXT := ",MULTI.MEDIA.TYPE::=":MULTIMEDIA.TYPE
+
+* First OFS to call IM.DOCUMENT.IMAGE
+!            OFS.TXT = APPLN:"/I/PROCESS,,NEW,":MAIN.TXT
+            OFS.TXT = APPLN:"/I/PROCESS,,,":MAIN.TXT
+!        OFS.TXT = APPLN:"/I/PROCESS,,IM1000522811,":MAIN.TXT
+
+            CALL OFS.GLOBUS.MANAGER(OFS.SOURCE.ID,OFS.TXT)
+
+* Second OFS to call IM.DOCUMENT.UPLOAD
+            Y.UPD.ID = FIELD(OFS.TXT,"/",1)
+            Y.UPD.STATUS = FIELD(OFS.TXT,"/",3)[1,1]
+            IF Y.UPD.STATUS > 0 THEN
+
+                SEC.APPLN = "IM.DOCUMENT.UPLOAD,OFS"
+
+*                UPLOAD.TXT = "UPLOAD.ID::=":Y.UPD.ID:",FILE.UPLOAD::=":Y.IMAGE.PART.I:"-":Y.IMAGE.PART.II
+!                UPLOAD.TXT = "UPLOAD.ID::=":Y.UPD.ID:",FILE.UPLOAD::=":Y.IMAGE.REF:".":IMAGE.EXT
+                UPLOAD.TXT = "UPLOAD.ID::=":Y.UPD.ID:",FILE.UPLOAD::=":Y.IMAGE.REF
+
+                SEC.OFS.TXT = SEC.APPLN:"/I/PROCESS,,":Y.UPD.ID:",":UPLOAD.TXT
+
+                CALL OFS.GLOBUS.MANAGER(OFS.SOURCE.ID,SEC.OFS.TXT)
+
+                PRINT Y.UPD.ID:' >> ':Y.IMAGE.REF
+
+            END
+        END ELSE
+            WRITE.ACC.ERR = Y.LEGACY.ACCT.NO:'*':ACC.ERR
+            WRITESEQ WRITE.ACC.ERR TO F.WRITESEQ.FILE ELSE NULL
+        END
+    REPEAT
+    CALL JOURNAL.UPDATE('')
+    RETURN
+*--------------------------------------------------------------
+CLEAR.OLD.VAL:
+
+    Y.BRANCH.CODE = ''
+    WRITE.ACC.ERR = ''
+    Y.BANKOS.ACCT.NO = ''
+    Y.IMAGE.REF = ''
+    R.ALTERNATE.ACC = ''
+    ALT.ACC.ERR = ''
+    Y.GLOBUS.ACC = ''
+    R.ACCOUNT = ''
+    ACC.ERR = ''
+    Y.SHORT.NAME = ''
+    Y.ACCOUNT.TITLE = ''
+    MAIN.TXT = ''
+    OFS.TXT = ''
+    Y.UPD.ID = ''
+    UPLOAD.TXT = ''
+    IMAGE.EXT = ''
+
+    RETURN
+*--------------------------------------------------------------
+END

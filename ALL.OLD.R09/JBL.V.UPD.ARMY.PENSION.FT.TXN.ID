@@ -1,0 +1,31 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.UPD.ARMY.PENSION.FT.TXN.ID
+*----------------------------------------------------------------------------------------------------------------
+* Author        : Kiran Ghanathe
+* Description   : Attached as Authorisation routine to update the TXN.ID in the table 'JBL.UPD.ARMY.PENSION.IDS'
+*
+*----------------------------------------------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.JBL.UPD.ARMY.PENSION.TXN.ID
+    $INSERT I_F.FUNDS.TRANSFER
+!
+    FN.JUAP = "F.JBL.UPD.ARMY.PENSION.TXN.ID"
+    F.JUAP = ''
+    CALL OPF(FN.JUAP, F.JUAP)
+!
+    Y.APP = "FUNDS.TRANSFER"
+    Y.FLD = "PPO.NO"
+    Y.POS = ''
+    CALL GET.LOC.REF(Y.APP,Y.FLD,Y.POS)
+!
+    JUAP.REC = ''
+    JUAP.REC<APAR.FUNDS.TRANSFER.ID> = ID.NEW
+    JUAP.REC<APAR.TXN.REF> = R.NEW(FT.TRANSACTION.TYPE)
+    JUAP.REC<APAR.PPO.NO> = R.NEW(FT.LOCAL.REF)<1,Y.POS>
+    WRITE JUAP.REC TO F.JUAP, ID.NEW
+!
+    RETURN
+END

@@ -1,0 +1,77 @@
+*************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>70</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE  E.CONV.CUST.DETS
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This Conversion routine is used to fetch the details from customer application
+* and will return the same to enquiry
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*
+* O.DATA
+*
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+*Variable name:   Insert file:          Description:
+* TODAY            I_COMMON              Will hold Todays date used for
+*                                        writing in flat file
+*
+*-------------------------------------------------------------------------
+*Called Subroutines: Not Applicable
+*------ ------------
+*Routine Name:             Local/Core:     Description:
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 14/02/2011 -                            New   - Shiva Shankar G
+*                                                 Thesys Technologies
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.CUSTOMER
+    $INCLUDE GLOBUS.BP I_ENQUIRY.COMMON
+
+    Y.CUS.ID = O.DATA
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*--------------------------------------------------------------------------
+INITIALISE:
+*----------
+    FN.CUSTOMER = 'F.CUSTOMER'
+    F.CUSTOMER = ''
+    CALL OPF(FN.CUSTOMER,F.CUSTOMER)
+
+    APPLN = 'CUSTOMER' ; FLD.LIST = 'SPOUSE.NAME':VM:'FATHER.NAME':VM:'MOTHER.NAME' ; FLD.POS = ''
+
+    RETURN
+*-------------------------------------------------------------------------------------
+PROCESS:
+*------
+
+    CALL MULTI.GET.LOC.REF(APPLN,FLD.LIST,FLD.POS)
+    Y.SPOUSE.POS = FLD.POS<1,1>
+    Y.FATHER.POS = FLD.POS<1,2>
+    Y.MOTHER.POS = FLD.POS<1,3>
+    CALL F.READ(FN.CUSTOMER,Y.CUS.ID,R.CUSTOMER,F.CUSTOMER,Y.CUSTOMER.ERR)
+    IF R.CUSTOMER EQ '' THEN RETURN
+    Y.SPOUSE.NAME = R.CUSTOMER<EB.CUS.LOCAL.REF,Y.SPOUSE.POS>
+    Y.FATHER.NAME = R.CUSTOMER<EB.CUS.LOCAL.REF,Y.FATHER.POS>
+    Y.MOTHER.NAME = R.CUSTOMER<EB.CUS.LOCAL.REF,Y.MOTHER.POS>
+    IF Y.SPOUSE.NAME OR Y.FATHER.NAME OR Y.MOTHER.NAME THEN
+        O.DATA = Y.SPOUSE.NAME:';':Y.FATHER.NAME:';':Y.MOTHER.NAME
+    END ELSE
+        O.DATA = ''
+    END
+    RETURN
+*---------------------------------------------------------------------------------
+END

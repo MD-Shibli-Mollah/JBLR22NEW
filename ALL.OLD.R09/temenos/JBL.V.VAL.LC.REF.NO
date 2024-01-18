@@ -1,0 +1,59 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>80</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VAL.LC.REF.NO
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This routine is to validate the fields of BD.LIM.LTR.REGISTER
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 03/03/2011 - New - G.Shiva Shankar
+*                    Thesys Technologies
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE JBL.BP I_F.BD.LIM.LTR.REGISTER
+    $INCLUDE GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.BD.LIM.LTR.REGISTER = 'F.BD.LIM.LTR.REGISTER'
+    F.BD.LIM.LTR.REGISTER  = ''
+    CALL OPF(FN.BD.LIM.LTR.REGISTER,F.BD.LIM.LTR.REGISTER)
+    R.BD.LIM.LTR.REGISTER  = ''
+
+    FN.LETTER.OF.CREDIT = 'F.LETTER.OF.CREDIT'
+    F.LETTER.OF.CREDIT  = ''
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+    R.LETTER.OF.CREDIT  = ''
+
+    FN.LD.LOANS.AND.DEPOSITS = 'F.LD.LOANS.AND.DEPOSITS'
+    F.LD.LOANS.AND.DEPOSITS  = ''
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+    R.LD.LOANS.AND.DEPOSITS  = ''
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+
+    Y.LC.REF.NO = COMI
+    CALL F.READ(FN.LETTER.OF.CREDIT,Y.LC.REF.NO,R.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT,Y.LETTER.OF.CREDIT.ERR)
+    IF R.LETTER.OF.CREDIT EQ '' THEN RETURN
+    Y.CUSTO = R.LETTER.OF.CREDIT<TF.LC.APPLICANT.CUSTNO>
+    R.NEW(BD.REG.CUSTOMER.ID) = Y.CUSTO
+
+    RETURN
+*-----------------------------------------------------------------------------
+
+END

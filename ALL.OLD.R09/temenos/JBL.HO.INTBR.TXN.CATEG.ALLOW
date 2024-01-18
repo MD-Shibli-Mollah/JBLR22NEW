@@ -1,0 +1,94 @@
+!-------------------------------------------------------------------------------------
+! Developed by: Md Golam Rased
+! Date: 20181220
+! Purpose: Restrict Inter Branch HO Txn
+!-------------------------------------------------------------------------------------
+!Attached To:
+!-------------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------------
+    SUBROUTINE JBL.HO.INTBR.TXN.CATEG.ALLOW
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT BP I_F.EB.JBL.HO.TXN.CATEG.ALLOW
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.TXN.CATG = 'FBNK.EB.JBL.HO.TXN.CATEG.ALLOW'
+    F.TXN.CATG = ''
+    FN.FT = 'FBNK.FUNDS.TRANSFER'
+    F.FT = ''
+    RETURN
+
+OPENFILE:
+    CALL OPF(FN.TXN.CATG,F.TXN.CATG)
+    CALL OPF(FN.FT,F.FT)
+    RETURN
+
+PROCESS:
+    CALL F.READ(FN.TXN.CATG,'SYSTEM',REC.TXN.CATG,F.TXN.CATG,YTXN.CATG.ERR)
+    Y.CATEG.LIST = REC.TXN.CATG<EB.JBL38.INCLUDE.CATEG>
+    Y.TYPE.LIST = REC.TXN.CATG<EB.JBL38.ALLOWED.TYPE>
+
+    Y.DR.ACC.NO = R.NEW(FT.DEBIT.ACCT.NO)
+    Y.CR.ACC.NO = R.NEW(FT.CREDIT.ACCT.NO)
+
+!------------------- Restrict Customer Account for HO Txn --------------------------
+    IF Y.DR.ACC.NO[1,2] EQ 'PL' THEN
+        Y.DR.CATEG = Y.DR.ACC.NO[3,5]
+    END
+    ELSE
+        IF Y.DR.ACC.NO[1,3] EQ 'BDT' THEN
+            Y.DR.CATEG = Y.DR.ACC.NO[4,5]
+        END
+        ELSE
+            ETEXT = 'Customer Account not Allowed for HO Txn'
+            CALL STORE.END.ERROR
+        END
+    END
+    IF Y.CR.ACC.NO[1,2] EQ 'PL' THEN
+        Y.CR.CATEG = Y.CR.ACC.NO[3,5]
+    END
+    ELSE
+        IF Y.CR.ACC.NO[1,3] EQ 'BDT' THEN
+            Y.CR.CATEG = Y.CR.ACC.NO[4,5]
+        END
+        ELSE
+            ETEXT = 'Customer Account not Allowed for HO Txn'
+            CALL STORE.END.ERROR
+        END
+    END
+!----------------------- End Customer Account Restriction --------------------------
+!----------------------- Check Debit/Credit Permission -----------------------------
+
+    LOCATE Y.DR.CATEG IN Y.CATEG.LIST<1,1> SETTING DR.CAT.POS THEN
+        Y.DR.REST.TYPE = Y.TYPE.LIST<1,DR.CAT.POS>
+        IF Y.DR.REST.TYPE  EQ 'CREDIT' THEN
+            ETEXT = "Debit Category Cant be ":Y.DR.CATEG
+            CALL STORE.END.ERROR
+        END
+    END
+    ELSE
+        ETEXT = "Category ":Y.DR.CATEG:" Not Allowed For HO Txn"
+        CALL STORE.END.ERROR
+    END
+
+    LOCATE Y.CR.CATEG IN Y.CATEG.LIST<1,1> SETTING CR.CAT.POS THEN
+        Y.CR.REST.TYPE = Y.TYPE.LIST<1,CR.CAT.POS>
+        IF Y.CR.REST.TYPE EQ 'DEBIT' THEN
+            ETEXT = "Credit Category Cant be ":Y.CR.CATEG
+            CALL STORE.END.ERROR
+        END
+    END
+    ELSE
+        ETEXT = "Category ":Y.CR.CATEG:" Not Allowed For HO Txn"
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+!------------------- End Debit/Credit Permission Check -----------------------------
+END

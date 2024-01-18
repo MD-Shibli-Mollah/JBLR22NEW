@@ -1,0 +1,189 @@
+*********************************************************************************************
+*NOTE : This routine restrict particular interbranch transaction. JBL.H.INTERBR.CATEG.ALLOW *
+*is the parameter file that define the product codes for which interbranch transaction are  *
+*allowed,except those product interbranch transactions are restrcited.                      *
+*DEVELOPED BY : Md. Zahid Hasan                                                             *
+*DATE : 6th Dec,2015                                                                        *
+*********************************************************************************************
+    SUBROUTINE JBL.INT.BR.REST
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT JBL.BP I_F.JBL.H.INTERBR.CATEG.ALLOW
+    IF V$FUNCTION EQ 'D' THEN RETURN
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+
+    RETURN
+
+*--------
+INIT:
+*--------
+
+    FN.FT = 'FBNK.FUNDS.TRANSFER'
+    F.FT = ''
+    FN.TT = 'FBNK.TELLER'
+    F.TT = ''
+    FN.ACCT = 'FBNK.ACCOUNT'
+    F.ACCT = ''
+    FN.INT.CAT.ALW = 'F.JBL.H.INTERBR.CATEG.ALLOW'
+    F.INT.CAT.ALW = ''
+
+    Y.COMPANY.ID = ID.COMPANY
+
+    RETURN
+
+*-----------
+OPENFILE:
+*-----------
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.ACCT,F.ACCT)
+    CALL OPF(FN.INT.CAT.ALW,F.INT.CAT.ALW)
+
+    RETURN
+
+*---------
+PROCESS:
+*---------
+
+    CALL F.READ(FN.INT.CAT.ALW,'SYSTEM',REC.INT.CAT.ALW,F.INT.CAT.ALW,Y.INT.CAT.ALW.ERR)
+    Y.CATEG.LIST = REC.INT.CAT.ALW<INTBCA.ALLOWED.CATEG>
+    Y.TYPE.LIST =  REC.INT.CAT.ALW<INTBCA.ALLOWED.TYPE>
+
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        Y.DR.ACC.NO = R.NEW(FT.DEBIT.ACCT.NO)
+        Y.CR.ACC.NO = R.NEW(FT.CREDIT.ACCT.NO)
+    END
+    ELSE
+        IF APPLICATION EQ 'TELLER' THEN
+            IF R.NEW(TT.TE.DR.CR.MARKER) EQ 'DEBIT' THEN
+                Y.DR.ACC.NO = R.NEW(TT.TE.ACCOUNT.1)
+                Y.CR.ACC.NO = R.NEW(TT.TE.ACCOUNT.2)
+            END
+            ELSE
+                Y.CR.ACC.NO = R.NEW(TT.TE.ACCOUNT.1)
+                Y.DR.ACC.NO = R.NEW(TT.TE.ACCOUNT.2)
+            END
+        END
+    END
+    IF Y.DR.ACC.NO[1,2] NE 'PL' THEN
+        CALL F.READ(FN.ACCT,Y.DR.ACC.NO,REC.DR.ACC,F.DR.ACC,Y.DR.ACC.ERR)
+        Y.DR.CO.CODE = REC.DR.ACC<AC.CO.CODE>
+        Y.DR.CAT = REC.DR.ACC<AC.CATEGORY>
+    END
+    ELSE
+        Y.DR.CO.CODE = ID.COMPANY
+        Y.DR.CAT = Y.DR.ACC.NO[3,7]
+    END
+    IF Y.CR.ACC.NO[1,2] NE 'PL' THEN
+        CALL F.READ(FN.ACCT,Y.CR.ACC.NO,REC.CR.ACC,F.CR.ACC,Y.CR.ACC.ERR)
+        Y.CR.CO.CODE = REC.CR.ACC<AC.CO.CODE>
+        Y.CR.CAT = REC.CR.ACC<AC.CATEGORY>
+    END
+    ELSE
+        Y.CR.CO.CODE = ID.COMPANY
+        Y.CR.CAT = Y.CR.ACC.NO[3,7]
+    END
+
+    IF (Y.DR.CO.CODE NE Y.COMPANY.ID AND Y.CR.CO.CODE NE Y.COMPANY.ID) THEN
+        GOSUB GET.BOTH.ERROR.MSG
+    END
+    ELSE
+        IF (Y.DR.CO.CODE NE Y.COMPANY.ID) THEN
+            GOSUB GET.DR.ERROR.MSG
+        END
+        ELSE
+            IF (Y.CR.CO.CODE NE Y.COMPANY.ID) THEN
+                GOSUB GET.CR.ERROR.MSG
+            END
+        END
+    END
+
+    RETURN
+
+*-----------------
+GET.BOTH.ERROR.MSG:
+*-----------------
+
+    ETEXT = "None Of The Accounts Are of ":Y.COMPANY.ID:" Branch"
+    CALL STORE.END.ERROR
+
+    RETURN
+
+*--------------
+GET.DR.ERROR.MSG:
+*--------------
+    LOCATE Y.DR.CAT IN Y.CATEG.LIST<1,1> SETTING POS1 THEN
+        Y.RESTRICT.TYPE = Y.TYPE.LIST<1,POS1>
+        IF (Y.RESTRICT.TYPE NE 'DEBIT' AND Y.RESTRICT.TYPE NE 'BOTH') THEN
+            GOSUB DEBIT.RESTRICT
+        END
+    END
+    ELSE
+        GOSUB DEBIT.RESTRICT
+    END
+
+    RETURN
+*--------------
+GET.CR.ERROR.MSG:
+*--------------
+    LOCATE Y.CR.CAT IN Y.CATEG.LIST<1,1> SETTING POS2 THEN
+        Y.RESTRICT.TYPE = Y.TYPE.LIST<1,POS2>
+        IF (Y.RESTRICT.TYPE NE 'CREDIT' AND Y.RESTRICT.TYPE NE 'BOTH') THEN
+            GOSUB CREDIT.RESTRICT
+        END
+    END
+    ELSE
+        GOSUB CREDIT.RESTRICT
+    END
+
+    RETURN
+
+*---------------
+DEBIT.RESTRICT:
+*---------------
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        AF = FT.DEBIT.ACCT.NO
+    END
+    ELSE
+        IF APPLICATION EQ 'TELLER' THEN
+            IF R.NEW(TT.TE.DR.CR.MARKER) EQ 'DEBIT' THEN
+                AF = TT.TE.ACCOUNT.1
+            END
+            ELSE
+                AF = TT.TE.ACCOUNT.2
+            END
+        END
+    END
+    ETEXT = "Category are not allowed for inter branch Transaction"
+    CALL STORE.END.ERROR
+
+    RETURN
+
+*---------------
+CREDIT.RESTRICT:
+*---------------
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        AF = FT.CREDIT.ACCT.NO
+    END
+    ELSE
+        IF APPLICATION EQ 'TELLER' THEN
+            IF R.NEW(TT.TE.DR.CR.MARKER) EQ 'DEBIT' THEN
+                AF = TT.TE.ACCOUNT.2
+            END
+            ELSE
+                AF = TT.TE.ACCOUNT.1
+            END
+        END
+    END
+    ETEXT = "Category are not allowed for inter branch Transaction"
+    CALL STORE.END.ERROR
+
+    RETURN
+
+END

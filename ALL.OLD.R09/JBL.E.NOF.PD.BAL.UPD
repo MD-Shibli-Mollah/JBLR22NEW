@@ -1,0 +1,171 @@
+**************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>359</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.E.NOF.PD.BAL.UPD(Y.ARRAY)
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This nofile routine is used to fetch the details from PD.PAYMENT.DUE and PD.BALANCES records
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*
+* Y.RET.ARRAY: The final Built array and will holds the details and the same will be returned to enquiry
+*
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+*Variable name:   Insert file:          Description:
+* TODAY            I_COMMON              Will hold Todays date used for
+*                                        writing in flat file
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:Not Applicable
+*------ ------------
+*Routine Name:             Local/Core:     Description:
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 14/02/2011 -                            New   - Shiva Shankar G
+*                                                 Thesys Technologies
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.PD.PAYMENT.DUE
+    $INCLUDE GLOBUS.BP I_F.PD.BALANCES
+    $INCLUDE GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*--------------------------------------------------------------------------
+INITIALISE:
+*----------
+
+    FN.PD.BALANCES = 'F.PD.BALANCES'
+    F.PD.BALANCES = ''
+    CALL OPF(FN.PD.BALANCES,F.PD.BALANCES)
+
+    FN.PD.PAYMENT.DUE = 'F.PD.PAYMENT.DUE'
+    F.PD.PAYMENT.DUE = ''
+    CALL OPF(FN.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE)
+
+    RETURN
+*-------------------------------------------------------------------------------------------
+PROCESS:
+*-------
+
+    LOCATE 'PD.ID' IN D.FIELDS<1> SETTING Y.ID.POS THEN
+        Y.PD.SEL.ID = D.RANGE.AND.VALUE<Y.ID.POS>
+
+    END
+    IF Y.PD.SEL.ID NE '' THEN
+        Y.PD.ID = Y.PD.SEL.ID
+        GOSUB PD.PROCESS
+    END ELSE
+        SEL.CMD = "SELECT ":FN.PD.PAYMENT.DUE
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'','','')
+
+        LOOP
+            REMOVE Y.PD.ID FROM SEL.LIST SETTING Y.PD.POS
+        WHILE Y.PD.ID:Y.PD.POS
+            GOSUB PD.PROCESS
+        REPEAT
+    END
+    RETURN
+*-----------------------------------------------------------------------------------------
+PD.PROCESS:
+*---------
+
+    CALL F.READ(FN.PD.PAYMENT.DUE,Y.PD.ID,R.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE,Y.PD.PAYMENT.DUE.ERR)
+
+    Y.PAYMENT.DTE.DUE = R.PD.PAYMENT.DUE<PD.PAYMENT.DTE.DUE>
+    Y.PAYMENT.DTE.DUE.CNT = DCOUNT(Y.PAYMENT.DTE.DUE,VM)
+    Y.PD.INT.CNT = 1
+
+    LOOP
+        Y.PR.AMT = ''
+        Y.PR.REPAY.AMT = ''
+        Y.PE.AMT = ''
+        Y.PE.REPAY.AMT =''
+        Y.PS.AMT = ''
+        Y.PS.REPAY.AMT = ''
+        Y.IN.AMT = ''
+        Y.IN.REPAY.AMT = ''
+        Y.31.60.PR.AMT = ''
+        Y.31.60.INT.AMT = ''
+        Y.31.60.TOT.AMT = ''
+        Y.61.90.PR.AMT = ''
+        Y.61.90.INT.AMT = ''
+        Y.61.90.TOT.AMT = ''
+        Y.91.180.PR.AMT = ''
+        Y.91.180.IN.AMT = ''
+        Y.91.180.TOT.AMT = ''
+        Y.180.PR.AMT = ''
+        Y.180.INT.AMT = ''
+        Y.180.TOT.AMT = ''
+    WHILE Y.PD.INT.CNT LE Y.PAYMENT.DTE.DUE.CNT
+        Y.PD.DTE.DUE = Y.PAYMENT.DTE.DUE<1,Y.PD.INT.CNT>
+        Y.PAY.TYPE = R.PD.PAYMENT.DUE<PD.PAY.TYPE,Y.PD.INT.CNT>
+        Y.PAY.TYPE.CNT = DCOUNT(Y.PAY.TYPE,SM)
+        Y.PAY.INT = 1
+        LOOP
+        WHILE Y.PAY.INT LE Y.PAY.TYPE.CNT
+            Y.PAY.TP = Y.PAY.TYPE<1,1,Y.PAY.INT>
+            BEGIN CASE
+            CASE Y.PAY.TP EQ 'PR'
+                Y.PR.AMT = R.PD.PAYMENT.DUE<PD.PAY.AMT.OUTS,Y.PD.INT.CNT,Y.PAY.INT>
+                Y.PR.REPAY.AMT = R.PD.PAYMENT.DUE<PD.REPAID.AMT,Y.PD.INT.CNT,Y.PAY.INT>
+            CASE Y.PAY.TP EQ 'PE'
+                Y.PE.AMT = R.PD.PAYMENT.DUE<PD.PAY.AMT.OUTS,Y.PD.INT.CNT,Y.PAY.INT>
+                Y.PE.REPAY.AMT = R.PD.PAYMENT.DUE<PD.REPAID.AMT,Y.PD.INT.CNT,Y.PAY.INT>
+            CASE Y.PAY.TP EQ 'PS'
+                Y.PS.AMT = R.PD.PAYMENT.DUE<PD.PAY.AMT.OUTS,Y.PD.INT.CNT,Y.PAY.INT>
+                Y.PS.REPAY.AMT = R.PD.PAYMENT.DUE<PD.REPAID.AMT,Y.PD.INT.CNT,Y.PAY.INT>
+            CASE Y.PAY.TP EQ 'IN'
+                Y.IN.AMT = R.PD.PAYMENT.DUE<PD.PAY.AMT.OUTS,Y.PD.INT.CNT,Y.PAY.INT>
+                Y.IN.REPAY.AMT = R.PD.PAYMENT.DUE<PD.REPAID.AMT,Y.PD.INT.CNT,Y.PAY.INT>
+            END CASE
+            Y.PAY.INT++
+        REPEAT
+        Y.PD.BAL.ID = Y.PD.ID:'-':Y.PD.DTE.DUE
+        CALL F.READ(PD.BALANCES,Y.PD.BAL.ID,R.PD.BALANCES,F.PD.BALANCES,Y.PD.BALANCES.ERR)
+        Y.NO.OF.DAYS = R.PD.BALANCES<PD.BAL.NO.DAYS.OVERDUE>
+        BEGIN CASE
+        CASE Y.NO.OF.DAYS GE 31 AND Y.NO.OF.DAYS LE 60
+            Y.31.60.PR.AMT =Y.PR.AMT
+            Y.31.60.INT.AMT = Y.PE.AMT+Y.PS.AMT+Y.IN.AMT
+            Y.31.60.TOT.AMT = Y.31.60.PR.AMT+Y.31.60.INT.AMT
+        CASE Y.NO.OF.DAYS GE 61 AND Y.NO.OF.DAYS LE 90
+            Y.61.90.PR.AMT = Y.PR.AMT
+            Y.61.90.INT.AMT = Y.PE.AMT+Y.PS.AMT+Y.IN.AMT
+            Y.61.90.TOT.AMT = Y.61.90.PR.AMT+Y.61.90.INT.AMT
+        CASE Y.NO.OF.DAYS GE 91 AND Y.NO.OF.DAYS LE 180
+            Y.91.180.PR.AMT = Y.PR.AMT
+            Y.91.180.IN.AMT = Y.PE.AMT+Y.PS.AMT+Y.IN.AMT
+            Y.91.180.TOT.AMT = Y.91.180.PR.AMT+Y.91.180.IN.AMT
+        CASE Y.NO.OF.DAYS GE 180
+            Y.180.PR.AMT = Y.PR.AMT
+            Y.180.INT.AMT = Y.PE.AMT+Y.PS.AMT+Y.IN.AMT
+            Y.180.TOT.AMT = Y.180.PR.AMT+Y.180.INT.AMT
+        END CASE
+        CLEARCOMMON
+        IF Y.ARRAY THEN
+            Y.ARRAY:=FM:Y.PD.DTE.DUE:'*':Y.PR.AMT:'*':Y.PE.AMT+Y.PS.AMT+Y.IN.AMT:'*':Y.PR.AMT+Y.PE.AMT+Y.PS.AMT+Y.IN.AMT:'*':Y.PR.REPAY.AMT:'*':Y.PE.REPAY.AMT+Y.PS.REPAY.AMT+Y.IN.REPAY.AMT:'*':Y.PR.REPAY.AMT+Y.PE.REPAY.AMT+Y.PS.REPAY.AMT+Y.IN.REPAY.AMT:'*':Y.31.60.PR.AMT
+            Y.ARRAY:='*':Y.31.60.INT.AMT:'*':Y.31.60.TOT.AMT:'*':Y.61.90.PR.AMT:'*':Y.61.90.INT.AMT:'*':Y.61.90.TOT.AMT:'*':Y.91.180.PR.AMT:'*':Y.91.180.IN.AMT:'*':Y.91.180.TOT.AMT
+            Y.ARRAY:='*':Y.180.PR.AMT:'*':Y.180.INT.AMT:'*':Y.180.TOT.AMT
+        END ELSE
+            Y.ARRAY=Y.PD.DTE.DUE:'*':Y.PR.AMT:'*':Y.PE.AMT+Y.PS.AMT+Y.IN.AMT:'*':Y.PR.AMT+Y.PE.AMT+Y.PS.AMT+Y.IN.AMT:'*':Y.PR.REPAY.AMT:'*':Y.PE.REPAY.AMT+Y.PS.REPAY.AMT+Y.IN.REPAY.AMT:'*':Y.PR.REPAY.AMT+Y.PE.REPAY.AMT+Y.PS.REPAY.AMT+Y.IN.REPAY.AMT:'*':Y.31.60.PR.AMT
+            Y.ARRAY:='*':Y.31.60.INT.AMT:'*':Y.31.60.TOT.AMT:'*':Y.61.90.PR.AMT:'*':Y.61.90.INT.AMT:'*':Y.61.90.TOT.AMT:'*':Y.91.180.PR.AMT:'*':Y.91.180.IN.AMT:'*':Y.91.180.TOT.AMT
+            Y.ARRAY:='*':Y.180.PR.AMT:'*':Y.180.INT.AMT:'*':Y.180.TOT.AMT
+        END
+        CLEARCOMMON
+        Y.PD.INT.CNT++
+    REPEAT
+    RETURN
+*---------------------------------------------------------------------------------------------------------------------------
+END

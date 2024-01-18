@@ -1,0 +1,179 @@
+*-----------------------------------------------------------------------------
+* <Rating>-98</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.EXCISE.DUTY.MM.PLACEMENTS.LOAD
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine is used to open the files required for the cob routine
+* JBL.B.EXCISE.DUTY.MM.PLACEMENTS.
+*-------------------------------------------------------------------------
+* Project Name : National Bank Limited(Bangladesh)
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*  NA
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+* NA
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+* OPF                       CORE            Opens the file
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 11/02/2011 -                            New   - Rashmitha M
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE JBL.BP I_JBL.B.EXCISE.DUTY.MM.PLACEMENTS.COMMON
+    $INCLUDE GLOBUS.BP I_F.MM.MONEY.MARKET
+    $INCLUDE GLOBUS.BP I_F.FT.COMMISSION.TYPE
+    $INCLUDE GLOBUS.BP I_F.TAX
+    $INCLUDE GLOBUS.BP I_F.STMT.ENTRY
+    $INCLUDE GLOBUS.BP I_F.CATEG.ENTRY
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.COMPANY
+    $INCLUDE JBL.BP I_F.BD.EXCISE.DUTY.SLAB
+    $INCLUDE JBL.BP I_F.EB.BD.EXCISE.DUTY.PARAM
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+**************************************************************************
+INIT:
+*****
+! Initialise variables
+    FN.MM.MONEY.MARKET='F.MM.MONEY.MARKET'
+    F.MM.MONEY.MARKET=''
+
+    FN.FT.COMMISSION.TYPE='F.FT.COMMISSION.TYPE'
+    F.FT.COMMISSION.TYPE=''
+
+    FN.TAX='F.TAX'
+    F.TAX=''
+
+    FN.STMT.ENTRY='F.STMT.ENTRY'
+    F.STMT.ENTRY=''
+
+    FN.CATEG.ENTRY='F.CATEG.ENTRY'
+    F.CATEG.ENTRY=''
+
+    FN.ACCOUNT='F.ACCOUNT'
+    F.ACCOUNT=''
+
+    FN.EB.BD.EXCISE.DUTY.SLAB='F.EB.BD.EXCISE.DUTY.SLAB'
+    F.EB.BD.EXCISE.DUTY.SLAB=''
+
+    FN.EB.BD.EXCISE.DUTY.PARAM='F.EB.BD.EXCISE.DUTY.PARAM'
+    F.EB.BD.EXCISE.DUTY.PARAM=''
+
+    R.EB.BD.EXCISE.DUTY.SLAB=''
+    EB.BD.EXCISE.DUTY.SLAB.ERR=''
+    R.EB.BD.EXCISE.DUTY.PARAM=''
+    EB.BD.EXCISE.DUTY.PARAM.ERR=''
+    POS.MM=''
+    POS.NET.AMOUNT=''
+    POS.TAX.AMOUNT=''
+    POS.EXCISE.DUTY.AMT=''
+    R.FT.COMMISSION.TYPE=''
+    FT.COMMISSION.TYPE.ERR=''
+    R.TAX=''
+    TAX.ERR=''
+    Y.NO.OF.YRS=''
+    SEL.LIST.TAX=''
+    NO.OF.RECS=''
+    SEL.TAX.ERR=''
+
+    RETURN
+**************************************************************************
+PROCESS:
+********
+! Main Process
+    GOSUB OPEN.FILES
+    GOSUB READ.EB.BD.EXCISE.DUTY.SLAB
+    GOSUB READ.EB.BD.EXCISE.DUTY.PARAM
+    GOSUB GET.MM.LOC.POS
+
+    RETURN
+**************************************************************************
+OPEN.FILES:
+***********
+! Open Files
+    CALL OPF(FN.MM.MONEY.MARKET,F.MM.MONEY.MARKET)
+    CALL OPF(FN.FT.COMMISSION.TYPE,F.FT.COMMISSION.TYPE)
+    CALL OPF(FN.TAX,F.TAX)
+    CALL OPF(FN.STMT.ENTRY,F.STMT.ENTRY)
+    CALL OPF(FN.CATEG.ENTRY,F.CATEG.ENTRY)
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    CALL OPF(FN.EB.BD.EXCISE.DUTY.SLAB,F.EB.BD.EXCISE.DUTY.SLAB)
+    CALL OPF(FN.EB.BD.EXCISE.DUTY.PARAM,F.EB.BD.EXCISE.DUTY.PARAM)
+
+    RETURN
+**************************************************************************
+READ.EB.BD.EXCISE.DUTY.SLAB:
+****************************
+! Read EB.BD.EXCISE.DUTY.SLAB
+    Y.SLAB.ID='SYSTEM'
+    CALL F.READ(FN.EB.BD.EXCISE.DUTY.SLAB,Y.SLAB.ID,R.EB.BD.EXCISE.DUTY.SLAB,F.EB.BD.EXCISE.DUTY.SLAB,EB.BD.EXCISE.DUTY.SLAB.ERR)
+    IF NOT(R.EB.BD.EXCISE.DUTY.SLAB) THEN
+        RETURN
+    END
+
+    RETURN
+**************************************************************************
+READ.EB.BD.EXCISE.DUTY.PARAM:
+*****************************
+! Read EB.BD.EXCISE.DUTY.PARAM
+    Y.PARAM.ID='MM'
+    CALL F.READ(FN.EB.BD.EXCISE.DUTY.PARAM,Y.PARAM.ID,R.EB.BD.EXCISE.DUTY.PARAM,F.EB.BD.EXCISE.DUTY.PARAM,EB.BD.EXCISE.DUTY.PARAM.ERR)
+    IF NOT(R.EB.BD.EXCISE.DUTY.PARAM) THEN
+        RETURN
+    END
+    Y.COMM.TYPE=R.EB.BD.EXCISE.DUTY.PARAM<EB.BD.30.COM.TYPE.EXCISE>
+    Y.TAX.KEY=R.EB.BD.EXCISE.DUTY.PARAM<EB.BD.30.TAX.KEY>
+    GOSUB READ.TAX
+    GOSUB READ.FT.COMMISSION.TYPE
+
+    RETURN
+****************************************************************************
+READ.TAX:
+*********
+! Read TAX
+    IF Y.TAX.KEY THEN
+        SEL.CMD.TAX='SSELECT ':FN.TAX:' WITH @ID LIKE ':Y.TAX.KEY:'...'
+        CALL EB.READLIST(SEL.CMD.TAX,SEL.LIST.TAX,'',NO.OF.RECS,SEL.TAX.ERR)
+        Y.TAX.KEY=SEL.LIST.TAX<NO.OF.RECS>
+        CALL F.READ(FN.TAX,Y.TAX.KEY,R.TAX,F.TAX,TAX.ERR)
+    END
+
+    RETURN
+*****************************************************************************
+READ.FT.COMMISSION.TYPE:
+************************
+! Read FT.COMMISSION.TYPE
+    CALL F.READ(FN.FT.COMMISSION.TYPE,Y.COMM.TYPE,R.FT.COMMISSION.TYPE,F.FT.COMMISSION.TYPE,FT.COMMISSION.TYPE.ERR)
+    IF NOT(R.FT.COMMISSION.TYPE) THEN
+        RETURN
+    END
+
+    RETURN
+*****************************************************************************
+GET.MM.LOC.POS:
+***************
+! Get positions of Local Reference fields in MM.MONEY.MARKET
+    CALL MULTI.GET.LOC.REF('MM.MONEY.MARKET','EXCISE.DUTY.AMT':VM:'NET.AMOUNT':VM:'TAX.AMOUNT',POS.MM)
+    POS.EXCISE.DUTY.AMT=POS.MM<1,1>
+    POS.NET.AMOUNT=POS.MM<1,2>
+    POS.TAX.AMOUNT=POS.MM<1,3>
+
+    RETURN
+***************************************************************************
+END

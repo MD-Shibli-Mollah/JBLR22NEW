@@ -1,0 +1,46 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+********************
+*LIVE DATE 2016-09-21
+*UPDATE 2019-04-08
+********************
+
+    SUBROUTINE JBL.DCC.TP
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CATEGORY
+
+    FN.ACCOUNT = 'F.ACCOUNT'; F.ACCOUNT = ''
+    FN.CATEGORY = 'F.CATEGORY'
+    F.CATEGORY = ''
+    Y.AC.ID =''
+    CALL OPF (FN.ACCOUNT,F.ACCOUNT)
+    CALL OPF (FN.CATEGORY,F.CATEGORY)
+    Y.AC.ID = COMI
+    Y.AC = ISDIGIT(Y.AC.ID)
+    IF Y.AC NE '1' THEN
+        E = 'INVALID ACCOUNT NO.'
+    END
+    CALL F.READ(FN.ACCOUNT , Y.AC.ID , R.ACCOUNT, F.ACCOUNT , Y.ERR)
+    Y.CAT = R.ACCOUNT<AC.CATEGORY>
+    CALL F.READ(FN.CATEGORY,Y.CAT,R.CAT,F.CATEGORY,CAT.ERR)
+    Y.CAT.DES = R.CAT<EB.CAT.DESCRIPTION>
+    ID.ENRI = Y.CAT.DES:"," : R.ACCOUNT<AC.ACCOUNT.TITLE.1>
+
+    IF R.ACCOUNT THEN
+        IF R.ACCOUNT<AC.CO.CODE> EQ ID.COMPANY THEN
+            ERR.FLAG = 0
+        END
+        ELSE
+            E = 'INVALID COMPANY'
+        END
+    END
+
+    ELSE
+        E = 'INVALID ACCOUNT NO'
+    END
+
+    RETURN
+END

@@ -1,0 +1,71 @@
+*-----------------------------------------------------------------------------
+* <Rating>-2</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.API.TRANSACTION.INFO.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine
+*
+
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* Modification History :
+*
+* 19/10/07 - EN_10003543
+*            New Template changes
+*
+* 14/11/07 - BG_100015736
+*            Exclude routines that are not released
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("JBL.API.ID", T24_String) ;* Define Table id
+*-----------------------------------------------------------------------------
+    CALL Table.addFieldDefinition("TRANS.REF","20","","")
+    CALL Table.addFieldDefinition("DEBIT.CO.CODE","10", "","")
+    CALL Field.setCheckFile('COMPANY')
+    CALL Table.addFieldDefinition("CREDIT.CO.CODE","10", "","")
+    CALL Field.setCheckFile('COMPANY')
+    CALL Table.addFieldDefinition("VALUE.DATE","8","D","")
+    CALL Table.addFieldDefinition("BOOKING.DATE","8","D","")
+    CALL Table.addFieldDefinition("DEBIT.ACCT.NO","20","","")
+    CALL Field.setCheckFile('ACCOUNT')
+    CALL Table.addFieldDefinition("CREDIT.ACCT.NO","20","","")
+    CALL Field.setCheckFile('ACCOUNT')
+    CALL Table.addFieldDefinition("CREDIT.ACCT.CAT","10","","")
+    CALL Field.setCheckFile('CATEGORY')
+    CALL Table.addFieldDefinition("TXN.AMOUNT","15", "AMT", "")
+    CALL Table.addFieldDefinition("AUTH.CODE","10","A","")
+    CALL Table.addFieldDefinition("VERSION.NAME","60", "A", "")
+    CALL Table.addFieldDefinition("NARRATIVE","60","A","")
+    CALL Table.addFieldDefinition("STMT.NO","60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE1","60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE2", "60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE3","60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE4", "60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE5","60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE6","60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE7", "60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE8","60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE9", "60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE10","60", "A", "")
+
+    CALL Table.addLocalReferenceField(neighbour)
+    CALL Table.addOverrideField
+
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    C$NS.OPERATION = 'ALL'
+    RETURN
+*-----------------------------------------------------------------------------
+END

@@ -1,0 +1,62 @@
+*-----------------------------------------------------------------------------
+* <Rating>-60</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE E.B.JBL.MD.COMM.REPORTS(ENQ.DATA)
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.MD.DEAL
+
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+OPENFILES:
+    FN.MD.DEAL = 'F.MD.DEAL'
+    F.MD.DEAL = ''
+    CALL OPF(FN.MD.DEAL,F.MD.DEAL)
+    R.MD.DEAL = ''
+
+    RETURN
+
+PROCESS:
+    Y.SEL = "SELECT ":FN.MD.DEAL:" WITH CATEGORY GE '28000' AND WITH CATEGORY LE '28099'"
+
+    LOCATE 'CHARGE.DATE' IN ENQ.DATA<2,1> SETTING POS.1 THEN
+        Y.VALUE.DATE = ENQ.DATA<4,POS.1>
+        IF Y.VALUE.DATE NE '' THEN
+            CONVERT ' ' TO '*' IN Y.VALUE.DATE
+            Y.ST.DATE = FIELD(Y.VALUE.DATE,'*',1)
+            Y.END.DATE = FIELD(Y.VALUE.DATE,'*',2)
+            Y.SEL :=" AND WITH VALUE.DATE GE '":Y.ST.DATE:"' AND WITH VALUE.DATE LE '":Y.END.DATE:"'"
+        END
+    END
+
+    LOCATE 'CURRENCY' IN ENQ.DATA<2,1> SETTING POS.2 THEN
+        Y.CURRENCY = ENQ.DATA<4,POS.2>
+        IF Y.CURRENCY NE '' THEN
+            Y.SEL :=" AND WITH CURRENCY EQ '":Y.CURRENCY:"'"
+        END
+    END
+
+    LOCATE '@ID' IN ENQ.DATA<2,1> SETTING POS.3 THEN
+        Y.CUSTOMER.ID = ENQ.DATA<4,POS.3>
+        IF Y.CUSTOMER.ID NE '' THEN
+            Y.SEL :=" AND WITH CUSTOMER EQ '":Y.CUSTOMER.ID:"'"
+        END
+    END
+    CALL EB.READLIST(Y.SEL,SEL.LIST,'',NO.OF.REC,ERR.CODE)
+    Y.SEL.LIST = SEL.LIST
+    CONVERT @FM TO ' ' IN Y.SEL.LIST
+
+    ENQ.DATA<2> = ''
+    ENQ.DATA<3> = ''
+    ENQ.DATA<4> = ''
+
+    ENQ.DATA<2,1> = '@ID'
+    ENQ.DATA<3,1> = 'EQ'
+    ENQ.DATA<4,1> = Y.SEL.LIST
+
+    RETURN
+END

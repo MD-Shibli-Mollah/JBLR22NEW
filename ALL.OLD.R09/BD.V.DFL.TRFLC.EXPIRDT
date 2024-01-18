@@ -1,0 +1,29 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.DFL.TRFLC.EXPIRDT
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CUSTOMER
+    $INSERT I_F.LETTER.OF.CREDIT
+
+    GOSUB INIT
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    Y.PRNT.LCNO = COMI
+    FN.LC = 'F.LETTER.OF.CREDIT'
+    F.LC = ''
+    CALL OPF(FN.LC,F.LC)
+    R.LC.REC = ''
+    Y.LC.ERR = ''
+
+    RETURN
+
+PROCESS:
+    CALL F.READ(FN.LC,Y.PRNT.LCNO,R.LC.REC,F.LC,Y.LC.ERR)
+    Y.PRNT.LC.ADV.DATE = R.LC.REC<TF.LC.ADVICE.EXPIRY.DATE>
+    R.NEW(TF.LC.ADVICE.EXPIRY.DATE) = Y.PRNT.LC.ADV.DATE
+    RETURN
+END

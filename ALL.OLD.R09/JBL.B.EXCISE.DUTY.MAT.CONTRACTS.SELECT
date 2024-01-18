@@ -1,0 +1,74 @@
+*-----------------------------------------------------------------------------
+* <Rating>-12</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.EXCISE.DUTY.MAT.CONTRACTS.SELECT
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine is used to make a select on all the matured/ preclosed LDs
+*-------------------------------------------------------------------------
+* Project Name : Janata Bank
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*  NA
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+* TODAY                     -                     Holds today's date
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+* EB.READLIST               CORE           To read a set of records from a
+*                                          file
+*
+* BATCH.BUILD.LIST          CORE           Writes the list of ids into the
+*                                          LIST file
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 03/02/2011 - New   - Rashmitha M
+*                      Thesys Technologies
+* 24/04/2011 - Amendment- Chethana.H.N
+*    To amend the pre matured LD records to LIST
+
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE JBL.BP I_JBL.B.EXCISE.DUTY.MAT.CONTRACTS.COMMON
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE GLOBUS.BP I_BATCH.FILES
+    $INCLUDE GLOBUS.BP I_F.DATES
+
+    SEL.LIST=''
+    SEL.ERR=''
+    NO.OF.RECS=''
+    Y.LEN.BATCH.NAME=LEN(PROCESS.NAME)
+    Y.NEXT.WORK.DAY=R.DATES(EB.DAT.NEXT.WORKING.DAY)
+
+    IF PROCESS.NAME[Y.LEN.BATCH.NAME-2,3] EQ 'SOD' THEN
+        SEL.CMD='SELECT ':FN.LD.LOANS.AND.DEPOSITS:' WITH STATUS NE "LIQ" AND FIN.MAT.DATE LE ':TODAY:' AND MATURE.AT.SOD EQ "YES" '
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,SEL.ERR)
+    END
+
+    IF PROCESS.NAME[Y.LEN.BATCH.NAME-2,3] EQ 'EOD' THEN
+        SEL.CMD='SELECT ':FN.LD.LOANS.AND.DEPOSITS:' WITH STATUS NE "LIQ" AND FIN.MAT.DATE LT ':Y.NEXT.WORK.DAY
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,SEL.ERR)
+
+* EB.BD.EXCISE.DUTY.LD contain early matured LD records and concatinating the
+* LD records to calcute the excise duty
+
+        SEL.CMD1 = ''
+        SEL.LIST1 = ''
+        NO.OF.REC1 = ''
+        SEL.ERR1 = ''
+*
+        SEL.CMD1 = 'SELECT ':FN.EB.BD.EXCISE.DUTY.LD
+        CALL EB.READLIST(SEL.CMD1,SEL.LIST1,'',NO.OF.REC1,SEL.ERR1)
+        SEL.LIST = SEL.LIST:@FM:SEL.LIST1
+    END
+*
+    CALL BATCH.BUILD.LIST('',SEL.LIST)
+    RETURN
+END

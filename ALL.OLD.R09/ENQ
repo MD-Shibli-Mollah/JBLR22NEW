@@ -1,0 +1,15 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ENQ(Y.DATA)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+
+    DEBUG
+    DVF = 0
+
+
+
+    RETURN
+END

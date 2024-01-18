@@ -1,0 +1,148 @@
+* Version 5 07/06/01  GLOBUS Release No. 200512 09/12/05
+*-----------------------------------------------------------------------------
+* <Rating>-58</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE EB.MONITOR.LOCK(LOCKED.FILE, LOCKED.ID)
+*-----------------------------------------------------------------------------
+* This subroutine will monitor locks as they occur on the system.
+* Invoked as part of the LOCKED clause from F.READU - informs the TEC that a
+* lock collision has occurred and allows the user (desktop) to abandon the
+* transaction or aborts (running under batch).
+*-----------------------------------------------------------------------------
+* Change Control
+* --------------
+*
+* 02/09/97 - GB9700999
+*            Before asking the user whether they wish to continue
+*            with a transaction when auto time logout has been
+*            initiated the program checks for whether the job
+*            is running under the batch, this must be extended
+*            to check whether the batch is a phantom.
+*
+* 27/03/00 - GB0000611
+*            jBase Compatibility
+*            ON ERROR is esential
+* 21/09/00 - GB0002309
+*            jBASE Compatibility.
+*            While running in the jbase environment use
+*            SHOW-RECORD-LOCKS command instead of LIST.READU(Universe).
+*
+* 30/05/03 - GLOBUS_EN_10001856
+*            Add call to the t24 Enterprise console
+*            to record lock collisions
+*
+* 21/07/03 - BG_100004890
+*            Abort if we're running under batch and have been waiting for
+*            a lock to be released for more than N minutes (SPF). This will
+*            cure a potential deadly embrace situation (more prevalent in
+*            the full multi-thread model). Also do not execute SHOW-ITEM-LOCKS
+*            when running under batch (it can be very expensive).
+*
+* 02/12/03 - BG_100005749
+*            Modifications done to the above CD - BG_100004890
+*
+* 26/05/04 - GLOBUS_CI_10020129
+*            The common variable C$LCK.NO reassigned when moving from one lock to another.
+*
+* 17/08/04 - CI_10022310
+*            To enable EB.MONITOR.LOCK and F.READU to share information the common
+*            portion in this routine has been moved to separate insert
+*            "I_EB.MONITOR.LOCK.COMMON". This insert has been introduced in both
+*            F.READU and EB.MONITOR.LOCK.
+*            Ref: HD0410259
+*
+* 29/03/05 - CI_10024564
+*            Since EXECUTE "SHOW-ITEM-LOCKS" is found to be very expensive and
+*            locks log file "F.LOCK.STAT"  is seldom used, we stop executing
+*            "SHOW-ITEM-LOCKS" and do not record lock details any more.
+*            The call to the para UPDATE.LOCK.STAT is commented out.
+*            Ref:HD0503450
+*
+*
+* 16/11/06 - CI_10045524
+*            TSA.STATUS displaying incorrect information in Locking Senario
+*
+*
+* 24/10/06 - CI_10049235
+*            Replace call to TEC with generic TEC.LOCK.COLLISION - this can now be
+*            called from here (locked clause) and F.READU (no locked clause). And
+*            removed references to the LOCK.STAT table
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.SPF
+    $INSERT I_GTS.COMMON
+    $INSERT I_EB.MONITOR.LOCK.COMMON
+*-----------------------------------------------------------------------------
+*                 MAIN PROCESSING
+
+    GOSUB INITIALISATION
+    DEBUG
+    FILE.ID = LOCKED.FILE:" ":LOCKED.ID ;* File and ID
+    LAST.LOCK = C$LCK.FILE.ID[" ",1,2]  ;* File & id
+    START.TIME = C$LCK.FILE.ID[" ",3,1] ;* Time of first wait
+    UPDATE.COUNT = C$LCK.FILE.ID[" ",4,1]         ;* Number of lock.stat updates
+    IF FILE.ID = LAST.LOCK THEN         ;* Same as before
+        C$LCK.NO += 1         ;* Increment count
+        IF C$LCK.NO GE 30 THEN          ;* Update after 30secs
+            IF RUNNING.UNDER.BATCH THEN ;* Just output to the como during COB
+                CALL OCOMO('Waiting for lock ':FILE.ID)     ;* Might be useful in tracking down 'single threaded' updates
+            END
+            C$LCK.NO = 0      ;* Reset
+            UPDATE.COUNT +=1  ;* Record number of lock.stat updates
+            IF UPDATE.COUNT > CHECK.TIME THEN     ;* More than CHECK.TIME - BG_100005749 s/e
+                GOSUB CONTINUE.TRYING   ;* Ask if they want to continue or not
+                UPDATE.COUNT = 0        ;* Reset - try again in 2 minutes
+            END
+            C$LCK.FILE.ID = C$LCK.FILE.ID[" ",1,3] :" ":UPDATE.COUNT  ;* Record number of updates
+        END
+    END ELSE
+        C$LCK.NO = 0          ;* New lock so erasing old data  ;* CI_10020129 - S/E
+        START.TIME = TIME()[".",1,1]    ;* Current time
+        C$LCK.FILE.ID = FILE.ID:" ":START.TIME    ;* Store for next call
+    END
+*
+    RETURN
+*-----------------------------------------------------------------------------
+*                 SUBROUTINES
+*-----------------------------------------------------------------------------
+INITIALISATION:
+*
+    CALL TEC.LOCK.COLLISION(LOCKED.ID,LOCKED.FILE)          ;* Tell the TEC about it
+
+* In batch mode hard code locking wait time to 1 minute otherwise use the setting in SPF
+*
+    IF RUNNING.UNDER.BATCH AND RUNNING.IN.JBASE THEN        ;* BG_100005749 s
+        CHECK.TIME = 1
+    END ELSE
+        CHECK.TIME = R.SPF.SYSTEM<SPF.AUTOLOG.TIME.MINS>
+    END   ;* BG_100005749 e
+*
+
+    RETURN
+*-----------------------------------------------------------------------------
+CONTINUE.TRYING:
+* Ask the user if he wishes to continue with this transaction. If not
+* then sign him off.
+*
+    BEGIN CASE
+    CASE RUNNING.UNDER.BATCH  ;* Timeout
+        CALL OCOMO('Timed out waiting for lock ':FILE.ID)   ;* Tell 'em in the COMO
+        CALL EB.TRANS('ABORT',RMSG)     ;* Stop current transaction - if any  ;* CI_10045524 S/E
+        CALL SIGN.OFF         ;* And exit
+    CASE PHNO OR GTSACTIVE
+        NULL        ;* Can't talk to anyone
+    CASE OTHERWISE  ;* Desktop session
+        GO.ON = "Waiting for more than & minutes. Continue Y/N...":FM:R.SPF.SYSTEM<SPF.AUTOLOG.TIME.MINS>
+        CALL TXTINP(GO.ON,8,22,"3.1",@FM:"YES_NO")
+        IF COMI[1,1] = "N" THEN         ;* Exit
+            CALL SIGN.OFF
+        END
+    END CASE
+*
+    RETURN
+*-----------------------------------------------------------------------------
+PROGRAM.ABORT:
+    RETURN TO PROGRAM.ABORT
+*-----------------------------------------------------------------------------
+END

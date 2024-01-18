@@ -1,0 +1,167 @@
+*-----------------------------------------------------------------------------
+* <Rating>-36</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VVR.DEF.POPS.ACCT
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.PR.H.INSTRUMENT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.TELLER
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+INIT:
+
+    FN.INS = 'F.PR.H.INSTRUMENT'
+    F.INS = ''
+    R.INS = ''
+    Y.ERR = ''
+    Y.ACCT.NO = ''
+    Y.ID = ID.COMPANY
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.INS,F.INS)
+    RETURN
+
+PROCESS:
+
+    Y.VERSION=PGM.VERSION
+    Y.VAR=FIELD(Y.VERSION,'.',3)
+
+    CALL F.READ(FN.INS,Y.ID,R.INS,F.INS,Y.ERR)
+
+    IF APPLICATION EQ 'TELLER' THEN
+        Y.TRANS.TYPE = R.NEW(TT.TE.TRANSACTION.CODE)
+        BEGIN CASE
+
+        CASE Y.TRANS.TYPE = '109'
+            R.NEW(TT.TE.ACCOUNT.1) = R.INS<INS.PO.ACCOUNT>
+        CASE Y.TRANS.TYPE = '111'
+            R.NEW(TT.TE.ACCOUNT.1) =  R.INS<INS.PS.ACCOUNT>
+        CASE Y.TRANS.TYPE = '113'
+            R.NEW(TT.TE.ACCOUNT.1) =  R.INS<INS.SDR.ACCOUNT>
+
+*        CASE Y.TRANS.TYPE = '107'
+*            R.NEW(TT.TE.ACCOUNT.2) =  R.INS<INS.DD.ACCOUNT>
+
+        CASE Y.TRANS.TYPE = '115'
+            R.NEW(TT.TE.ACCOUNT.2) =  R.INS<INS.DD.ACCOUNT>
+
+        CASE Y.TRANS.TYPE = '110'
+            R.NEW(TT.TE.ACCOUNT.1) =  R.INS<INS.PO.ACCOUNT>
+
+        CASE Y.TRANS.TYPE = '49'
+            R.NEW(TT.TE.ACCOUNT.1) =  R.INS<INS.PO.ACCOUNT>
+
+        CASE Y.TRANS.TYPE = '112'
+            R.NEW(TT.TE.ACCOUNT.1) = R.INS<INS.PS.ACCOUNT>
+
+        CASE Y.TRANS.TYPE = '114'
+            R.NEW(TT.TE.ACCOUNT.1) =  R.INS<INS.SDR.ACCOUNT>
+
+*        CASE Y.TRANS.TYPE = '108'
+*            R.NEW(TT.TE.ACCOUNT.1) =  R.INS<INS.DD.ACCOUNT>
+
+        CASE 1
+        END CASE
+    END
+    ELSE
+        Y.TRANS.TYPE = R.NEW(FT.TRANSACTION.TYPE)
+
+        BEGIN CASE
+
+        CASE Y.TRANS.TYPE = 'ACPO' OR Y.TRANS.TYPE = 'ACP1'
+
+            BEGIN CASE
+            CASE Y.VAR EQ 'ISSUE'
+                R.NEW(FT.CREDIT.ACCT.NO) = R.INS<INS.PO.ACCOUNT>
+            CASE Y.VAR EQ 'COLLECTION'
+                R.NEW(FT.DEBIT.ACCT.NO)=R.INS<INS.PO.ACCOUNT>
+            END CASE
+
+        CASE Y.TRANS.TYPE = 'ACPS' OR Y.TRANS.TYPE = 'ACP2'
+
+            BEGIN CASE
+            CASE Y.VAR EQ 'ISSUE'
+                R.NEW(FT.CREDIT.ACCT.NO) = R.INS<INS.PS.ACCOUNT>
+            CASE Y.VAR EQ 'COLLECTION'
+                R.NEW(FT.DEBIT.ACCT.NO) = R.INS<INS.PS.ACCOUNT>
+            END CASE
+
+        CASE Y.TRANS.TYPE = 'ACSD' OR Y.TRANS.TYPE = 'ACS1'
+            BEGIN CASE
+            CASE Y.VAR EQ 'ISSUE'
+                R.NEW(FT.CREDIT.ACCT.NO) = R.INS<INS.SDR.ACCOUNT>
+            CASE Y.VAR EQ 'COLLECTION'
+                R.NEW(FT.DEBIT.ACCT.NO) = R.INS<INS.SDR.ACCOUNT>
+            END CASE
+
+        CASE Y.TRANS.TYPE = 'ACDD'
+            BEGIN CASE
+            CASE Y.VAR EQ 'ISSUE'
+                R.NEW(FT.CREDIT.ACCT.NO) = R.INS<INS.DD.ACCOUNT>
+*            CASE Y.VAR EQ 'COLLECTION'
+*                R.NEW(FT.DEBIT.ACCT.NO) = R.INS<INS.DD.ACCOUNT>
+            END CASE
+
+        CASE 1
+        END CASE
+!-----------------------huraira.20170730-------------------
+        BEGIN CASE
+        CASE Y.VERSION = ',PR.PO.ISSUE'
+            R.NEW(FT.COMMISSION.AMT)  = ''
+            R.NEW(FT.TAX.AMT)  = ''
+            R.NEW(FT.CHARGES.ACCT.NO) = ''
+            IF R.NEW(FT.COMMISSION.CODE) EQ '' THEN
+                R.NEW(FT.COMMISSION.CODE) = 'DEBIT PLUS CHARGES'
+                R.NEW(FT.COMMISSION.TYPE) = 'POCOMM'
+            END
+            IF R.NEW(FT.COMMISSION.CODE) EQ 'CREDIT LESS CHARGES' THEN
+                R.NEW(FT.COMMISSION.CODE) = 'DEBIT PLUS CHARGES'
+                R.NEW(FT.COMMISSION.TYPE) = 'POCOMM'
+            END
+            IF R.NEW(FT.COMMISSION.CODE) EQ 'DEBIT PLUS CHARGES' THEN
+                R.NEW(FT.COMMISSION.TYPE) = 'POCOMM'
+            END
+            IF R.NEW(FT.COMMISSION.CODE) EQ 'WAIVE' THEN
+                R.NEW(FT.COMMISSION.TYPE) = ''
+                R.NEW(FT.CHARGES.ACCT.NO) = ''
+                R.NEW(FT.COMMISSION.AMT)  = ''
+                R.NEW(FT.TAX.AMT)  = ''
+            END
+
+        CASE Y.VERSION = ',PR.SDR.ISSUE'
+            R.NEW(FT.COMMISSION.AMT)  = ''
+            R.NEW(FT.TAX.AMT)  = ''
+            R.NEW(FT.CHARGES.ACCT.NO) = ''
+            IF R.NEW(FT.COMMISSION.CODE) EQ '' THEN
+                R.NEW(FT.COMMISSION.CODE) = 'DEBIT PLUS CHARGES'
+                R.NEW(FT.COMMISSION.TYPE) = 'SDRCOMM'
+            END
+            IF R.NEW(FT.COMMISSION.CODE) EQ 'CREDIT LESS CHARGES' THEN
+                R.NEW(FT.COMMISSION.CODE) = 'DEBIT PLUS CHARGES'
+                R.NEW(FT.COMMISSION.TYPE) = 'SDRCOMM'
+            END
+            IF R.NEW(FT.COMMISSION.CODE) EQ 'DEBIT PLUS CHARGES' THEN
+                R.NEW(FT.COMMISSION.TYPE) = 'SDRCOMM'
+            END
+            IF R.NEW(FT.COMMISSION.CODE) EQ 'WAIVE' THEN
+                R.NEW(FT.COMMISSION.TYPE) = ''
+                R.NEW(FT.CHARGES.ACCT.NO) = ''
+                R.NEW(FT.COMMISSION.AMT)  = ''
+                R.NEW(FT.TAX.AMT)  = ''
+            END
+        CASE 1
+        END CASE
+!---------------------------end-----------------------
+    END
+
+    RETURN
+
+    RETURN
+END

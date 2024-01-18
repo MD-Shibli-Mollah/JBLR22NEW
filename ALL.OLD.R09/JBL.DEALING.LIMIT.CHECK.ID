@@ -1,0 +1,25 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.DEALING.LIMIT.CHECK.ID
+
+    $INSERT I_EQUATE
+    $INSERT I_COMMON
+    $INSERT I_F.OVE.DEALING.LIMIT
+    $INSERT I_F.DEALER.DESK
+
+
+    FN.OVE.DEALING.LIMIT = 'F.EB.OVE.DEALING.LIMIT'
+    F.OVE.DEALING.LIMIT = ''
+    CALL OPF(FN.OVE.DEALING.LIMIT,F.OVE.DEALING.LIMIT)
+
+    FN.DEALER.DESK= 'F.DEALER.DESK'
+    F.DEALER.DESK = ''
+    CALL OPF(FN.DEALER.DESK,F.DELAER.DESK)
+
+    CALL F.READ(FN.DEALER.DESK,COMI,R.DEALER.DESK,F.DEALER.DESK,R.DEALER.DESK.ERROR)
+    IF NOT(R.DEALER.DESK) THEN
+        E = "MISSING DEALER.DESK RECORD"
+    END
+
+    RETURN

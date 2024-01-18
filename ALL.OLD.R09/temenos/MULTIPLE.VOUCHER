@@ -1,0 +1,162 @@
+*-----------------------------------------------------------------------------
+* <Rating>450</Rating>
+* Developed By: Md. Zakir Hossain
+* Organization: Janata Bank Limited
+* Development Date: 9th Dec 2019
+*-----------------------------------------------------------------------------
+    SUBROUTINE MULTIPLE.VOUCHER(Y.DATA)
+!PROGRAM MULTIPLE.VOUCHER
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.RE.CONSOL.SPEC.ENTRY
+    $INSERT GLOBUS.BP I_F.CATEG.ENTRY
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT JBL.BP I_F.ABL.H.MUL.MCD
+
+
+    FN.CATEG = 'F.CATEGORY'
+    F.CATEG = ''
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    FN.AC.HIS='F.ACCOUNT$HIS'
+    F.AC.HIS=''
+    FN.FT='F.FUNDS.TRANSFER'
+    F.FT=''
+
+    FN.FT.HIS='F.FUNDS.TRANSFER$HIS'
+    F.FT.HIS=''
+
+    FN.MCD='F.ABL.H.MUL.MCD'
+    F.MCD=''
+
+    CALL OPF(FN.CATEG,F.CATEG)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    CALL OPF(FN.MCD,F.MCD)
+
+    LOCATE 'ID' IN ENQ.SELECTION<2,1> SETTING ID.POS THEN
+        Y.ID = ENQ.SELECTION<4,ID.POS>
+    END
+
+    CALL F.READ(FN.MCD,Y.ID,R.MCD,F.MCD,ERR.MCD)
+
+    Y.DR.FT=R.MCD<MCD.DR.FT.REF>
+    Y.CR.FT=R.MCD<MCD.CR.FT.REF>
+
+    FOR I=1 TO DCOUNT(Y.DR.FT,@VM)
+        R.AC=''
+        Y.FT.ID=FIELD(Y.DR.FT,@VM,I)
+
+        CALL F.READ(FN.FT,Y.FT.ID,R.FT,F.FT,ERR.FT)
+        IF R.FT EQ '' THEN
+            CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.FT.ID,R.FT,ERR)
+            Y.FT.ID=FIELD(Y.FT.ID,';',1)
+        END
+        Y.AC.ID=R.FT<FT.DEBIT.ACCT.NO>
+        IF LEFT(Y.AC.ID,2) NE 'PL' THEN
+            CALL F.READ(FN.AC,Y.AC.ID,R.AC,F.AC,Y.AC.ERR)
+            IF R.AC EQ '' THEN
+                CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.AC.ID,R.AC,ERR)
+            END
+        END
+        IF R.AC THEN
+            Y.CATEG=R.AC<AC.CATEGORY>
+            CALL F.READ(FN.CATEG,Y.CATEG,R.CATEG,F.CATEG,Y.CATEG.ERR)
+            Y.AC.TYPE = R.CATEG<EB.CAT.DESCRIPTION>
+
+            Y.AC.TITLE = R.AC<AC.ACCOUNT.TITLE.1>
+
+        END ELSE
+            Y.CATEG=RIGHT(Y.AC.ID,5)
+            CALL F.READ(FN.CATEG,Y.CATEG,R.CATEG,F.CATEG,Y.CATEG.ERR)
+            Y.AC.TYPE = R.CATEG<EB.CAT.DESCRIPTION>
+
+            Y.AC.TITLE =R.CATEG<EB.CAT.DESCRIPTION>
+        END
+
+        INT.DATE=ICONV(R.FT<FT.DEBIT.VALUE.DATE>,"D")
+        Y.VALUE.DATE =OCONV(INT.DATE, 'DD') "R%2":" ":OCONV(INT.DATE, 'DMA'):" ":OCONV(INT.DATE, 'DY4')
+        Y.AMT=R.FT<FT.DEBIT.AMOUNT>
+        LNGVAR=Y.AMT
+        CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+        Y.TXTOUT=TXTOUT
+        Y.AMT = FMT(Y.AMT,'R2,#18')
+        Y.NARR=FIELD(R.MCD<MCD.DR.PAYMENT.DET>,@VM,I)
+        Y.INPUTTER = FIELD(R.MCD<MCD.INPUTTER> ,'_',2,1)
+        Y.AUTHOR = FIELD(R.MCD<MCD.AUTHORISER>,'_',2,1)
+        IF R.AC THEN
+            Y.DATA<-1> = 'Debit Voucher*':Y.ID:'*':Y.AC.ID:'*':Y.AC.TITLE:'*':Y.AC.TYPE:'*':Y.FT.ID:'*':Y.VALUE.DATE:'*':Y.AMT:'*':Y.TXTOUT:' Only*':Y.NARR:'*':Y.INPUTTER:'*':Y.AUTHOR
+        END ELSE
+            IF Y.CATEG GE 50000 AND Y.CATEG  LE 59999 THEN
+                Y.DATA<-1> = 'Debit Voucher(Income)*':Y.ID:'*':Y.AC.ID:'*':Y.AC.TITLE:'*':Y.AC.TYPE:'*':Y.FT.ID:'*':Y.VALUE.DATE:'*':Y.AMT:'*':Y.TXTOUT:' Only*':Y.NARR:'*':Y.INPUTTER:'*':Y.AUTHOR
+            END ELSE
+                Y.DATA<-1> = 'Debit Voucher(Expenditure)*':Y.ID:'*':Y.AC.ID:'*':Y.AC.TITLE:'*':Y.AC.TYPE:'*':Y.FT.ID:'*':Y.VALUE.DATE:'*':Y.AMT:'*':Y.TXTOUT:' Only*':Y.NARR:'*':Y.INPUTTER:'*':Y.AUTHOR
+            END
+        END
+
+
+    NEXT I
+
+
+    FOR I=1 TO DCOUNT(Y.CR.FT,@VM)
+        R.AC=''
+        Y.FT.ID=FIELD(Y.CR.FT,@VM,I)
+        CALL F.READ(FN.FT,Y.FT.ID,R.FT,F.FT,ERR.FT)
+
+        IF R.FT EQ '' THEN
+            CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.FT.ID,R.FT,ERR)
+            Y.FT.ID=FIELD(Y.FT.ID,';',1)
+        END
+        Y.AC.ID=R.FT<FT.CREDIT.ACCT.NO>
+
+        IF LEFT(Y.AC.ID,2) NE 'PL' THEN
+            CALL F.READ(FN.AC,Y.AC.ID,R.AC,F.AC,Y.AC.ERR)
+            IF R.AC EQ '' THEN
+                CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.AC.ID,R.AC,ERR)
+            END
+        END
+
+        IF R.AC THEN
+            Y.CATEG=R.AC<AC.CATEGORY>
+            CALL F.READ(FN.CATEG,Y.CATEG,R.CATEG,F.CATEG,Y.CATEG.ERR)
+            Y.AC.TYPE = R.CATEG<EB.CAT.DESCRIPTION>
+            Y.AC.TITLE = R.AC<AC.ACCOUNT.TITLE.1>
+        END ELSE
+
+            Y.CATEG=RIGHT(Y.AC.ID,5)
+            CALL F.READ(FN.CATEG,Y.CATEG,R.CATEG,F.CATEG,Y.CATEG.ERR)
+            Y.AC.TYPE = R.CATEG<EB.CAT.DESCRIPTION>
+            Y.AC.TITLE =R.CATEG<EB.CAT.DESCRIPTION>
+        END
+
+        INT.DATE=ICONV(R.FT<FT.DEBIT.VALUE.DATE>,"D")
+        Y.VALUE.DATE =OCONV(INT.DATE, 'DD') "R%2":" ":OCONV(INT.DATE, 'DMA'):" ":OCONV(INT.DATE, 'DY4')
+        Y.AMT=R.FT<FT.DEBIT.AMOUNT>
+        LNGVAR=Y.AMT
+        CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+        Y.TXTOUT=TXTOUT
+        Y.AMT = FMT(Y.AMT,'R2,#18')
+        Y.NARR=FIELD(R.MCD<MCD.CR.PAYMENT.DET>,@VM,I)
+        Y.INPUTTER = FIELD(R.MCD<MCD.INPUTTER> ,'_',2,1)
+        Y.AUTHOR = FIELD(R.MCD<MCD.AUTHORISER>,'_',2,1)
+        IF R.AC THEN
+            Y.DATA<-1> = 'Credit Voucher*':Y.ID:'*':Y.AC.ID:'*':Y.AC.TITLE:'*':Y.AC.TYPE:'*':Y.FT.ID:'*':Y.VALUE.DATE:'*':Y.AMT:'*':Y.TXTOUT:' Only*':Y.NARR:'*':Y.INPUTTER:'*':Y.AUTHOR
+        END ELSE
+            IF Y.CATEG GE 50000 AND Y.CATEG LE 59999 THEN
+                Y.DATA<-1> = 'Credit Voucher(Income)*':Y.ID:'*':Y.AC.ID:'*':Y.AC.TITLE:'*':Y.AC.TYPE:'*':Y.FT.ID:'*':Y.VALUE.DATE:'*':Y.AMT:'*':Y.TXTOUT:' Only*':Y.NARR:'*':Y.INPUTTER:'*':Y.AUTHOR
+            END ELSE
+                Y.DATA<-1> = 'Credit Voucher(Expenditure)*':Y.ID:'*':Y.AC.ID:'*':Y.AC.TITLE:'*':Y.AC.TYPE:'*':Y.FT.ID:'*':Y.VALUE.DATE:'*':Y.AMT:'*':Y.TXTOUT:' Only*':Y.NARR:'*':Y.INPUTTER:'*':Y.AUTHOR
+            END
+
+        END
+
+    NEXT I
+
+    RETURN
+END

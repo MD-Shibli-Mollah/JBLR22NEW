@@ -1,0 +1,48 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.CALL.BORROW.VALIDATE
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*-----------------------
+* This routine is to validate the entered Amount and calculate total
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 02/10/2013 New   - Manjunath Suvarna
+*                    Sepit SoftTech Pvt. Ltd.
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE JBL.BP I_F.BD.CALL.BORROW
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.CALL.BORROW = 'F.BD.CALL.BORROW'
+    F.CALL.BORROW = ''
+
+    CALL OPF(FN.CALL.BORROW,F.CALL.BORROW)
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+*
+    Y.CNT = DCOUNT(R.NEW(CL.BORROW.AMOUNT),@VM)
+    Y.AMT = R.NEW(CL.BORROW.AMOUNT)
+    FOR I = 1 TO Y.CNT
+        Y.AMOUNT+ = FIELD(Y.AMT,VM,I,1)
+    NEXT I
+    IF Y.AMOUNT THEN
+        R.NEW(CL.BORROW.SUB.TOTAL) = Y.AMOUNT
+    END
+*
+    RETURN
+END

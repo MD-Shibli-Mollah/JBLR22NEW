@@ -1,0 +1,86 @@
+*-----------------------------------------------------------------------------
+* <Rating>-22</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE CLEAR.COLR.IN.LIMIT.CUST
+*-----------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_F.LIMIT
+    $INSERT GLOBUS.BP I_F.LIMIT.COL.ALLOC.WORK
+    $INSERT GLOBUS.BP I_F.COLLATERAL.RIGHT
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_TSA.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+*-----------------------------------------------------------------------------
+  *  EXECUTE 'COMO ON CLEAR.COLR.IN.LIMIT.CUST'
+    PRINT "Running in company ":ID.COMPANY
+    PRINT "Date and Time is ":TIMEDATE()
+
+    GOSUB INIT
+    GOSUB CLEAR.COLR
+
+    PRINT "Finished CLEAR.COLR.IN.LIMIT.CUST"
+    PRINT "Date and Time is ":TIMEDATE()
+   * EXECUTE "COMO OFF CLEAR.COLR.IN.LIMIT.CUST"
+
+    RETURN
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    FN.LIMIT='F.LIMIT'
+    F.LIMIT=''
+    CALL OPF(FN.LIMIT, F.LIMIT)
+
+    FN.COLR='F.COLLATERAL.RIGHT'
+    F.COLR=''
+    CALL OPF(FN.COLR,F.COLR)
+    CNT.LIM.RFS=0
+    ID.CUST=''
+
+    RETURN
+*-----------------------------------------------------------------------------
+CLEAR.COLR:
+*-----------------------------------------------------------------------------
+    PRINT "***************** CLEAR.COLR ***************************"
+    R.CUST.ARRAY=''
+
+READLIST R.CUST.ARRAY FROM 'LI.COLL.CORRECT' ELSE
+PRINT 'SAVEDLISTS LI.COLL.CORRECT MISSING'
+STOP
+END
+
+    LOOP
+        REMOVE ID.CUST FROM R.CUST.ARRAY SETTING POS
+    WHILE ID.CUST:POS
+        SEL.CMD = "SSELECT ":FN.LIMIT:" WITH @ID LIKE ...":ID.CUST:"... AND FIXED.VARIABLE NE ''"
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,SEL.ERR)
+        PRINT "SEL.CMD : " : SEL.CMD
+        PRINT "NO.OF.REC : " : NO.OF.REC
+
+        LOOP
+            REMOVE LIM.ID FROM SEL.LIST SETTING LIM.POS
+        WHILE LIM.ID:LIM.POS
+            CNT +=1
+            PRINT "":CNT:"TH ID PROCESSING OUT OF :":NO.OF.REC :": IDS"
+            PRINT "LIM.ID : " : LIM.ID
+            LIM.CUST.ID = LIM.ID['.',1,1]
+            IF LIM.CUST.ID NE ID.CUST THEN
+                PRINT "Skipping ":LIM.ID
+                CONTINUE      ;*Skip
+            END
+            CALL F.READ(FN.LIMIT,LIM.ID,R.LIMIT.REC,F.LIMIT,LIM.ERR)
+            PRINT "R.LIMIT.REC<LI.COLLAT.RIGHT> : " : R.LIMIT.REC<LI.COLLAT.RIGHT>
+
+            IF R.LIMIT.REC<LI.COLLAT.RIGHT> THEN
+                R.LIMIT.REC<LI.COLLAT.RIGHT>=''
+                R.LIMIT.REC<LI.SECURED.AMT>=''
+
+                CALL F.WRITE(FN.LIMIT,LIM.ID,R.LIMIT.REC)
+                CALL JOURNAL.UPDATE(LIM.ID)
+            END
+        REPEAT
+    REPEAT
+    PRINT "**************** END OF CLEAR.COLR**********************"
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+*----------------------------------------------------------------------------- 

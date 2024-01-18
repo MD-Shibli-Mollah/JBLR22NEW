@@ -1,0 +1,23 @@
+****************************************************************************************
+*This routine is attachted to OVERRIDE.CLASS.DETAILS,DISPO VERSION                     *
+*Purpose: return error message against ID                                              *
+*Developed By: Md. Aminul Islam(Datasoft Systems)                                      *
+*Live Date: 20160925                                                                   *
+****************************************************************************************
+    SUBROUTINE DISPO.CLASS.CHK.ID
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+
+
+    Y.ACCESS.OVRRD.CLASS = 'DISP.OVER1':@FM:'DISP.OVER2':@FM:'DISP.OVER3':@FM:'DISP.OVER4':@FM:'DISP.OVER5':@FM:'DISP.OVER6':@FM:'DISP.OVER7'
+    FINDSTR COMI IN Y.ACCESS.OVRRD.CLASS SETTING CLASS.POS THEN END
+    IF NOT(CLASS.POS) THEN
+        TOT.CLASS = DCOUNT(Y.ACCESS.OVRRD.CLASS,@FM)
+        FOR I = 1 TO TOT.CLASS
+            ALL.CLASS.ID := FIELD (Y.ACCESS.OVRRD.CLASS,@FM,I) : ', '
+        NEXT I
+        ALL.CLASS.ID = LEFT(ALL.CLASS.ID,LEN(ALL.CLASS.ID)-2)
+        E = 'RECORD ID MUST BE IN ':ALL.CLASS.ID
+    END
+    RETURN
+END

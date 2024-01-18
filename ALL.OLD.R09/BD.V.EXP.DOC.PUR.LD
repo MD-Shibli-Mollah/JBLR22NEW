@@ -1,0 +1,136 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>60</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.EXP.DOC.PUR.LD
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This routine is fatch record from DRAWINGS
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20/04/2012 - New - Rayhan
+*
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LETTER.OF.CREDIT
+    $INSERT I_F.LD.LOANS.AND.DEPOSITS
+    $INSERT I_F.LC.TYPES
+    $INSERT I_F.DRAWINGS
+    $INSERT I_F.BD.BTB.JOB.REGISTER
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.LETTER.OF.CREDIT = 'F.LETTER.OF.CREDIT'
+    F.LETTER.OF.CREDIT  = ''
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+    R.LETTER.OF.CREDIT  = ''
+
+    FN.LD.LOANS.AND.DEPOSITS = 'F.LD.LOANS.AND.DEPOSITS'
+    F.LD.LOANS.AND.DEPOSITS  = ''
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+    R.LD.LOANS.AND.DEPOSITS  = ''
+
+
+    FN.BD.BTB.JOB.REGISTER = 'F.BD.BTB.JOB.REGISTER'
+    F.BD.BTB.JOB.REGISTER = ''
+    CALL OPF(FN.BD.BTB.JOB.REGISTER,F.BD.BTB.JOB.REGISTER)
+    R.BD.BTB.JOB.REGISTER = ''
+
+    FN.DRAWINGS = 'F.DRAWINGS'
+    F.DRAWINGS = ''
+    CALL OPF(FN.DRAWINGS,F.DRAWINGS)
+    R.DRAWINGS = ''
+    Y.DRAWINGS.ERR = ''
+
+    FN.LC.TYPES = 'F.LC.TYPES'
+    F.LC.TYPES = ''
+    CALL OPF(FN.LC.TYPES,F.LC.TYPES)
+    R.LC.TYPES = ''
+    Y.LC.TYPES.ERR = ''
+
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+    GOSUB GET.LOC.REF.POS
+    Y.DR.ID = COMI
+    Y.APP.VER.NAME = APPLICATION : PGM.VERSION
+    Y.LC.REF.NO = Y.DR.ID[1,12]
+    CALL F.READ(FN.LETTER.OF.CREDIT,Y.LC.REF.NO,R.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT,Y.LETTER.OF.CREDIT.ERR)
+    IF R.LETTER.OF.CREDIT EQ '' THEN RETURN
+
+    Y.EXP.LC.NO = R.LETTER.OF.CREDIT<TF.LC.ISS.BANK.REF>
+    Y.CON.NO = R.LETTER.OF.CREDIT<TF.LC.LOCAL.REF,Y.CONT.NO.POS>
+    Y.CUSTO = R.LETTER.OF.CREDIT<TF.LC.BENEFICIARY.CUSTNO>
+    Y.JOB.NO = R.LETTER.OF.CREDIT<TF.LC.LOCAL.REF,Y.JOB.NO.POS>
+    Y.LC.TYPE = R.LETTER.OF.CREDIT<TF.LC.LC.TYPE>
+    Y.LC.CATEGORY = R.LETTER.OF.CREDIT<TF.LC.CATEGORY.CODE>
+
+    IF Y.APP.VER.NAME EQ 'LD.LOANS.AND.DEPOSITS,BD.EXP.DOC.FDBP' THEN
+        IF Y.LC.CATEGORY NE '23105' AND Y.LC.CATEGORY NE '23110' THEN
+            ETEXT ="Not Foreign Export LC"
+            CALL STORE.END.ERROR
+        END
+    END
+    IF Y.APP.VER.NAME EQ 'LD.LOANS.AND.DEPOSITS,BD.EXP.DOC.LDBP' THEN
+        IF Y.LC.CATEGORY NE '23106' AND Y.LC.CATEGORY NE '23111' THEN
+            ETEXT ="Not Local Export LC"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    CALL F.READ(FN.LC.TYPES,Y.LC.TYPE,R.LC.TYPES,F.LC.TYPES,Y.LC.TYPES.ERR)
+    Y.LC.IMP.EXP = R.LC.TYPES<LC.TYP.IMPORT.EXPORT>
+
+    IF Y.LC.IMP.EXP EQ 'E' THEN
+        CALL F.READ(FN.DRAWINGS,Y.DR.ID,R.DRAWINGS,F.DRAWINGS,ERR.DRAWINGS)
+        Y.CCY = R.DRAWINGS<TF.DR.DRAW.CURRENCY>
+        Y.AMT = R.DRAWINGS<TF.DR.DOCUMENT.AMOUNT>
+        Y.BILL.DOC.VAL = Y.CCY : Y.AMT
+        IF R.DRAWINGS<TF.DR.LOCAL.REF,Y.DR.DOC.TY.POS> EQ 'PURCHASE' THEN
+            ETEXT ="This Export Document Already Purchased"
+            CALL STORE.END.ERROR
+        END ELSE
+            GOSUB SET.LC.JOB.VALUE.LD
+        END
+    END ELSE
+        ETEXT ="Not Export LC Type"
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+GET.LOC.REF.POS:
+*--------------
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","BTB.CONTRACT.NO",Y.CONT.NO.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","JOB.NUMBER",Y.JOB.NO.POS)
+    CALL GET.LOC.REF("DRAWINGS","DOC.TYPE",Y.DR.DOC.TY.POS)
+    CALL GET.LOC.REF('LD.LOANS.AND.DEPOSITS','LINKED.TF.NO',Y.LD.TFNO.POS)
+    CALL GET.LOC.REF('LD.LOANS.AND.DEPOSITS','BILL.DOC.VAL',Y.LD.DOC.VAL.POS)
+    CALL GET.LOC.REF("LD.LOANS.AND.DEPOSITS","PURCHASE.FC.AMT",Y.LD.PUR.AMT.POS)
+    CALL GET.LOC.REF("LD.LOANS.AND.DEPOSITS","EXCHANGE.RATE",Y.LD.XRATE.POS)
+    CALL GET.LOC.REF("LD.LOANS.AND.DEPOSITS","EXPORT.LC.NO",Y.LD.EXP.LCNO.POS)
+    CALL GET.LOC.REF("LD.LOANS.AND.DEPOSITS","BTB.CONTRACT.NO",Y.LD.CONT.NO.POS)
+    CALL GET.LOC.REF("LD.LOANS.AND.DEPOSITS","JOB.NUMBER",Y.LD.JOB.NO.POS)
+    RETURN
+
+SET.LC.JOB.VALUE.LD:
+*------------------
+    R.NEW(LD.LOCAL.REF)<1,Y.LD.EXP.LCNO.POS> = Y.EXP.LC.NO
+    R.NEW(LD.LOCAL.REF)<1,Y.LD.TFNO.POS> = Y.LC.REF.NO
+    R.NEW(LD.LOCAL.REF)<1,Y.LD.CONT.NO.POS> = Y.CON.NO
+    R.NEW(LD.CUSTOMER.ID) = Y.CUSTO
+    R.NEW(LD.LOCAL.REF)<1,Y.LD.JOB.NO.POS> = Y.JOB.NO
+    R.NEW(LD.LOCAL.REF)<1,Y.LD.DOC.VAL.POS> = Y.BILL.DOC.VAL
+
+    RETURN

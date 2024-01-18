@@ -1,0 +1,84 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.HOME.LOAN.REBATE.LOAD
+*-------------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This subroutine will perform all Initializations and necessary files
+* will be opened here
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20110215 - New - Sabari.G
+*                  Thesys Technologies
+*-------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE GLOBUS.BP I_F.PD.PAYMENT.DUE
+    $INCLUDE GLOBUS.BP I_F.STMT.ENTRY
+    $INCLUDE GLOBUS.BP I_F.CATEG.ENTRY
+    $INCLUDE GLOBUS.BP I_F.LMM.SCHEDULES.PAST
+    $INCLUDE JBL.BP I_JBL.B.HOME.LOAN.REBATE.COMMON
+    $INCLUDE GLOBUS.BP I_F.COMPANY
+    $INCLUDE JBL.BP I_F.BD.L.HME.LOAN.REBATE
+    $INCLUDE JBL.BP I_F.BD.HME.LOAN.REBATE.PARAM
+
+    FN.LD.LOANS.AND.DEPOSITS = 'F.LD.LOANS.AND.DEPOSITS'
+    F.LD.LOANS.AND.DEPOSITS = ''
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+    R.LD.LOANS.AND.DEPOSITS = ''
+
+    FN.PD.PAYMENT.DUE = 'F.PD.PAYMENT.DUE'
+    F.PD.PAYMENT.DUE = ''
+    CALL OPF(FN.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE)
+    R.PD.PAYMENT.DUE = ''
+
+    FN.LMM.SCHEDULES.PAST = 'F.LMM.SCHEDULES.PAST'
+    F.LMM.SCHEDULES.PAST = ''
+    CALL OPF(FN.LMM.SCHEDULES.PAST,F.LMM.SCHEDULES.PAST)
+    R.LMM.SCHEDULES.PAST = ''
+
+    FN.PD.BALANCES.HIST = 'F.PD.BALANCES.HIST'
+    F.PD.BALANCES.HIST = ''
+    CALL OPF(FN.PD.BALANCES.HIST,F.PD.BALANCES.HIST)
+    R.PD.BALANCES.HIST = ''
+
+    FN.COMPANY = 'F.COMPANY'
+    F.COMPANY = ''
+    CALL OPF(FN.COMPANY,F.COMPANY)
+
+    FN.BD.L.HME.LOAN.REBATE = 'F.BD.L.HME.LOAN.REBATE'
+    F.BD.L.HME.LOAN.REBATE = ''
+    CALL OPF(FN.BD.L.HME.LOAN.REBATE,F.BD.L.HME.LOAN.REBATE)
+    R.BD.L.HME.LOAN.REBATE = ''
+
+    FN.BD.HME.LOAN.REBATE.PARAM = 'F.BD.HME.LOAN.REBATE.PARAM'
+    F.BD.HME.LOAN.REBATE.PARAM = ''
+    CALL OPF(FN.BD.HME.LOAN.REBATE.PARAM,F.BD.HME.LOAN.REBATE.PARAM)
+    R.BD.HME.LOAN.REBATE.PARAM = ''
+
+
+    Y.TODAY = TODAY
+    Y.START.DATE = Y.TODAY[1,4]:'0101'
+    Y.END.DATE = Y.TODAY[1,4]:'1231'
+
+    Y.APPLICATION = "LD.LOANS.AND.DEPOSITS"
+    Y.FIELD.NAME = "FIRST.REP.DATE"
+    Y.FIELD.POS = ""
+    CALL MULTI.GET.LOC.REF(Y.APPLICATION,Y.FIELD.NAME,Y.FIELD.POS)
+    Y.FIRST.REP.DATE.POS = Y.FIELD.POS<1,1>
+
+    CALL F.READ(FN.BD.HME.LOAN.REBATE.PARAM,'SYSTEM',R.BD.HME.LOAN.REBATE.PARAM,F.BD.HME.LOAN.REBATE.PARAM,BD.HME.LOAN.REBATE.PARAM.ERR)
+    IF R.BD.HME.LOAN.REBATE.PARAM THEN
+        Y.RATE = R.BD.HME.LOAN.REBATE.PARAM<EB.PAR.REBATE.RATE>
+        Y.DT.TXN.CODE = R.BD.HME.LOAN.REBATE.PARAM<EB.PAR.TXN.CODE.DT>
+        Y.CR.TXN.CODE = R.BD.HME.LOAN.REBATE.PARAM<EB.PAR.TXN.CODE.CR>
+        Y.DT.CATEG = R.BD.HME.LOAN.REBATE.PARAM<EB.PAR.DT.PL.CATEG>
+        Y.CR.CATEG = R.BD.HME.LOAN.REBATE.PARAM<EB.PAR.CR.INT.ACCT.CATEG>
+    END
+    RETURN
+
+END

@@ -1,0 +1,77 @@
+*-----------------------------------------------------------------------------
+* <Rating>-64</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.H.IRC.FIELD.DEFINITIONS
+*-------------------------------------------------------------------------
+*
+*-------------------------------------------------------------------------
+* Modification History :
+* Added some fields for Reports - 14/11/2006
+*-------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT       ;* Other Inserts required for Checkfiles, e
+    $INSERT I_F.CUSTOMER
+    $INSERT I_F.SEC.ACC.MASTER
+    $INSERT I_F.PR.H.CURRENCY
+*-------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB DEFINE.FIELDS
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+DEFINE.FIELDS:
+    ID.F = "CUSTOMER.NO" ; ID.N = "16" ; ID.T<1>= "CUS"
+
+*
+    Z=0
+
+    Z+=1 ; F(Z) = "XX.NAME.OF.IMPORTER" ; N(Z) = "32" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "XX.ADDRESS" ; N(Z) = "32" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "IRC.NO" ; N(Z) = "16" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "DATE.OF.IRC.ISSUE" ; N(Z) = "14" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "NATURE.OF.IRC.ISSUE" ; N(Z) = "10" ; T(Z)<2>="INDUSTRIAL_COMMERCIAL"
+    Z+=1 ; F(Z) = "IRC.FEE.AMT" ; N(Z) = "18" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "AMT.OF.RENEW.FEE" ; N(Z) = "18" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "DATE.OF.RENEW.FEE" ; N(Z) = "14" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "TREASURY.CHALLAN.NO" ; N(Z) = "35" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "RENEW.FEE.UPTO" ; N(Z) = "18" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "CURRENCY.CODE"  ; N(Z) = "18" ; T(Z) = "A"
+    CHECKFILE(Z) = CHK.CURRENCY.CODE
+    Z+=1 ; F(Z) = "PENALTY.AMOUNT" ; N(Z) = "18" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "IRC.RENEWED.ON" ; N(Z) = "14" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "IRC.RENEWED.UPTO" ; N(Z) = "18" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "ANNUAL.ENTITLEMENT.AMT" ; N(Z) = "18" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "STATUS.OF.IRC.SUBMITTED" ; N(Z) = "18" ; T(Z)<2> ="ORIGINAL_PHOTOCOPY"
+    Z+=1 ; F(Z) = "IRC.SUBMITTED.TO.BRANCH.ON" ; N(Z) = "14" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "ORIG.IRC.WITHDRAWN" ; N(Z) = "18" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "RENEW.STATEMENT.SEND.ON" ; N(Z) = "14" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "DATE.OF.EXPIRY" ; N(Z) = "14" ; T(Z) = "D"
+*  (S) 14/11/2006
+    Z+=1 ; F(Z) = "LAST.DATE.OF.RENEWAL" ; N(Z) = "14" ; T(Z) = "D"
+* (E) 14/11/2006    
+REM > CHECKFILE(Z) = CHK.ACCOUNT
+*
+    V = Z + 9
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+INITIALISE:
+    MAT F = "" ; MAT N = "" ; MAT T = ""
+    MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+    ID.CHECKFILE = "" ; ID.CONCATFILE = ""
+*
+* Define often used checkfile variables
+*
+    CHK.ACCOUNT = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+    CHK.CUSTOMER = "CUSTOMER":FM:EB.CUS.SHORT.NAME:FM:'.A'
+    CHK.CUSTOMER.SECURITY = "CUSTOMER.SECURITY":FM:0:FM:'':FM:"CUSTOMER"
+    CHK.SAM = "SEC.ACC.MASTER":FM:SC.SAM.ACCOUNT.NAME:FM:'..S'
+    CHK.CURRENCY.CODE = "PR.H.CURRENCY":FM:PR.H.CUR.CURRENCY.NAME
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+END

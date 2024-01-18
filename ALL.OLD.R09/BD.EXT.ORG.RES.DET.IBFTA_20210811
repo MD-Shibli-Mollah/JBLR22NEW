@@ -1,0 +1,174 @@
+*-----------------------------------------------------------------------------
+* <Rating>439</Rating>
+* Developed By: MD KAMRAN MALLICK
+* Date: 27.06.2018
+* Modifide By: Md. Mazbauddin
+* Date: 25.10.2018
+*work for diffrent date selection problem fixinig.
+*Modified By: MD KAMRAN MALLICK
+*DATE: 21 AUG 2019
+*Fix problem in Amount while TF & Adv No. are same
+* DEPLOY: 20190917
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.EXT.ORG.RES.DET.IBFTA(Y.DATA)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.ABL.H.NM.ER
+    $INSERT JBL.BP I_F.ABL.H.BRANCH.CODE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+    FN.NM = "F.ABL.H.NM.ER"
+    F.NM = ""
+    FN.STMT.ENTRY = "F.STMT.ENTRY"
+    F.STMT.ENTRY = ""
+    FN.BR.ZN.CD = "F.ABL.H.BRANCH.CODE"
+    F.BR.ZN.CD = ""
+    Y.CATEGORY='12820'
+    Y.OPERAND = ENQ.SELECTION<3,1>
+    LOCATE 'DATE' IN ENQ.SELECTION<2,1> SETTING DATE.POS THEN
+        Y.FR.DATE =  ENQ.SELECTION<4,DATE.POS>
+    END
+    LOCATE 'T.DATE' IN ENQ.SELECTION<2,2> SETTING DATE.POS THEN
+        Y.T.DATE = ENQ.SELECTION<4,DATE.POS>
+    END
+!    DEBUG
+*********for date formating******************
+    Y.FROM.DATE = Y.FR.DATE
+    Y.TO.DATE = Y.T.DATE
+    Y.YER.MNT = LEFT(TODAY,6)
+    Y.ST.DATE.CNT = LEN(Y.FROM.DATE)
+    Y.END.DATE.CNT = LEN(Y.TO.DATE)
+
+    BEGIN CASE
+    CASE Y.ST.DATE.CNT EQ 2
+        Y.FROM.DATE = Y.YER.MNT:Y.FROM.DATE
+    CASE Y.ST.DATE.CNT EQ 1
+        Y.FROM.DATE = Y.YER.MNT:'0':Y.FROM.DATE
+    CASE 1
+        Y.FROM.DATE = Y.FROM.DATE
+    END CASE
+
+    BEGIN CASE
+    CASE Y.END.DATE.CNT EQ 2
+        Y.TO.DATE = Y.YER.MNT:Y.TO.DATE
+    CASE Y.END.DATE.CNT EQ 1
+        Y.TO.DATE = Y.YER.MNT:'0':Y.TO.DATE
+    CASE 1
+        Y.TO.DATE = Y.TO.DATE
+    END CASE
+
+    Y.ID=""
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.NM,F.NM)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.STMT.ENTRY,F.STMT.ENTRY)
+    CALL OPF (FN.BR.ZN.CD,F.BR.ZN.CD)
+    RETURN
+
+PROCESS:
+!---------------------CATEGORYWISE ACC-------------------
+!DEBUG
+    SEL.CMD.AC = "SELECT ":FN.AC:" WITH CO.CODE EQ ":ID.COMPANY:" AND CATEGORY EQ ":Y.CATEGORY
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+        CALL EB.ACCT.ENTRY.LIST(Y.ID,Y.FROM.DATE,Y.TO.DATE,Y.AC.STMT.LIST,Y.AC.OPEN.BAL,Y.AC.ER)
+        Y.FT.C=DCOUNT(Y.AC.STMT.LIST,@FM)
+
+        Y.AMT=0
+        IF Y.FT.C NE 0 THEN
+            FOR I = 1 TO Y.FT.C
+!Y.STMT.ID = FIELD(Y.AC.STMT.LIST,@FM,I)
+!CALL F.READ(FN.STMT.ENTRY, Y.STMT.ID , R.STMT, F.STMT.ENTRY , Y.ERR)
+
+
+                Y.STMT.ENTRY.ID = FIELD(Y.AC.STMT.LIST,@FM,I)
+                CALL F.READ(FN.STMT.ENTRY,Y.STMT.ENTRY.ID,R.ST.ENT,F.STMT.ENTRY,ST.ENT.ERR)
+
+                Y.TRANS.REF=R.ST.ENT<AC.STE.TRANS.REFERENCE>
+                Y.AMT1=R.ST.ENT<AC.STE.AMOUNT.LCY>
+                Y.STMT.ENTRY.ID1 = FIELD(Y.AC.STMT.LIST,@FM,I+1)
+                CALL F.READ(FN.STMT.ENTRY,Y.STMT.ENTRY.ID1,R.ST.ENT1,F.STMT.ENTRY,ST.ENT.ERR1)
+                Y.TRANS.REF1=R.ST.ENT1<AC.STE.TRANS.REFERENCE>
+                Y.AMT2=R.ST.ENT1<AC.STE.AMOUNT.LCY>
+
+                IF Y.AMT EQ 0 THEN
+                    Y.AMT=Y.AMT1
+                END
+
+                IF Y.TRANS.REF EQ Y.TRANS.REF1 THEN
+
+                    Y.AMT + =Y.AMT2
+                    CONTINUE
+                END
+
+
+
+
+
+                Y.TR.REF = R.ST.ENT<AC.STE.TRANS.REFERENCE>
+!Y.TR.ARR<-1>=Y.TR.REF
+                CALL F.READ(FN.NM,Y.TR.REF,R.NM,F.NM,Y.ERR.NM)
+                IF R.NM NE '' THEN
+                    Y.ZONAL.CODE = R.NM<NM.ZONAL.CODE>
+                    Y.BRANCH.CODE = RIGHT(R.NM<NM.BRANCH.CODE>,4)
+!                    Y.VALUE.DATE = R.NM<NM.VALUE.DATE>
+                    Y.VALUE.DATE = R.ST.ENT<AC.STE.BOOKING.DATE>
+                    Y.TRANS.CODE = R.NM<NM.TRANS.CODE>
+                    Y.DATE.OF.OE = R.NM<NM.DATE.OF.OE>
+                    Y.ADVICE.NO = R.NM<NM.ADVICE.NO>
+                    Y.OE.RE = R.NM<NM.OE.RE>
+                    Y.DR.CR.MARKER = R.NM<NM.DR.CR.MARKER>
+                    Y.CO.CODE = RIGHT(R.NM<NM.CO.CODE>,4)
+                    CALL F.READ(FN.BR.ZN.CD, Y.CO.CODE , R.BR.ZN.CD, F.BR.ZN.CD , Y.ERR.BR.ZN.CD)
+                    Y.BR.ZN.CD = R.BR.ZN.CD<BRN.ZONAL.CODE>
+                    Y.PARTICULAR = R.NM<NM.REMARKS>
+                    Y.AMOUNT.DR = 0
+                    Y.AMOUNT.CR = 0
+                    IF Y.OE.RE EQ 'OE' THEN
+                        Y.OE.RE.MARKER = '1'
+                    END
+                    IF Y.OE.RE EQ 'RE' THEN
+                        Y.OE.RE.MARKER = '2'
+                    END
+                    IF Y.DR.CR.MARKER EQ 'DR' THEN
+!---------20190821-----------------
+!Y.AMOUNT.DR = R.NM<NM.AMOUNT>
+!Y.DR.AMT = R.ST.ENT<AC.STE.AMOUNT.LCY>
+                        Y.DR.AMT=Y.AMT
+                        Y.AMOUNT.DR = ABS(Y.DR.AMT)
+!---------------------end----------
+                    END
+                    IF Y.DR.CR.MARKER EQ 'CR' THEN
+!---------20190821-----------------
+!Y.AMOUNT.CR = R.NM<NM.AMOUNT>
+                        Y.CR.AMT = R.ST.ENT<AC.STE.AMOUNT.LCY>
+                        Y.AMOUNT.CR = ABS(Y.CR.AMT)
+!------------end-------------------
+                    END
+
+                    Y.DATA<-1> = Y.ZONAL.CODE:'*':Y.BRANCH.CODE:'*':Y.VALUE.DATE:'*':Y.TRANS.CODE:'*':Y.DATE.OF.OE:'*':Y.ADVICE.NO:'*': Y.OE.RE.MARKER: '*':Y.AMOUNT.DR:'*':Y.AMOUNT.CR:'*':Y.TR.REF:'*':Y.CO.CODE:'*':Y.PARTICULAR:'*':Y.BR.ZN.CD
+*                                      1                  2               3                 4                5               6                 7                 8                9             10           11            12             13
+                END
+                Y.AMT=0
+            NEXT I
+
+        END
+    REPEAT
+    RETURN
+END
+!---------------------------------------------------

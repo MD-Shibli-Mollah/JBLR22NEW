@@ -1,0 +1,46 @@
+*
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE COB.PR.PD.LIMIT.PROD.LOAD
+*-------------------------------------------------------------------------
+* COB routine to initialise the file variables and open files
+*-------------------------------------------------------------------------
+*MODIFICATION HISTORY:
+*--------------------
+*26/11/2006  S.INDUMATHI -- New
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.PD.PAYMENT.DUE
+    $INSERT I_F.LD.LOANS.AND.DEPOSITS
+    $INSERT I_COB.PR.PD.LIMIT.PROD.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    RETURN
+*------------------------------------------------------------------------
+INIT:
+*-----
+    FN.PD.PAYMENT.DUE = "F.PD.PAYMENT.DUE"
+    F.PD.PAYMENT.DUE = ""
+
+    FN.LD.LOANS.AND.DEPOSITS="F.LD.LOANS.AND.DEPOSITS"
+    F.LD.LOANS.AND.DEPOSITS=""
+
+    FN.PD.ENT.TODAY = "F.PD.ENT.TODAY"
+    F.PD.ENT.TODAY = ""
+
+    RETURN
+*-------------------------------------------------------------
+OPENFILES:
+*---------
+    CALL OPF(FN.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE)
+    CALL OPF(FN.PD.ENT.TODAY,F.PD.ENT.TODAY)
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+    CALL GET.LOC.REF("PD.PAYMENT.DUE","LIMIT.PROD",Y.LIM.POS)
+    CALL GET.LOC.REF("LD.LOANS.AND.DEPOSITS","CLASSIFICATION",Y.LD.CLASS.POS)
+    CALL GET.LOC.REF("PD.PAYMENT.DUE","CLASSIFICATION",Y.PD.CLASS.POS)
+    RETURN
+*------------------------------------------------------------------
+END

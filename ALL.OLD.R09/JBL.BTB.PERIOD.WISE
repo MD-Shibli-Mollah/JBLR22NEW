@@ -1,0 +1,169 @@
+*-----------------------------------------------------------------------------
+* <Rating>834</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.BTB.PERIOD.WISE(Y.RETURN)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.LETTER.OF.CREDIT
+    $INSERT I_F.LC.ACCOUNT.BALANCES
+    $INSERT I_F.BD.TAX.COMM
+    $INSERT I_F.LC.TYPES
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    Y.RETURN = Y.OUT
+
+    RETURN
+
+
+INIT:
+
+    FN.LC = 'F.LETTER.OF.CREDIT'
+    F.LC = ''
+    CALL OPF(FN.LC,F.LC)
+    R.LC = ''
+
+    FN.LC.ACCT.BAL = 'F.LC.ACCOUNT.BALANCES'
+    F.LC.ACCT.BAL = ''
+    CALL OPF(FN.LC.ACCT.BAL,F.LC.ACCT.BAL)
+    R.LC.ACCT.BAL = ''
+
+    FN.BD.TAX.COMM = 'F.BD.TAX.COMM'
+    F.BD.TAX.COMM = ''
+    CALL OPF(FN.BD.TAX.COMM,F.BD.TAX.COMM)
+    R.BD.TAX.COMM = ''
+
+    FN.LC.TYPE = 'F.LC.TYPES'
+    F.LC.TYPE = ''
+    CALL OPF(FN.LC.TYPE,F.LC.TYPE)
+    R.LC.TYPE = ''
+
+    Y.COMM.AMT.TOTAL = '';Y.VAT.TOTAL = ''; Y.SOURCE.TAX.TOTAL = '';
+    Y.APPL.CUSTNO.CHECK = ''
+
+    RETURN
+
+PROCESS:
+
+    CALL F.READ(FN.BD.TAX.COMM,'LETTER.OF.CREDIT',R.BD.TAX.COMM,F.BD.TAX.COMM,Y.BD.TAX.COMM.ERR)
+    Y.FT.COMM.CODE = R.BD.TAX.COMM<BD.TC.FT.COMMISSION.CODE>
+
+    SEL.CMD = "SELECT ":FN.LC
+
+    Y.ENQ.SELECTION = ENQ.SELECTION<2>
+
+    LOCATE '@ID' IN Y.ENQ.SELECTION<1,1> SETTING POS THEN
+        IF ENQ.SELECTION<4,POS> THEN
+            SEL.CMD :=" AND WITH APPLICANT.CUSTNO EQ ":ENQ.SELECTION<4,POS>
+        END
+    END
+
+    LOCATE 'ISSUE.DATE' IN Y.ENQ.SELECTION<1,1> SETTING POS THEN
+        IF ENQ.SELECTION<4,POS> THEN
+            SEL.CMD :=" AND WITH ISSUE.DATE GE ":ENQ.SELECTION<4,POS,1>:" AND WITH ISSUE.DATE LE ":ENQ.SELECTION<4,POS,2>
+        END
+    END
+
+    LOCATE 'CATEGORY.CODE' IN Y.ENQ.SELECTION<1,1> SETTING POS THEN
+        IF ENQ.SELECTION<4,POS> THEN
+            SEL.CMD :=" AND WITH CATEGORY.CODE EQ ":ENQ.SELECTION<4,POS>
+        END
+    END
+
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,ERR.CODE)
+
+
+    LOOP
+        REMOVE Y.LC.ID FROM SEL.LIST SETTING POS
+    WHILE Y.LC.ID:POS
+
+        CALL F.READ(FN.LC,Y.LC.ID,R.LC,F.LC,Y.LC.ERR)
+        Y.LC.APPLICANT = R.LC<TF.LC.APPLICANT,1>
+        Y.LC.TYPE = R.LC<TF.LC.LC.TYPE>
+
+        CALL F.READ(FN.LC.TYPE,Y.LC.TYPE,R.LC.TYPE,F.LC.TYPE,Y.LC.TYPE.ERR)
+        Y.IMP.EXP = R.LC.TYPE<LC.TYP.IMPORT.EXPORT>
+
+        IF Y.IMP.EXP EQ 'I' THEN
+
+
+            Y.LC.APP.CUSTNO = R.LC<TF.LC.APPLICANT.CUSTNO>
+
+            IF Y.APPL.CUSTNO.CHECK EQ '' THEN
+                Y.APPL.CUSTNO.CHECK = Y.LC.APP.CUSTNO
+                Y.FLAG = '1'
+            END ELSE
+                IF Y.LC.APP.CUSTNO EQ Y.APPL.CUSTNO.CHECK THEN
+                    Y.FLAG = '2'
+                END ELSE
+                    Y.FLAG = '1'
+                    Y.APPL.CUSTNO.CHECK = Y.LC.APP.CUSTNO
+                END
+            END
+            Y.LC.ISSUE.DATE = R.LC<TF.LC.ISSUE.DATE>
+
+            CALL F.READ(FN.LC.ACCT.BAL,Y.LC.ID,R.LC.ACCT.BAL,F.LC.ACCT.BAL,Y.LC.ACCT.BAL.ERR)
+            Y.COMM.CODE.ALL = R.LC.ACCT.BAL<LCAC.CHRG.CODE>
+            IF Y.COMM.CODE.ALL NE '' THEN
+                Y.COMM.CODE.CNT = DCOUNT(Y.COMM.CODE.ALL,@VM)
+                FOR I = 1 TO Y.COMM.CODE.CNT
+
+
+                    Y.COMM.AMT = '';Y.SOURCE.TAX = '' ; Y.VAT.AMT = ''
+                    Y.COMM.CODE = R.LC.ACCT.BAL<LCAC.CHRG.CODE,I>
+                    LOCATE Y.COMM.CODE IN Y.FT.COMM.CODE<1,1> SETTING POS THEN
+
+                        Y.COMM.AMT = R.LC.ACCT.BAL<LCAC.CHRG.ACC.AMT,I>
+                        Y.SOURCE.TAX = Y.COMM.AMT * 0.05
+                        Y.VAT.AMT = Y.COMM.AMT * 0.15
+
+
+                        Y.COMM.AMT.TOTAL + = Y.COMM.AMT
+                        Y.SOURCE.TAX.TOTAL + = Y.SOURCE.TAX
+                        Y.VAT.TOTAL + = Y.VAT.AMT
+
+                    END ELSE
+
+                        Y.COMM.AMT = R.LC.ACCT.BAL<LCAC.CHRG.ACC.AMT,I>
+                        Y.SOURCE.TAX = '0'
+                        Y.VAT.AMT = '0'
+
+
+                        Y.COMM.AMT.TOTAL + = Y.COMM.AMT
+                        Y.SOURCE.TAX.TOTAL + = Y.SOURCE.TAX
+                        Y.VAT.TOTAL + = Y.VAT.AMT
+
+                    END
+
+
+                    IF Y.FLAG EQ '1' AND I EQ '1' THEN
+                        IF Y.OUT EQ '' THEN
+                            Y.OUT = Y.LC.APPLICANT:'*':Y.LC.ISSUE.DATE:'*':Y.COMM.CODE:'*':Y.COMM.AMT:'*':Y.VAT.AMT:'*':Y.SOURCE.TAX
+                        END ELSE
+                            Y.OUT :=FM:Y.LC.APPLICANT:'*':Y.LC.ISSUE.DATE:'*':Y.COMM.CODE:'*':Y.COMM.AMT:'*':Y.VAT.AMT:'*':Y.SOURCE.TAX
+                        END
+                    END ELSE
+                        IF Y.OUT EQ '' THEN
+                            Y.OUT = '':'*':Y.LC.ISSUE.DATE:'*':Y.COMM.CODE:'*':Y.COMM.AMT:'*':Y.VAT.AMT:'*':Y.SOURCE.TAX
+                        END ELSE
+                            Y.OUT :=FM:'':'*':Y.LC.ISSUE.DATE:'*':Y.COMM.CODE:'*':Y.COMM.AMT:'*':Y.VAT.AMT:'*':Y.SOURCE.TAX
+                        END
+
+                    END
+
+                NEXT I
+            END
+        END
+
+    REPEAT
+
+    IF Y.OUT NE '' THEN
+        Y.OUT :=FM:'':'*':'':'*':'':'*':'':'*':'':'*':'':'*':'TOTAL':'*':'*':Y.COMM.AMT.TOTAL:'*':Y.VAT.TOTAL:'*':Y.SOURCE.TAX.TOTAL
+    END ELSE
+        RETURN
+    END
+
+    RETURN

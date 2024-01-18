@@ -1,0 +1,58 @@
+*-----------------------------------------------------------------------------
+* <Rating>-42</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE CLEAR.COLR.IN.LIMIT
+    $INSERT GLOBUS.BP I_F.LIMIT
+    $INSERT GLOBUS.BP I_F.LIMIT.COL.ALLOC.WORK
+    $INSERT GLOBUS.BP I_F.COLLATERAL.RIGHT
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_TSA.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+
+    GOSUB INIT
+    GOSUB CLEAR.COLR
+
+    RETURN
+
+INIT:
+    FN.LIMIT='F.LIMIT'
+    F.LIMIT=''
+    CALL OPF(FN.LIMIT, F.LIMIT)
+
+    FN.COLR='F.COLLATERAL.RIGHT'
+    F.COLR=''
+    CALL OPF(FN.COLR,F.COLR)
+    CNT.LIM.RFS=0
+
+    RETURN
+
+CLEAR.COLR:
+
+    PRINT "***************** CLEAR.COLR ***************************"
+
+    SEL.CMD='SELECT ' : FN.LIMIT :' WITH FIXED.VARIABLE NE "" OR COLLAT.RIGHT NE ""'
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,SEL.ERR)
+    PRINT "SEL.CMD : " : SEL.CMD
+    PRINT "NO.OF.REC : " : NO.OF.REC
+
+    LOOP
+        REMOVE LIM.ID FROM SEL.LIST SETTING LIM.POS
+    WHILE LIM.ID:LIM.POS
+        CNT +=1
+        PRINT "":CNT:"TH ID PROCESSING OUT OF :":NO.OF.REC :": IDS"
+        PRINT "LIM.ID : " : LIM.ID
+        CALL F.READ(FN.LIMIT,LIM.ID,R.LIMIT.REC,F.LIMIT,LIM.ERR)
+*    PRINT "R.LIMIT.REC : " : R.LIMIT.REC
+        PRINT "R.LIMIT.REC<LI.COLLAT.RIGHT> : " : R.LIMIT.REC<LI.COLLAT.RIGHT>
+
+        IF R.LIMIT.REC<LI.COLLAT.RIGHT> THEN
+            R.LIMIT.REC<LI.COLLAT.RIGHT>=''
+            R.LIMIT.REC<LI.SECURED.AMT>=''
+
+            CALL F.WRITE(FN.LIMIT,LIM.ID,R.LIMIT.REC)
+            CALL JOURNAL.UPDATE(LIM.ID)
+        END
+    REPEAT
+    PRINT "**************** END OF CLEAR.COLR**********************"
+
+    RETURN

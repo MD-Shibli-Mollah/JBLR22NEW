@@ -1,0 +1,170 @@
+****************************************************
+*-----------------------------------------------------------------------------
+* <Rating>451</Rating>
+*-----------------------------------------------------------------------------
+* PROGRAM : PROGRAM TO VIEW PRODUCT WISE ANY DAY BALANCE
+* DEV BY      : MD. IMRAN HASAN
+* DEV DATE    : 2021-09-14
+* REQ         : ICTD
+****************************************************
+    SUBROUTINE ICTD.PROD.ANY.DAY.BAL(Y.RETURN)
+!PROGRAM ICTD.PROD.ANY.DAY.BAL
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CLASS
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    LOCATE "DATE" IN ENQ.SELECTION<2,1> SETTING FROM.DATE.POS THEN
+        Y.BALANCE.DATE = ENQ.SELECTION<4,FROM.DATE.POS>
+    END
+
+    LOCATE "CATEGORY" IN ENQ.SELECTION<2,1> SETTING CATEGORY.POS THEN
+        Y.CATEGORY = ENQ.SELECTION<4,CATEGORY.POS>
+    END
+
+    IF Y.BALANCE.DATE EQ "" THEN
+        Y.BALANCE.DATE = TODAY
+    END
+
+!Y.BALANCE.DATE = "20201227"
+!Y.CATEGORY = "1719 1613"
+
+    Y.ID.COMPANY = ID.COMPANY
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+
+    FN.AC.HIS='F.ACCOUNT$HIS'
+    F.AC.HIS=''
+
+    FN.AC.CLOSE = 'F.ACCOUNT.CLOSED'
+    F.AC.CLOSE = ''
+
+
+    FN.AC.CLASS = "F.ACCOUNT.CLASS"
+    F.AC.CLASS = ""
+
+    Y.CATEG.LIST = ''
+    Y.RESULT = ''
+    Y.ACCT.REC=''
+    Y.BALANCE.TYPE='VALUE'
+    Y.SYSTEM.DATE=''
+    Y.BALANCE=''
+    Y.CREDIT.MVMT=''
+    Y.DEBIT.MVMT=''
+    Y.BLANK = ''
+    Y.ARRAY.CAT.LIST = ''
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.AC.CLOSE,F.AC.CLOSE)
+    CALL OPF(FN.AC.CLASS,F.CLASS)
+    RETURN
+
+PROCESS:
+
+    IF LEFT(Y.CATEGORY,1) EQ 'U' THEN
+        CALL F.READ(FN.AC.CLASS,Y.CATEGORY,R.AC.CLASS.REC,F.AC.CLASS,Y.ERR)
+        Y.CATEG.COUNT = DCOUNT(R.AC.CLASS.REC<3>,@VM)
+        FOR I = 1 TO Y.CATEG.COUNT
+            INS R.AC.CLASS.REC<3,I> BEFORE Y.CATEG.LIST<0,0,0>
+        NEXT
+        Y.ARRAY.CAT.LIST = Y.CATEG.LIST
+        CONVERT FM TO " " IN Y.CATEG.LIST
+    END
+    ELSE
+        IF Y.CATEGORY EQ '' OR Y.CATEGORY EQ 'ALL' THEN
+            RETURN
+        END
+        ELSE
+            Y.CATEG.LIST = Y.CATEGORY
+            Y.ARRAY.CAT.LIST = Y.CATEGORY
+            CONVERT " " TO FM IN Y.ARRAY.CAT.LIST
+        END
+    END
+
+
+!*************FOR LIVE ACCOUNT START************************
+    SEL.CMD.AC = "SELECT ":FN.AC:" WITH CO.CODE EQ ":Y.ID.COMPANY:" AND CATEGORY EQ ":Y.CATEG.LIST
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.AC,'',AC.REC.NO,AC.RET.CODE)
+
+    LOOP
+        REMOVE Y.ACCT.ID FROM SEL.LIST.AC SETTING POS
+    WHILE Y.ACCT.ID:POS
+
+        CALL F.READ(FN.AC,Y.ACCT.ID,R.AC,F.AC,ERR.AC)
+
+        IF R.AC THEN
+            CALL EB.GET.ACCT.BALANCE(Y.ACCT.ID,Y.ACCT.REC,Y.BALANCE.TYPE,Y.BALANCE.DATE,Y.SYSTEM.DATE,Y.BALANCE,Y.CREDIT.MVMT,Y.DEBIT.MVMT,Y.ERR.MSG)
+
+            Y.AC.TITLE = R.AC<AC.ACCOUNT.TITLE.1>
+            Y.AC.CAT = R.AC<AC.CATEGORY>
+            Y.AC.LEG.ID = R.AC<AC.ALT.ACCT.ID>
+            Y.AC.OPEN.DATE = R.AC<AC.OPENING.DATE>
+            Y.AC.CLODE.DATE = ''
+            Y.DR.BAL = ''
+            Y.CR.BAL = ''
+            IF Y.BALANCE LT 0 THEN
+                Y.DR.BAL = Y.BALANCE
+            END ELSE
+                Y.CR.BAL = Y.BALANCE
+            END
+            Y.RESULT<-1> = Y.ACCT.ID:"*":Y.DR.BAL:"*":Y.CR.BAL:"*":Y.AC.TITLE:"*":Y.AC.LEG.ID:"*":Y.AC.OPEN.DATE:"*":Y.AC.CAT:"*":Y.AC.CLODE.DATE
+
+        END
+    REPEAT
+
+
+!*************FOR CLOSED ACCOUNT START**********************
+
+    SEL.CMD.AC = "SELECT ":FN.AC.CLOSE:" WITH ACCT.CLOSE.DATE EQ ":Y.BALANCE.DATE
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.AC,'',AC.REC.NO,AC.RET.CODE)
+
+    LOOP
+        REMOVE Y.ACCT.ID FROM SEL.LIST.AC SETTING POS
+    WHILE Y.ACCT.ID:POS
+
+        CALL F.READ.HISTORY(FN.AC.HIS,Y.ACCT.ID,R.AC.HIS,F.AC.HIS,ERROR.CODE)
+
+        IF R.AC.HIS THEN
+            Y.AC.CAT = R.AC.HIS<AC.CATEGORY>
+            Y.CO.CODE = R.AC.HIS<AC.CO.CODE>
+            IF Y.CO.CODE EQ Y.ID.COMPANY THEN
+
+                LOCATE Y.AC.CAT IN Y.ARRAY.CAT.LIST SETTING Y.POS THEN
+
+                    CALL EB.GET.ACCT.BALANCE(Y.ACCT.ID,Y.ACCT.REC,Y.BALANCE.TYPE,Y.BALANCE.DATE,Y.SYSTEM.DATE,Y.BALANCE,Y.CREDIT.MVMT,Y.DEBIT.MVMT,Y.ERR.MSG)
+
+                    Y.AC.TITLE = R.AC.HIS<AC.ACCOUNT.TITLE.1>
+                    Y.AC.LEG.ID = R.AC.HIS<AC.ALT.ACCT.ID>
+                    Y.AC.OPEN.DATE = R.AC.HIS<AC.OPENING.DATE>
+                    Y.AC.CLODE.DATE = Y.BALANCE.DATE
+
+                    Y.DR.BAL = ''
+                    Y.CR.BAL = ''
+                    IF Y.BALANCE LT 0 THEN
+                        Y.DR.BAL = Y.BALANCE
+                    END ELSE
+                        Y.CR.BAL = Y.BALANCE
+                    END
+
+                    Y.RESULT<-1> = Y.ACCT.ID:"*":Y.DR.BAL:"*":Y.CR.BAL:"*":Y.AC.TITLE:"*":Y.AC.LEG.ID:"*":Y.AC.OPEN.DATE:"*":Y.AC.CAT:"*":Y.AC.CLODE.DATE
+                END
+            END
+        END
+    REPEAT
+
+    Y.RETURN = Y.RESULT
+    RETURN
+END

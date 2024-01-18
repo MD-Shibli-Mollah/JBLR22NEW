@@ -1,0 +1,105 @@
+**************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>-50</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.INP.LOC.LIMIT.UPD
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+*This input routine is used to default the value entered in the CORE LIMIT.REFERENCE
+* field to the local reference field LIMIT.PROD
+*-------------------------------------------------------------------------
+*Parameter Description: Not Applicable
+*--------- -----------
+*
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+*Variable name:   Insert file:          Description:
+* TODAY            I_COMMON              Will hold Todays date used for
+*                                        writing in flat file
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:     Description:
+*MULTI.GET.LOC.REF           CORE         This routine is used to fetch the positions for local reference fields
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 02/02/2011 -                            New   - Shiva Shankar G
+*                                                 Thesys Technologies
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*--------------------------------------------------------------------------
+INITIALISE:
+*----------
+    FN.LD.LOANS.AND.DEPOSITS = 'F.LD.LOANS.AND.DEPOSITS'
+    F.LD.LOANS.AND.DEPOSITS = ''
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+
+    APPLN = 'LD.LOANS.AND.DEPOSITS':FM:'ACCOUNT'
+    FLD.NAME = 'LIMIT.PROD':FM:'LOAN.START.DATE':VM:'LOAN.MAT.DATE':VM:'PR.RE.BG.DATE':VM:'PR.RE.END.DATE':VM:'INT.RE.BG.DATE':VM:'INT.RE.END.DATE'
+    FLD.POS = ''
+
+    CALL MULTI.GET.LOC.REF(APPLN,FLD.NAME,FLD.POS)
+    Y.LIMIT.PROD.POS = FLD.POS<1,1>
+    Y.ST.DATE.POS = FLD.POS<2,1>
+    Y.MAT.DATE.POS = FLD.POS<2,2>
+    Y.REPAY.ST.DATE.POS = FLD.POS<2,3>
+    Y.REPAY.END.DATE.POS = FLD.POS<2,4>
+    Y.REPAY.BEGIN.DATE.POS = FLD.POS<2,5>
+    Y.INT.REPAY.END.DATE.POS = FLD.POS<2,6>
+
+    RETURN
+*--------------------------------------------------------------------------
+PROCESS:
+*-------
+    IF APPLICATION EQ 'ACCOUNT' THEN
+        GOSUB AC.PROCESS
+    END
+
+    RETURN
+*--------------------------------------------------------------------------
+AC.PROCESS:
+*---------
+
+    Y.LOAN.START.DATE = R.NEW(AC.LOCAL.REF)<1,Y.ST.DATE.POS>
+    Y.LOAN.MAT.DATE = R.NEW(AC.LOCAL.REF)<1,Y.MAT.DATE.POS>
+    Y.LOAN.REPAY.ST.DATE = R.NEW(AC.LOCAL.REF)<1,Y.REPAY.ST.DATE.POS>
+    Y.LOAN.REPAY.END.DATE = R.NEW(AC.LOCAL.REF)<1,Y.REPAY.END.DATE.POS>
+    Y.INT.START.DATE = R.NEW(AC.LOCAL.REF)<1,Y.REPAY.BEGIN.DATE.POS>
+    Y.INT.END.DATE = R.NEW(AC.LOCAL.REF)<1,Y.INT.REPAY.END.DATE.POS>
+
+    BEGIN CASE
+*Comment by Zakir
+!CASE Y.LOAN.MAT.DATE LT Y.LOAN.START.DATE
+! ETEXT = 'EB-MAT.DT.LT.STRT.DT'
+!AF = AC.LOCAL.REF
+!AV = Y.MAT.DATE.POS
+!CALL STORE.END.ERROR
+    CASE Y.LOAN.REPAY.END.DATE LT Y.LOAN.REPAY.ST.DATE
+        ETEXT = 'EB-REP.DT.LT.STRT.DT'
+        AF = AC.LOCAL.REF
+        AV = Y.REPAY.END.DATE.POS
+        CALL STORE.END.ERROR
+    CASE Y.INT.END.DATE LT Y.INT.START.DATE
+        ETEXT = 'EB-INT.REP.DT.LT.ST.DT'
+        AF = AC.LOCAL.REF
+        AV = Y.INT.REPAY.END.DATE.POS
+        CALL STORE.END.ERROR
+    END CASE
+
+    RETURN
+*---------------------------------------------------------------------------
+END

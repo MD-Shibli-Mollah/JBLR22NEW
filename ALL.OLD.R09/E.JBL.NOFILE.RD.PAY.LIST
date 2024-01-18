@@ -1,0 +1,92 @@
+*-----------------------------------------------------------------------------
+* <Rating>-31</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE E.JBL.NOFILE.RD.PAY.LIST(Y.RETURN)
+!PROGRAM E.JBL.NOFILE.RD.PAY.LIST
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.STMT.ENTRY
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+INIT:
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC  = ''
+    CALL OPF(FN.AC,F.AC)
+
+    FN.STMT = 'F.STMT.ENTRY'
+    F.STMT  = ''
+    CALL OPF(FN.STMT,F.STMT)
+
+    Y.AC.ID  = ''
+    R.AC.REC = ''
+    Y.AC.ERR = ''
+
+    Y.STMT.ID  = ''
+    R.STMT.REC = ''
+    Y.STMT.ERR = ''
+
+    SEL.CMD.AC     = ''
+    SEL.LIST.AC    = ''
+    TOT.REC        = ''
+    Y.ERR          = ''
+    AC.POS         = ''
+    Y.AC.STMT.LIST = ''
+    Y.AC.OPEN.BAL  = ''
+    Y.AC.ER        = ''
+
+    Y.STMT.AMT  = ''
+    Y.STMT.DATE = ''
+
+    LOCATE "DATE" IN D.FIELDS<1> SETTING DATE.POS THEN
+        Y.DATE = D.RANGE.AND.VALUE<DATE.POS>
+    END
+!Y.AC.ID = '0100000083831'
+!Y.FROM.DATE = '20110331'
+!Y.TO.DATE = '20110331'
+
+    Y.FROM.DATE = Y.DATE[1,8]
+    Y.TO.DATE   = Y.DATE[10,17]
+    IF Y.TO.DATE EQ '' THEN
+        Y.TO.DATE = Y.FROM.DATE
+    END
+
+    RETURN
+
+PROCESS:
+    SEL.CMD.AC = "SELECT ":FN.AC:" WITH CATEGORY EQ '6011' '6601' '6602' '6603' '6604' '6605' '6606' '6608' "
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.AC,'',TOT.REC,Y.ERR)
+    LOOP
+        REMOVE Y.AC.ID FROM SEL.LIST.AC SETTING AC.POS
+    WHILE Y.AC.ID:AC.POS
+
+        CALL EB.ACCT.ENTRY.LIST(Y.AC.ID,Y.FROM.DATE,Y.TO.DATE,Y.AC.STMT.LIST,Y.AC.OPEN.BAL,Y.AC.ER)
+        Y.TOT.STMT = DCOUNT(Y.AC.STMT.LIST,@FM)
+        FOR I = 1 TO Y.TOT.STMT
+            Y.STMT.ID = FIELD(Y.AC.STMT.LIST,@FM,I,1)
+            CALL F.READ(FN.STMT,Y.STMT.ID,R.STMT.REC,F.STMT,Y.STMT.ERR)
+            IF R.STMT.REC<AC.STE.AMOUNT.LCY> GT 0 THEN
+                Y.STMT.AMT<-1>  = R.STMT.REC<AC.STE.AMOUNT.LCY>
+                Y.STMT.DATE<-1> = R.STMT.REC<AC.STE.VALUE.DATE>
+            END
+        NEXT I
+        CONVERT FM TO SM IN Y.STMT.AMT
+        CONVERT FM TO SM IN Y.STMT.DATE
+
+        Y.RETURN<-1>=Y.AC.ID:'*':Y.STMT.DATE:'*':Y.STMT.AMT
+
+        Y.AC.ID     = ''
+        Y.STMT.DATE = ''
+        Y.STMT.AMT  = ''
+
+!    PRINT" ":Y.AC.STMT.LIST
+    REPEAT
+
+    RETURN
+END

@@ -1,0 +1,87 @@
+****************************************************
+*-----------------------------------------------------------------------------
+* <Rating>1036</Rating>
+*-----------------------------------------------------------------------------
+* PROGRAM : PROGRAM TO CREATE A CSV FILE FOR CATEGORY (ACCOUNT CLASS)
+* DEV BY      : MD. IMRAN HASAN
+* DEV DATE    : 2017-05-18
+* UPDATE DATE : 2017-05-18
+* REQ         : ICTD
+****************************************************
+
+    PROGRAM ICTD.ACCOUNT.CLASS
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CLASS
+    $INSERT GLOBUS.BP I_F.CATEGORY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*----
+INIT:
+*----
+    FN.AC = 'F.ACCOUNT.CLASS'
+    F.AC = ''
+
+    FN.CAT = 'F.CATEGORY'
+    F.CAT = ''
+
+    Y.FILE.DIR = 'rptdata'
+    Y.FILE.NAME = 'ACCOUNT.CLASS.':TODAY:'.csv'
+    Y.FILE = Y.FILE.DIR :'/': Y.FILE.NAME
+
+    RETURN
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.CAT,F.CAT)
+
+
+!-------Check Directory----------
+!CMD.STR = "CREATE.FILE RPT.DATA.DIR TYPE=UD"
+!CUR.DIR = "RPT.DATA.DIR"
+
+!OPEN CUR.DIR TO F.RPT.DATA.DIR
+!ELSE
+!    EXECUTE CMD.STR
+!    OPEN CUR.DIR TO F.RPT.DATA.DIR
+!    ELSE
+!        CRT CUR.DIR "OPENING FAILED"
+!        RETURN
+!    END
+!END
+!-------------------------------
+
+    RETURN
+*-------
+PROCESS:
+*-------
+
+    SEL.CMD='SELECT ':FN.AC
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+    LOOP
+        REMOVE Y.REC.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.REC.ID:Y.POS
+        CALL F.READ(FN.AC,Y.REC.ID,R.AC.REC,F.ACCT,Y.ERR)
+        Y.DESCRIPTION = R.AC.REC<AC.CLS.DESCRIPTION>
+        Y.CATEGORIES = R.AC.REC<AC.CLS.CATEGORY>
+        FOR I = 1 TO DCOUNT(Y.CATEGORIES,@VM)
+            Y.CATEGORY = FIELD(Y.CATEGORIES,@VM,I)
+
+            CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT.REC,F.CAT,Y.ERR)
+            Y.CAT.NAME = R.CAT.REC<EB.CAT.DESCRIPTION>
+
+            Y.REC<-1> = Y.REC.ID:'|':Y.DESCRIPTION:'|':Y.CATEGORY:'|':TODAY:'|':Y.CAT.NAME
+        NEXT
+    REPEAT
+
+    OPEN Y.FILE.DIR TO F.FILE.DIR ELSE NULL
+    WRITE Y.REC TO F.FILE.DIR,Y.FILE.NAME
+
+    RETURN
+END

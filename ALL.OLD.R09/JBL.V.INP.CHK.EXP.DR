@@ -1,0 +1,93 @@
+**************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.INP.CHK.EXP.DR
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+*  PURPOST:The Routine is used to check whether the local reference fields
+* Reason for exemption and Exempted amount has been input when Exception
+* is set to 'YES'
+* also check document maturity date exceed the lc expiry date
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*
+* <parameter description if used>
+*
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+*Variable name:   Insert file:          Description:
+* TODAY            I_COMMON              Will hold Todays date used for
+*                                        writing in flat file
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:     Description:
+* MULTI.GET.LOC.REF        Core
+*
+*<Description of the arguments>
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 27/01/2011 -                            New   - SRIDHAR PRASAD
+*                                                 Thesys Technologies
+*25/09/2018                               New   - MD. AMINUL ISLAM
+*                                                 DataSoft Systems Bangladesh Ltd.
+**************************************************************************
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.DRAWINGS
+    $INSERT GLOBUS.BP I_F.LETTER.OF.CREDIT
+
+    FN.DRAWINGS = 'F.DRAWINGS'
+    FV.DRAWINGS = ''
+    FN.LC='FBNK.LETTER.OF.CREDIT'
+    F.LC=''
+
+    CALL OPF(FN.DRAWINGS,FV.DRAWINGS)
+    CALL OPF(FN.LC,F.LC)
+
+    Y.APPL.NAME = 'DRAWINGS'
+    Y.FLD.LIST = 'EXCEPTION':VM:'EXP.REASON':VM:'EXMD.AMT':VM:'MATURITY.DATE'
+    Y.FLD.POS = ''
+
+    CALL MULTI.GET.LOC.REF(Y.APPL.NAME,Y.FLD.LIST,Y.FLD.POS)
+    Y.EXEMPTION.POS = Y.FLD.POS<1,1>
+    Y.EXEMPTION.REASON.POS = Y.FLD.POS<1,2>
+    Y.EXEMPTION.AMOUNT.POS = Y.FLD.POS<1,3>
+    Y.MATURITY.DATE.POS = Y.FLD.POS<1,4>
+
+    Y.EXEMPTION = R.NEW(TF.DR.LOCAL.REF)<1,Y.EXEMPTION.POS>
+    IF Y.EXEMPTION EQ "YES" THEN
+        IF R.NEW(TF.DR.LOCAL.REF)<1,Y.EXEMPTION.REASON.POS> EQ '' THEN
+            AF = TF.DR.LOCAL.REF
+            AV = Y.EXEMPTION.REASON.POS
+            ETEXT = 'EB-EXCEPTION.REASON.MISSING'
+            CALL STORE.END.ERROR
+        END
+        IF R.NEW(TF.DR.LOCAL.REF)<1,Y.EXEMPTION.AMOUNT.POS> EQ '' THEN
+            AF = TF.DR.LOCAL.REF
+            AV = Y.EXEMPTION.AMOUNT.POS
+            ETEXT = 'EB-EXEMPTION.AMT.MISSING'
+            CALL STORE.END.ERROR
+        END
+    END
+*Commented By Md. Zakir Hossain(JBL)
+!Y.LC.ID = ID.NEW[1,LEN(ID.NEW)-2]
+!CALL F.READ(FN.LC,Y.LC.ID,R.LC.REC,F.LC,Y.LC.ERR)
+!Y.LC.EXPIRY.DATE = R.LC.REC<TF.LC.EXPIRY.DATE>
+!Y.MATURITY.DATE = R.NEW(TF.DR.LOCAL.REF)<1,Y.MATURITY.DATE.POS>
+!IF Y.MATURITY.DATE GT Y.LC.EXPIRY.DATE THEN
+!AF = TF.DR.LOCAL.REF
+!AV = Y.MATURITY.DATE.POS
+!ETEXT = 'MAT.DATE.GT.LC.EXP.DATE'
+!CALL STORE.END.ERROR
+!END
+*End By Zakir
+    RETURN
+END

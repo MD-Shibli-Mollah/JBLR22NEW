@@ -1,0 +1,69 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.E.CONV.VOU.ENT
+*-------------------------------------------------------------------------------
+
+*-------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_ENQUIRY.COMMON
+    $INCLUDE GLOBUS.BP I_F.RE.CONSOL.SPEC.ENTRY
+
+*-------------------------------------------------------------------------------
+    !DEBUG
+    Y.REC = O.DATA
+    FN.SPEC.DET = 'F.RE.SPEC.ENTRY.DETAIL'
+    F.SPEC.DET = ''
+    CALL OPF(FN.SPEC.DET,F.SPEC.DET)
+
+    FN.SPEC = 'F.RE.CONSOL.SPEC.ENTRY'
+    F.SPEC = ''
+    CALL OPF(FN.SPEC,F.SPEC)
+
+    GOSUB PROCESS
+    GOSUB RETURN.VAL
+    RETURN
+*-------------------------------------------------------------------------------
+PROCESS:
+****************
+!DEBUG
+    Y.SPEC.ENT=FIELD(Y.REC,'*',1)
+    Y.SPEC.M = Y.SPEC.ENT[1,1]
+    Y.SPEC.NO = Y.SPEC.ENT[2,LEN(Y.SPEC.ENT)]
+    IF Y.SPEC.M EQ 'R' OR Y.SPEC.M EQ 'D' OR Y.SPEC.M EQ 'E' THEN
+        BEGIN CASE
+        CASE Y.SPEC.M EQ 'R'
+            CALL F.READ(FN.SPEC.DET,Y.SPEC.NO,R.SPEC.DET,F.SPEC.DET,Y.SPEC.DET.ERR)
+            Y.CONSOL.KEY = R.SPEC.DET<RE.CSE.CONSOL.KEY.TYPE>
+            Y.CONSOL.TYPE=FIELD(Y.CONSOL.KEY,".",18)
+            IF Y.CONSOL.TYPE EQ 'ISSUE' THEN
+                Y.CONT.HEAD = "Bankers Liability LC"
+            END
+            IF Y.CONSOL.TYPE EQ 'ISSUEBL' THEN
+                Y.CONT.HEAD = "Customers Liability LC"
+            END
+
+        CASE Y.SPEC.M EQ 'D'
+            CALL F.READ(FN.SPEC,Y.SPEC.NO,R.SPEC,F.SPEC,Y.SPEC.ERR)
+            Y.CONSOL.KEY = R.SPEC<RE.CSE.CONSOL.KEY.TYPE>
+            Y.CONSOL.TYPE=FIELD(Y.CONSOL.KEY,".",18)
+            IF Y.CONSOL.TYPE EQ 'ISSUE' THEN
+                Y.CONT.HEAD = "Bankers Liability LC"
+            END
+            IF Y.CONSOL.TYPE EQ 'ISSUEBL' THEN
+                Y.CONT.HEAD = "Customers Liability LC"
+            END
+        END CASE
+
+    END
+    RETURN
+
+*-------------------------------------------------------------------------------
+RETURN.VAL:
+***********
+    O.DATA = Y.CONT.HEAD
+    RETURN
+*-------------------------------------------------------------------------------
+END

@@ -1,0 +1,72 @@
+    SUBROUTINE JBL.CUST.ID
+*Developed By : Md. Zakir Hossain Date: 01 DEC 2016 *********
+* Routine used at Janatha Bank to calculate the customer format.
+
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_ENQUIRY.COMMON
+    $INCLUDE GLOBUS.BP I_F.CUSTOMER
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    IF ERROR.MSG # '' THEN ETEXT = ERROR.MSG
+
+    RETURN
+
+*--------------------------------------------------------------------
+
+INITIALISE:
+*---------
+
+    ERROR.MSG = ''
+    ETEXT = ''
+
+    FN.LOCKING = 'F.LOCKING'
+    F.LOCKING = ''
+    CALL OPF(FN.LOCKING,F.LOCKING)
+    R.LOCKING = ''
+    Y.LOCKING.ID = 'FBNK.CUSTOMER'
+
+    FN.CUST='F.CUSTOMER'
+    F.CUST=''
+    FN.CUST.NAU='F.CUSTOMER$NAU'
+    F.CUST.NAU=''
+    CALL OPF(FN.CUST,F.CUST)
+    CALL OPF(FN.CUST.NAU,F.CUST.NAU)
+
+
+    RETURN
+*--------------------------------------------------------------------
+
+PROCESS:
+*----------
+
+    IF V$FUNCTION NE 'I' THEN RETURN
+
+    Y.NEW.ID=FIELD(COMI,@FM,1)
+    CALL F.READ(FN.CUST,Y.NEW.ID,R.CUST,F.CUST,ERR.CUST)
+    CALL F.READ(FN.CUST.NAU,Y.NEW.ID,R.CUST.NAU,F.CUST.NAU,ERR.CUST.NAU)
+    IS.NEW="NO"
+    IF R.CUST EQ '' AND R.CUST.NAU EQ '' THEN
+        IS.NEW="YES"
+    END
+    ELSE
+        RETURN
+    END
+
+
+    Y.LOC.ERR = ''
+
+    CALL F.READ(FN.LOCKING,Y.LOCKING.ID,R.LOCKING,F.LOCKING,Y.LOC.ERR)
+
+    IF Y.LOC.ERR EQ '' AND IS.NEW EQ "YES" THEN
+        Y.SEQ = R.LOCKING<1>
+        Y.SEQ.NO = FMT(Y.SEQ,"10'0'R")
+        IF Y.NEW.ID NE Y.SEQ THEN
+            Y.SEQ = Y.SEQ + 1
+            WRITE Y.SEQ ON F.LOCKING, Y.LOCKING.ID
+            COMI = Y.SEQ
+        END
+    END
+
+END

@@ -1,0 +1,203 @@
+*-----------------------------------------------------------------------------
+* <Rating>5</Rating>
+*-----------------------------------------------------------------------------
+*Developed By: Islam
+* Convert the following overrides to error as per the janata *bank requirement and this development based on the core *override generaion:
+*Unauthorised overdraft
+*Cheque not in register
+*Cheque type missing
+*Cheque stop payments
+*Cheque already presented
+*Acct balance within locked amount
+*Credit till closing balance
+
+!----------Modification History--------!
+!1) Rectrict Overdraft only for categories defined in the parameter file ABL.H.MUL.PRM
+!2) Check POSTING.RESTRICT in Account
+!----------Modification History--------!
+
+    SUBROUTINE BD.V.TF.ACOVERRD.CHK
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT I_F.ABL.H.MUL.PRM
+    $INSERT GLOBUS.BP I_F.DRAWINGS
+
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT  = ''
+    R.ACCOUNT  = ''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+!-------------Huraira---------------
+    FN.DRAWINGS = 'F.DRAWINGS'
+    F.DRAWINGS = ''
+    CALL OPF(FN.DRAWINGS,F.DRAWINGS)
+!----------------end----------------
+
+!-----1.Manik/S---------------!
+    FN.MUL.PARAM ='F.ABL.H.MUL.PRM'
+    F.MUL.PARAM =''
+    CALL OPF(FN.MUL.PARAM,F.MUL.PARAM)
+    REC.MUL.PARAM=''
+    Y.RES.OVERDRAFT.CATEG=''
+    Y.DEBIT.AC = ''
+    Y.DEBIT.AC.CAT = ''
+    Y.OVERRIDE.VAL = ''
+    Y.OVRRD.NO = ''
+    Y.LEGAL.CHRG="LEGAL.CHARGE"
+    Y.LEGAL.CHRG.POS=""
+    Y.LEG.CHG=""
+
+    CALL F.READ(FN.MUL.PARAM,'SYSTEM',REC.MUL.PARAM,F.MUL.PARAM,ERR.MUL.PARAM)
+
+    IF REC.MUL.PARAM EQ '' THEN
+        ETEXT="Parameter File Missing For Overdraft Missing"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    ELSE
+        Y.RES.OVERDRAFT.CATEG=REC.MUL.PARAM<MPM.OVERDRAFT.RES.CATEG>
+    END
+
+    POS = 1
+    Y.OVERRIDE.VAL = R.NEW(V-9)
+    Y.OVRRD.NO = DCOUNT(Y.OVERRIDE.VAL,VM)
+    FOR I=1 TO Y.OVRRD.NO
+        Y.DEBIT.AC = ''
+        Y.DEBIT.AC.CAT = ''
+        Y.OVRRD.DETLS = ''
+        Y.OVRRD.ID = ''
+
+        Y.OVRRD.DETLS = FIELD(Y.OVERRIDE.VAL,VM,I)
+        Y.OVRRD.ID = FIELD(Y.OVRRD.DETLS,'}',1)
+
+        BEGIN CASE
+        CASE Y.OVRRD.ID EQ 'ACCT.UNAUTH.OD'
+            Y.DEBIT.AC = FIELD(FIELD(Y.OVRRD.DETLS,'}',4),'{',1)
+            CALL F.READ(FN.ACCOUNT,Y.DEBIT.AC,R.ACCOUNT,F.ACCOUNT,ERR.AC)
+            Y.DEBIT.AC.CAT = R.ACCOUNT<AC.CATEGORY>
+            GOSUB ACCT.UNAUTH.OD
+
+        CASE Y.OVRRD.ID EQ 'ST-CHQ.INST.FOR.STOP'
+            GOSUB ST.CHQ.INST.FOR.STOP
+
+        CASE Y.OVRRD.ID EQ 'CHQ.NOT.IN.REG'
+            GOSUB CHQ.NOT.IN.REG
+
+        CASE Y.OVRRD.ID EQ 'CHQ.TYPE.MISS'
+            GOSUB CHQ.TYPE.MISS
+
+        CASE Y.OVRRD.ID EQ 'CHQ.PRESENTED'
+            GOSUB CHQ.PRESENTED
+
+        CASE Y.OVRRD.ID EQ 'ACCT.BAL.LT.LOCKED'
+            GOSUB ACCT.BAL.LT.LOCKED
+
+        CASE Y.OVRRD.ID EQ 'TT.CR.TILL.CLOS.BAL'
+            GOSUB TT.CR.TILL.CLOS.BAL
+
+        CASE Y.OVRRD.ID EQ 'EXCESS.ID'
+            GOSUB EXCESS.ID
+
+        CASE Y.OVRRD.ID EQ 'POSTING.RESTRICT'
+            GOSUB POSTING.RESTRICT
+
+!------------------Huraira------------------
+        CASE Y.OVRRD.ID EQ 'LC-DRAWINGS.EXCEED.LC'
+            GOSUB DR.EXCEED
+
+        CASE Y.OVRRD.ID EQ 'LC-OVERDRAW.LC.LIABILITY'
+            GOSUB DR.OVERDRAW
+!---------------------end-------------------
+
+        END CASE
+    NEXT I
+    RETURN
+
+ACCT.UNAUTH.OD:
+    AF = I
+    LOCATE Y.DEBIT.AC.CAT IN  Y.RES.OVERDRAFT.CATEG<1,1> SETTING Y.POS ELSE Y.POS = ''
+    IF Y.POS THEN
+        ETEXT = 'Unauthorised Overdraft Not Possible'
+        CALL STORE.END.ERROR
+    END
+
+!ELSE
+!    IF NOT(Y.LEG.CHG) THEN
+!        ETEXT = 'Unauthorised Overdraft Not Possible'
+!        CALL STORE.END.ERROR
+!    END
+!    ELSE
+!        TEXT = "Unauthorised Overdraft Due to ":Y.LEG.CHG
+!        CALL STORE.OVERRIDE(Y.OVRRD.NO+1)
+!END
+!END
+
+    RETURN
+
+ST.CHQ.INST.FOR.STOP:
+    AF = I
+    ETEXT = 'CHQ IS ALREADY INST FOR STOP'
+    CALL STORE.END.ERROR
+    RETURN
+CHQ.TYPE.MISS:
+
+    AF = I
+    ETEXT = 'CHEQUE TYPE MISSING'
+    CALL STORE.END.ERROR
+    RETURN
+CHQ.NOT.IN.REG:
+
+    AF = I
+    ETEXT = 'CHEQUE NUMBER NOT IN REG'
+    CALL STORE.END.ERROR
+    RETURN
+CHQ.PRESENTED:
+    AF = I
+    ETEXT = 'CHEQUE NUMBER ALREADY PRESENTED'
+    CALL STORE.END.ERROR
+    RETURN
+TT.CR.TILL.CLOS.BAL:
+    AF = I
+    ETEXT = 'CREDIT TILL CLOSING BALANCE'
+    CALL STORE.END.ERROR
+    RETURN
+
+ACCT.BAL.LT.LOCKED:
+    AF = I
+    ETEXT = 'Account Balance will fall in Locked Amount'
+    CALL STORE.END.ERROR
+    RETURN
+
+EXCESS.ID:
+    AF = I
+    IF NOT(Y.LEG.CHG) THEN
+        ETEXT = 'Execss Over Limit'
+        CALL STORE.END.ERROR
+    END
+    ELSE
+        TEXT = "Execss Over Limit Due to ":Y.LEG.CHG
+        CALL STORE.OVERRIDE(Y.OVRRD.NO+1)
+    END
+    RETURN
+POSTING.RESTRICT:
+    AF=I
+    ETEXT = 'Posting Restriction'
+    CALL STORE.END.ERROR
+    RETURN
+
+!-------------------Huraira----------------
+DR.EXCEED:
+    AF='3'
+    ETEXT = 'DRAWING AMOUNT EXCEED LC AMOUNT'
+    CALL STORE.END.ERROR
+    RETURN
+
+DR.OVERDRAW:
+    AF='3'
+    ETEXT = 'OVERDRAW LC LIABILITY'
+    CALL STORE.END.ERROR
+    RETURN
+!-------------------end--------------------
+
+END

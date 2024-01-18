@@ -1,0 +1,88 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-50</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.E.CONV.OUT.LOAN.AMT
+*-------------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This Conversion routine is used to fetch the latest "Outs Curr Princ" value from
+* LMM.ACCOUNT.BALANCES,"TOTAL.AMT.TO.REPAY" value from PD.PAYMENT.DUE and sum both
+* to get "Outstanding Loan Amount.
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20110201 - New - Shiva Shankar G
+*                  Thesys Technologies
+*-------------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*
+* Inmcoming and Outgoing Parameter : O.DATA
+*-------------------------------------------------------------------------
+* Common Variables :
+* ----------------
+*
+* Variable Name:         Insert File:             Description:
+* --------------         ------------             ------------
+* O.DATA                 I_ENQUIRY.COMMON         Holds last extracted value
+*-------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_ENQUIRY.COMMON
+    $INCLUDE GLOBUS.BP I_F.LMM.ACCOUNT.BALANCES
+    $INCLUDE GLOBUS.BP I_F.PD.PAYMENT.DUE
+*-------------------------------------------------------------------------------
+    Y.LMM.AMT = ''
+    Y.TOT.AMT.REPAY = ''
+
+    Y.LD.ID = O.DATA
+    GOSUB INIT
+    GOSUB LMM.ACC.BAL.DET
+    GOSUB PD.PAY.DUE.DET
+    GOSUB RETURN.VAL
+    RETURN
+*-------------------------------------------------------------------------------
+INIT:
+*****
+    FN.LMM.ACCOUNT.BALANCES = 'F.LMM.ACCOUNT.BALANCES'
+    F.LMM.ACCOUNT.BALANCES = ''
+    CALL OPF(FN.LMM.ACCOUNT.BALANCES,F.LMM.ACCOUNT.BALANCES)
+
+    FN.PD.PAYMENT.DUE = 'F.PD.PAYMENT.DUE'
+    F.PD.PAYMENT.DUE = ''
+    CALL OPF(FN.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE)
+
+    FN.LD.LOANS.AND.DEPOSITS = 'F.LD.LOANS.AND.DEPOSITS'
+    F.LD.LOAND.AND.DEPOSITS = ''
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+
+    RETURN
+*-------------------------------------------------------------------------------
+LMM.ACC.BAL.DET:
+****************
+    Y.LMM.ACCT.BAL.ID = Y.LD.ID:'00'
+    CALL F.READ(FN.LMM.ACCOUNT.BALANCES,Y.LMM.ACCT.BAL.ID,R.LMM.ACCOUNT.BALANCES,F.LMM.ACCOUNT.BALANCES,Y.ERR)
+    IF R.LMM.ACCOUNT.BALANCES THEN
+        Y.OUT.CURR.PRINC = R.LMM.ACCOUNT.BALANCES<LD27.OUTS.CURR.PRINC>
+        Y.CNT = DCOUNT(Y.OUT.CURR.PRINC,VM)
+        Y.LMM.AMT = Y.OUT.CURR.PRINC<1,Y.CNT>
+    END
+    RETURN
+*-------------------------------------------------------------------------------
+PD.PAY.DUE.DET:
+***************
+    Y.PD.PAY.DUE.ID = 'PD':Y.LD.ID
+    CALL F.READ(FN.PD.PAYMENT.DUE,Y.PD.PAY.DUE.ID,R.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE,Y.ERR)
+    IF R.PD.PAYMENT.DUE THEN
+        Y.TOT.AMT.REPAY = R.PD.PAYMENT.DUE<PD.TOTAL.AMT.TO.REPAY>
+    END
+    RETURN
+*-------------------------------------------------------------------------------
+RETURN.VAL:
+***********
+    Y.OUT.AMT = Y.LMM.AMT + Y.TOT.AMT.REPAY
+    O.DATA = ABS(Y.OUT.AMT)
+    RETURN
+*-------------------------------------------------------------------------------
+END

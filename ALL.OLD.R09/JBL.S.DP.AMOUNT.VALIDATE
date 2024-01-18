@@ -1,0 +1,123 @@
+*-----------------------------------------------------------------------------
+* <Rating>56</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.DP.AMOUNT.VALIDATE
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LIMIT
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.TELLER
+    $INSERT I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.AC="F.ACCOUNT"
+    F.AC=""
+    REC.AC=""
+    Y.AC.ID=""
+    Y.TRANS.AMT=""
+
+    FN.LMT="F.LIMIT"
+    F.LMT=""
+    REC.LMT=""
+    Y.LMT.ID=""
+    Y.DP.AMT=""
+    Y.OVERRIDE.CNT = ""
+    Y.DP.STOCK="DR.STOCK.VALUE"
+    Y.DP.STOCK.POS=""
+    CALL GET.LOC.REF("LIMIT",Y.DP.STOCK,Y.DP.STOCK.POS)
+
+    Y.LEGAL.CHRG="LEGAL.CHARGE"
+    Y.LEGAL.CHRG.POS=""
+    Y.LEG.CHG=""
+    Y.ERR.FLD = ''
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.LMT,F.LMT)
+
+    RETURN
+
+PROCESS:
+
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        Y.AC.ID = R.NEW(FT.DEBIT.ACCT.NO)
+        Y.TRANS.AMT = R.NEW(FT.DEBIT.AMOUNT)
+        Y.OVERRIDE.CNT = DCOUNT(R.NEW(FT.OVERRIDE),@VM)
+        Y.OVERRIDE.CNT = Y.OVERRIDE.CNT + 1
+        CALL GET.LOC.REF("FUNDS.TRANSFER",Y.LEGAL.CHRG,Y.LEGAL.CHRG.POS)
+        Y.LEG.CHG = R.NEW(FT.LOCAL.REF)<1,Y.LEGAL.CHRG.POS>
+        Y.ERR.FLD = FT.DEBIT.AMOUNT
+    END
+
+    IF APPLICATION EQ 'TELLER' THEN
+
+        IF R.NEW(TT.TE.DR.CR.MARKER) EQ 'DEBIT' THEN
+            Y.AC.ID = R.NEW( TT.TE.ACCOUNT.1)
+            Y.ERR.FLD = TT.TE.AMOUNT.LOCAL.1
+        END
+        ELSE
+            Y.AC.ID = R.NEW( TT.TE.ACCOUNT.2)
+            Y.ERR.FLD = TT.TE.AMOUNT.LOCAL.1
+        END
+        Y.TRANS.AMT = R.NEW(TT.TE.AMOUNT.LOCAL.1)
+        Y.OVERRIDE.CNT = DCOUNT(R.NEW(TT.TE.OVERRIDE),@VM)
+        Y.OVERRIDE.CNT = Y.OVERRIDE.CNT + 1
+        CALL GET.LOC.REF("TELLER",Y.LEGAL.CHRG,Y.LEGAL.CHRG.POS)
+        Y.LEG.CHG = R.NEW(TT.TE.LOCAL.REF)<1,Y.LEGAL.CHRG.POS>
+    END
+
+    CALL F.READ(FN.AC,Y.AC.ID,REC.AC,F.AC,ERR.AC)
+! DEBUG
+    IF REC.AC<AC.LIMIT.REF> THEN
+        Y.LMT.ID = REC.AC<AC.CUSTOMER>:".":FMT(FIELD(REC.AC<AC.LIMIT.REF>,".",1,1),"R%7"):".":FMT(FIELD(REC.AC<AC.LIMIT.REF>,".",2,1),"R%2")
+        CALL F.READ(FN.LMT,Y.LMT.ID,REC.LMT,F.LMT,ERR.LMT)
+        Y.DP.AMT = REC.LMT<LI.LOCAL.REF,Y.DP.STOCK.POS>
+        Y.LIMIT.EXP.DT = REC.LMT<LI.EXPIRY.DATE>
+        IF Y.DP.AMT THEN
+            TOT.AVAL.AMT=""
+!            TOT.AVAL.AMT=Y.TRANS.AMT
+            TOT.AVAL.AMT = REC.AC<AC.WORKING.BALANCE>
+!            Y.AVAL.AMT.CNT = DCOUNT(REC.AC<AC.AVAILABLE.BAL>,@VM)
+!            TOT.AVAL.AMT=""
+!            TOT.AVAL.AMT = Y.TRANS.AMT
+!            FOR I = 1 TO Y.AVAL.AMT.CNT
+!                TOT.AVAL.AMT = TOT.AVAL.AMT + ABS(REC.AC<AC.AVAILABLE.BAL,I>)
+!            NEXT
+
+            IF ( TOT.AVAL.AMT < 0 AND ABS(TOT.AVAL.AMT) GT Y.DP.AMT ) THEN
+
+                Y.EXCESS.AMT = ""
+                Y.EXCESS.AMT = Y.DP.AMT - TOT.AVAL.AMT
+                IF NOT(Y.LEG.CHG) THEN
+                    AF = Y.ERR.FLD
+                    ETEXT = REC.AC<AC.CURRENCY>: Y.EXCESS.AMT :" excess than Drawing Power"
+                    CALL STORE.END.ERROR
+                END
+                ELSE
+                    TEXT = "DP.EXCESS":FM:REC.AC<AC.CURRENCY> :VM: Y.EXCESS.AMT
+                    CALL STORE.OVERRIDE(Y.OVERRIDE.CNT)
+                END
+            END
+            ELSE
+
+                RETURN
+            END
+
+        END
+        ELSE
+            RETURN
+        END
+
+    END
+
+    RETURN
+
+END

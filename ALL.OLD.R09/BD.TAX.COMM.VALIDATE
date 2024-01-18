@@ -1,0 +1,78 @@
+*-------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-32</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.TAX.COMM.VALIDATE
+*-------------------------------------------------------------------------
+*Subroutine Description:
+*-----------------------
+* Routine validates the account entered in SRCTAX.ACCT field
+*-------------------------------------------------------------------------
+*Parameter Description:
+*--------- -----------
+*N/A
+*-------------------------------------------------------------------------
+*Common Variable Description:
+*------  ------- -----------
+*LCCY = Holds the local currency
+*ETEXT = Holds the EB.ERROR id used for displaying the error
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:            Description:
+*STORE.END.ERROR           Core                 Called for displaying the error message
+*
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+*    Date            Name                           Description
+*   ------         ------                           -----------
+* 1 FEB 2011   Mohammed Anies K                  Initial Creation
+*               (Thesys Technologies)
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE JBL.BP I_F.BD.TAX.COMM
+
+*--------------------------------------------------------------------------------
+**********
+MAIN.PARA:
+**********
+    GOSUB INIT.PARA
+    GOSUB PROCESS.PARA
+
+    RETURN
+
+*--------------------------------------------------------------------------------
+**********
+INIT.PARA:
+**********
+* In this para of code, variables(generic and file) are initialised.
+    FN.ACCOUNT  = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    RETURN
+*------------------------------------------------------------------------------
+*************
+PROCESS.PARA:
+*************
+*Main Processing section
+    Y.SRCTAX.ACCT = R.NEW(BD.TC.SRCTAX.ACCT)
+    R.ACCOUNT = ''
+    ACCOUNT.ERR = ''
+    CALL F.READ(FN.ACCOUNT,Y.SRCTAX.ACCT,R.ACCOUNT,F.ACCOUNT,ACCOUNT.ERR)
+    IF R.ACCOUNT THEN
+     IF R.ACCOUNT<AC.CURRENCY> NE LCCY THEN
+            AF = BD.TC.SRCTAX.ACCT
+            ETEXT = 'LC-SRCTAX.ACCT.LOCAL'
+            CALL STORE.END.ERROR
+        END
+    END
+
+    RETURN
+*------------------------------------------------------------------------------
+END 

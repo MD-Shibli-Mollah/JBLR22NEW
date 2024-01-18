@@ -1,0 +1,122 @@
+    SUBROUTINE RTGS.INWARD.SETT.VOUCHER(Y.DATA)
+!PROGRAM RTGS.INWARD.SETT.VOUCHER
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.AC = 'F.ACCOUNT';                 F.AC = ''
+    FN.CATEGORY = 'F.CATEGORY';          F.CATEGORY = ''
+    FN.FT='F.FUNDS.TRANSFER';            F.FT='';           R.FT = ''
+    FN.FT.HIS='F.FUNDS.TRANSFER$HIS';    F.FT.HIS=''
+    FN.STMT= 'F.STMT.ENTRY';             F.STMT = ''
+    Y.STMT.ID = ''
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.CATEGORY,F.CATEGORY)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    CALL OPF(FN.STMT,F.STMT)
+    CALL OPF(FN.CATEGORY,F.CATEGORY)
+    RETURN
+
+PROCESS:
+
+    LOCATE 'ID' IN ENQ.SELECTION<2,1> SETTING ID.POS THEN
+        Y.FT.ID  = ENQ.SELECTION<4,ID.POS>
+    END
+
+
+!Y.FT.ID = 'FT200320R1Y8'
+
+    CALL F.READ(FN.FT,Y.FT.ID,R.FT,F.FT,ERR.FT)
+
+    IF R.FT EQ '' THEN
+        CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.FT.ID,R.FT,ERR)
+    END
+
+****************** Debit Voucher*******************
+
+    Y.STMT = R.FT<FT.STMT.NOS,1>
+    Y.STMT.ID = FIELD(Y.STMT,'.',1)
+
+    SEL.CMD.STMT = "SELECT ":FN.STMT
+    SEL.CMD.STMT :=" AND WITH @ID LIKE ":Y.STMT.ID:"..."
+
+
+    CALL EB.READLIST(SEL.CMD.STMT,SEL.LIST.STMT,'',NO.OF.REC.STMT,ERR.CODE.STMT)
+
+    IF NO.OF.REC.STMT GT 0 THEN
+        LOOP
+            REMOVE Y.STMT.ID FROM SEL.LIST.STMT SETTING POS.STMT
+        WHILE Y.STMT.ID: POS.STMT
+            CALL F.READ(FN.STMT,Y.STMT.ID,R.STMT.REC,F.STMT,Y.ERR)
+            Y.CATEGORY = R.STMT.REC<AC.STE.PRODUCT.CATEGORY>
+
+            IF Y.CATEGORY EQ '17451' THEN
+                Y.VOUCHER.TYPE = 'Debit Voucher (RTGS Inward Settlement)'
+                Y.ACC.ID = R.STMT.REC<AC.STE.ACCOUNT.NUMBER>
+                CALL F.READ(FN.AC,Y.ACC.ID,R.AC,F.AC,Y.AC.ERR)
+                Y.ACC.TITLE1 = R.AC<AC.ACCOUNT.TITLE.1>
+                Y.ACC.TITLE2 = R.AC<AC.ACCOUNT.TITLE.2>
+                Y.ACC.TITLE = Y.ACC.TITLE1:' ':Y.ACC.TITLE2
+                Y.AC.CATEGORY = R.STMT.REC<AC.STE.PRODUCT.CATEGORY>
+                Y.REF.NO = R.STMT.REC<AC.STE.OUR.REFERENCE>
+                Y.VALUE.DATE = R.STMT.REC<AC.STE.VALUE.DATE>
+                Y.AMOUNT = ABS(R.STMT.REC<AC.STE.AMOUNT.LCY>)
+                LNGVAR=Y.AMOUNT
+                CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+                Y.TXTOUT=TXTOUT
+
+                Y.INPUTTER = FIELD(R.STMT.REC<AC.STE.INPUTTER> ,'_',2,1)
+                Y.AUTHORISER = FIELD(R.STMT.REC<AC.STE.AUTHORISER> ,'_',2,1)
+                Y.DATA<-1> = Y.VOUCHER.TYPE:'*':Y.ACC.ID:'*':Y.ACC.TITLE:'*':Y.AC.CATEGORY:'*':Y.REF.NO:'*':Y.VALUE.DATE:'*':Y.AMOUNT:'*':Y.TXTOUT:' Only*':Y.INPUTTER:'*':Y.AUTHORISER
+!                                  1               2             3                4               5              6              7            8                  9               10
+
+            END
+
+        REPEAT
+    END
+
+******************* Credit Voucher ******************
+
+    Y.TRANS.TYPE = R.FT<FT.TRANSACTION.TYPE>
+
+    IF Y.TRANS.TYPE EQ 'ACIS' THEN
+
+        Y.VOUCHER.TYPE = 'Credit Voucher (RTGS Inward Settlement)'
+        Y.ACC.ID = R.FT<FT.CREDIT.ACCT.NO>
+        CALL F.READ(FN.AC,Y.ACC.ID,R.AC,F.AC,Y.AC.ERR)
+        Y.ACC.TITLE1 = R.AC<AC.ACCOUNT.TITLE.1>
+        Y.ACC.TITLE2 = R.AC<AC.ACCOUNT.TITLE.2>
+        Y.ACC.TITLE = Y.ACC.TITLE1:' ':Y.ACC.TITLE2
+        Y.AC.CATEGORY = R.AC<AC.CATEGORY>
+        Y.REF.NO = FIELD(Y.FT.ID,';',1)
+        Y.VALUE.DATE = R.FT<FT.DEBIT.VALUE.DATE>
+        Y.AMOUNT = R.FT<FT.LOC.AMT.CREDITED>
+        LNGVAR=Y.AMOUNT
+        CALL JBL.S.AMT.IN.WORDS(LNGVAR,TXTOUT)
+        Y.TXTOUT=TXTOUT
+
+        Y.INPUTTER = FIELD(R.FT<FT.INPUTTER> ,'_',2,1)
+        Y.AUTHORISER = FIELD(R.FT<FT.AUTHORISER> ,'_',2,1)
+        Y.DATA<-1> = Y.VOUCHER.TYPE:'*':Y.ACC.ID:'*':Y.ACC.TITLE:'*':Y.AC.CATEGORY:'*':Y.REF.NO:'*':Y.VALUE.DATE:'*':Y.AMOUNT:'*':Y.TXTOUT:' Only*':Y.INPUTTER:'*':Y.AUTHORISER
+!                          1               2              3                4               5              6              7            8                  9               10
+
+
+    END
+
+    RETURN
+END

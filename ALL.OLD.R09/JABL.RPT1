@@ -1,0 +1,39 @@
+*-----------------------------------------------------------------------------
+* <Rating>-2</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM JABL.RPT
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+
+
+
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+    FN.AC.ENT = "F.ACCT.ENT.TODAY"
+    F.AC.ENT = ""
+    FN.AC.HIS = "F.ACCOUNT$HIS"
+    F.AC.HIS = ""
+
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+
+    CALL OPF(FN.AC.ENT,F.AC.ENT)
+    CALL OPF(FN.AC,F.AC)
+
+
+    SEL.CMD = "SELECT ":FN.AC.ENT:" WITH @ID UNLIKE '3A...'"
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.REC.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.REC.ID:Y.POS
+        CRT "ID ":Y.REC.ID
+* CALL F.READ(FN.AC.ENT,Y.REC.ID,R.AC.ENT.REC,F.AC.ENT,Y.ERR)
+        CALL F.READ(FN.AC,Y.REC.ID,R.AC.REC,F.AC,Y.ERR)
+        IF R.AC.REC EQ "" THEN
+            CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.REC.ID,R.AC.REC,Y.ERR)
+            Y.REC.ID = FIELD(Y.REC.ID,';'1,1)
+        END
+    REPEAT
+
+    RETURN
+END

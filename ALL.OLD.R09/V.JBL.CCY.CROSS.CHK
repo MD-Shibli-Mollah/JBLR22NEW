@@ -1,0 +1,64 @@
+*-----------------------------------------------------------------------------
+* <Rating>80</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE V.JBL.CCY.CROSS.CHK
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* If either Bought or Sold currency should be USD then Raise the Error.
+*
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 14/08/2013 - New - Manjunath Suvarna
+*                    Sepit SoftTech Pvt. Ltd.
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CURRENCY
+    $INSERT I_F.FOREX
+*
+*
+*-----------------------------------------------------------------------------
+*
+    IF V$FUNCTION NE "I" THEN RETURN
+*
+    GOSUB INITIALISE
+    GOSUB PROCESS
+*
+    RETURN
+*
+*
+*-----------------------------------------------------------------------------
+INITIALISE:
+*
+    FN.FOREX = 'F.FOREX'
+    F.FOREX = ''
+*
+    CALL OPF(FN.FOREX,F.FOREX)
+*
+    RETURN
+*
+*
+*-----------------------------------------------------------------------------
+PROCESS:
+*
+    Y.B.CCY = R.NEW(FX.CURRENCY.BOUGHT)
+    Y.S.CCY = R.NEW(FX.CURRENCY.SOLD)
+*
+    IF Y.B.CCY NE '' AND Y.S.CCY NE '' THEN
+        IF Y.B.CCY EQ 'USD' OR Y.S.CCY EQ 'USD' THEN
+        END ELSE
+            AF = FX.CURRENCY.BOUGHT
+            AF = FX.CURRENCY.SOLD
+            ETEXT = 'EB-FX.FIRST.DEAL.CCY'
+            CALL STORE.END.ERROR
+        END
+    END
+*
+    RETURN
+*
+*
+*-----------------------------------------------------------------------------
+*
+END

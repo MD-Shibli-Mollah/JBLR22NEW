@@ -1,0 +1,73 @@
+    SUBROUTINE JBL.MICR.MGT.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine
+*
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* Modification History :
+*
+*   Description : New Template for MICR Cheque Management
+*   Author      : AVIJIT SAHA
+*   Date        : 03/01/2022
+*
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("MICR.ID", T24_String)    ;* Define Table id
+*-----------------------------------------------------------------------------
+    CALL Table.addFieldDefinition("ACCOUNT", "13", "", "")
+    CALL Field.setCheckFile('ACCOUNT')
+    CALL Table.addFieldDefinition("CATEGORY", "4", "", "")
+    CALL Field.setCheckFile('CATEGORY')
+    CALL Table.addFieldDefinition("NO.OF.BOOK", "3", "","")
+    CALL Table.addOptionsField("LEAF.TYPE","10_20_40_50_100_", Field_Mandatory,"")
+    CALL Table.addFieldDefinition("CHQ.TYPE","5","SSS","")
+    CALL Table.addFieldDefinition("SERIES.ID","5","A","")
+    CALL Table.addFieldDefinition("TR.TYPE","5","SSS","")
+    CALL Table.addFieldDefinition("PREFIX.NO","5","","")
+    CALL Table.addFieldDefinition("REQUEST.DATE","8","D","")
+    CALL Table.addFieldDefinition("STARTING.NO","0000007","","")
+    CALL Table.addFieldDefinition("ENDING.NO","0000007","","")
+    CALL Table.addFieldDefinition("PRINT.REQ.DATE","8","D","")
+    CALL Table.addField("BATCH.NO", T24_String, "", "")
+    CALL Table.addFieldDefinition("PRINT.RECEIVE.DATE","8","D","")
+    CALL Table.addField("BRANCH.CODE", T24_Company, Field_NoInput, "")
+    CALL Field.setCheckFile('COMPANY')
+    CALL Table.addFieldDefinition("CSD.DELIVERY.DATE","8","D","")
+    CALL Table.addField("DISPUT.REASON", T24_String,"","")
+    CALL Table.addFieldDefinition("BR.RECEIVE.DATE","8","D","")
+    CALL Table.addFieldDefinition("BR.DELIVERY.DATE","8","D","")
+    CALL Table.addField("STATUS", T24_String,"","")
+*-----------------------------------------------------------------------------
+* Block of reserved fields
+*-----------------------------------------------------------------------------
+    CALL Table.addFieldDefinition("BATCH.BOOK", "5","","")
+    CALL Table.addReservedField('RESERVED.9')
+    CALL Table.addReservedField('RESERVED.8')
+    CALL Table.addReservedField('RESERVED.7')
+    CALL Table.addReservedField('RESERVED.6')
+    CALL Table.addReservedField('RESERVED.5')
+    CALL Table.addReservedField('RESERVED.4')
+    CALL Table.addReservedField('RESERVED.3')
+    CALL Table.addReservedField('RESERVED.2')
+    CALL Table.addReservedField('RESERVED.1')
+*-----------------------------------------------------------------------------
+    CALL Table.addLocalReferenceField('XX.LOCAL.REF')
+    CALL Table.addOverrideField
+*-----------------------------------------------------------------------------
+
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+END

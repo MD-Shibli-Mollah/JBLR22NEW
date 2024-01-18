@@ -1,0 +1,21 @@
+*-----------------------------------------------------------------------------
+* <Rating>-1</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PACS.AC.DATA.EXTRACT.RUN
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_S.COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT ITD.BP I_F.PACS.AC.DATA.EXTRACT
+
+    IF GTSACTIVE THEN         ;* phantom only for browser
+        P.COMMAND = 'PHANTOM UNIQUE PACS.AC.DATA.EXTRACT.EXEC ':ID.NEW:'*':OPERATOR:'*':ID.COMPANY
+        EXECUTE P.COMMAND CAPTURING V$SENTENCE
+        CRT V$SENTENCE
+    END ELSE
+        CALL PACS.AC.DATA.EXTRACT.SUB
+    END
+
+    RETURN
+END

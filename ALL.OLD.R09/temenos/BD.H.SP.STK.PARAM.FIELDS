@@ -1,0 +1,56 @@
+*-----------------------------------------------------------------------------
+* <Rating>-7</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.H.SP.STK.PARAM.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine BD.H.SP.STK.PARAM
+*
+* @author ALIN BOBY and RASHED
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* Modification History :
+*
+* 20180219 - TEMPLETE RECOMPILED
+*
+* 20180226 - ADD COMMISSION CATEGORY FIELD
+*
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("SP.SALES.CATEGORY.ID", T24_String) ;* Define Table id
+*-----------------------------------------------------------------------------
+    CALL Table.addField("ACC.CATEGORY", T24_String, "", "")
+    CALL Table.addField("SALES.CATEGORY", T24_String, "", "")
+    CALL Table.addField("INTT.CATEGORY", T24_String, "", "")
+    CALL Table.addField("SETTLE.CATEGORY", T24_String, "", "")
+    CALL Table.addField("REIM.CATEGORY", T24_String, "", "")
+    CALL Table.addField("COMM.CATEGORY", T24_String, "", "")
+    CALL Table.addField("VAT.CATEGORY", T24_String, "", "")
+    CALL Table.addField("XX<AGENT.CODE", T24_String, "", "")
+    CALL Table.addField("XX-XX.BR.CODE", T24_String, "", "")
+    CALL Table.addField("XX-BB.CATEG", T24_String, "", "")
+    CALL Table.addField("XX>NSPB.CATEG", T24_String, "", "")
+    CALL Table.addReservedField('RESERVED.05')
+    CALL Table.addReservedField('RESERVED.04')
+    CALL Table.addReservedField('RESERVED.03')
+    CALL Table.addReservedField('RESERVED.02')
+    CALL Table.addReservedField('RESERVED.01')
+    CALL Table.addLocalReferenceField('XX.LOCAL.REF')
+    CALL Table.addOverrideField
+
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

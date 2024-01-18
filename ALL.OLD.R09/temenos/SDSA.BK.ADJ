@@ -1,0 +1,232 @@
+    SUBROUTINE SDSA.BK.ADJ(Y.RETURN)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT BP I_F.BD.BREAKUP
+    $INSERT GLOBUS.BP I_F.CATEGORY
+
+    FN.SDSA = 'F.BD.BREAKUP'
+    F.SDSA = ''
+    FN.CAT = 'F.CATEGORY'
+    F.CAT = ''
+    CALL OPF(FN.SDSA,F.SDSA)
+    CALL OPF(FN.CAT,F.CAT)
+
+    LOCATE 'ACCOUNT' IN ENQ.SELECTION<2,1> SETTING POS THEN
+        AC.NO = ENQ.SELECTION<4,POS>
+    END
+    LOCATE 'REF.NO' IN ENQ.SELECTION<2,1> SETTING POS1 THEN
+        Y.REF.NO = ENQ.SELECTION<4,POS1>
+        Y.REF.NO = UPCASE(Y.REF.NO)
+        FOR Z = 1 TO LEN(Y.REF.NO)
+            Y.CH = Y.REF.NO[Z,1]
+            IF ISALNUM(Y.CH) EQ 1 OR Y.CH EQ '.' THEN
+            END
+            ELSE Y.REF.NO = EREPLACE (Y.REF.NO,Y.CH,".")
+        NEXT Z
+        Y.REF.OPD = ENQ.SELECTION<3,POS1>
+    END
+    LOCATE 'OUT.BAL' IN ENQ.SELECTION<2,1> SETTING POS2 THEN
+        Y.OUT.BAL = ENQ.SELECTION<4,POS2>
+    END
+    IF Y.OUT.BAL EQ '' THEN Y.OUT.BAL = 0
+    LOCATE 'Y.DATE' IN ENQ.SELECTION<2,1> SETTING POS3 THEN
+        Y.SDATE = ENQ.SELECTION<4,POS3>
+        Y.SDATE.OPD = ENQ.SELECTION<3,POS3>
+    END
+    IF Y.SDATE.OPD EQ 'EQ' THEN
+        DT = Y.SDATE
+        GOSUB DATE.VAL
+        IF E.CNT GT 0 THEN RETURN
+    END
+    IF Y.SDATE.OPD EQ 'RG' AND DCOUNT(Y.SDATE,@SM) NE 2 THEN RETURN
+    Y.SDATE1 = FIELD(Y.SDATE,@SM,1)
+    Y.SDATE2 = FIELD(Y.SDATE,@SM,2)
+    IF Y.SDATE1 GT Y.SDATE2 AND DCOUNT(Y.SDATE,@SM) EQ 2 THEN
+        Y.TDATE = Y.SDATE1
+        Y.SDATE1 = Y.SDATE2
+        Y.SDATE2 = Y.TDATE
+    END
+    IF Y.SDATE2 NE '' THEN
+        DT = Y.SDATE1
+        GOSUB DATE.VAL
+        IF E.CNT GT 0 THEN RETURN
+        DT = Y.SDATE2
+        GOSUB DATE.VAL
+        IF E.CNT GT 0 THEN RETURN
+    END
+    Y.ENQ = ENQ.SELECTION<1,1>
+    IF Y.ENQ EQ 'MH.SDSA.REF' AND Y.OUT.BAL EQ '' THEN
+        Y.OUT.BAL = '0.01'
+    END
+    IF LEN(AC.NO) EQ 8 AND AC.NO[1,3] EQ 'BDT' THEN
+        AC.NO=LEFT(AC.NO,8):"0001":RIGHT(ID.COMPANY,4)
+    END
+
+    Y.AL=""
+    IF LEFT(AC.NO,3) EQ "BDT" THEN
+        Y.CATEGORY=RIGHT(LEFT(AC.NO,8),5)
+        CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.ERR)
+        CALL GET.LOC.REF('CATEGORY','A.L',Y.AL.POS)
+        Y.AL=R.CAT<EB.CAT.LOCAL.REF,Y.AL.POS>
+        IF RIGHT(AC.NO,4) NE RIGHT(ID.COMPANY,4) THEN RETURN
+    END
+    ELSE IF LEFT(AC.NO,2) EQ "PL" THEN
+        Y.CATEGORY=RIGHT(AC.NO,5)
+        CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.ERR)
+        CALL GET.LOC.REF('CATEGORY','A.L',Y.AL.POS)
+        Y.AL=R.CAT<EB.CAT.LOCAL.REF,Y.AL.POS>
+        IF Y.AL EQ "" THEN
+            IF LEFT(AC.NO,3) EQ "PL5" THEN
+                Y.AL="L"
+            END
+
+            IF LEFT(AC.NO,3) EQ "PL6" THEN
+                Y.AL="A"
+            END
+        END
+    END
+    IF Y.AL EQ "A" THEN
+        Y.CACC= AC.NO
+        Y.DACC=""
+    END
+    ELSE IF Y.AL EQ "L" THEN
+        Y.CACC=""
+        Y.DACC= AC.NO
+    END
+
+    SEL.CMD = ''
+!IF AC.NO NE "" AND Y.REF.NO NE "" THEN
+!IF Y.REF.OPD EQ 'EQ' THEN
+!SEL.CMD = 'SELECT ':FN.SDSA:' WITH @ID LIKE ':AC.NO:'*':Y.REF.NO:'*...'
+!END
+!IF Y.REF.OPD EQ 'LK' THEN
+!SEL.CMD = 'SELECT ':FN.SDSA:' WITH @ID LIKE ':AC.NO:'*... AND @ID LIKE ...':Y.REF.NO:'...'
+!END
+!END
+!ELSE
+    SEL.CMD = 'SELECT ':FN.SDSA:' WITH @ID LIKE ':AC.NO:'*...'
+!END
+
+    CALL EB.READLIST(SEL.CMD, SEL.LIST, F.SDSA, NO.OF.REC, RET.CODE)
+    SEL.LIST = SORT(SEL.LIST)
+    Y.REF.ID = ''
+    Y.CUR.ID = ''
+    FOR I = 1 TO NO.OF.REC + 1
+        Y.CUR.ID = SEL.LIST<I>
+        Y.REF.ID.CK = FIELD(Y.CUR.ID,'*',2)
+        IF Y.REF.ID:'|' NE Y.REF.ID.CK:'|' THEN
+            Y.REF = Y.REF.ID.CK
+!IF Y.OUTSTANDING.AMT GE Y.OUT.BAL AND COUNT(Y.REF.ID,Y.REF.NO) GE 1 AND I NE 1 THEN
+            IF Y.OUTSTANDING.AMT GE Y.OUT.BAL AND I NE 1 AND ((Y.REF.OPD EQ 'EQ' AND Y.REF.ID EQ Y.REF.NO) OR (Y.REF.OPD NE 'EQ' AND COUNT(Y.REF.ID,Y.REF.NO) GE 1)) THEN
+                IF Y.ENQ EQ 'SDSA.BK.REFNO' OR Y.ENQ EQ 'MH.SDSA.REF' THEN
+                    Y.RETURN<-1> = Y.REF.ID:'*':Y.TOT.ORG.AMT:'*':Y.TOT.ADJ.AMT:'*':Y.OUTSTANDING.AMT:'*':AC.NO:'*':Y.PAYEE.NAME:'*':Y.AL:"*":Y.DACC:"*":Y.CACC:'*':Y.PARTICULAR
+!                                      1              2                3                  4                 5               6         7           8         9            10
+                END
+                IF Y.BAL GT Y.OUT.BAL AND (Y.ENQ EQ 'MH.SDSA.BAL' OR Y.ENQ EQ 'MH.SDSA.BAL.AC') AND Y.RET NE '' THEN
+                    Y.RETURN<-1> = Y.RET
+                    Y.RET = ''
+                END
+            END
+            Y.BAL = ''
+            Y.RET = ''
+            Y.TOT.ORG.AMT = 0
+            Y.TOT.ADJ.AMT = 0
+            Y.OUTSTANDING.AMT = 0
+!Y.PAYEE.NAME = ''
+        END
+        ELSE
+!           Y.REF = ''
+        END
+        Y.REF.ID = Y.REF.ID.CK
+!IF DCOUNT(Y.CUR.ID,'*') EQ 10 AND SEL.LIST<I+1> NE Y.CUR.ID:'*REV' AND COUNT(Y.REF.ID,Y.REF.NO) GE 1 THEN
+        IF DCOUNT(Y.CUR.ID,'*') EQ 10 AND SEL.LIST<I+1> NE Y.CUR.ID:'*REV' AND ((Y.REF.OPD EQ 'EQ' AND Y.REF.ID EQ Y.REF.NO) OR (Y.REF.OPD NE 'EQ' AND COUNT(Y.REF.ID,Y.REF.NO) GE 1)) THEN
+            CALL F.READ(FN.SDSA,Y.CUR.ID,R.REF.DETAILS,F.SDSA,ERR.CODE.DETAILS)
+!IF Y.PAYEE.NAME EQ '' THEN
+            Y.PAYEE.NAME = R.REF.DETAILS<BD.BK.REF.NAME>
+            Y.PNAME = Y.PAYEE.NAME
+!END
+            Y.PARTICULAR = R.REF.DETAILS<BD.BK.REF.DETAILS>
+            IF FIELD(Y.CUR.ID,'*',10) EQ 'ORG' THEN
+                Y.ORG.AMT.VAL = FIELD(Y.CUR.ID,'*',9)
+                Y.TOT.ORG.AMT = Y.TOT.ORG.AMT + Y.ORG.AMT.VAL
+                Y.BAL = Y.BAL + Y.ORG.AMT.VAL
+            END
+            IF FIELD(Y.CUR.ID,'*',10) EQ 'ADJ' THEN
+                Y.ADJ.AMT.VAL = FIELD(Y.CUR.ID,'*',9)
+                Y.TOT.ADJ.AMT = Y.TOT.ADJ.AMT + Y.ADJ.AMT.VAL
+                Y.BAL = Y.BAL - Y.ADJ.AMT.VAL
+            END
+            Y.OUTSTANDING.AMT = Y.TOT.ORG.AMT - Y.TOT.ADJ.AMT
+            IF Y.ENQ EQ 'MH.SDSA.BAL' OR Y.ENQ EQ 'MH.SDSA.BAL.AC' THEN
+                Y.DATE = FIELD(Y.CUR.ID,'*',3)
+                Y.DATE = Y.DATE[1,8]
+                Y.TXN = FIELD(Y.CUR.ID,'*',7)
+                Y.AMT = FIELD(Y.CUR.ID,'*',9)
+                Y.TYPE = FIELD(Y.CUR.ID,'*',10)
+                Y.RET.DATA = ''
+                IF Y.SDATE.OPD EQ 'EQ' AND Y.SDATE EQ Y.DATE THEN
+                    Y.RET.DATA = Y.DATE:'*':Y.PARTICULAR:'*':Y.TXN:'*':Y.TYPE:'*':Y.AMT:'*':Y.BAL:'*':Y.PNAME:'*':AC.NO:'*':Y.REF
+!                                  1            2             3         4          5         6          7          8         9
+                END
+                IF Y.SDATE.OPD EQ 'RG' AND Y.DATE GE Y.SDATE1 AND Y.DATE LE Y.SDATE2 THEN
+                    Y.RET.DATA = Y.DATE:'*':Y.PARTICULAR:'*':Y.TXN:'*':Y.TYPE:'*':Y.AMT:'*':Y.BAL:'*':Y.PNAME:'*':AC.NO:'*':Y.REF
+!                                  1            2             3         4          5         6          7          8         9
+                END
+                IF Y.SDATE EQ '' THEN
+                    Y.RET.DATA = Y.DATE:'*':Y.PARTICULAR:'*':Y.TXN:'*':Y.TYPE:'*':Y.AMT:'*':Y.BAL:'*':Y.PNAME:'*':AC.NO:'*':Y.REF
+!                                  1            2             3         4          5         6          7          8         9
+                END
+                IF Y.ENQ EQ 'MH.SDSA.BAL.AC' THEN
+!                   Y.PNAME = ''
+                END
+                IF Y.RET.DATA NE '' THEN
+                    IF Y.OUT.BAL EQ 0 THEN
+                        Y.RETURN<-1> = Y.RET.DATA
+                    END
+                    ELSE
+                        Y.RET<-1> = Y.RET.DATA
+                    END
+                END
+            END
+        END
+    NEXT I
+
+    RETURN
+
+DATE.VAL:
+    E.CNT=0
+    IF DT<19000000 OR DT>21000000 THEN
+        E.CNT=1
+    END
+    ELSE IF DT[1,4]<1900 OR DT[1,4]>2100 THEN
+        E.CNT=1
+    END
+    ELSE IF DT[5,2]<1 OR DT[5,2]>12 THEN
+        E.CNT=1
+    END
+    ELSE IF DT[5,2] = 1 OR DT[5,2]=3 OR DT[5,2]=5 OR DT[5,2]=7 OR DT[5,2]=8 OR DT[5,2]=10 OR DT[5,2]=12 THEN
+        IF DT[7,2]<1 OR DT[7,2]>31 THEN
+            E.CNT=1
+        END
+    END
+    ELSE IF DT[5,2]=4 OR DT[5,2]=6 OR DT[5,2]=9 OR DT[5,2]=11 THEN
+        IF DT[7,2]<1 OR DT[7,2]>30 THEN
+            E.CNT=1
+        END
+    END
+    ELSE IF DT[5,2]=2 THEN
+        LYC= DT[1,4]/4-INT(DT[1,4]/4)
+        IF LYC=0 THEN
+            IF DT[7,2]<1 OR DT[7,2]>29 THEN
+                E.CNT=1
+            END
+        END
+        ELSE IF LYC>0 THEN
+            IF DT[7,2]<1 OR DT[7,2]>28 THEN
+                E.CNT=1
+            END
+        END
+    END
+    RETURN
+END

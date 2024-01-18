@@ -1,0 +1,66 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-22</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE EB.RD.BONUS.FIELDS
+*-----------------------------------------------------------------------------
+* Description:
+*--------------
+* This routine is defines the fields of EB.RD.BONUS template
+*-----------------------------------------------------------------------------
+* Modification History :
+*-----------------------
+* New - Leelavathi R                           Date: 10th FEB 2011
+*       Thesys Technologies
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_DataTypes
+*-------------------------------------------------------------------------
+    ID.F = "PARAM.ID" ; ID.N = "6" ; ID.T = "A" ; ID.T = '':FM:'SYSTEM'
+*-----------------------------------------------------------------------------
+    neighbour = ''
+    fieldName = 'PL.CATEGORY' ; fieldLength = '15'   ; fieldType = 'A'   ;  GOSUB ADD.FIELDS
+    CALL Field.setCheckFile('CATEGORY')
+
+    fieldName = 'DR.TXN.CODE' ; fieldLength = '3'   ; fieldType = 'A'   ;  GOSUB ADD.FIELDS
+    CALL Field.setCheckFile('TRANSACTION')
+
+    fieldName = 'CR.TXN.CODE' ; fieldLength = '3'   ; fieldType = 'A'   ;  GOSUB ADD.FIELDS
+    CALL Field.setCheckFile('TRANSACTION')
+
+    fieldName = 'XX<APP.ID' ; fieldLength = '16'   ; fieldType = 'A'   ;  GOSUB ADD.FIELDS
+    CALL Field.setCheckFile('AZ.PRODUCT.PARAMETER')
+
+    fieldName = 'XX-XX<INST.AMT'; fieldLength = '18'   ; fieldType = 'AMT' ; fieldType<2,2> = LCCY   ;  GOSUB ADD.FIELDS
+
+    fieldName = 'XX>XX>BONUS.AMT'   ; fieldLength = '18'   ; fieldType = 'AMT'  ;  fieldType<2,2> = LCCY   ;  GOSUB ADD.FIELDS
+
+    CALL Table.addReservedField('RESERVED.10')
+    CALL Table.addReservedField('RESERVED.9')
+    CALL Table.addReservedField('RESERVED.8')
+    CALL Table.addReservedField('RESERVED.7')
+    CALL Table.addReservedField('RESERVED.6')
+    CALL Table.addReservedField('RESERVED.5')
+    CALL Table.addReservedField('RESERVED.4')
+    CALL Table.addReservedField('RESERVED.3')
+    CALL Table.addReservedField('RESERVED.2')
+    CALL Table.addReservedField('RESERVED.1')
+
+    CALL Table.addLocalReferenceField('XX.LOCAL.REF')
+
+    CALL Table.addOverrideField
+
+    CALL Table.setAuditPosition         ;* Poputale audit information
+
+    RETURN
+*-----------------------------------------------------------------------------
+***********
+ADD.FIELDS:
+***********
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, neighbour) ;* Add a new field
+
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

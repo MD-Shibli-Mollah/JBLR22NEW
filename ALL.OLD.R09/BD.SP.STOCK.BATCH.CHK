@@ -1,0 +1,38 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SP.STOCK.BATCH.CHK
+********************************************************************
+* routine to check if exixt already in batch live file, related record can not be authorised
+* alin@janatabank-bd.com
+* 20180212
+********************************************************************
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT SP.BP I_F.BD.H.SP.STOCK.ISSUE
+    $INSERT SP.BP I_F.BD.H.SP.STOCK.BATCH
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    FN.SP.ISSUE='F.BD.H.SP.STOCK.ISSUE$NAU'
+    F.SP.ISSUE=''
+    FN.SP.BATCH='F.BD.H.SP.STOCK.BATCH'
+    F.SP.BATCH=''
+
+    CALL OPF(FN.SP.ISSUE,F.SP.ISSUE)
+    CALL OPF(FN.SP.BATCH,F.SP.BATCH)
+
+    Y.ID=ID.NEW
+    Y.REF.NO = R.NEW(SP.STK.REF.NO)
+
+    CALL F.READ(FN.SP.BATCH,Y.REF.NO,R.SP.BATCH,F.SP.BATCH,Y.ERR.BATCH)
+
+    IF R.SP.BATCH THEN
+        E = "BATCH HAS BEEN ALREADY CREATED"
+        V$ERROR=1;
+        JOURNAL.BYPASS=1;
+        CALL TRANSACTION.ABORT;
+    END
+
+    RETURN
+END

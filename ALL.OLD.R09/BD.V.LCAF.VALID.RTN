@@ -1,0 +1,46 @@
+*-----------------------------------------------------------------------------
+* <Rating>60</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.LCAF.VALID.RTN
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LETTER.OF.CREDIT
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+    FN.LETTER.OF.CREDIT = 'F.LETTER.OF.CREDIT'
+    F.LETTER.OF.CREDIT  = ''
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+    R.LETTER.OF.CREDIT  = ''
+    Y.TENOR = ''
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","LCAF.TYPE",Y.LCAF.TYPE.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","LCAF.EXP.DATE",Y.LCAF.EXPDT.POS)
+    Y.LCAF.ISS.DT = COMI
+    Y.LCAF.TYPE = R.NEW(TF.LC.LOCAL.REF)<1,Y.LCAF.TYPE.POS>
+    IF Y.LCAF.TYPE EQ '' THEN RETURN
+    BEGIN CASE
+    CASE Y.LCAF.TYPE EQ "INDUSTRIAL"
+        Y.TENOR="+":"540":"C"
+        IF Y.TENOR NE '' AND Y.LCAF.ISS.DT NE '' THEN
+            CALL CDT("",Y.LCAF.ISS.DT,Y.TENOR)
+            R.NEW(TF.LC.LOCAL.REF)<1,Y.LCAF.EXPDT.POS> = Y.LCAF.ISS.DT
+        END
+    CASE Y.LCAF.TYPE EQ "COMMERCIAL"
+        Y.TENOR="+":"270":"C"
+        IF Y.TENOR NE '' AND Y.LCAF.ISS.DT NE '' THEN
+            CALL CDT("",Y.LCAF.ISS.DT,Y.TENOR)
+            R.NEW(TF.LC.LOCAL.REF)<1,Y.LCAF.EXPDT.POS> = Y.LCAF.ISS.DT
+        END
+    END CASE
+    RETURN
+END

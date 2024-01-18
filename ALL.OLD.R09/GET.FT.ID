@@ -1,0 +1,18 @@
+    SUBROUTINE GET.FT.ID
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    Y.TRANS.REF = O.DATA
+
+    IF Y.TRANS.REF MATCHES "...\..."  THEN
+        Y.REF=FIELD(Y.TRANS.REF, "\", 1)
+        Y.FT.ID = Y.REF:";1"
+
+    END ELSE
+        Y.FT.ID =Y.TRANS.REF:";1"
+    END
+
+    O.DATA = Y.FT.ID
+    RETURN
+END

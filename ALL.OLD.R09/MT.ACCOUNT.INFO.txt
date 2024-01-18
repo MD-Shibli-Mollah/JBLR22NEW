@@ -1,0 +1,75 @@
+*******************************************************************************************************************
+1.Write RTN (load, vars, select and record routine)
+2.PGM.FILE name as main routine name and combine(if any) routine name.
+3.Create an entry in BATCH application , with any id, set job name as the routine name
+4.Create Entry TSA.WORKLOAD.PROFILE, Withe any id and Setup required number of agnets
+5.Create Entry in TSA.SERVICE Application,  with id as BAtch Record.
+6.If combine files then add combine routine in batch application in job name and add main routine as varification. 
+  combine routine must have an entry in pgm file as B.
+*******************************************************************************************************************
+
+EXAMPLE:
+============================================================================================
+STEP 1
+================================================================
+VARS ROUTINE : MT.ACCOUNT.VARS
+LOAD ROUTINE : MT.ACCOUNT.LOAD
+SELECT ROUTINE : MT.ACCOUNT.SELECT
+MAIN ROUTINE : MT.ACCOUNT
+COMBINE ROUTINE : 
+
+STEP 2
+================================================================
+PGM.FILE ENTRY NAME : MT.ACCOUNT
+
+PROGRAM            MT.ACCOUNT
+ --------------------------------------------
+   1 TYPE.............. B
+   2. 1 GB SCREEN.TITLE ACCOUNT
+   4. 1 BATCH.JOB...... @BATCH.JOB.CONTROL
+   5 PRODUCT........... EB
+
+PGM.FILE ENTRY NAME : 
+
+PROGRAM            MT.ACCOUNT.COMBINE
+ --------------------------------------------
+   1 TYPE.............. B
+   2. 1 GB SCREEN.TITLE ACCOUNT.COMBINE
+   4. 1 BATCH.JOB...... MT.ACCOUNT.COMBINE
+   5 PRODUCT........... EB
+
+
+
+STEP 3 AND 6
+================================================================
+BATCH ENTRY NAME : BNK/MT.ACCOUNT
+
+3 PROCESS.STATUS.... 0                   READY
+4 BATCH.ENVIRONMENT. F                   FOREGROUND
+   6. 1 JOB.NAME....... MT.ACCOUNT
+   8. 1 FREQUENCY...... D                   DAILY
+  12. 1 JOB.STATUS..... 0                   READY
+  13. 1 LAST.RUN.DATE.. 01 FEB 2016
+   
+   6. 2 JOB.NAME....... MT.ACCOUNT.COMBINE
+   7. 2. 1 VERIFICATION MT.ACCOUNT
+   8. 2 FREQUENCY...... D                   DAILY
+
+
+STEP 4
+================================================================
+TSA.WORKLOAD.PROFILE ENTRY : MT.ACCOUNT
+
+1 DESCRIPTION....... ACCOUNT
+3. 1 AGENTS.REQUIRED 10
+
+
+STEP 5
+================================================================
+TSA.SERVICE ENTRY : BNK/MT.ACCOUNT
+
+1. 1 DESCRIPTION....  ACCOUNT MULTI THREAD
+   3. 1 WORK.PROFILE... MT.ACCOUNT    ACCOUNT
+   5 USER.............. INPUTTER            INPUTTER
+   6 SERVICE.CONTROL... STOP
+

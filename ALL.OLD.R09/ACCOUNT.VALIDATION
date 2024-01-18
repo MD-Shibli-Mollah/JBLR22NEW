@@ -1,0 +1,3299 @@
+*-----------------------------------------------------------------------------
+* <Rating>14322</Rating>
+*-----------------------------------------------------------------------------
+* Version 114 14/06/01  GLOBUS Release No. G12.0.00 01/06/01
+* Version 9.1.0A released on 29/09/89
+    SUBROUTINE ACCOUNT.VALIDATION
+*
+*------------------------------------------------------------------------
+*
+*
+*              M O D I F I C A T I O N S
+*
+* 19/07/06 - BG_100011658
+*            Cross validation of CREDIT.CHECK and AVAILABLE.BAL.UPD.
+*
+* 23/07/06 - BG_100011891
+*            Validation of POSTING.RESTRICT field in ACCOUNT.
+*
+* 04/09/06 - BG_100011968
+*            ACCT.OFFICER Field in AC gets defaulted from CUSTOMER Record
+*            Wrongly
+*
+* 30/10/06 - CI_10045141
+*            Code changes done to allow addition of non contingent interest
+*            compensation account to a contingent account
+*
+* 04/01/07 - CI_10046449
+*            Incorrect Account title when Short name in Customer record in
+*            created in different languages.
+*
+* 16/01/07 - CI_10046657
+*            Don't allow CONTINGENT.INT to be changed if accruals have been booked
+*            could be moveing deom off to on balance sheet or vice versa
+*
+* 16/02/07 - BG_100013024
+*            Override disappears from the Transaction and the Warning Message
+*            Response is updated in the Override field.
+*
+* 07/03/07 - BG_100013093
+*            Change AA.PRODUCT.ID to ARRANGEMENT.ID
+*
+* 23/03/07 - CI_10047993
+*            pass curr.no to ACCOUNT.ICA.VALIDATE
+*
+* 03/04/07 - BG_100013381
+*            Validations have been included to allow IA position types
+*            while creating the internal accounts
+*            Ref : TTS0753319
+*
+* 09/07/07 - BG_100014558
+*            Unassigned variable when entering premium types against an account.
+*
+* 26/10/07 - BG_100015604
+*            Caching problem reading CATEG.INT.ACCT in ACCOUNT.AUTHORISATION.
+*
+* 25/02/08 - BG_100017294
+*            CACHE.READ called with incorrect arguments.
+*
+* 08/04/08 - EN_10003602 REF:SAR-2007-12-13-0006
+*            Change error AC.CLASS.OFFSPINT to AC-CLASS.OFFSPINT.
+*            Add validation for SAR.
+*
+* 05/05/08 - CI_10055173
+*            Locate for the current finanical company in CHECK.COMPANY record
+*            should be performed using VM values.
+*
+* 24/04/08 - EN_10003647
+*            SAR Ref:SAR-2007-12-11-0001
+*            Account Mandates under ARC-IB
+*
+* 06/06/08 - EN_10003706
+*            Multiple linked taxes to calculate and apply tax on a tax.
+*            Field  added as part of the german withholding tax id made
+*            reserved.
+*
+* 03/07/08 - BG_100019044
+*            Reverting the account mandate changes.
+*
+* 09/07/08 - BG_100019102
+*            SAR Ref : SAR-2007-12-11-0001
+*            Account Mandates under ARC-IB
+*
+* 25/08/07 - CI_10057429
+*            Validation is added when  account is changing from passbook to non-passbook.
+*
+* 23/10/08 - CI_10058453
+*            LIMIT.REF and SINGLE.LIMIT fields are not to be amended if there exists
+*            a PD record for an account. The error AC.LINKED.SINGLE.LIMIT.. is removed.
+*
+* 13/11/08 - BG_100020840
+*            Changes made for Account set up as it should not keep the previous customer's
+*            Account Title and Short title when customer number is amended to a different number.
+*
+* 03/12/08 - BG_100021139
+*            User to be allowed to enter NO for no DEFAULT consolidation on Internal
+*            and Nostro accounts.
+*
+* 19/01/08 - BG_100020839
+*            ACCOUNT.TITLE.1 & SHORT.TITLE are not changing even on changing CUSTOMER field
+*
+* 27/7/09 - CI_10064944
+*           System allows to setup only 99 sub accounts as maximum in the MAX.SUB.ACCOUNTS
+*           field of the master account record. This will causes locking an account and
+*           low performance when the large volume of incoming transaction.Hence to allow the
+*           MAX.SUB.ACCOUNT fields upto 200.
+*
+* 6/10/09 - BG_100025407
+*           Allow the max.sub.account fields upto 999
+*
+* 01/02/10 - CI_10068878
+*            System allows an account record to have a Liquidation account at the same time use itself
+*            to be an Liquidation account for some other account
+*
+* 09/03/10 - BG_100026650
+*            Customer to be amended in account irrespective of
+*            whether he is a joint holder or not and if it is arrangement account
+*
+* 23/04/10 - CI_10069983 // Task - 43319, Defect - 43315.
+*            JOINT.HOLDER validation added here since it is removed from ACCOUNT.CHECK.FIELDS.
+*
+* 14/02/11 - CI_10072751
+*            Validation is REMOVED when  account is changed from passbook to non-passbook. Therefore
+*            allowing the account to be changed to non-passbook even if it has unprinted entries.
+*-----------------------------------------------------------------------------------------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.CUSTOMER
+    $INSERT I_F.CURRENCY
+    $INSERT I_F.DEPT.ACCT.OFFICER
+    $INSERT I_F.FT.BC.PARAMETER
+    $INSERT I_F.FT.LOCAL.CLEARING
+    $INSERT I_F.POSTING.RESTRICT
+    $INSERT I_F.CATEGORY
+    $INSERT I_F.ACCT.GEN.CONDITION
+    $INSERT I_F.TRANSACTION
+    $INSERT I_F.REFERAL
+    $INSERT I_F.FX.POS.TYPE
+    $INSERT I_F.CURRENCY.MARKET
+    $INSERT I_F.ACCOUNT.STATEMENT
+    $INSERT I_F.COMPANY
+    $INSERT I_F.COMPANY.CHECK
+    $INSERT I_F.VERSION
+    $INSERT I_F.USER
+    $INSERT I_F.INTERCO.PARAMETER
+    $INSERT I_LIMIT.COMMON
+    $INSERT I_F.LIMIT.CCY.LINK
+    $INSERT I_F.ACCOUNT.CLOSURE
+    $INSERT I_F.AC.STMT.PARAMETER
+    $INSERT I_F.ACCOUNT.CLASS
+    $INSERT I_F.ACCOUNT.PARAMETER
+    $INSERT I_F.SAVINGS.PREMIUM
+    $INSERT I_F.LIMIT
+    $INSERT I_F.ACCOUNT.DEBIT.LIMIT
+    $INSERT I_F.ACCT.GROUP.CONDITION
+    $INSERT I_F.RELATION
+    $INSERT I_F.RELATION.CUSTOMER
+    $INSERT I_F.AGENCY        ;* GB9800026
+    $INSERT I_F.AC.PENDING
+    $INSERT I_F.CUST.ACCT.CCY.REC
+    $INSERT I_F.SEC.ACC.MASTER
+    $INSERT I_F.DISPO.OFFICER
+    $INSERT I_F.ICA.HIERARCHY.PARAMETER
+    $INSERT I_F.ICA.GROUP.DETAIL
+    $INSERT I_F.ACCT.CAPITALISATION
+    $INSERT I_F.GROUP.CAPITALISATION
+    $INSERT I_F.ACCT.SUSP.ENTRIES       ;* EN_10000701 S/E
+    $INSERT I_F.AC.CONSOLIDATE.COND     ;* EN_10001513
+    $INSERT I_AZ.ACCOUNT.COMMON         ;* EN_10001754
+    $INSERT I_F.DATES         ;* CI_10020272 S/E
+    $INSERT I_F.CONDITION.PRIORITY
+    $INSERT I_F.ACCOUNT.ACCRUAL         ;*EN_10002517
+    $INSERT I_F.STMT.GEN.CONDITION
+    $INSERT I_GTS.COMMON
+*
+*
+** Recompiled due to changes in F.ACCOUNT.CLOSURE. PIF CI8700974
+*
+*************************************************************************
+****  DIMENSION LOCAL ARRAYS                                         ****
+*************************************************************************
+    DIM YR.ACCOUNT(AC.AUDIT.DATE.TIME)
+*************************************************************************
+REM "DEFINE PGM NAME (BY USING 'C/ACCOUNT/.../G9999')
+*========================================================================
+*
+* RETURN when pgm used to get parameters only
+*************************************************************************
+****  Open required files                                            ****
+*************************************************************************
+*
+    GOSUB INITIALISATION
+*
+*------------------------------------------------------------------------
+REM "HANDLING 'VAL'-CHECKS:
+    GOSUB ACCOUNT.CROSSVAL
+
+    RETURN
+
+**************************************************************************
+INITIALISATION:
+***************
+
+    CUST.CODE.POS = R.ACCOUNT.PARAMETER<AC.PAR.CUSTOMER.CODE.POS>
+    CUST.CODE.LEN = R.ACCOUNT.PARAMETER<AC.PAR.CUST.CODE.LEN>
+    P.APPLICATION.ID = "AC"
+    P.CALL.TYPE = 1
+    P.MVMT.ID = ""
+    P.CCY.MKT = ""
+    P.TXN.CCY.MKT = ""
+    P.RETURN.CODE = ""
+    P.ERROR.MESSAGE = ""
+    CALL FIND.CCY.MKT(P.APPLICATION.ID,P.CALL.TYPE,P.MVMT.ID,P.CCY.MKT,P.TXN.CCY.MKT,P.RETURN.CODE,P.ERROR.MESSAGE)
+    IF P.RETURN.CODE > 0 THEN
+        ETEXT ="AC.AC.ERROR.CALLING.FIND.CCY.MKT":FM:P.ERROR.MESSAGE
+        GOSUB FATAL.ERROR
+    END
+* GB9400210 - New field parameter defaults
+    IF P.MVMT.ID = "AC" THEN
+        R.NEW(AC.CURRENCY.MARKET) = 1
+        W.DFLT.CCY.MKT = 1
+        N(AC.CURRENCY.MARKET) = '1'
+        T(AC.CURRENCY.MARKET)<3> = "NOINPUT"
+        N(AC.CHARGE.MKT) = '1'
+        T(AC.CHARGE.MKT)<3> = "NOINPUT"
+        N(AC.INTEREST.MKT) = '1'
+        T(AC.INTEREST.MKT)<3> = "NOINPUT"
+    END ELSE
+        W.DFLT.CCY.MKT = ''
+        T(AC.CURRENCY.MARKET)<3> = "NOCHANGE"
+        T(AC.CHARGE.MKT)<3> = "NOCHANGE"
+        T(AC.INTEREST.MKT)<3> = "NOCHANGE"
+    END
+
+    SAVE.ETEXT = ''
+    SAVINGS.CATEGORIES = ""
+    CALL CACHE.READ("F.ACCOUNT.CLASS","SAVINGS", R.ACCOUNT.CLASS,ER)
+    SAVINGS.CATEGORIES = R.ACCOUNT.CLASS<AC.CLS.CATEGORY>
+
+* check if TT is installed
+    LOCATE "TT" IN R.COMPANY(EB.COM.APPLICATIONS)<1,1> SETTING TT.INSTALLED ELSE
+        TT.INSTALLED = 0
+    END
+
+* check if PD is installed
+    LOCATE 'PD' IN R.COMPANY(EB.COM.APPLICATIONS)<1,1> SETTING PD.INSTALLED ELSE
+        PD.INSTALLED = 0
+    END
+
+    YLIMIT.ETEXT = ""
+
+    R.SP = "" ; SP.READ = ""  ;* savings premium record
+    R.ACCT.GROUP.CONDITION = "" ; AGC.READ = ""   ;* acct group condition record
+
+    GOSUB ACCOUNT.TYPE
+
+* Liquid Interest Account list
+    IF R.NEW(AC.INTEREST.LIQU.ACCT) THEN
+        LIQU.ACCT.LIST  = R.NEW(AC.INTEREST.LIQU.ACCT)
+* Store the AF field for reporint errors
+        LIQU.ACCT.FIELD = AC.INTEREST.LIQU.ACCT
+    END ELSE
+        LIQU.ACCT.LIST = ''
+        LIQU.ACCT.FIELD = ''
+    END
+
+* Add Liquidation accounts from the multivalue set
+    R.NEW(AC.INT.LIQ.CCY) = ""
+    VMC = DCOUNT(R.NEW(AC.INT.LIQU.ACCT),VM)
+    FOR AV = 1 TO VMC
+        ACC.ID = R.NEW(AC.INT.LIQU.ACCT)<1,AV>
+        CALL F.READ("F.ACCOUNT",ACC.ID,R.ACC,F.ACCOUNT,ER)
+        R.NEW(AC.INT.LIQ.CCY)<1,AV> = R.ACC<AC.CURRENCY>
+        LIQU.ACCT.LIST<-1> = R.NEW(AC.INT.LIQU.ACCT)<1,AV>
+        LIQU.ACCT.FIELD<-1> = AC.INT.LIQU.ACCT : VM : AV
+    NEXT AV
+    LIQU.ACCT.LIST.COUNT = DCOUNT(LIQU.ACCT.LIST,FM)
+
+    R.NEW(AC.INTEREST.CCY) = R.NEW(AC.CURRENCY)
+    R.NEW(AC.INTEREST.MKT) = R.NEW(AC.CURRENCY.MARKET)
+    R.NEW(AC.CHARGE.CCY) = R.NEW(AC.CURRENCY)
+    R.NEW(AC.CHARGE.MKT) = R.NEW(AC.CURRENCY.MARKET)
+
+
+    RETURN
+*------------------------------------------------------------------------
+ACCOUNT.TYPE:
+*************
+
+    YACCT.TYPE = ""
+    CALL INT.ACC(ID.NEW,INTERNAL)
+    IF INTERNAL THEN
+        YACCT.TYPE = "INTERNAL"
+    END
+
+    RETURN
+*-----------------------------------------------------------------------
+ACCOUNT.CROSSVAL:
+*****************
+*************************************************************************
+****  Ensure 'ID' is not a liquidation or a compensation account    ****
+****  and that 'ID' is not already compensated                      ****
+*************************************************************************
+
+    CURR.NO = 0 ; CALL STORE.OVERRIDE(CURR.NO)
+
+    GOSUB VALIDATE.LIQU.COMP.ACCTS
+
+    IF NOT(R.NEW(AC.ALLOW.NETTING)) THEN
+        R.NEW(AC.ALLOW.NETTING) = "NO"
+    END
+
+    ARRANGEMENT.ACCT = 0
+    IF R.NEW(AC.ARRANGEMENT.ID) THEN
+        ARRANGEMENT.ACCT = 1
+    END
+
+    GOSUB VAL.CUSTOMER
+
+    GOSUB VAL.CATEGORY
+
+    GOSUB VAL.TITLE
+
+    GOSUB VAL.MNEMONIC
+
+    GOSUB VAL.POS.TYPE
+*------------------------------------------------------------------------
+    GOSUB VAL.INTERNAL.CCY
+
+    GOSUB DEF.LIMIT.REF
+
+    GOSUB VAL.CURRENCY.MARKET
+
+*
+    GOSUB VAL.ACCOUNT.OFFICER
+
+*
+*------------------------------------------------------------------------
+    GOSUB VAL.OTHER.OFFICER
+
+    GOSUB VAL.POSTING.RESTRICT
+
+    GOSUB VAL.INTEREST.LIQU.ACCT
+
+    GOSUB VAL.INTEREST.COMP.ACCT
+
+    GOSUB VAL.CHARGE.ACCOUNT
+
+    GOSUB VAL.ALT.ACCT
+
+    GOSUB VAL.INT.COMP
+
+    GOSUB VAL.INT.NO.BOOKING
+*-----------------------------------------------------------------------
+    AF = AC.MANDATE.APPL      ;* Must not contain Duplicates
+    CALL DUP
+    AF = AC.REFERAL.CODE ;
+    CALL DUP
+*------------------------------------------------------------------------
+    GOSUB VAL.WAIVE.LEDGER
+
+    GOSUB CHECK.GROUP
+
+    GOSUB VAL.LINK.TO.LIMIT
+
+    GOSUB VAL.AUTO.PAY
+
+    GOSUB VAL.SINGLE.LIMIT
+*
+    GOSUB VAL.LIMIT.REF
+*
+    GOSUB VAL.TAX
+
+    GOSUB VAL.AVAILABLE.BAL
+
+    GOSUB VAL.OUR.EXT.ACCT.NO
+
+    IF R.NEW(AC.CATEGORY) THEN
+        GOSUB VAL.CONTINGENT.INT
+    END
+
+    GOSUB DEF.CONT.INT
+
+    GOSUB VAL.INT.LIQU.TYPE.SET
+
+    GOSUB VAL.CONSOLIDATE.ENT
+
+    GOSUB VAL.OVERRIDE.SECTION          ;* Combination of validation and override
+
+    GOSUB OVERRIDE.SECTION
+
+    RETURN
+
+*************************************************************************
+
+VAL.OVERRIDE.SECTION:
+*********************
+
+*========================================================================
+REM "HANDLE AUTOM. CALCULATED FIELDS (BEGINNING WITH OVERRIDE):
+    IF NOT(YLIMIT.ETEXT) THEN
+        GOSUB VAL.LIMITS
+    END
+
+    GOSUB VAL.RELATION.CODE
+
+*************************************************************************
+****  Nostro account number and mnemonic validation                  ****
+*************************************************************************
+    IF ID.OLD = "" THEN
+        GOSUB NOSTRO.VALIDATION
+    END
+    IF R.NEW(AC.MNEMONIC) # R.OLD(AC.MNEMONIC) THEN
+        YXEQ.FROM = 1
+        GOSUB MNEMONIC.VALIDATION
+    END
+
+    GOSUB VAL.PASSBOOK
+
+    GOSUB VAL.PREMIUM.TYPE
+
+    GOSUB VAL.PREMIUM.FREQ
+
+    GOSUB VAL.JOINT.FIELDS
+
+    GOSUB VAL.NETTING
+
+    GOSUB VAL.STOCK.CONTROL
+
+    GOSUB VAL.SUB.ACCOUNTS
+
+    GOSUB VAL.AZ
+
+    IF R.NEW(AC.ARRANGEMENT.ID) THEN
+        GOSUB VAL.ARRANGEMENT.ID
+    END
+
+*  ICA validation
+
+    GOSUB VALIDATE.ICA
+
+    RETURN
+
+**********************************************************************************************************
+OVERRIDE.SECTION:
+*****************
+*
+*  (Starts Overrides)
+* Overrides
+*
+* Once all the checks are completed, the following override is set
+    IF SAVE.ETEXT EQ '' AND R.OLD(AC.CUSTOMER) THEN
+        IF R.OLD(AC.CUSTOMER) NE R.NEW(AC.CUSTOMER) AND (R.NEW(AC.LIMIT.REF) NE 'NOSTRO') AND (R.NEW(AC.CURR.NO) GE 1) THEN
+            TEXT = "Customer has been changed for the account"
+            AF = AC.CUSTOMER
+            CALL STORE.OVERRIDE(CURR.NO)
+            IF TEXT = "NO" THEN
+                GOSUB PROGRAM.ABORT
+            END
+        END
+    END ELSE
+        SAVE.ETEXT = ''
+    END
+
+
+    IF R.NEW(AC.AUTO.PAY.ACCT) AND R.NEW(AC.ARRANGEMENT.ID) = "" THEN ;* not for AA records, will return error
+        READ.ERR = ""
+        CALL F.READ("F.ACCOUNT", R.NEW(AC.AUTO.PAY.ACCT), R.ACCOUNT, F.ACCOUNT, READ.ERR)
+        IF R.ACCOUNT<AC.LIMIT.REF> # R.NEW(AC.LIMIT.REF) THEN
+            TEXT = "LIMIT REF ON AUTO PAY A/C IS NOT SAME AS ONE ON THIS A/C"
+            CALL STORE.OVERRIDE(CURR.NO)
+            IF TEXT = "NO" THEN
+                GOSUB PROGRAM.ABORT
+            END
+        END
+*
+        IF R.ACCOUNT<AC.CATEGORY> # R.NEW(AC.CATEGORY) THEN
+            TEXT = "CATEGORY CODE ON AUTO PAY A/C IS NOT SAME AS ONE ON A/C"
+            CALL STORE.OVERRIDE(CURR.NO)
+            IF TEXT = "NO" THEN
+                GOSUB PROGRAM.ABORT
+            END
+        END
+*
+        IF R.ACCOUNT<AC.CONDITION.GROUP> # R.NEW(AC.CONDITION.GROUP) THEN
+            TEXT = "CONDITION GROUP ON AUTO PAY A/C IS NOT SAME AS ONE ON A/C"
+            CALL STORE.OVERRIDE(CURR.NO)
+            IF TEXT = "NO" THEN
+                GOSUB PROGRAM.ABORT
+            END
+        END
+*
+        IF R.ACCOUNT<AC.POSTING.RESTRICT> # R.NEW(AC.POSTING.RESTRICT) THEN
+            TEXT = "POSTING RETRICTION ON AUTO PAY A/C IS NOT SAME AS ONE ON A/C"
+            CALL STORE.OVERRIDE(CURR.NO)
+            IF TEXT = "NO" THEN
+                GOSUB PROGRAM.ABORT
+            END
+        END
+    END
+
+    RETURN
+
+********************************************************************************************************
+* SUBROUTINES
+********************************************************************************************************
+
+*************************************************************************
+VAL.LIMIT.REF:
+****  Validate limit reference application ident                     ****
+*************************************************************************
+
+    AF = AC.LIMIT.REF ; YPRODUCT = ""   ;*DH*
+    IF R.NEW(AF) # "" AND R.NEW(AF) # "NOSTRO" THEN
+        GOSUB CHECK.LIMIT.REF
+    END
+* If a/c is linked to an active PD record then, don't allow to amend
+* fields LIMIT.REF and SINGLE.LIMIT
+
+    IF PD.INSTALLED AND ID.OLD THEN     ;* Not for a new account
+        PD.ID = 'PDAC':ID.NEW
+        CALL F.READ("F.PD.PAYMENT.DUE",PD.ID,R.PD.REC,F.PD.PAYMENT.DUE,PD.ERR)
+        IF R.PD.REC THEN      ;* if pd exists
+            IF R.NEW(AC.LIMIT.REF)  NE R.OLD(AC.LIMIT.REF) THEN       ;* when u change limit.ref
+                AF = AC.LIMIT.REF
+                ETEXT ='AC.AC.PD.LINKED.NO.CHANGE'          ;* new error msg
+                CALL STORE.END.ERROR
+            END
+            IF R.NEW(AC.SINGLE.LIMIT) NE R.OLD(AC.SINGLE.LIMIT) THEN  ;* when u change single.limit
+                AF = AC.SINGLE.LIMIT
+                ETEXT ='AC.AC.PD.LINKED.NO.CHANGE'
+                CALL STORE.END.ERROR
+                AF = AC.LIMIT.REF       ;* restore the field value
+            END
+        END
+    END
+
+    IF R.NEW(AC.LIMIT.REF) NE '' THEN
+        LIMIT.ID = ''
+        REF.NO = ''
+        SEQ.NO = ''
+        REF.NO = FMT(FIELD(R.NEW(AF),'.',1,1),"7'0'R")
+        SEQ.NO = FMT(FIELD(R.NEW(AF),'.',2,1),"2'0'R")
+        LIMIT.ID = R.NEW(AC.CUSTOMER):".":REF.NO:".":SEQ.NO
+        CALL DBR("LIMIT":FM:LI.ACCOUNT,LIMIT.ID,LIMIT.ACCOUNT)
+        LIMIT.AV = DCOUNT(LIMIT.ACCOUNT,VM)
+        IF R.NEW(AC.SINGLE.LIMIT) EQ 'Y' THEN
+            IF (LIMIT.AV EQ 1 AND LIMIT.ACCOUNT NE '' AND LIMIT.ACCOUNT NE ID.NEW) OR LIMIT.AV GT 1 THEN
+                ETEXT ="AC.AC.ALREADY.CU.AC.ATTACHED.LIMIT"
+                CALL STORE.END.ERROR
+            END
+        END ELSE
+            GOSUB VAL.LIMIT.ACCOUNT
+        END
+    END
+
+    RETURN
+
+***************************************************************************
+VAL.LIMIT.ACCOUNT:
+*******************
+
+    IF LIMIT.ACCOUNT NE ID.NEW AND LIMIT.AV EQ 1 THEN
+        CALL DBR("ACCOUNT":FM:AC.SINGLE.LIMIT,LIMIT.ACCOUNT,SINGLE.LIMIT)
+        IF SINGLE.LIMIT EQ 'Y' THEN
+            GOSUB SINGLE.LIMIT
+        END
+    END
+
+    RETURN
+
+****************************************************************************************
+SINGLE.LIMIT:
+*****************
+
+    SUB.ACC = ''
+    FN.ACSUB = "F.AC.SUB.ACCOUNT" ; FV.ACSUB = ''
+    CALL F.READ(FN.ACSUB,LIMIT.ACCOUNT,SUB.ACCOUNTS,FV.ACSUB,SUB.ERR)
+* Check wheather this account is a sub-account of the limit account.
+    LOCATE ID.NEW IN SUB.ACCOUNTS<1> SETTING SUB.ACC ELSE
+        SUB.ACC = ''
+    END
+* Check wheather this account is a master-account for the limit account.
+    IF NOT(SUB.ACC) THEN
+        CALL F.READ(FN.ACSUB,ID.NEW,SUB.ACCOUNTS,FV.ACSUB,SUB.ERR)
+        LOCATE LIMIT.ACCOUNT IN SUB.ACCOUNTS<1> SETTING SUB.ACC ELSE
+            SUB.ACC = ''
+        END
+    END
+    IF NOT(SUB.ACC) THEN
+        ETEXT ="AC.AC.SINGLE.LINK.LIMIT.INVALID.INP"
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+
+*****************************************************************************************
+VAL.CONTINGENT.INT: * Category field is set
+*******************
+
+    AF = AC.CONTINGENT.INT
+    THIS.ACCT.CONT = ""
+    NEW.CATEGORY.CODE = R.NEW(AC.CATEGORY)
+    CALL AC.CONTINGENT(NEW.CATEGORY.CODE, THIS.ACCT.CONT)
+
+    IF THIS.ACCT.CONT THEN    ;* default and basic checks
+        GOSUB SET.CONTINGENT
+    END ELSE
+        IF R.NEW(AC.CONTINGENT.INT) THEN
+            ETEXT ='AC.AC.INP.NOT.ALLOWED.NON.CONTINGENT.ACCOUNTS'
+            CALL STORE.END.ERROR
+        END
+    END
+
+    IF ETEXT = "" THEN        ;* no basic errors so do detailed checks
+        GOSUB CONTINGENT.DETAILED.VAL
+    END
+
+    RETURN
+
+
+****************************************************************************
+SET.CONTINGENT:
+***************
+
+    IF R.NEW(AC.CONTINGENT.INT) = "" THEN         ;* try to default
+        IF YACCT.TYPE = "INTERNAL" THEN ;* 10000056 S
+            R.NEW(AC.CONTINGENT.INT) = 'I'
+        END ELSE
+*
+* Default from ACCT.GROUP.CONDITION if ACCT.GRP.CONTINGENT.INT
+* has value for this condition group.
+*
+            GOSUB DEFAULT.CONT.INT
+            IF DEF.CONT.INT THEN
+                R.NEW(AC.CONTINGENT.INT) = DEF.CONT.INT
+            END ELSE
+                ETEXT ="AC.AC.MAND.INP.CONTINGENT.ACCOUNTS"
+                CALL STORE.END.ERROR
+            END
+        END
+    END ELSE
+        IF YACCT.TYPE NE "INTERNAL" AND R.NEW(AC.CONTINGENT.INT) EQ "I" THEN
+            ETEXT ="AC.AC.INP.I.ALLOWED.ONLY.INTERNAL.ACCOUNTS"
+            CALL STORE.END.ERROR
+        END
+        IF YACCT.TYPE EQ "INTERNAL" AND R.NEW(AC.CONTINGENT.INT) NE "I" THEN
+            ETEXT ='AC.AC.CONTINGENT.INT.SHD.I.FOR.INT.CONT.AC'
+            CALL STORE.END.ERROR
+        END
+    END
+
+    IF ETEXT = "" AND R.OLD(AC.CONTINGENT.INT) AND R.NEW(AC.CONTINGENT.INT) THEN          ;* check to see if it has been changed
+        GOSUB CHECK.CONTINGENT.CHANGE
+    END
+
+    RETURN
+
+*****************************************************************************
+CHECK.CONTINGENT.CHANGE:
+************************
+* I type cannot be changed no accruals so should be checked later
+* B to O or O to B with interest accrued can give a mismatch
+* C to O or B similar problem
+
+    IF R.OLD(AC.CONTINGENT.INT) NE R.NEW(AC.CONTINGENT.INT) THEN      ;* It's been changed
+        FOR I = AC.ACCR.CHG.CATEG TO AC.ACCR.DR2.CATEG
+            IF R.NEW(I) THEN
+                ETEXT = "AC.AC.CONTINGENT.NOCHANGE.ACCRUALS"
+                CALL STORE.END.ERROR
+                EXIT
+            END
+        NEXT I
+    END
+
+    RETURN
+
+**********************************************************************************
+CONTINGENT.DETAILED.VAL:
+************************
+
+    IF R.NEW(AC.CONTINGENT.INT) EQ "C" AND R.NEW(AC.INT.NO.BOOKING) EQ "SUSPENSE" THEN
+        ETEXT ="AC.AC.INT.NO.BOOKING.SHOULD.Y.CONTINGENT.INT.C"
+        CALL STORE.END.ERROR
+    END
+    IF R.NEW(AC.CONTINGENT.INT) EQ "O" AND R.NEW(AC.INT.NO.BOOKING) EQ "Y" THEN
+        ETEXT ="AC.AC.INT.NO.BOOKING.SUSPENSEFOR.CONTINGENT.INT.O"
+        CALL STORE.END.ERROR
+    END
+    IF R.NEW(AC.CONTINGENT.INT) EQ "O" THEN
+        CALL CACHE.READ("F.ACCOUNT.CLASS","OFFSPINT",R.ACCOUNT.CLASS,ER)
+        IF ER THEN
+            ETEXT = "AC-CLASS.OFFSPINT"
+            CALL STORE.END.ERROR
+        END ELSE
+            CATEG = R.ACCOUNT.CLASS<AC.CLS.CATEGORY>
+            R.CATEG.INT.ACCT = ""
+            CALL F.READ("F.CATEG.INT.ACCT", CATEG, R.CATEG.INT.ACCT, F.CATEG.INT.ACCT, ER)
+            IF ER THEN
+                ETEXT = "AC.AC.SUSP.ACC.OFFSPINT"
+                CALL STORE.END.ERROR
+            END
+        END
+    END
+
+    IF ETEXT EQ '' AND YACCT.TYPE NE 'INTERNAL' THEN
+        GOSUB DEFAULT.CONT.INT
+        IF DEF.CONT.INT AND DEF.CONT.INT NE R.NEW(AC.CONTINGENT.INT) THEN
+            TEXT = "CONTINGENT.INT differs from that of ACCT.GROUP.CONDITION"
+            CALL STORE.OVERRIDE(CURR.NO)
+            IF TEXT = "NO" THEN
+                GOSUB PROGRAM.ABORT
+            END
+        END
+    END
+*
+* INTEREST.LIQU.ACCT & CHARGE.ACCOUNT  must be non
+* contingent if the fields are entered.
+* Input is mandatory if CONTINGENT.INT is 'B'.
+*
+
+    GOSUB CONT.INTEREST.LIQ.VAL
+*
+    GOSUB CONT.CHARGE.ACCOUNT.VAL
+*
+    IF R.NEW(AC.AUTO.PAY.ACCT) THEN
+        ACCOUNT.ID = R.NEW(AC.AUTO.PAY.ACCT)
+        SAF = AC.AUTO.PAY.ACCT
+        GOSUB CHECK.OTHER.ACCT.CONTINGENT
+    END
+
+    IF R.NEW(AC.ICA.MAIN.ACCOUNT) THEN
+        ACCOUNT.ID = R.NEW(AC.ICA.MAIN.ACCOUNT)
+        SAF = AC.ICA.MAIN.ACCOUNT
+        GOSUB CHECK.OTHER.ACCT.CONTINGENT
+    END
+
+    RETURN
+
+*****************************************************************************
+CONT.INTEREST.LIQ.VAL:
+**********************
+
+    IF LIQU.ACCT.LIST THEN
+* Loop through all Interest Liquidation Account fields
+        FOR LIQU.LOOP = 1 TO LIQU.ACCT.LIST.COUNT
+            OTHER.ACCT.CONT = ""
+            AF =  LIQU.ACCT.FIELD<LIQU.LOOP,1>
+            AV =  LIQU.ACCT.FIELD<LIQU.LOOP,2>
+            ACCOUNT.ID = LIQU.ACCT.LIST<LIQU.LOOP>
+            FLDNO = "" ; FLDNO<1> = AC.CONTINGENT.INT ; FLDNO<3> = R.COMPANY(EB.COM.FINANCIAL.MNE)
+            CALL ACCOUNT.DBR(FLDNO,ACCOUNT.ID,OTHER.ACCT.CONT)
+            IF ETEXT THEN
+                CALL STORE.END.ERROR
+            END ELSE
+                GOSUB CONT.INT.VAL
+            END
+        NEXT LIQU.LOOP
+    END ELSE
+        IF R.NEW(AC.CONTINGENT.INT) EQ 'B' AND YACCT.TYPE NE 'INTERNAL' THEN
+            ETEXT ="AC.AC.MAND.INP.CONTINGENT.INT.TYPE.B"
+            AF = AC.INTEREST.LIQU.ACCT
+            CALL STORE.END.ERROR
+        END
+    END
+
+    RETURN
+
+***********************************************************************
+CONT.INT.VAL:
+*************
+
+    CONT.INTEREST = R.NEW(AC.CONTINGENT.INT)
+    IF CONT.INTEREST AND CONT.INTEREST NE 'B' THEN
+        IF CONT.INTEREST NE OTHER.ACCT.CONT AND YACCT.TYPE NE 'INTERNAL' THEN
+            ETEXT ='AC.AC.CONTINGENT.INT.DOES.NOT.MATCH'
+            CALL STORE.END.ERROR
+        END
+    END ELSE
+        IF OTHER.ACCT.CONT THEN
+            ETEXT ="AC.AC.CONTINGENT.ACCOUNTS.NOT.ALLOWED"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    RETURN
+
+************************************************************************
+CONT.CHARGE.ACCOUNT.VAL:
+************************
+
+    IF R.NEW(AC.CHARGE.ACCOUNT) THEN
+        OTHER.ACCT.CONT = ""
+        ACCOUNT.ID = R.NEW(AC.CHARGE.ACCOUNT)
+        FLDNO = "" ; FLDNO<1> = AC.CONTINGENT.INT ; FLDNO<3> = R.COMPANY(EB.COM.FINANCIAL.MNE)
+        CALL ACCOUNT.DBR(FLDNO,ACCOUNT.ID,OTHER.ACCT.CONT)
+        IF ETEXT THEN
+            CALL STORE.END.ERROR
+        END ELSE
+            GOSUB CONT.CHARGE.VAL
+        END
+    END ELSE
+        IF R.NEW(AC.CONTINGENT.INT) EQ 'B' AND YACCT.TYPE NE "INTERNAL" THEN
+            ETEXT ="AC.AC.MAND.INP.CONTINGENT.INT.TYPE.B"
+            AF = AC.CHARGE.ACCOUNT
+            CALL STORE.END.ERROR
+        END
+    END
+
+    RETURN
+
+*************************************************************************
+CONT.CHARGE.VAL:
+****************
+
+    CONT.INTEREST = R.NEW(AC.CONTINGENT.INT)      ;* 10000056 S
+    IF CONT.INTEREST AND CONT.INTEREST NE 'B' THEN
+        IF CONT.INTEREST NE OTHER.ACCT.CONT AND YACCT.TYPE NE 'INTERNAL' THEN
+            ETEXT ='AC.AC.CONTINGENT.INT.DOES.NOT.MATCH'
+            AF = AC.CHARGE.ACCOUNT
+            CALL STORE.END.ERROR
+        END
+    END ELSE
+        IF OTHER.ACCT.CONT THEN
+            ETEXT ="AC.AC.CONTINGENT.ACCOUNTS.NOT.ALLOWED"
+            AF = AC.CHARGE.ACCOUNT
+            CALL STORE.END.ERROR
+        END
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------
+CHECK.AGENCY:
+*============
+** Look for this account number in the AGENCY record of the OLD customer
+*
+    AG.ACCT = ''
+    CALL DBR("AGENCY":FM:EB.AG.NOSTRO.ACCT.NO, R.OLD(AC.CUSTOMER), AG.ACCT)
+    LOCATE ID.NEW IN AG.ACCT<1,1> SETTING POS THEN
+        ETEXT ='AC.AC.AGENCY.STILL.LINKED.AC':FM:R.OLD(AC.CUSTOMER)
+    END ELSE
+        ETEXT = ''
+    END
+    RETURN
+*
+*------------------------------------------------------------------------
+*
+VALIDATE.PREMIUM.FREQ:
+*--------------------
+
+    IF COMI[9,1] # 'M' THEN
+        E ="AC.AC.ONLY.MONTHS.ALLOWED"
+    END
+
+    RETURN
+*
+*--------------------------------------------------------------------------
+
+GET.LIMIT.FIGURES:
+    PACC.NO = ID.NEW ; PACC.BAL = ""
+    PACC.CCY = R.NEW(AC.CURRENCY) ; PRETURN.CODE = 0
+    CALL DBR ("ACCOUNT":FM:AC.WORKING.BALANCE, ID.NEW, PACC.BAL)
+* EN_10001955 s
+* Before calling un-auth record write the R.OLD values assigned for LIMIT updations.
+    IF R.OLD(AC.CUSTOMER) AND (R.OLD(AC.CUSTOMER) NE R.NEW(AC.CUSTOMER)) AND R.NEW(AC.LIMIT.REF) NE 'NOSTRO' THEN
+        PCUST.NO = R.OLD(AC.CUSTOMER)
+        CALL F.READ("F.CUSTOMER",R.OLD(AC.CUSTOMER),R.CUST,F.CUSTOMER,ERR.CUS)
+        PLIAB.NO = R.CUST<EB.CUS.CUSTOMER.LIABILITY>
+    END
+* EN_10001955 e
+    CALL LIMIT.ACCOUNT.INCLUDE(PLIAB.NO, PCUST.NO, PACC.COMPANY, PACC.NO, PACC.BAL, PACC.CCY, POLD.REF, POLD.SER, PNEW.REF,
+    PNEW.SER, PCURR.NO, PAUTH.OR.VALIDATE, PRETURN.CODE)
+
+    RETURN
+
+***************************************************************************
+READ.RELATION.CUSTOMER:
+*---------------------
+
+    READ.ERR = ""
+    R.RELATION.CUSTOMER = ""
+    CALL F.READ("F.RELATION.CUSTOMER", REL.CUS, R.RELATION.CUSTOMER, F.RELATION.CUSTOMER, READ.ERR)
+
+    RETURN
+
+*---------------------------------------------------------------------------
+* GB9800253
+*
+***********************
+SERIAL.NO.FORMAT.CHECK:
+***********************
+*
+* 1. only allow input of 'A', 'N', 'X' and/or '.'
+* 2. a '.' is used as display mask and can only be defined with the Ns
+* 3. only ONE group of 'N's is allowed and is mandatory
+* 4. at least ONE 'A' must be defined next to the 'N's if the
+*    'N's are not defined at the beginning or at the end
+*    e.g. NN.NNNXXX       OK because Ns are at the beginning
+*         XAXX.NNN.NNN    OK Ns are at the end
+*         XXANNNNNNXX     OK an A is just in front of the Ns
+*         XXNNNNNXXX      INVALID because no A defined next to the Ns
+*         X.ANNN.NNN.AA   INVALID because a '.' is defined between 'X' and 'A'
+*
+    ETEXT = ""
+    IF NOT(COMI) THEN
+        RETURN
+    END
+*
+    FOR YY = 1 TO LEN(COMI)
+        IF NOT(COMI[YY,1] MATCHES 'A':VM:'N':VM:'X':VM:'.') THEN
+            ETEXT ="AC.AC.ONLY.ALLOW.COMBINATION.A,N,X,."
+            RETURN
+        END
+    NEXT YY
+*
+* validate the mask
+    IF COMI[1,1] = '.' OR COMI[1] = '.' THEN
+        ETEXT ="AC.AC.CANT.BEGIN.OR.END.WITH.."
+        RETURN
+    END
+*
+    FOR YY = 1 TO LEN(COMI)
+        IF COMI[YY,1] = '.' THEN
+            IF NOT(COMI[YY-1,1] = 'N' OR COMI[YY+1,1] = 'N') THEN
+                ETEXT ="AC.AC.MASK.CAN.ONLY.DEFINED.WITH.NS"
+                RETURN
+            END
+        END
+    NEXT YY
+*
+* now validate the serial number format
+    YCOMI = TRIM(COMI,'.','A')          ;* remove all '.'
+    NPOS = INDEX(YCOMI,'N',1)
+    IF NOT(NPOS) THEN
+        ETEXT ="AC.AC.NUMERIC.PART.MAND"
+        RETURN
+    END
+*
+    LEN.NUMERIC = 0
+    NON.NUMERIC.FOUND = ''
+    INVALID.NUMERIC.PART = ''
+    FOR YI = NPOS TO LEN(YCOMI)
+        BEGIN CASE
+        CASE YCOMI[YI,1] = 'N'
+            IF NON.NUMERIC.FOUND THEN
+                INVALID.NUMERIC.PART = 1
+                EXIT          ;* this loop
+            END
+            LEN.NUMERIC += 1
+        CASE 1
+            NON.NUMERIC.FOUND = 1
+        END CASE
+    NEXT YI
+    IF INVALID.NUMERIC.PART THEN
+        ETEXT ="AC.AC.ONLY.ONE.GRP.N.ALLOWED"
+        RETURN
+    END
+*
+    BEGIN CASE
+    CASE NPOS = 1   ;* OK - starts with N
+        NULL
+    CASE YCOMI[1] = 'N'       ;* OK - ends with N
+        NULL
+    CASE OTHERWISE
+        IF INDEX(YCOMI,'X',1) THEN
+            IF YCOMI[NPOS-1,1] NE 'A' AND YCOMI[NPOS+LEN.NUMERIC,1] NE 'A' THEN
+                ETEXT ="AC.AC.ONE.A.NEXT.NS"
+                RETURN
+            END
+        END
+    END CASE
+*
+    RETURN
+*
+*---------------------------------------------------------------------------
+*
+VAL.CUSTOMER:
+*------------
+
+** If the customer number is changed make sure that the account is not
+** specified in the AGENCY record for the old customer. If it is it
+** should be removed before allowing the change
+    AF = AC.CUSTOMER ; AV = '' ; AS = ''
+* Checks done at cross val level
+    IF R.OLD(AF) THEN
+        IF (R.NEW(AF) NE R.OLD(AF)) AND (R.NEW(AC.LIMIT.REF) NE 'NOSTRO') AND (R.NEW(AC.CURR.NO) GE 1) THEN
+            IF R.NEW(AC.LIMIT.REF) NE "" THEN
+                ETEXT="AC.AC.LIMIT.SHOULD.BE.REMOVED"
+                SAVE.ETEXT = ETEXT
+                CALL STORE.END.ERROR
+            END
+            CALL VALIDATE.ACCOUNT.CUSTOMER
+            IF ETEXT THEN
+                SAVE.ETEXT = ETEXT
+                AF = AC.CUSTOMER
+                CALL STORE.END.ERROR
+            END
+        END
+    END
+    IF (ID.OLD) AND (R.NEW(AF) NE R.OLD(AF)) THEN
+        GOSUB CHECK.CUSTOMER.CHANGE
+        IF NOT(ALLOW.CUSTOMER.CHANGE) THEN
+            ETEXT ='AC.AC.CHANGE.ONLY.ALLOWED.NOS'
+            CALL STORE.END.ERROR
+        END ELSE
+            GOSUB CHECK.AGENCY
+            IF ETEXT THEN
+                CALL STORE.END.ERROR
+            END
+        END
+    END
+
+    IF (CUST.CODE.POS) AND (YACCT.TYPE # "INTERNAL" AND R.NEW(AC.CUSTOMER) NE '') THEN
+        AF = AC.CUSTOMER
+        ACID = ID.NEW[CUST.CODE.POS, CUST.CODE.LEN]
+        IF R.NEW(AC.CUSTOMER) NE ACID THEN
+            ETEXT ="AC.AC.DOES.NOT.MATCH.ID..CU":FM:ACID
+            CALL STORE.END.ERROR
+        END
+    END
+    IF YACCT.TYPE # "INTERNAL" THEN
+        PACC.CLASS = "NOSTRO"
+        PCATEGORY = R.NEW(AC.CATEGORY)
+        PCUSTOMER = R.NEW(AC.CUSTOMER)
+        PSECTOR = ""
+        PRETURN = ""
+        E = ""
+        CALL CHECK.ACCOUNT.CLASS(PACC.CLASS, PCATEGORY, PCUSTOMER, PSECTOR, PRETURN)
+        IF PRETURN = "YES" THEN
+            YACCT.TYPE = "NOSTRO"
+        END ELSE
+            YACCT.TYPE = ""
+        END
+    END
+
+    RETURN
+
+****************************************************************************************************
+CHECK.CUSTOMER.CHANGE:
+**********************
+    ALLOW.CUSTOMER.CHANGE = 0
+    BEGIN CASE
+    CASE R.OLD(AC.LIMIT.REF) = 'NOSTRO'
+        ALLOW.CUSTOMER.CHANGE = 1
+
+    CASE ARRANGEMENT.ACCT
+        IF R.OLD(AC.LIMIT.REF) = '' THEN
+            ALLOW.CUSTOMER.CHANGE = 1
+        END
+
+    CASE 1
+        IF R.OLD(AC.LIMIT.REF) = '' AND R.OLD(AC.JOINT.HOLDER) THEN
+            ALLOW.CUSTOMER.CHANGE = 1
+        END
+    END CASE
+
+    RETURN
+****************************************************************************************************
+VAL.CATEGORY:
+*------------
+
+    AF = AC.CATEGORY
+    IF R.NEW(AF) = "" THEN
+        IF YACCT.TYPE = "INTERNAL" THEN
+            R.NEW(AF) = ID.NEW[4,5]
+        END ELSE
+            ETEXT ="AC.AC.INP.MISS" ; CALL STORE.END.ERROR
+        END
+    END
+    IF R.NEW(AF) # "" THEN
+        GOSUB VAL.CAT.CODE
+    END
+
+    RETURN
+
+******************************************************************************
+VAL.CAT.CODE:
+*************
+
+    IF R.NEW(AF) < 1000 OR R.NEW(AF) > 19999 THEN
+        ETEXT ="AC.AC.CAT.RG.01.19"
+        CALL STORE.END.ERROR
+    END ELSE
+        IF YACCT.TYPE # "INTERNAL" THEN
+            IF R.NEW(AF) > 9999 THEN
+                ETEXT ="AC.AC.CAT.RG.01.09"
+                CALL STORE.END.ERROR
+            END
+        END ELSE
+            IF R.NEW(AF) < 10000 THEN
+                ETEXT ="AC.AC.CAT.RG.10.19"
+                CALL STORE.END.ERROR
+            END
+        END
+*
+* Update open category field with category if this is a new
+* input
+*
+        IF NOT(ID.OLD) THEN
+            R.NEW(AC.OPEN.CATEGORY) = R.NEW(AF)
+        END
+    END
+*
+* For the first phase, prohibit changing category code between contingent types after once authorised.
+*
+    NEW.CATEGORY.CODE = R.NEW(AC.CATEGORY)
+    NEW.CATEGORY.CONT = ""
+    CALL AC.CONTINGENT(NEW.CATEGORY.CODE, NEW.CATEGORY.CONT)
+    IF R.OLD(AC.CATEGORY) AND R.OLD(AC.CATEGORY) <> R.NEW(AC.CATEGORY) THEN     ;* check if type has changed
+        OLD.CATEGORY.CODE = R.OLD(AC.CATEGORY)
+        OLD.CATEGORY.CONT = ""
+        CALL AC.CONTINGENT(OLD.CATEGORY.CODE, OLD.CATEGORY.CONT)
+        IF NEW.CATEGORY.CONT <> OLD.CATEGORY.CONT THEN
+            IF NEW.CATEGORY.CONT THEN
+                ETEXT ='AC.AC.NONCONTINGENT.CONT.NOT.ALLOWED'
+            END ELSE
+                ETEXT ='AC.AC.CONTINGENT.NONCONT.NOT.ALLOWED'
+            END
+            CALL STORE.END.ERROR
+        END
+    END
+
+    RETURN
+
+*********************************************************************************
+VAL.TITLE:
+*---------
+
+* PRELIMINARY !!! definition 'NOSTRO' missing
+    IF YACCT.TYPE = "INTERNAL" THEN
+        FOR AF = AC.ACCOUNT.TITLE.1 TO AC.SHORT.TITLE STEP 2
+            IF R.NEW(AF) = "" THEN
+                ETEXT ="AC.AC.INP.MISS" ; CALL STORE.END.ERROR
+* Internal Accounts must have text
+            END
+        NEXT AF
+    END ELSE
+        CALL F.READ("F.CUSTOMER",R.NEW(AC.CUSTOMER),R.CUSTOMER,F.CUSTOMER,ER)
+        YCUS.SHORT.NAME = R.CUSTOMER<EB.CUS.SHORT.NAME,LNGG>
+        IF NOT(YCUS.SHORT.NAME) THEN
+            YCUS.SHORT.NAME = R.CUSTOMER<EB.CUS.SHORT.NAME,1>
+        END
+        IF ETEXT # "" THEN
+            YCUS.SHORT.NAME = ""
+        END
+        CUS.CHANGE=0
+
+        FINDSTR "CUSTOMER" IN OFS$CHANGED.FIELDS SETTING POS THEN
+            CUS.CHANGE=1
+        END
+
+        VAL.FIELD="ACCOUNT.TITLE.1"
+        VAL.FIELD.NUM=AC.ACCOUNT.TITLE.1
+        GOSUB TITLE.VAL
+
+        VAL.FIELD="SHORT.TITLE"
+        VAL.FIELD.NUM=AC.SHORT.TITLE
+        GOSUB TITLE.VAL
+    END
+    IF YACCT.TYPE = "NOSTRO" THEN
+        IF R.NEW(AC.LIMIT.REF) = "" THEN
+            R.NEW(AC.LIMIT.REF) = "NOSTRO"
+            T(AC.LIMIT.REF)<4> =""
+        END
+        IF R.COMPANY(EB.COM.FINANCIAL.COM) # R.COMPANY(EB.COM.NOSTRO.COMPANY) THEN
+            ETEXT ="AC.AC.NOT.NOS.COMP"
+            AF = AC.CATEGORY
+            CALL STORE.END.ERROR
+        END
+        IF R.NEW(AC.RECONCILE.ACCT) # "Y" THEN
+            ETEXT ="AC.AC.Y.WHEN.NOSTROACCOUNT"
+            AF = AC.RECONCILE.ACCT ; CALL STORE.END.ERROR
+* RECONCILE.ACC must be 'Y' when Nostro Account
+        END
+    END ELSE
+        IF ID.OLD # "" THEN
+            IF R.OLD(AC.LIMIT.REF) = "NOSTRO" THEN
+                ETEXT ="AC.AC.CLASS.CANT.AMENDED.NOS"
+                AF = AC.CATEGORY
+                CALL STORE.END.ERROR
+            END
+        END ELSE
+            IF R.NEW(AC.LIMIT.REF) = "NOSTRO" THEN
+                R.NEW(AC.LIMIT.REF) = ""
+            END
+        END
+    END
+
+    RETURN
+
+****************************************************************************************
+VAL.MNEMONIC:
+**************
+
+    AF = AC.MNEMONIC
+    IF (YACCT.TYPE = "INTERNAL") AND (R.NEW(AF) = "") THEN
+        ETEXT ="AC.AC.INP.MISS"
+        CALL STORE.END.ERROR
+    END
+    BEGIN CASE
+    CASE LEN(R.NEW(AF)) > 5
+        IF NUM(R.NEW(AF)[4,99]) = NUMERIC THEN
+            ETEXT ="AC.AC.1.ALPHA.AFTER.1ST.3.CHARS"
+            CALL STORE.END.ERROR
+        END
+    END CASE
+
+    RETURN
+
+***************************************************************************************
+VAL.POS.TYPE:
+**************
+    AF = AC.POSITION.TYPE
+    IF R.NEW(AF)="" THEN
+        R.NEW(AF)="TR"
+    END
+    POS.TYPE.LIST = 'TR':FM:'IA'
+    IF YACCT.TYPE = 'INTERNAL' THEN
+        LOCATE R.NEW(AF) IN POS.TYPE.LIST<1> SETTING POS ELSE
+            ETEXT = 'AC.AC.INVALID.POS.TYPE'
+            CALL STORE.END.ERROR
+        END
+    END ELSE
+        CALL CACHE.READ("F.FX.POS.TYPE", R.NEW(AF), R.FX.POS.TYPE, FX.POS.ERR)
+        IF FX.POS.ERR THEN
+            ETEXT =  FX.POS.ERR
+            CALL STORE.END.ERROR
+            ETEXT = ''
+        END
+    END
+    RETURN
+**********************************************************************************
+VAL.INTERNAL.CCY:
+*******************
+    AF = AC.CURRENCY
+    IF YACCT.TYPE = "INTERNAL" THEN
+        IF R.NEW(AF) = "" THEN
+            R.NEW(AF) = ID.NEW[1,3]
+        END ELSE
+            IF R.NEW(AF) # ID.NEW[1,3] THEN
+                ETEXT ="AC.AC.CCY.DIFFERS.AC"
+                CALL STORE.END.ERROR
+            END
+        END
+    END
+
+    RETURN
+
+****************************************************************************************
+DEF.LIMIT.REF:
+*-------------
+* Start of CROSSVAL for DEFAULTING LIMIT.REF,when using OFS
+    AF = AC.LIMIT.REF
+    IF R.NEW(AF) AND NUM(R.NEW(AF)) THEN
+        POS = INDEX(R.NEW(AF),".",1)
+        IF POS NE 0 THEN
+            LAST.DIGITS = FIELD(R.NEW(AF),".",2)
+        END
+        IF LAST.DIGITS EQ "00" OR POS EQ 0 THEN
+            R.NEW(AF) = R.NEW(AF) + .01
+        END
+    END
+* End of CROSSVAL For OFS Defaulting of LIMIT.REF
+    RETURN
+
+
+*****************************************************************************************
+VAL.CURRENCY.MARKET:
+*******************
+
+    AF=AC.CURRENCY.MARKET
+    IF R.NEW(AF)="" THEN
+        IF W.DFLT.CCY.MKT # '' THEN
+            R.NEW(AF) = W.DFLT.CCY.MKT
+        END ELSE
+            ETEXT ="AC.AC.INP.MISS"
+            CALL STORE.END.ERROR
+        END
+    END ELSE
+**** Check whether the currency record contains the a/c market.
+        GOSUB VAL.CCY.MKTS
+    END
+
+    RETURN
+
+****************************************************************************************
+VAL.CCY.MKTS:
+************
+
+    CCY.ID = R.NEW(AC.CURRENCY)
+    GOSUB READ.CURRENCY
+*
+    Y.CCY.MKT = R.NEW(AF)
+    LOCATE Y.CCY.MKT IN R.CURRENCY<EB.CUR.CURRENCY.MARKET,1> SETTING Y.MKT.POS ELSE
+        ETEXT ='AC.AC.CCY.MKT.NOT.SET.UP':FM:CCY.ID
+        CALL STORE.END.ERROR
+        Y.MKT.POS = ''
+    END
+*
+**** Check if interest & charges markets are present in currency
+**** record of the account.
+*
+    IF YACCT.TYPE NE "INTERNAL" AND Y.MKT.POS THEN
+*
+*** Skip checks for interest & charges for internal a/cs.
+*
+        GOSUB CCY.MKT
+    END
+
+    RETURN
+
+**************************************************************************************
+CCY.MKT:
+********
+
+    P.APPLICATION.ID = "AC"
+    P.CALL.TYPE = 7
+    P.MVMT.ID = 'INTEREST':VM:'COMM.CHRG'
+    P.CCY.MKT = ""
+    P.TXN.CCY.MKT = R.NEW(AC.CURRENCY.MARKET)
+    P.RETURN.CODE = ""
+    P.ERROR.MESSAGE = ""
+    CALL FIND.CCY.MKT(P.APPLICATION.ID,P.CALL.TYPE,P.MVMT.ID,P.CCY.MKT,P.TXN.CCY.MKT,P.RETURN.CODE,P.ERROR.MESSAGE)
+    IF P.RETURN.CODE > 0 THEN
+        ETEXT ="AC.AC.ERROR.CALLING.FIND.CCY.MKT.1":FM:P.ERROR.MESSAGE
+        GOSUB FATAL.ERROR
+    END
+*
+    ETEXT = ''
+    FOR Y.I = 1 TO 2 WHILE ETEXT = ''
+        Y.CCY.MKT = P.CCY.MKT<1,Y.I>
+        LOCATE Y.CCY.MKT IN R.CURRENCY<EB.CUR.CURRENCY.MARKET,1> SETTING Y.MKT.POS ELSE
+            IF Y.I = 1 THEN
+                ETEXT ='AC.AC.INT.CCY.MKT.NOT.SET.UP':FM:Y.CCY.MKT:VM:CCY.ID
+            END ELSE
+                ETEXT ='AC.AC.CHARGE.CCY.MKT.NOT.SET.UP':FM:Y.CCY.MKT:VM:CCY.ID
+            END
+            AF = AC.CURRENCY
+            CALL STORE.END.ERROR
+            AF = AC.CURRENCY.MARKET
+            Y.MKT.POS = ''
+        END
+    NEXT Y.I
+
+    RETURN
+
+*****************************************************************************************
+***********************************************************************************
+VAL.ACCOUNT.OFFICER:
+*********************
+
+    AF = AC.ACCOUNT.OFFICER
+    COMI=R.NEW(AF)
+    IF COMI THEN
+        CALL IN2DAO("4..C",'DAO')
+        COMI=""
+        IF ETEXT THEN
+            CALL STORE.END.ERROR
+        END
+    END
+
+    IF YACCT.TYPE = "INTERNAL" THEN
+        IF R.NEW(AF) = "" THEN
+            ETEXT ="AC.AC.INP.MISS"
+            CALL STORE.END.ERROR
+        END
+    END ELSE
+*
+* Default from CUSTOMER if not present
+*
+        IF R.NEW(AF) = "" THEN
+            Y.FIELD = "" ; ERR.MSG = ""
+            CALL F.READV("F.CUSTOMER",R.NEW(AC.CUSTOMER),Y.FIELD,EB.CUS.ACCOUNT.OFFICER,F.CUSTOMER,ERR.MSG)
+            IF NOT(ERR.MSG) THEN
+                R.NEW(AF) = Y.FIELD
+            END
+        END
+    END
+
+    RETURN
+
+******************************************************************************************
+VAL.OTHER.OFFICER:
+*******************
+
+    AF = AC.OTHER.OFFICER
+    AF.OTH.OFF = R.NEW(AC.ACCOUNT.OFFICER)
+    IF AF.OTH.OFF # "" THEN
+        YCOUNT = COUNT(R.NEW(AF),VM)+1
+        FOR AV = 1 TO YCOUNT
+            IF R.NEW(AF)<1,AV> = AF.OTH.OFF THEN
+                ETEXT ="AC.AC.DUP" ; CALL STORE.END.ERROR
+* ACCOUNT.OFFICER can't be repeated as an OTHER.OFFICER
+            END
+        NEXT AV
+    END
+    AF = AC.OTHER.OFFICER ; CALL DUP
+
+    RETURN
+
+*------------------------------------------------------------------------
+VAL.POSTING.RESTRICT:
+*********************
+
+    AF = AC.POSTING.RESTRICT ; YPR.ERROR = 0
+    IF (R.OLD(AF) >79 AND R.OLD(AF) <100) THEN
+        IF R.NEW(AF) < 80 OR R.NEW(AF) > 99 THEN
+            GOSUB VAL.POST
+        END
+    END
+*
+* An override should be generated if the account is part of
+* ac.account.link that is it is part of account sweep
+    IF R.NEW(AF) AND R.NEW(AF) <> R.OLD(AF) THEN
+        CALL F.READ('F.AC.ACCOUNT.LINK.CONCAT',ID.NEW,ACSW.ID,F.AC.ACCOUNT.LINK.CONCAT,READ.ERR)
+        IF NOT(READ.ERR) THEN
+            AF = AC.POSTING.RESTRICT
+            TEXT = 'ACCT.AC.LINK'
+            CALL STORE.OVERRIDE(CURR.NO)
+            IF TEXT = 'NO' THEN
+                GOSUB PROGRAM.ABORT
+            END
+        END
+    END
+    IF R.NEW(AF) # "" AND R.NEW(AF) > 79 THEN
+        GOSUB VAL.ACC.LIQ
+    END
+
+    RETURN
+
+***************************************************************************
+VAL.POST:
+*********
+
+    IF R.NEW(V-9) = "" THEN
+        CURR.NO = 0 ; CALL STORE.OVERRIDE(CURR.NO)
+    END ELSE
+        CURR.NO = COUNT(R.NEW(V-9),VM)+1
+        CURR.NO = CURR.NO+1
+        TEXT = "REMOVE FROM ACCOUNT CLOSURE"
+        CALL STORE.OVERRIDE(CURR.NO)
+        IF TEXT = "NO" THEN
+            GOSUB PROGRAM.ABORT
+        END
+    END
+
+    RETURN
+
+****************************************************************************
+VAL.ACC.LIQ:
+************
+    YLIQU.CLOSE = 0 ; YCOMP.CLOSE = 0
+    ETEXT = ""
+    CALL F.READV("F.ACCOUNT.LIQUIDATION",ID.NEW,Y.FIELD,1,F.ACCOUNT.LIQUIDATION,ETEXT)
+    IF ETEXT = "" THEN
+        YLIQU.CLOSE = 1
+        YPR.NARR = "LIQU "
+    END ELSE
+        ETEXT = ""
+        CALL F.READV("F.ACCOUNT.COMPENSATION",ID.NEW,Y.FIELD,1,F.ACCOUNT.COMPENSATION,ETEXT)
+        IF ETEXT = "" THEN
+            YCOMP.CLOSE = 1
+            YPR.NARR = "COMP "
+        END ELSE
+            ETEXT = ""
+        END
+    END
+    IF YLIQU.CLOSE OR YCOMP.CLOSE THEN
+        IF R.NEW(AF) < 90 THEN
+            YPR.NARR2 = "ACCOUNT PENDING CLOSURE"
+            TEXT = YPR.NARR:YPR.NARR2
+            CALL STORE.OVERRIDE(CURR.NO)
+            IF TEXT = "NO" THEN
+                GOSUB PROGRAM.ABORT
+            END
+        END ELSE
+            YPR.NARR2 = "CANNOT CLOSE "
+            ETEXT = "AC.AC.AC":FM:YPR.NARR2:VM:YPR.NARR
+            CALL STORE.END.ERROR
+            YPR.ERROR = 1
+        END
+    END
+
+    RETURN
+
+*------------------------------------------------------------------------
+VAL.INTEREST.LIQU.ACCT:
+***********************
+
+* Check all Interest Liquidation accounts
+    IF LIQU.ACCT.LIST THEN
+        GOSUB INTEREST.LIQ.ACC
+    END
+
+    RETURN
+
+*****************************************************************************
+INTEREST.LIQ.ACC:
+*****************
+
+    FOR LIQU.LOOP = 1 TO LIQU.ACCT.LIST.COUNT
+        AF = LIQU.ACCT.FIELD<LIQU.LOOP,1>
+        AV = LIQU.ACCT.FIELD<LIQU.LOOP,2>
+        ACCOUNT.ID = LIQU.ACCT.LIST<LIQU.LOOP>
+        CALL F.READ("F.ACCOUNT",ACCOUNT.ID,R.ACC,F.ACCOUNT,ER)
+        IF R.NEW(AC.CURRENCY) NE R.ACC<AC.CURRENCY> THEN
+            IF R.NEW(AC.CONTINGENT.INT) OR (AF = AC.INTEREST.LIQU.ACCT) THEN
+                ETEXT ="AC.AC.CCY.DIFFERS.AC"
+                CALL STORE.END.ERROR
+            END
+        END ELSE
+            IF YACCT.TYPE # "INTERNAL" THEN
+                GOSUB CUS.INT.LIQ
+            END
+            GOSUB INT.LIQ.CLOSURE
+        END
+    NEXT LIQU.LOOP
+
+    RETURN
+
+*************************************************************************************
+INT.LIQ.CLOSURE:
+****************
+
+    FLDNO = "" ; FLDNO<1> = AC.POSTING.RESTRICT ; FLDNO<3> = R.COMPANY(EB.COM.FINANCIAL.MNE)
+    CALL ACCOUNT.DBR(FLDNO,ACCOUNT.ID,Y)
+    IF ETEXT THEN
+        CALL STORE.END.ERROR
+    END ELSE
+        IF Y # "" AND Y > 79 THEN
+            IF Y < 90 THEN
+                TEXT = "LIQU ACCOUNT PENDING CLOSURE" ; CALL STORE.OVERRIDE(CURR.NO)
+                IF TEXT = "NO" THEN
+                    GOSUB PROGRAM.ABORT
+                END
+            END ELSE
+                ETEXT ="AC.AC.LIQU.AC.CLOSED" ; CALL STORE.END.ERROR
+            END
+        END
+    END
+
+    RETURN
+
+*************************************************************************************
+CUS.INT.LIQ:
+************
+
+    CALL DBR("ACCOUNT":FM:AC.CONTINGENT.INT, ACCOUNT.ID, LIQ.CONT.INT)
+    IF R.NEW(AC.CONTINGENT.INT) AND R.NEW(AC.CONTINGENT.INT) NE 'B' THEN
+        IF LIQ.CONT.INT AND LIQ.CONT.INT NE R.NEW(AC.CONTINGENT.INT) THEN
+            ETEXT ='AC.AC.CONTINGENT.INT.DOES.NOT.MATCH'
+            CALL STORE.END.ERROR
+        END
+    END ELSE
+        IF LIQ.CONT.INT THEN
+            ETEXT ="AC.AC.CONTINGENT.ACCOUNTS.NOT.ALLOWED"
+            CALL STORE.END.ERROR
+        END
+    END
+
+* - Cross val liqu account ccy
+*    Y = ""
+*    FLDNO = "" ; FLDNO<1> = AC.CURRENCY ; FLDNO<3> = R.COMPANY(EB.COM.FINANCIAL.MNE)
+*    CALL ACCOUNT.DBR(FLDNO,R.NEW(AF),Y)
+*    IF R.NEW(AC.INTEREST.CCY) THEN
+*        IF R.NEW(AC.INTEREST.CCY) NE Y THEN
+*            ETEXT ="AC.AC.AC.ANOTHER.CCY"
+** liquidation account must have currency of interest currency-field
+*            CALL STORE.END.ERROR
+*        END
+*    END ELSE
+*        IF Y # R.NEW(AC.CURRENCY) THEN
+*            ETEXT ="AC.AC.AC.ANOTHER.CCY"
+** liquidation account must have currency of currency-field
+*            CALL STORE.END.ERROR
+*        END
+*    END
+
+    RETURN
+
+*------------------------------------------------------------------------
+VAL.INTEREST.COMP.ACCT:
+************************
+
+    AF = AC.INTEREST.COMP.ACCT
+    IF R.NEW(AF) # "" THEN
+        GOSUB INTEREST.COMP.ACC
+    END
+
+    RETURN
+
+************************************************************************************
+INTEREST.COMP.ACC:
+******************
+
+    IF YACCT.TYPE = "INTERNAL" THEN
+        ETEXT ="AC.AC.INVALID.INTERNAL.AC"
+        CALL STORE.END.ERROR
+    END ELSE
+* - Validate Int Comp account ccy
+        GOSUB VAL.INT.COMP.CCY
+    END
+    FLDNO = "" ; FLDNO<1> = AC.POSTING.RESTRICT ; FLDNO<3> = R.COMPANY(EB.COM.FINANCIAL.MNE)
+    CALL ACCOUNT.DBR(FLDNO,R.NEW(AF),Y)
+    IF Y # "" AND Y > 79 THEN
+        IF Y < 90 THEN
+            TEXT = "COMP ACCOUNT PENDING CLOSURE" ; CALL STORE.OVERRIDE(CURR.NO)
+            IF TEXT = "NO" THEN
+                GOSUB PROGRAM.ABORT
+            END
+        END ELSE
+            ETEXT ="AC.AC.COMP.AC.CLOSED" ; CALL STORE.END.ERROR
+        END
+    END
+    YCOMP.CCY.MKT = ''
+    FLDNO = "" ; FLDNO<1> = AC.CURRENCY.MARKET ; FLDNO<3> = R.COMPANY(EB.COM.FINANCIAL.MNE)
+    CALL ACCOUNT.DBR(FLDNO,R.NEW(AF),YCOMP.CCY.MKT)
+    IF YCOMP.CCY.MKT # R.NEW(AC.CURRENCY.MARKET) THEN
+*
+****  Override required if markets are not the same
+*
+        TEXT = 'COMP A/C Has Diff. MKT (&)':FM:YCOMP.CCY.MKT
+        CALL STORE.OVERRIDE(CURR.NO)
+        IF TEXT = "NO" THEN
+            GOSUB PROGRAM.ABORT
+        END
+    END
+
+    GOSUB CHECK.SUSPENSE
+
+    RETURN
+
+*******************************************************************************************
+VAL.INT.COMP.CCY:
+*****************
+
+    Y = ""
+    FLDNO = "" ; FLDNO<1> = AC.CURRENCY ; FLDNO<3> = R.COMPANY(EB.COM.FINANCIAL.MNE)
+    CALL ACCOUNT.DBR(FLDNO,R.NEW(AF),Y)
+    IF ETEXT THEN
+        CALL STORE.END.ERROR
+    END ELSE
+        IF Y # R.NEW(AC.CURRENCY) THEN
+            OUR.CCY = R.NEW(AC.CURRENCY) ; CHECK.CCY = Y
+            GOSUB CHECK.FOR.IN.CCY      ;* GB0000252
+* compensation account must be within "IN" fixed rate group or
+* compensation account must have currency of currency-field
+            IF RESULT THEN
+                ETEXT = RESULT
+                CALL STORE.END.ERROR
+            END
+        END
+    END
+
+    RETURN
+
+*--------------------------------------------------------------------------------------------
+VAL.CHARGE.ACCOUNT:
+*******************
+
+* - Cross val charge account ccy
+    AF = AC.CHARGE.ACCOUNT
+    IF R.NEW(AF) # "" THEN
+        GOSUB CHARGE.ACCOUNT
+    END
+
+    RETURN
+
+****************************************************************************************
+CHARGE.ACCOUNT:
+***************
+
+    IF YACCT.TYPE = "INTERNAL" THEN
+        ETEXT ="AC.AC.INVALID.INTERNAL.AC"
+        CALL STORE.END.ERROR
+    END ELSE
+        Y = ""
+        FLDNO = "" ; FLDNO<1> = AC.CURRENCY ; FLDNO<3> = R.COMPANY(EB.COM.FINANCIAL.MNE)
+        CALL ACCOUNT.DBR(FLDNO,R.NEW(AF),Y)
+        IF Y # R.NEW(AC.CURRENCY) THEN
+            ETEXT ="AC.AC.AC.ANOTHER.CCY"         ;* account must have currency of charge currency-field
+            CALL STORE.END.ERROR
+        END
+    END
+    FLDNO = "" ; FLDNO<1> = AC.POSTING.RESTRICT ; FLDNO<3> = R.COMPANY(EB.COM.FINANCIAL.MNE)
+    CALL ACCOUNT.DBR(FLDNO,R.NEW(AF),Y)
+    IF Y # "" AND Y > 79 THEN
+        IF Y < 90 THEN
+            TEXT = "CHRG ACCOUNT PENDING CLOSURE" ; CALL STORE.OVERRIDE(CURR.NO)
+            IF TEXT = "NO" THEN
+                GOSUB PROGRAM.ABORT
+            END
+        END ELSE
+            ETEXT ="AC.AC.CHRG.AC.CLOSED" ; CALL STORE.END.ERROR
+        END
+    END
+
+    RETURN
+
+*****************************************************************************************
+VAL.ALT.ACCT:
+*************
+* - Cross val alternates
+    AF = AC.ALT.ACCT.TYPE
+* - S Crossval code is moved to AC.ALTID.PROCESS
+    MATBUILD ACCT.REC FROM R.NEW
+    CALL AC.ALTID.PROCESS(ACCT.REC, 'CROSSVAL', '')
+    MATPARSE R.NEW FROM ACCT.REC
+
+    RETURN
+
+*****************************************************************************************
+VAL.INT.COMP:
+*************************************************************************
+****  Both liquidation and compensation accounts may not be entered  ****
+*************************************************************************
+
+    IF LIQU.ACCT.LIST # "" AND R.NEW(AC.INTEREST.COMP.ACCT) # "" THEN
+* Set error field to the first instance of a Liquidation account with an entry.
+        AF = LIQU.ACCT.FIELD<1,1>
+        ETEXT ="AC.AC.CANT.INP.BOTH.LIQU/COMP.ACCTS"
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+
+******************************************************************************************
+VAL.INT.NO.BOOKING:
+*******************
+
+    AF = AC.INT.NO.BOOKING
+    IF YACCT.TYPE = "INTERNAL" THEN
+        IF R.NEW(AF) # "" THEN
+            ETEXT ="AC.AC.INVALID.INTERNAL.AC"
+            AF = AC.INT.NO.BOOKING
+            CALL STORE.END.ERROR
+        END
+    END ELSE
+* defaults the value for INT.NO.BOOKING if its not
+* inputted depends on CONTINGENT.INT
+        IF R.NEW(AF) EQ '' THEN         ;*  10000056 S
+            IF R.NEW(AC.CONTINGENT.INT) EQ 'C' THEN
+                R.NEW(AF) = 'Y'
+            END
+            IF R.NEW(AC.CONTINGENT.INT) EQ 'O' THEN
+                R.NEW(AF) = 'SUSPENSE'
+            END
+        END         ;* 10000056 E
+        IF R.OLD(AF) # "" AND (R.OLD(AF) # R.NEW(AF)) AND (R.OLD(AF) = "SUSPENSE") THEN
+            GOSUB CHECK.SUSPENSE
+        END
+    END
+
+    RETURN
+
+******************************************************************************************
+VAL.WAIVE.LEDGER:
+*****************
+
+    AF = AC.WAIVE.LEDGER.FEE
+    IF YACCT.TYPE = "INTERNAL" AND R.NEW(AF) = "Y" THEN
+        ETEXT ="AC.AC.INVALID.INTERNAL.AC"
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+
+*****************************************************************************************
+VAL.LINK.TO.LIMIT:
+*******************
+*
+* If a limit link has been entered make sure the account has a valid limt
+* reference.
+*
+    IF R.NEW(AC.LINK.TO.LIMIT)[1,1] EQ "Y" AND (NOT(R.NEW(AC.LIMIT.REF)) OR R.NEW(AC.LIMIT.REF)="NOSTRO") THEN
+        AF = AC.LINK.TO.LIMIT
+        ETEXT ="AC.AC.NO.LIMIT.LINK.TO"
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+
+******************************************************************************************
+VAL.AUTO.PAY:
+*************
+
+    AF = AC.AUTO.PAY.ACCT
+
+    IF R.NEW(AF) THEN
+        E = ''
+        IF R.NEW(AC.AUTO.PAY.ACCT) EQ ID.OLD THEN ;*GB9900867S
+            ETEXT ='AC.AC.AUTO.PAY.ACCT.CANT.AC.NO'
+            CALL STORE.END.ERROR
+        END         ;*GB9900867E
+        CHK.ACCT = R.NEW(AF)
+        GOSUB CHECK.ACCT.INPUT
+        IF E THEN
+            ETEXT = E
+            CALL STORE.END.ERROR
+        END
+        IF AUTO.PAY.ACCT.CCY # R.NEW(AC.CURRENCY) THEN
+            IF R.CURRENCY<EB.CUR.FIXED.START.DATE> > TODAY THEN
+                ETEXT ="AC.AC.FIXED.RATE.ON.CCYS.NOT.YET.ACTIVE"
+                CALL STORE.END.ERROR
+            END
+        END
+        IF R.NEW(AC.AUTO.REC.CCY) THEN
+            ETEXT ="AC.AC.CANT.ENT.AUTO.PAY.A/C"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = AC.AUTO.REC.CCY
+
+    CALL DUP
+
+    IF R.ACCOUNT.PARAMETER<AC.PAR.AUTO.PAY.CATEG> = "" AND R.NEW(AF) THEN
+        ETEXT ="AC.AC.AUTO.PAYMENT.CAT.NOT.YET.SPECIFIED"
+        CALL STORE.END.ERROR
+    END
+
+    IF R.NEW(AF) AND R.NEW(AC.AUTO.PAY.ACCT) THEN
+        ETEXT ="AC.AC.CANT.ENT.AUTO.REC.CCY"
+        CALL STORE.END.ERROR
+    END
+
+    NO.OF.AUTO.REC.CCYS = DCOUNT(R.NEW(AF),VM)
+
+    FOR AV = 1 TO NO.OF.AUTO.REC.CCYS
+        IF R.NEW(AF)<1,AV> THEN
+            GOSUB AUTO.REC.CCY
+        END
+    NEXT AV
+
+    RETURN
+
+**********************************************************************************************
+AUTO.REC.CCY:
+*************
+
+    GOSUB READ.CUST.ACCT.CCY.REC
+    LOCATE R.NEW(AF)<1,AV> IN R.CUST.ACCT.CCY.REC<CUS.ACR.RECEIVE.CCY,1> SETTING POSN THEN
+        IF R.CUST.ACCT.CCY.REC<CUS.ACR.RECEIVE.ACCOUNT,POSN> # ID.NEW THEN
+            ETEXT ="AC.AC.CCY.ALREADY.DEFINED"
+            CALL STORE.END.ERROR
+        END
+    END
+    CCY.ID = R.NEW(AF)<1,AV>
+    GOSUB READ.CURRENCY
+    IF R.CURRENCY<EB.CUR.FIXED.CCY> # R.NEW(AC.CURRENCY) OR R.CURRENCY<EB.CUR.FIXED.RATE> = "" THEN
+        ETEXT ="AC.AC.CCY.LINKED.WITH.FIXED.RATE.A/C.CCY"
+        CALL STORE.END.ERROR
+    END
+    IF R.CURRENCY<EB.CUR.FIXED.START.DATE> > TODAY THEN
+        ETEXT ="AC.AC.FIXED.RATE.ON.CCYS.NOT.YET.ACTIVE"
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+
+***********************************************************************************************
+VAL.SINGLE.LIMIT:
+*****************
+*Defaulting with value in SINGLE.LIMIT.DEFLT field in ACCT.GROUP.CONDITION
+
+    AF = AC.SINGLE.LIMIT
+    GOSUB READ.ACCT.GROUP.CONDITION
+    IF R.NEW(AC.CURR.NO) EQ '' OR (R.OLD(AC.CUSTOMER) EQ '' AND R.NEW.LAST(AC.CUSTOMER) EQ '') AND R.NEW(AC.ARRANGEMENT.ID) = "" THEN       ;* GB0100702 S/E
+        IF R.NEW(AC.SINGLE.LIMIT) EQ '' THEN
+            R.NEW(AC.SINGLE.LIMIT) = R.ACCT.GROUP.CONDITION<ACCT.GRP.SINGLE.LIMIT.DEFLT>
+        END
+    END
+
+    RETURN
+
+****************************************************************************************
+VAL.TAX:
+********
+
+    AF = AC.TAX.SUSPEND
+    IF (R.NEW(AC.INT.NO.BOOKING) # 'SUSPENSE') AND (R.NEW(AC.TAX.SUSPEND) # "") THEN
+        ETEXT ="AC.AC.INP.ALLOWED.ONLY.SUSP.ACCOUNTS"
+        CALL STORE.END.ERROR
+    END
+
+    AF = AC.TAX.AT.SETTLE
+    IF (R.NEW(AC.INT.NO.BOOKING) # 'SUSPENSE') AND (R.NEW(AC.TAX.AT.SETTLE) # '') THEN
+        ETEXT ="AC.AC.INP.ALLOWED.ONLY.SUSP.ACCOUNTS"
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+
+*****************************************************************************************
+VAL.AVAILABLE.BAL:
+******************
+* Cross val check for Available funds
+
+    AF = AC.AVAILABLE.BAL.UPD
+    IF R.NEW(AC.CREDIT.CHECK)[1, 5] = "AVAIL" AND R.NEW(AF) = "" THEN ;* BG_100011658 S/E
+        ETEXT ="AC.AC.AVAILABLE.BAL.UPD.MISS.CREDIT.CHECK"
+        CALL STORE.END.ERROR
+    END
+*
+    RETURN
+
+******************************************************************************************
+VAL.OUR.EXT.ACCT.NO:
+********************
+
+    AF = AC.OUR.EXT.ACCT.NO
+    IF R.NEW(AC.OUR.EXT.ACCT.NO) THEN
+        NOSTRO.CATEGORIES = ''
+        CALL CACHE.READ("F.ACCOUNT.CLASS","NOSTRO", R.CLASS ,ER)
+        NOSTRO.CATEGORIES = R.CLASS<AC.CLS.CATEGORY>
+        LOCATE R.NEW(AC.CATEGORY) IN NOSTRO.CATEGORIES<1,1> SETTING NOSTRO.FOUND ELSE
+            NOSTRO.FOUND = ''
+        END
+        IF NOT(NOSTRO.FOUND) THEN
+            ETEXT = 'AC.AC.EXT.AC.ONLY.ALLOWED.NOS'
+            CALL STORE.END.ERROR
+        END
+    END
+
+    RETURN
+
+****************************************************************************************
+DEF.CONT.INT:
+*************
+
+    IF R.NEW(AC.INT.NO.BOOKING) EQ '' THEN
+        IF R.NEW(AC.CONTINGENT.INT) EQ 'O' THEN
+            R.NEW(AC.INT.NO.BOOKING) = 'SUSPENSE'
+        END
+        IF R.NEW(AC.CONTINGENT.INT) EQ 'C' THEN
+            R.NEW(AC.INT.NO.BOOKING) = 'Y'
+        END
+    END
+
+    RETURN
+
+**************************************************************************************
+
+VAL.CONSOLIDATE.ENT:
+********************
+
+    AF = AC.CONSOLIDATE.ENT
+    IF R.NEW(AF) # '' THEN
+        R.AC.CONSOLIDATE.COND = ''
+        YERR = ''
+        CALL CACHE.READ('F.AC.CONSOLIDATE.COND',R.NEW(AF),R.AC.CONSOLIDATE.COND,YERR)
+        IF YERR THEN
+            IF YACCT.TYPE = 'INTERNAL' OR R.NEW(AC.LIMIT.REF) = 'NOSTRO' THEN
+                IF R.NEW(AF) # 'NO' THEN
+                    ETEXT = 'AC-INVALID.TYPE'
+                    CALL STORE.END.ERROR
+                END
+            END ELSE
+                ETEXT = 'AC-INVALID.TYPE'
+                CALL STORE.END.ERROR
+            END
+        END
+    END
+
+    RETURN
+
+**************************************************************************************
+VAL.LIMITS:
+*************
+
+    AF = AC.LIMIT.REF
+    PACC.COMPANY = ""
+    PACC.NO = ""
+    PACC.BAL = ""
+    PACC.CCY = ""
+    POLD.REF = ""
+    POLD.SER = ""
+    PNEW.REF = ""
+    PNEW.SER = ""
+    PCURR.NO = COUNT(R.NEW(V-9),VM) + 1
+    PAUTH.OR.VALIDATE = ""
+    PRETURN.CODE = ""
+
+    IF R.OLD(AF) # R.NEW(AF) THEN
+        GOSUB LIMIT.CHECK.OVE
+    END
+
+    RETURN
+
+****************************************************************************************
+LIMIT.CHECK.OVE:
+****************
+
+    PCUST.NO = ""
+    PLIAB.NO = ""
+    YLIAB.NO = ""
+    CALL F.READ("F.CUSTOMER",R.NEW(AC.CUSTOMER),R.CUSTOMER,F.CUSTOMER,ER)
+    YLIAB.NO = R.CUSTOMER<EB.CUS.CUSTOMER.LIABILITY>
+    YCALL.CHANGE = "N"
+    IF R.OLD(AF) # "" AND R.OLD(AF) # "NOSTRO" THEN
+        YCALL.CHANGE = "Y"
+        PLIAB.NO = YLIAB.NO
+        PCUST.NO = R.NEW(AC.CUSTOMER)
+        PACC.COMPANY = ID.COMPANY
+        POLD.REF = FIELD(R.OLD(AF),".",1)         ;*DH*
+        POLD.SER = FIELD(R.OLD(AF),".",2)         ;*DH*
+    END
+    IF R.NEW(AF) # "" AND R.NEW(AF) # "NOSTRO" THEN
+        YCALL.CHANGE = "Y"
+        PLIAB.NO = YLIAB.NO
+        PCUST.NO = R.NEW(AC.CUSTOMER)
+        PACC.COMPANY = ID.COMPANY
+        YLEN = LEN(R.NEW(AF))
+        PNEW.REF = FIELD(YPRODUCT,".",1)          ;*DH*
+        PNEW.SER = FIELD(R.NEW(AF),".",2)         ;*DH*
+    END
+    IF YCALL.CHANGE = "Y" THEN
+        PAUTH.OR.VALIDATE = "V"
+        GOSUB GET.LIMIT.FIGURES         ;*DH
+        IF PRETURN.CODE > 0 THEN
+            T.SEQU = "ACTION" ;*DH*
+            GOSUB PROGRAM.ABORT
+        END
+    END   ;*DH*
+    IF END.ERROR # "Y" AND R.OLD(AF) # "NOSTRO" AND R.OLD(AF) # "" AND R.NEW(AF) = "" AND R.NEW(AC.WORKING.BALANCE) # "" AND R.NEW(AC.WORKING.BALANCE) < 0 THEN
+        TEXT = "CREATES UNAUTHORISED O'DRAFT"
+        CALL STORE.OVERRIDE(CURR.NO)
+        IF TEXT = "NO" THEN
+            GOSUB PROGRAM.ABORT
+        END
+    END
+
+    RETURN
+
+**************************************************************************************************
+VAL.RELATION.CODE:
+******************
+*
+** ---------
+** Override if the relation code does not match that defined on the
+** RELATION.CUSTOMER file
+*
+    AF = AC.RELATION.CODE
+    NO.OF.JOINT.HOLDERS = DCOUNT(R.NEW(AC.JOINT.HOLDER),VM)
+    FOR AV = 1 TO NO.OF.JOINT.HOLDERS
+        IF R.NEW(AC.RELATION.CODE)<1,AV> THEN
+            REL.CUS = R.NEW(AC.JOINT.HOLDER)<1,AV>
+            GOSUB READ.RELATION.CUSTOMER
+            IF R.RELATION.CUSTOMER THEN
+                GOSUB RELATION.CUSTOMER
+            END
+        END
+    NEXT AV
+
+    RETURN
+
+
+******************************************************************************************
+RELATION.CUSTOMER:
+******************
+
+    LOCATE R.NEW(AC.CUSTOMER) IN R.RELATION.CUSTOMER<EB.RCU.OF.CUSTOMER,1> SETTING REL.POS THEN
+        IF R.NEW(AC.RELATION.CODE)<1,AV> # R.RELATION.CUSTOMER<EB.RCU.IS.RELATION,REL.POS> THEN
+            TEXT = "JOINT HOLDER RELATION SPECIFIED DIFFERS FROM RELATION.CUSTOMER"
+            CALL STORE.OVERRIDE(CURR.NO)
+            IF TEXT = "NO" THEN
+                GOSUB PROGRAM.ABORT
+            END
+        END
+    END
+
+    RETURN
+
+
+******************************************************************************************
+VAL.PASSBOOK:
+*************
+*
+* Pass book accounts must have the correct category as defined on the
+* account class record ("SAVINGS").
+*
+    AF = AC.PASSBOOK
+    R.STMT.PRINTED='' ; STMT.ERR='' ; F.STMT.PRINTED=''
+    IF R.NEW(AF) = "" THEN
+        R.NEW(AF) = "NO"
+    END ELSE
+        IF R.NEW(AF) = "Y" THEN         ;* Passbooks are only valid with savings
+            LOCATE R.NEW(AC.CATEGORY) IN SAVINGS.CATEGORIES<1,1> SETTING YY ELSE
+                ETEXT ="AC.AC.PASSBOOKS.ONLY.VALID.SAVINGS.ACCT"
+                CALL STORE.END.ERROR
+            END
+        END
+    END
+*
+    IF R.NEW(AF) = 'NO' THEN
+        CALL F.READ('F.ACCOUNT.STATEMENT',ID.NEW,AC.STMT.REC,F.ACCOUNT.STATEMENT,ER)
+        IF AC.STMT.REC<AC.STA.CONS.SB.PASSBOOK> = "YES" THEN
+            TEXT = 'AC.CONS.PBOOK'
+            CALL STORE.OVERRIDE(CURR.NO)
+            IF TEXT = 'NO' THEN
+                GOSUB PROGRAM.ABORT
+            END
+        END
+    END
+
+    RETURN
+
+*****************************************************************************************
+VAL.PREMIUM.TYPE:
+*****************
+** ---------
+** Validate and update the premium type fields
+*
+    AF = AC.PREMIUM.TYPE
+
+    GOSUB READ.ACCT.GROUP.CONDITION
+    PREMIUM.TYPES = R.ACCT.GROUP.CONDITION<ACCT.GRP.PREMIUM.TYPE>
+    NO.OF.PRM.TYPES = DCOUNT(R.NEW(AF),VM)
+    FOR AV = 1 TO NO.OF.PRM.TYPES
+        LOCATE R.NEW(AF)<1,AV> IN PREMIUM.TYPES<1,1> SETTING PRM.TYPE.POSN ELSE
+            ETEXT ="AC.AC.INVALID.GRP.CCY"        ;* BG_100010386
+            CALL STORE.END.ERROR
+        END
+    NEXT AV
+
+    RETURN
+
+*****************************************************************************************
+VAL.PREMIUM.FREQ:
+*****************
+
+*
+** Now process the premium frequency field
+*
+    AF = AC.PREMIUM.FREQ
+
+    FOR AV = 1 TO NO.OF.PRM.TYPES
+
+        IF R.NEW(AF)<1,AV> AND NOT(R.NEW(AC.PREMIUM.TYPE)<1,AV>) THEN
+            ETEXT ="AC.AC.CANT.ENT.WITHOUT.PRE.TYPE"
+            CALL STORE.END.ERROR
+        END
+
+        IF R.NEW(AF)<1,AV> AND R.NEW(AF)<1,AV> < TODAY THEN
+            ETEXT ="AC.AC.NEXT.CAP.DATE.CANT.PAST"
+            CALL STORE.END.ERROR
+        END
+
+        GOSUB READ.SAVINGS.PREMIUM
+        PREM.CAP.FREQ = R.SP<SA.PRM.PREM.CAP.FREQ>
+*
+** If the premium frequency is blank then default it using the parameter
+** MAX.PRM.QUAL.PRD on the SAVINGS.PREMIUM record. If MAX.PRM.QUAL.PRD
+** field is blank then this field must now be defaulted as it is then
+** indicating a different type of premium
+*
+        IF R.NEW(AF)<1,AV> = "" AND NOT(PREM.CAP.FREQ) THEN
+            GOSUB DEF.PREMIUM.FREQ
+        END
+
+    NEXT AV
+
+    RETURN
+
+*************************************************************************************
+DEF.PREMIUM.FREQ:
+*****************
+
+    MAX.PRM.QUAL.PRD = R.SP<SA.PRM.MAX.PREM.QUAL.PRD>
+    IF MAX.PRM.QUAL.PRD THEN
+*
+** Calculate and default the date into the premium frequency field
+** If the period specified is in years then multiply by
+** 12 to get the equivalent figure in months
+*
+        POS.OF.Y = INDEX(MAX.PRM.QUAL.PRD,"Y",1)
+        IF POS.OF.Y THEN
+            MAX.PRM.QUAL.PRD = MAX.PRM.QUAL.PRD[1,POS.OF.Y-1] * 12
+            MAX.PRM.QUAL.PRD := "M"
+        END
+        IF R.NEW(AC.OPENING.DATE) THEN
+            PREM.FREQ = R.NEW(AC.OPENING.DATE)
+        END ELSE
+            PREM.FREQ = TODAY
+        END
+
+        CALL CALENDAR.DAY(PREM.FREQ,"+",MAX.PRM.QUAL.PRD)
+        R.NEW(AF)<1,AV> = MAX.PRM.QUAL.PRD
+
+    END
+    IF R.NEW(AF)<1,AV> # "" THEN
+        GOSUB READ.SAVINGS.PREMIUM
+        QUALIFYING.PERIOD = R.SP<SA.PRM.QUALIFYING.PERIOD
+        IF QUALIFYING.PERIOD AND R.NEW(AF)<1,AV>[9,1] = "" THEN
+            ETEXT ="AC.AC.FREQ.MAND.PRE.TYPE"
+            CALL STORE.END.ERROR
+        END
+    END
+
+    RETURN
+
+*******************************************************************************************************
+VAL.JOINT.FIELDS:
+*****************
+*
+** Process the joint accounts
+*
+    AF = AC.JOINT.HOLDER
+    CALL DUP
+    NO.OF.JOINT.HOLDERS = DCOUNT(R.NEW(AC.JOINT.HOLDER),VM)
+    FOR AV = 1 TO NO.OF.JOINT.HOLDERS
+*
+* Code added to validate whether the JOINT.HOLDER is different from CUSTOMER.
+*
+        IF R.NEW(AF)<1,AV> EQ R.NEW(AC.CUSTOMER) THEN
+            ETEXT = 'AC.AC.SAME.AS.CUSTOMER'
+            CALL STORE.END.ERROR
+        END ELSE
+            IF R.NEW(AC.RELATION.CODE)<1,AV> = "" THEN
+                REL.CUS = R.NEW(AF)<1,AV>
+                GOSUB READ.RELATION.CUSTOMER
+                LOCATE R.NEW(AC.CUSTOMER) IN R.RELATION.CUSTOMER<EB.RCU.OF.CUSTOMER,1> SETTING REL.POS THEN
+                    R.NEW(AC.RELATION.CODE)<1,AV> = R.RELATION.CUSTOMER<EB.RCU.IS.RELATION,REL.POS>
+                END
+            END
+        END
+    NEXT AV
+
+*
+** Process the joint holder fields
+*
+    AF = AC.RELATION.CODE
+
+    IF NO.OF.JOINT.HOLDERS THEN
+        FOR AV = 1 TO NO.OF.JOINT.HOLDERS
+            IF R.NEW(AC.JOINT.HOLDER)<1,AV> AND NOT(R.NEW(AC.RELATION.CODE)<1,AV>) THEN
+                ETEXT ='AC.AC.REL.CODE.ENT'
+                CALL STORE.END.ERROR
+            END
+
+        NEXT AV
+    END ELSE
+        IF R.NEW(AC.RELATION.CODE)<1,AV> THEN
+            ETEXT ='AC.AC.REL.CODE.CANT.ENT'
+            CALL STORE.END.ERROR
+        END
+    END
+
+    AF = AC.JOINT.NOTES
+
+    IF NOT(NO.OF.JOINT.HOLDERS) THEN
+        GOSUB JOINT.NOTES
+    END
+
+    RETURN
+
+***************************************************************************************
+JOINT.NOTES:
+************
+
+    NO.OF.JOINT.NOTES = DCOUNT(R.NEW(AC.JOINT.NOTES),VM)
+
+    FOR AV = 1 TO NO.OF.JOINT.NOTES
+        NO.OF.LINES = DCOUNT(R.NEW(AC.JOINT.NOTES)<1,AV>,SM)
+
+        FOR AS = 1 TO NO.OF.LINES
+
+            IF R.NEW(AC.JOINT.NOTES)<1,AV,AS> AND NOT(R.NEW(AC.JOINT.HOLDER)<1,AV>) THEN
+                ETEXT ='AC.AC.JOINT.NOTES.CANT.ENT'
+                CALL STORE.END.ERROR
+            END
+        NEXT AS
+    NEXT AV
+
+    RETURN
+
+****************************************************************************************
+VAL.NETTING:
+************
+
+    AF = AC.ALLOW.NETTING
+    IF R.OLD(AF) <> R.NEW(AF) AND ID.OLD THEN
+        IF NOT(NOT(R.OLD(AF)) AND R.NEW(AF) = 'NO') THEN
+            TEXT = "CHANGING THE ALLOW.NETTING FIELD MAY CAUSE CHANGES TO LIMITS"
+            CALL STORE.OVERRIDE(CURR.NO)
+            IF TEXT = "NO" THEN
+                GOSUB PROGRAM.ABORT
+            END
+        END
+    END
+
+    RETURN
+
+*****************************************************************************************
+VAL.STOCK.CONTROL:
+******************
+
+    IF TT.INSTALLED THEN
+        CHECKFILE1 = 'TT.STOCK.CONTROL':FM:1
+        STOCK.CONTROL.IN.USE = ''
+        CALL DBR(CHECKFILE1,ID.NEW,STOCK.CONTROL.IN.USE)
+        IF ETEXT THEN
+            STOCK.CONTROL.IN.USE = ''   ;* not in use
+            ETEXT = ''
+        END
+    END ELSE
+        STOCK.CONTROL.IN.USE = ""
+    END
+*
+    AF = AC.STOCK.CONTROL.TYPE
+    IF R.OLD(AF) AND R.OLD(AF) NE R.NEW(AF) THEN
+        IF STOCK.CONTROL.IN.USE THEN
+            ETEXT ="AC.AC.NO.CHANGE.ALLOWED.STOCK.EXISTS"
+            CALL STORE.END.ERROR
+        END
+    END
+*
+    AF = AC.SERIAL.NO.FORMAT
+    IF R.OLD(AF) AND R.OLD(AF) NE R.NEW(AF) THEN
+        IF STOCK.CONTROL.IN.USE THEN
+            ETEXT ="AC.AC.NO.CHANGE.ALLOWED.STOCK.EXISTS"
+            CALL STORE.END.ERROR
+        END
+    END
+    IF R.NEW(AC.STOCK.CONTROL.TYPE) EQ 'SERIAL' AND R.NEW(AF) EQ '' THEN
+        ETEXT ="AC.AC.MAND.SERIAL.CTRL.TYPE"
+        CALL STORE.END.ERROR
+    END
+    IF R.NEW(AC.STOCK.CONTROL.TYPE) NE 'SERIAL' AND R.NEW(AF) THEN
+        ETEXT ="AC.AC.INP.DISALLOWED"
+        CALL STORE.END.ERROR
+    END ELSE
+        COMI = R.NEW(AF)
+        GOSUB SERIAL.NO.FORMAT.CHECK
+        IF ETEXT THEN
+            CALL STORE.END.ERROR
+        END
+    END
+
+    RETURN
+
+****************************************************************************************
+*
+VAL.SUB.ACCOUNTS:
+*****************
+
+    AF = AC.MAX.SUB.ACCOUNT
+    IF R.NEW(AF) AND R.NEW(AC.MASTER.ACCOUNT) THEN
+        ETEXT = "NOT ALLOWED FOR SUB ACCOUNT"
+        CALL STORE.END.ERROR
+    END
+    IF (NUM(ID.NEW[4,3])) AND R.NEW(AF) > 999 THEN
+        ETEXT = 'AC-MAX.SUBACCOUNT'
+        CALL STORE.END.ERROR
+    END
+    IF NOT(NUM(ID.NEW[4,3])) THEN
+        IF R.NEW(AF) > 98 THEN
+            ETEXT = 'AC.AC.MAX.SUB.POS.ACCOUNT'
+            CALL STORE.END.ERROR
+        END
+    END
+*
+    AF = AC.MASTER.ACCOUNT
+    BEGIN CASE
+    CASE R.NEW(AF) = ID.NEW
+        ETEXT = "SAME AS THIS ACCOUNT"
+        CALL STORE.END.ERROR
+    CASE R.NEW(AF)
+        MASTER.REC = ""
+        YERR = ""
+        CALL F.READ("F.ACCOUNT", R.NEW(AF), MASTER.REC, F.ACCOUNT, YERR)
+        BEGIN CASE
+        CASE YERR
+            ETEXT = "ACCOUNT DOES NOT EXIST"
+            CALL STORE.END.ERROR
+        CASE MASTER.REC<AC.CURRENCY> NE R.NEW(AC.CURRENCY)
+            ETEXT = "DIFFERENT CURRENCY"
+            CALL STORE.END.ERROR
+        CASE MASTER.REC<AC.CUSTOMER> NE R.NEW(AC.CUSTOMER)
+            ETEXT = "DIFFERENT CUSTOMER"
+            CALL STORE.END.ERROR
+        CASE MASTER.REC<AC.MAX.SUB.ACCOUNT> EQ ''
+            ETEXT = "AC-NOT.MASTER.ACC"
+            CALL STORE.END.ERROR
+        CASE NOT(NUM(ID.NEW[4,3]))
+            IF ID.NEW[1,13] # R.NEW(AF)[1,13] THEN
+                ETEXT = "AC-INVALID.AC.NO.FORMAT"
+                CALL STORE.END.ERROR
+            END
+        END CASE
+    END CASE
+
+    RETURN
+
+****************************************************************************************
+VAL.AZ:
+*******
+
+    LOCATE 'AZ' IN R.COMPANY(EB.COM.APPLICATIONS)<1,1> SETTING AZ.INSTALLED ELSE
+        AZ.INSTALLED = 0
+    END
+
+    IF AZ.INSTALLED THEN
+        AZ.STAGE = '1'
+        IF V$FUNCTION NE 'S' THEN       ;* CI_10016630 - S
+            CALL AZ.CHECK.ACCOUNT(AZ.STAGE)       ;* UNCOMMENTED
+        END         ;* CI_10016630 - E
+        IF ETEXT THEN
+            CALL STORE.END.ERROR
+        END
+    END
+
+    RETURN
+
+****************************************************************************************
+READ.SAVINGS.PREMIUM:
+*********************
+
+    IF NOT(SP.READ) THEN      ;* avoid unnecessary reads
+        CALL CACHE.READ("F.SAVINGS.PREMIUM",R.NEW(AC.PREMIUM.TYPE)<1,AV>, R.SP,ER)
+        SP.READ = 1
+    END
+
+    RETURN
+
+*****************************************************************************************
+READ.ACCT.GROUP.CONDITION:
+**************************
+
+    IF NOT(AGC.READ) AND R.NEW(AC.CONDITION.GROUP) THEN
+        ACCT.GROUP.CONDITION.ID = R.NEW(AC.CONDITION.GROUP):R.NEW(AC.CURRENCY)
+        CALL CACHE.READ('F.ACCT.GROUP.CONDITION',ACCT.GROUP.CONDITION.ID,R.ACCT.GROUP.CONDITION,YERR)
+        AGC.READ = 1
+    END
+
+    RETURN
+
+*****************************************************************************************
+CHECK.FOR.IN.CCY:   * GB0000252
+* check for "IN" currency mix for interest compensation accounts
+*
+    CALL AC.CCY.IN.CHECK(OUR.CCY,CHECK.CCY,RESULT)
+
+    RETURN
+
+*****************************************************************************************
+VAL.ARRANGEMENT.ID:
+* lots of fields should not be input for an AA account.
+* Input should be controlled from AA module but initially user input is allowed
+    ERR = "AC.AC.NO.INPUT.AA"
+    AF = AC.INTEREST.LIQU.ACCT
+    GOSUB AA.CHECK.ERR
+    AF = AC.INTEREST.COMP.ACCT
+    GOSUB AA.CHECK.ERR
+    AF = AC.INT.NO.BOOKING
+    GOSUB AA.CHECK.ERR
+    AF = AC.CHARGE.ACCOUNT
+    GOSUB AA.CHECK.ERR
+    AF = AC.PREMIUM.TYPE
+    GOSUB AA.CHECK.ERR
+    AF = AC.PREMIUM.FREQ
+    GOSUB AA.CHECK.ERR
+    AF = AC.AUTO.PAY.ACCT
+    GOSUB AA.CHECK.ERR
+    AF = AC.AUTO.REC.CCY
+    GOSUB AA.CHECK.ERR
+    AF = AC.ICA.DISTRIB.RATIO
+    GOSUB AA.CHECK.ERR
+    AF = AC.ICA.MAIN.ACCT.IND
+    GOSUB AA.CHECK.ERR
+    AF = AC.ICA.DISTRIB.TYPE
+    GOSUB AA.CHECK.ERR
+    AF = AC.ICA.POST.INTEREST
+    GOSUB AA.CHECK.ERR
+    AF = AC.ICA.NEW.MAIN.ACC
+    GOSUB AA.CHECK.ERR
+    AF = AC.ICA.START.DATE
+    GOSUB AA.CHECK.ERR
+    AF = AC.ICA.ADD.REMOVE
+    GOSUB AA.CHECK.ERR
+    AF = AC.CONTINGENT.INT
+    GOSUB AA.CHECK.ERR
+    AF = AC.MAX.SUB.ACCOUNT
+    GOSUB AA.CHECK.ERR
+    AF = AC.MASTER.ACCOUNT
+    GOSUB AA.CHECK.ERR
+    AF = AC.ARRANGEMENT.ID
+    IF YACCT.TYPE = "INTERNAL" THEN     ;* not for internal accounts
+        ERR ="AC.AC.INVALID.INTERNAL.AC"
+        GOSUB AA.CHECK.ERR
+    END
+    IF R.NEW(AC.LIMIT.REF) = "NOSTRO" THEN
+        ERR = "AC.AC.NOS.NOT.PERMISSABLE"
+        GOSUB AA.CHECK.ERR
+    END
+    R.NEW(AC.CONDITION.GROUP) = ""      ;* make sure it's not updated
+    RETURN
+
+*******************************************************************************************
+AA.CHECK.ERR:
+*************
+    IF R.NEW(AF) THEN
+        ETEXT = ERR
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+
+*****************************************************************************************
+VALIDATE.ICA:
+*************
+
+    IF R.NEW(AC.ICA.MAIN.ACCOUNT) THEN  ;* only if ICA set up
+        CALL ACCOUNT.ICA.VALIDATE(CURR.NO)        ;* Theres a lot of it so split into separate program
+    END
+
+    RETURN
+
+*---------------------------------------------------------------------------
+CHECK.OTHER.ACCT.CONTINGENT:
+*
+* GB0101368 check if the other account is either contingent of non contingent and
+* generate an error if they are not the same type
+*
+    OTHER.ACCT.CONT = ""
+    FLDNO = "" ; FLDNO<1> = AC.CONTINGENT.INT ; FLDNO<3> = R.COMPANY(EB.COM.FINANCIAL.MNE)
+    CALL ACCOUNT.DBR(FLDNO,ACCOUNT.ID,OTHER.ACCT.CONT)
+    IF OTHER.ACCT.CONT <> "" THEN
+        OTHER.ACCT.CONT = 1
+    END
+    IF THIS.ACCT.CONT NE OTHER.ACCT.CONT THEN
+        AF = SAF
+        ETEXT ="AC.AC.CONTINGENT.TYPE.CONFLICTS.WITH.A/C"
+        CALL STORE.END.ERROR
+    END
+    RETURN
+*
+*---------------------------------------------------------------------------
+*
+READ.CUSTOMER.ACCOUNT:
+*--------------------
+
+    CALL F.READ("F.CUSTOMER.ACCOUNT", R.NEW(AC.CUSTOMER), R.CUSTOMER.ACCOUNT, F.CUSTOMER.ACCOUNT, READ.ERR)
+
+    RETURN
+*
+*---------------------------------------------------------------------------
+*
+READ.CURRENCY:
+*--------------------
+
+    CALL CACHE.READ("F.CURRENCY", CCY.ID, R.CURRENCY, READ.ERR)
+
+    RETURN
+*
+*---------------------------------------------------------------------------
+*
+READ.CUST.ACCT.CCY.REC:
+*--------------------
+
+    CALL F.READ("F.CUST.ACCT.CCY.REC", R.NEW(AC.CUSTOMER), R.CUST.ACCT.CCY.REC, F.CUST.ACCT.CCY.REC, READ.ERR)
+
+    RETURN
+*
+*--------------------------------------------------------------------------
+* GB9800251s
+*
+CHECK.ACCT.INPUT:
+*----------------
+
+    YINT.ACC = ""
+    CALL INT.ACC(CHK.ACCT,YINT.ACC)
+    IF NOT(YINT.ACC) THEN     ;* Not an internal account
+        GOSUB READ.CUSTOMER.ACCOUNT
+        LOCATE CHK.ACCT IN R.CUSTOMER.ACCOUNT<1> SETTING POSN ELSE
+            E ="AC.AC.AC.NOT.SAME.CU"   ;* BG_100010386
+        END
+    END
+    AUTO.PAY.ACCT.CCY = ""
+    CALL DBR("ACCOUNT": FM: AC.CURRENCY, CHK.ACCT, AUTO.PAY.ACCT.CCY)
+    IF AUTO.PAY.ACCT.CCY # R.NEW(AC.CURRENCY) THEN
+        CALL F.READ("F.CURRENCY", R.NEW(AC.CURRENCY), R.CURRENCY, F.CURRENCY, READ.ERR)
+        IF R.CURRENCY<EB.CUR.FIXED.RATE> = "" OR R.CURRENCY<EB.CUR.FIXED.CCY> # AUTO.PAY.ACCT.CCY THEN
+            E ="AC.AC.AC.NOT.SAME.CCY"  ;*BG_100009993
+        END
+    END
+*
+    RETURN
+*
+*--------------------------------------------------------------------------------
+CHECK.GROUP:
+************
+
+    IF YACCT.TYPE # "INTERNAL" AND R.NEW(AC.CUSTOMER) # "" AND R.NEW(AC.ARRANGEMENT.ID) = "" THEN
+* Non AA customer account
+        YIDCOND = "ACCOUNT" ; YFNAME = "F.ACCT.GEN.CONDITION"
+        X1 = R.NEW(AC.CATEGORY) ; X2 = R.NEW(AC.CUSTOMER)
+        YGROUP = ""
+        PRTY.FILENAME = 'F.ACCT.GEN.COND.PRTY'    ;* BG_6956 S
+        YGRP = ""
+        GOSUB GET.GROUP
+        YGROUP = YGRP         ;*BG_6956 E
+        IF ETEXT = "" THEN
+            CHECK.CCY = R.NEW(AC.CURRENCY)
+
+            YFILE.NAME = "F.GROUP.CREDIT.INT"
+            YT.GRP.CREDIT.INT = ""
+            CALL GIT(YFILE.NAME,"",YT.GRP.CREDIT.INT)
+
+            YFILE.NAME = "F.GROUP.DEBIT.INT"
+            YT.GRP.DEBIT.INT = ""
+            CALL GIT(YFILE.NAME,"",YT.GRP.DEBIT.INT)
+
+            YFILE.NAME = "F.GROUP.CAPITALISATION"
+            YT.GRP.CAP = ""
+            CALL GIT(YFILE.NAME,"",YT.GRP.CAP)
+
+            GOSUB VALIDATE.GROUP
+
+        END ELSE
+            AF = 1 ; CALL STORE.END.ERROR         ;*  BG_100002739 S/E
+        END
+    END
+
+    RETURN
+
+*--------------------------------------------------------------------------
+*
+* To default the value for CONTINGENT.INT from
+* corresponding ACCT.GROUP.CONDITION.
+DEFAULT.CONT.INT:
+*****************
+
+    DEF.CONT.INT = ""
+    IF R.NEW(AC.ARRANGEMENT.ID) = "" THEN         ;* no condition group if this is set
+        YCONDID = 'ACCOUNT'
+        YFNAME = 'F.ACCT.GEN.CONDITION'
+        YCATEG = R.NEW(AC.CATEGORY)
+        YCUST = R.NEW(AC.CUSTOMER)
+        YGRP = ''
+        PRTY.FILENAME = 'F.ACCT.GEN.COND.PRTY'
+        YIDCOND = 'ACCOUNT'
+        GOSUB GET.GROUP       ;* BG_6956 S/E
+        IF ETEXT = '' THEN
+            DEF.CONT.INT = R.ACCT.GROUP.CONDITION<ACCT.GRP.CONTINGENT.INT>
+        END
+    END
+    RETURN
+*
+**************************************************************************
+GET.GROUP:
+*********
+
+    YGRP = ''
+    YCONDID = YIDCOND:'-':ID.COMPANY
+    CALL CACHE.READ("F.CONDITION.PRIORITY",YCONDID,R.CONDITION.PRIORITY,ERR)
+    IF ERR THEN
+        YCONDID = YIDCOND
+        CALL CACHE.READ("F.CONDITION.PRIORITY",YCONDID,R.CONDITION.PRIORITY,ERR)
+    END
+
+    YFILE.IDS = ''
+    YFILE.RECS = ''
+
+    Y.FILE.NAMES = R.CONDITION.PRIORITY<EB.CPR.APPS.ALLOWED>
+    Y.FILE.NAMES = RAISE(Y.FILE.NAMES)
+    LOCATE APPLICATION IN Y.FILE.NAMES SETTING POS ELSE
+        POS = ''    ;* None other than ACCOUNT
+    END
+    MATBUILD ACC.REC FROM R.NEW
+
+    IF POS THEN
+        YFILE.IDS<POS> = ID.NEW
+        YFILE.RECS<POS> = LOWER(ACC.REC)
+        LOCATE 'CUSTOMER' IN Y.FILE.NAMES SETTING CUS.POS ELSE
+            CUS.POS = ''
+        END
+        YFILE.IDS<CUS.POS> = R.NEW(1)
+    END ELSE
+        Y.FILE.NAMES<-1> = APPLICATION
+        YFILE.IDS = R.NEW(1):@FM:ID.NEW
+        NO.OF.IDS = DCOUNT(YFILE.IDS,FM)
+        YFILE.RECS<NO.OF.IDS>=LOWER(ACC.REC)
+    END
+
+    Y.COMPANY = ID.COMPANY
+    CALL EB.GROUP(YIDCOND,PRTY.FILENAME,Y.FILE.NAMES,YFILE.IDS,YFILE.RECS,Y.COMPANY,YGRP)
+
+    RETURN
+********************************************************************
+VALIDATE.GROUP:
+*
+* Check to see if there is a GROUP.CREDIT.INTEREST record present
+* for the group-currency-date key.
+*
+    IF OPERATOR EQ 'TEMENOS01' THEN
+        DEBUG
+    END
+    YGROUP.CAP = "N"
+    YGROUP.CREDIT = "C"
+    YGROUP.DEBIT = "C"
+    YKEY = YGROUP:CHECK.CCY:R.DATES(1)
+    IF YT.GRP.CREDIT.INT # "" THEN
+        LOCATE YKEY IN YT.GRP.CREDIT.INT<1> BY "AR" SETTING X ELSE
+            GOSUB VAL.GCI
+        END
+        IF YGROUP.CREDIT = "C" THEN
+            YGROUP.CREDIT = "Y"
+        END
+    END
+*
+* Do the same for the file GROUP.DEBIT.INTEREST
+*
+    IF YT.GRP.DEBIT.INT # "" THEN
+        LOCATE YKEY IN YT.GRP.DEBIT.INT<1> BY "AR" SETTING X ELSE
+            GOSUB VAL.GDI
+        END
+        IF YGROUP.DEBIT = "C" THEN
+            YGROUP.DEBIT = "Y"
+        END
+    END
+*
+* Check to see if there is a GROUP.CAPITALISATION record present
+* for the group key.
+*
+    YKEY = YGROUP
+
+    IF YKEY EQ '13' THEN
+        PRINT 'SUCCESS'
+    END
+    LOCATE '13' IN YT.GRP.CAP<1> BY "AR" SETTING TEST ELSE
+        PRINT 'FAILURE'
+    END
+
+
+    IF YT.GRP.CAP # "" THEN
+        LOCATE YKEY IN YT.GRP.CAP<1> BY "AR" SETTING X ELSE
+            X = ""
+        END
+        IF X # "" THEN
+            YGROUP.CAP = "Y"
+        END
+    END
+*
+    IF YGROUP.CREDIT = "C" THEN
+        YGROUP.CREDIT = "N"
+    END
+    IF YGROUP.DEBIT = "C" THEN
+        YGROUP.DEBIT = "N"
+    END
+    BEGIN CASE
+    CASE YGROUP.CAP = "N" AND YGROUP.CREDIT = "N" AND YGROUP.DEBIT = "N"
+        ETEXT ="AC.AC.ALL.GRP.CONDS.NOT.VALID"
+    CASE YGROUP.CREDIT = "N" AND YGROUP.DEBIT = "N"
+        ETEXT ="AC.AC.GRP.CR.DR.INT.NOT.VALID"
+    CASE YGROUP.CAP = "N" AND YGROUP.CREDIT = "N"
+        ETEXT ="AC.AC.GRP.CAPIT.CR.INT.NOT.VALID"
+    CASE YGROUP.CAP = "N" AND YGROUP.DEBIT = "N"
+        ETEXT ="AC.AC.GRP.CAPIT.DR.INT.NOT.VALID"
+    CASE YGROUP.CAP = "N"
+        ETEXT ="AC.AC.GRP.CAPTLN.NOT.VALID"
+    CASE YGROUP.CREDIT = "N"
+        ETEXT ="AC.AC.GRP.CR.INT.NOT.VALID"
+    CASE YGROUP.DEBIT = "N"
+        ETEXT ="AC.AC.GRP.DR.INT.NOT.VALID"
+    END CASE
+    R.NEW(AC.CONDITION.GROUP) = YGROUP
+    IF ETEXT # "" THEN
+        AF =1 ; CALL STORE.END.ERROR    ;*  BG_100002739 S/E
+    END
+
+    RETURN
+
+*****************************************************************************************
+VAL.GCI:
+********
+
+    YFOUND.GROUP = YT.GRP.CREDIT.INT<X-1>[1,LEN(YT.GRP.CREDIT.INT<X-1>)-11]
+    YFOUND.CCY = YT.GRP.CREDIT.INT<X-1>[LEN(YFOUND.GROUP)+1,3]
+    IF YFOUND.GROUP = YGROUP THEN
+        IF YFOUND.CCY = CHECK.CCY THEN
+            YGROUP.CREDIT = "Y"
+        END ELSE
+            YGROUP.CREDIT = "N"
+        END
+    END ELSE
+        YGROUP.CREDIT = "N"
+    END
+
+    RETURN
+
+*****************************************************************************************
+VAL.GDI:
+********
+
+    YFOUND.GROUP = YT.GRP.DEBIT.INT<X-1>[1,LEN(YT.GRP.DEBIT.INT<X-1>)-11]
+    YFOUND.CCY = YT.GRP.DEBIT.INT<X-1>[LEN(YFOUND.GROUP)+1,3]
+    IF YFOUND.GROUP = YGROUP THEN
+        IF YFOUND.CCY = CHECK.CCY THEN
+            YGROUP.DEBIT = "Y"
+        END ELSE
+            YGROUP.DEBIT = "N"
+        END
+    END ELSE
+        YGROUP.DEBIT = "N"
+    END
+
+    RETURN
+
+*******************************************************************************************
+NOSTRO.VALIDATION:
+******************
+
+    IF R.COMPANY(EB.COM.NOSTRO.COMPANY) = R.COMPANY(EB.COM.FINANCIAL.COM) AND YACCT.TYPE = "NOSTRO" THEN
+
+        CALL CACHE.READ("F.COMPANY.CHECK","NOSTRO",YR.COMPANY.CHECK,ER)
+        IF ER THEN
+            ETEXT ="AC.AC.COMPANY.CHECK.REC.NOSTRO.MISS"
+            GOSUB FATAL.ERROR
+        END
+        LOCATE R.COMPANY(EB.COM.FINANCIAL.COM) IN YR.COMPANY.CHECK<EB.COC.COMPANY.CODE,1> SETTING YX ELSE
+            ETEXT ="AC.AC.COMP.NOT.ON.COMPANY.CHECK.NOSTRO.REC"
+            GOSUB FATAL.ERROR
+        END
+        YAS = 1
+        LOOP UNTIL TRIM(YR.COMPANY.CHECK<EB.COC.USING.COM,YX,YAS>)= ""
+            COMP.ID = YR.COMPANY.CHECK<EB.COC.USING.COM,YX,YAS>
+            CALL CACHE.READ("F.COMPANY",COMP.ID,R.COMP,ER)
+            IF R.COMP<EB.COM.FINANCIAL.MNE> = R.COMP<EB.COM.MNEMONIC> THEN
+                Y.FILENAME = "F":YR.COMPANY.CHECK<EB.COC.USING.MNE,YX,YAS>:".ACCOUNT"
+                GOSUB READ.ACCOUNT.RECORDS        ;* live
+                Y.FILENAME = Y.FILENAME:"$NAU"
+                GOSUB READ.ACCOUNT.RECORDS        ;* unauthorised
+                Y.FILENAME = FIELD(Y.FILENAME,"$",1):"$HIS"
+                GOSUB READ.ACCOUNT.RECORDS        ;* history
+            END
+            YAS = YAS + 1
+        REPEAT
+    END ELSE
+        GOSUB ID.VALIDATION
+        YXEQ.FROM = 1
+        GOSUB MNEMONIC.VALIDATION
+    END
+    RETURN
+
+*************************************************************************
+MNEMONIC.VALIDATION:
+********************
+
+    IF R.COMPANY(EB.COM.NOSTRO.COMPANY) = R.COMPANY(EB.COM.FINANCIAL.COM) AND YACCT.TYPE = "NOSTRO" THEN
+*************************************************************************
+****  Nostro accounts are maintained in this company                 ****
+*************************************************************************
+        CALL CACHE.READ("F.COMPANY.CHECK","NOSTRO",YR.COMPANY.CHECK,ER)
+        IF ER THEN
+            ETEXT ="AC.AC.COMPANY.CHECK.REC.NOSTRO.MISS"
+            RETURN TO FATAL.ERROR
+        END
+        LOCATE R.COMPANY(EB.COM.FINANCIAL.COM) IN YR.COMPANY.CHECK<EB.COC.COMPANY.CODE,1> SETTING YX ELSE
+            ETEXT ="AC.AC.COMP.NOT.ON.COMPANY.CHECK.NOSTRO.REC"
+            RETURN TO FATAL.ERROR
+        END
+        YAS = 1
+        LOOP UNTIL TRIM(YR.COMPANY.CHECK<EB.COC.USING.COM,YX,YAS>) = ""
+            COMP.ID = YR.COMPANY.CHECK<EB.COC.USING.COM,YX,YAS>
+            CALL CACHE.READ("F.COMPANY",COMP.ID,R.COMP,ER)
+            IF R.COMP<EB.COM.FINANCIAL.MNE> = R.COMP<EB.COM.MNEMONIC> THEN
+                GOSUB NOS.COMPANY.CHECK
+            END
+            YAS = YAS + 1
+        REPEAT
+    END ELSE
+        GOSUB NOS.OTHER.COMP  ;* nostro in another company
+    END
+
+    RETURN
+
+
+************************************************************************
+NOS.COMPANY.CHECK:
+******************
+
+    Y.FILENAME = "F":YR.COMPANY.CHECK<EB.COC.USING.MNE,YX,YAS>:".MNEMONIC.ACCOUNT"
+*************************************************************************
+****  Attempt to read record from 'MNEMONIC.ACCOUNT',                ****
+****  If successful then assign 'ETEXT' and goto 'ID.ERROR'.         ****
+*************************************************************************
+    SAVE.FILENAME = Y.FILENAME
+    YF.ACCOUNT = ""
+    CALL OPF(Y.FILENAME,YF.ACCOUNT)     ;* Will return relevant lead company
+    IF SAVE.FILENAME = Y.FILENAME THEN  ;* Lead company
+        ETEXT = ""
+        CALL F.READ(Y.FILENAME,R.NEW(AC.MNEMONIC),Y.FIELD,YF.ACCOUNT,ETEXT)
+        IF ETEXT THEN
+            ETEXT = ""
+            Y.FIELD = "NO"
+        END
+        IF Y.FIELD # "NO" THEN
+            ETEXT ="AC.AC.MNE.USED.ANOTHER.COMP"
+            IF YXEQ.FROM = 2 THEN
+                L = 23 ; E = ETEXT
+                GOSUB PROGRAM.ABORT
+            END
+            AF = AC.MNEMONIC
+            CALL STORE.END.ERROR
+            RETURN
+        END
+    END
+
+    RETURN
+
+*************************************************************************
+NOS.OTHER.COMP:
+****  Nostro accounts maintained in a separate company               ****
+*************************************************************************
+
+    IF R.NEW(AC.MNEMONIC) # R.OLD(AC.MNEMONIC) THEN
+        CALL F.READ("F.NOSTRO.NUM.MNE","MNEMONIC",YR.NOSTRO,F.NOSTRO.NUM.MNE,ETEXT)
+        IF ETEXT THEN
+            ETEXT = ""
+            YR.NOSTRO = ""
+        END
+        LOCATE R.NEW(AC.MNEMONIC) IN YR.NOSTRO<1> SETTING YX ELSE
+            YX = "NO"
+        END
+        IF YX # "NO" THEN
+            ETEXT ="AC.AC.MNE.NOS.MNE"
+            AF = AC.MNEMONIC
+            IF YXEQ.FROM = 2 THEN
+                L = 23 ; E = ETEXT
+                GOSUB PROGRAM.ABORT
+            END
+            CALL STORE.END.ERROR
+            RETURN
+        END
+    END
+
+    RETURN
+
+*************************************************************************
+****  Ensure ID is not a nostro account number                       ****
+*************************************************************************
+ID.VALIDATION:
+**************
+
+    CALL F.READ("F.NOSTRO.NUM.MNE","NUMBER",YR.NOSTRO,F.NOSTRO.NUM.MNE,ETEXT)
+    IF ETEXT THEN
+        ETEXT = ""
+        YR.NOSTRO = ""
+    END
+    LOCATE ID.NEW IN YR.NOSTRO<1> SETTING YX ELSE
+        YX = "NO"
+    END
+    IF YX # "NO" THEN
+        E ="AC.AC.ID.NOS.AC.NO"
+        L = 23
+        GOSUB PROGRAM.ABORT
+    END
+
+    RETURN
+
+*********************************************************************************
+
+************************************************************************
+****  Attempt to read record from 'Y.FILENAME', 'Y.FILENAME':'$NAU'  ***
+****  and 'Y.FILENAME':'$HIS' files. If successful then assign 'E'   ***
+****  and goto 'ID.ERROR'.                                           ***
+************************************************************************
+READ.ACCOUNT.RECORDS:
+*********************
+
+    YF.ACCOUNT = ""
+    CALL OPF(Y.FILENAME,YF.ACCOUNT)
+    ETEXT = ""
+*
+* For multi company system should do a direct read of the ACCOUNT file
+* as F.READV will always give the correct account record
+*
+    READV Y.FIELD FROM YF.ACCOUNT, ID.NEW, "1" ELSE
+        ETEXT ="AC.AC.REC.MISS"
+    END
+*
+    IF ETEXT THEN
+        ETEXT = ""
+        Y.FIELD = "NO"
+    END
+    IF Y.FIELD # "NO" THEN
+        E ="AC.AC.ID.USED.ANOTHER.COMP"
+        L = 23
+        GOSUB PROGRAM.ABORT
+    END
+
+    RETURN
+*************************************************************************
+****  Check 'F.LIMIT.REFERENCE' for valid 'REF.APPLICATION.IDENT'    ****
+*************************************************************************
+CHECK.LIMIT.REF:
+****************
+
+    ETEXT = "" ; YPRODUCT = R.NEW(AF)  ; YR.SYSTEM = ""
+*
+** GB9100148 Pass the currency
+*
+    CALL LIMIT.GET.PRODUCT (YR.SYSTEM, R.NEW(AC.CUSTOMER), R.NEW(AC.CURRENCY), YPRODUCT)
+    IF ETEXT THEN
+        YLIMIT.ETEXT = ETEXT ; CALL STORE.END.ERROR
+    END  ELSE
+        YLIMIT.ETEXT = ""
+    END
+    RETURN
+*************************************************************************
+****  Ensure all suspense amounts are zero or null.                  ****
+*************************************************************************
+CHECK.SUSPENSE:
+***************
+
+    ETEXT1 = ETEXT
+    ETEXT = ''
+    GOSUB READ.ACCT.GROUP.CONDITION
+
+    R.ACCOUNT.ACCRUAL = ""
+    Y.ERR = '' ; ACCT.ACCRUAL.ID = ''
+    F.ACCOUNT.ACCRUAL = ''
+    CALL EB.READ.PARAMETER("F.ACCOUNT.ACCRUAL",'N','',R.ACCOUNT.ACCRUAL,ACCT.ACCRUAL.ID,F.ACCOUNT.ACCRUAL,Y.ERR)
+    AUTO.SETTLE = 0
+    BEGIN CASE
+    CASE R.NEW(AC.TAX.SUSPEND)[1,1] = 'Y'         ;* Can't auto settle if tax is suspened.
+        AUTO.SETTLE = 0
+    CASE R.NEW(AC.TAX.AT.SETTLE)[1,1] = 'Y'
+        AUTO.SETTLE = 0
+    CASE R.ACCT.GROUP.CONDITION<ACCT.GRP.AUTO.SETTLE>[1,1] = 'Y'
+        AUTO.SETTLE = 1
+    CASE R.ACCT.GROUP.CONDITION<ACCT.GRP.AUTO.SETTLE>[1,1] = 'N'
+        AUTO.SETTLE = 0
+    CASE R.ACCOUNT.ACCRUAL<AC.ACR.AUTO.SETTLE>[1,1] ='Y'    ;* BG_100008965
+        AUTO.SETTLE = 1
+    END CASE
+
+***   If not auto settlement, then check amounts.
+    IF NOT(AUTO.SETTLE) THEN
+        FOR YSUSP.AF = AC.ACCR.CHG.SUSP TO AC.ACCR.DR2.SUSP STEP 4
+            IF (SUM(R.NEW(YSUSP.AF)<1>) +0) # 0 THEN
+                ETEXT ="AC.AC.OUTSTANDING.SUSP.AMOUNTS"
+                YSUSP.AF = AC.ACCR.DR2.SUSP
+            END
+*
+        NEXT YSUSP.AF
+        IF ETEXT THEN
+            AF = AC.INT.NO.BOOKING
+            CALL STORE.END.ERROR
+        END ELSE
+            ETEXT = ETEXT1
+        END
+    END
+    RETURN
+
+*************************************************************************
+****  Ensure 'ID' is not a liquidation account                       ****
+*************************************************************************
+VALIDATE.LIQU.COMP.ACCTS:
+*************************
+    ETEXT = ""
+    LIQ.ACC = ""
+    IF R.NEW(AC.INTEREST.LIQU.ACCT) THEN
+        AF = AC.INTEREST.LIQU.ACCT
+        F.ACCOUNT.LIQUIDATION = ""
+        ETEXT = ""
+        CALL F.READV("F.ACCOUNT.LIQUIDATION",ID.NEW,Y.FIELD,1,F.ACCOUNT.LIQUIDATION,ETEXT)
+        IF ETEXT THEN
+            ETEXT = ""
+            Y.FIELD = "NO"
+        END
+*Modifications made to this para such a way that once if an account becomes a liquidation account
+*it system will not in futher usage of that for recieving or posting
+        CALL F.READ("F.ACCOUNT",R.NEW(AC.INTEREST.LIQU.ACCT),R.LIQ.ACC,F.ACCOUNT,ER)
+        IF R.NEW(AC.CONTINGENT.INT) = "B" AND R.LIQ.ACC<AC.CONTINGENT.INT> NE "" THEN
+            ETEXT ='AC-CONTINGENT.ACCOUNTS.NOT.ALLOWED'
+            CALL STORE.END.ERROR
+        END ELSE
+            IF R.LIQ.ACC<AC.INTEREST.LIQU.ACCT> # '' THEN
+                ETEXT = ""
+                Y.FIELD = LIQ.ACC
+            END     ;* CI_10002528 E
+            IF Y.FIELD # "NO" OR R.LIQ.ACC<AC.INT.LIQU.ACCT> THEN
+                ETEXT ="AC.AC.ID.ACCT.LIQU.ACCT"
+                CALL STORE.END.ERROR
+            END
+        END
+        ACCT.ID = R.NEW(AC.INTEREST.LIQU.ACCT)
+        GOSUB CHECK.LEAD.COMPANY
+
+* Cannot mix AC.INTEREST.LIQU.ACCT and the AC.INT.LIQU.ACCT set.
+
+        IF R.NEW(AC.INT.LIQU.ACCT) OR R.NEW(AC.INT.LIQU.TYPE) THEN
+            ETEXT = "AC-CANNOT.USE.WHEN.INT.LIQU.ACCT.SET.USED"
+            CALL STORE.END.ERROR
+        END
+
+    END
+*************************************************************************
+****  Ensure 'ID' is not a compensation account                      ****
+*************************************************************************
+    IF R.NEW(AC.INTEREST.COMP.ACCT) # "" THEN
+        AF = AC.INTEREST.COMP.ACCT
+        F.ACCOUNT.COMPENSATION = ""
+        ETEXT = ""
+        CALL F.READV("F.ACCOUNT.COMPENSATION",ID.NEW,Y.FIELD,1,F.ACCOUNT.COMPENSATION,ETEXT)
+        IF ETEXT THEN
+            ETEXT = ""
+            Y.FIELD = "NO"
+        END
+        IF Y.FIELD # "NO" THEN
+            ETEXT ="AC.AC.ID.ACCT.COMP.ACCT"
+            CALL STORE.END.ERROR
+        END
+*************************************************************************
+****  Ensure account is not already compensated                      ****
+*************************************************************************
+        IF R.NEW(AC.INTEREST.COMP.ACCT) # "" THEN
+            F.ACCOUNT = ""
+            ETEXT = "" ; MAT YR.ACCOUNT = "" ; SIZE = AC.AUDIT.DATE.TIME
+            CALL F.MATREAD("F.ACCOUNT",R.NEW(AC.INTEREST.COMP.ACCT),MAT YR.ACCOUNT,SIZE,F.ACCOUNT,ETEXT)
+            IF ETEXT THEN
+                ETEXT ="AC.AC.MISS.AC.REC"
+            END
+            IF YR.ACCOUNT(AC.INTEREST.COMP.ACCT) # "" THEN
+                ETEXT ="AC.AC.AC.ALREADY.COMP"
+                CALL STORE.END.ERROR
+            END
+        END
+    END
+
+    RETURN
+
+******************************************************************************************
+VAL.INT.LIQU.TYPE.SET:
+**********************
+*
+* R.LIQ.ACC contains the AC.INTEREST.LIQU.ACCT record from VALIDATE.LIQU.COMP.ACCTS para.
+*
+* If AC.INTEREST.LIQU.ACCT is used, this set cannot be used.
+
+* check for duplication.
+    AF = AC.INT.LIQU.TYPE ; CALL DUP
+    NO.TYPE = DCOUNT(R.NEW(AF),VM)
+
+    IF R.NEW(AC.INTEREST.LIQU.ACCT) THEN
+* Perform validation where INTEREST.LIQU.ACCT has an entry.
+*
+* Ensure INTEREST.LIQU.ACCT belongs to the lead company of the records account.
+        AF = AC.INTEREST.LIQU.ACCT
+        ACCT.ID = R.NEW(AF)
+        GOSUB CHECK.LEAD.COMPANY
+* Ensure AC.INT.LIQU.ACCT is empty.
+        AF = AC.INT.LIQU.ACCT
+        IF R.NEW(AF) THEN
+            ETEXT = "AC-CANNOT.MIX.INT.LIQU.ACCT.AND.AC.INT.LIQU.ACCT"
+            CALL STORE.END.ERROR
+        END
+
+    END
+
+    NO.ACCT = DCOUNT(R.NEW(AC.INT.LIQU.ACCT),VM)
+
+    PAIR.INDEX = '' ;*Stores the Account*Type[1,2] list so CRs or DRs do not duplicate accounts.
+    FOR AV = 1 TO NO.ACCT
+
+        AF = AC.INT.LIQU.ACCT
+
+        CALL F.READ("F.ACCOUNT.LIQUIDATION",ID.NEW,R.LIQU,F.ACCOUNT.LIQUIDATION,ER)
+        IF R.LIQU THEN
+            ETEXT ="AC.AC.ID.ACCT.LIQU.ACCT"
+            CALL STORE.END.ERROR
+            EXIT    ;* Dont need any more checks
+        END
+
+        ACCT.ID = R.NEW(AF)<1,AV>
+        R.INT.LIQ.ACC = ''
+        INT.LIQ.ERR = ''
+        CALL F.READ("F.ACCOUNT",ACCT.ID,R.INT.LIQ.ACC,F.ACCOUNT,INT.LIQ.ERR)
+
+        IF R.INT.LIQ.ACC<AC.INT.LIQU.ACCT> OR R.INT.LIQ.ACC<AC.INTEREST.LIQU.ACCT> THEN
+            ETEXT = "AC.AC.ID.ACCT.LIQU.ACCT"
+            CALL STORE.END.ERROR
+            EXIT
+        END
+        IF ACCT.ID THEN
+            IF ACCT.ID = ID.NEW THEN    ;* Liquidation accounts cannot be ID.NEW
+                ETEXT = "SAME AS THIS ACCOUNT"
+                CALL STORE.END.ERROR
+            END ELSE          ;* Liquidation accounts must be in lead company
+                GOSUB CHECK.LEAD.COMPANY
+            END
+
+* Accounts can't be duplicated in CR1/CR2 or DR1/DR2
+
+            PAIR.ID=ACCT.ID:"*":R.NEW(AC.INT.LIQU.TYPE)<1,AV>[1,2]
+            LOCATE PAIR.ID IN PAIR.INDEX<1> SETTING POS THEN
+                ETEXT = "AC-AC.DUPLICATED.ACCOUNT.FOR.SAME.CR.OR.DR"
+                CALL STORE.END.ERROR
+            END ELSE
+                PAIR.INDEX<-1>=PAIR.ID
+            END
+        END
+
+* There must be a type assigned.
+        AF = AC.INT.LIQU.TYPE
+        IF R.NEW(AF)<1,AV> = "" THEN
+            ETEXT = "AC-INT.LIQU.TYPE.MISSING"
+            CALL STORE.END.ERROR
+        END
+    NEXT AV
+
+    FOR AV = 1 TO NO.TYPE     ;* iquidation accounts must exist if a liquidation type entered.
+        AF = AC.INT.LIQU.ACCT
+        IF R.NEW(AF)<1,AV>="" AND R.NEW(AC.INT.LIQU.TYPE) THEN
+            ETEXT = "AC-INT.LIQU.ACCT.MISSING"
+            CALL STORE.END.ERROR
+        END
+
+* Can't mix DR with DR1/DR2 or CR with CR1/CR2
+        AF = AC.INT.LIQU.TYPE
+        INT.LIQU.TYPE = R.NEW(AF)<1,AV>
+        BEGIN CASE
+
+        CASE INT.LIQU.TYPE = "CR"
+            IF INDEX(R.NEW(AF),"CR1",1) OR INDEX(R.NEW(AF),"CR2",1) THEN
+                ETEXT = "AC-CANNOT.MIX.CR.WITH.CR1.OR.CR2"
+                CALL STORE.END.ERROR
+            END
+        CASE INT.LIQU.TYPE = "DR"
+            IF INDEX(R.NEW(AF),"DR1",1) OR INDEX(R.NEW(AF),"DR2",1) THEN
+                ETEXT = "AC-CANNOT.MIX.DR.WITH.DR1.OR.DR2"
+                CALL STORE.END.ERROR
+            END
+
+        END CASE
+    NEXT AV
+
+    RETURN
+*************************************************************************
+CHECK.LEAD.COMPANY:
+**********************
+* Check the supplied account id belongs to the current lead company.
+* If the lead companies do not match then raise an error.
+* Requires : ACCT.ID
+*
+    R.ENTRY.ACCOUNT = ''
+    CALL CACHE.READ('F.ACCOUNT',ACCT.ID,R.ENTRY.ACCOUNT,YERR)
+* Check ACCT.ID belongs to the lead company of the records account.
+    CHECK.ACC.CO.CODE = R.ENTRY.ACCOUNT<AC.CO.CODE>
+
+    CALL CACHE.READ("F.COMPANY",CHECK.ACC.CO.CODE,R.COMP.ACC,ER)
+
+    IF R.COMPANY(EB.COM.FINANCIAL.COM) <> R.COMP.ACC<EB.COM.FINANCIAL.COM> THEN
+* Does not belong to the same lead company.
+        ETEXT = "AC-NOT.IN.ACCOUNTS.LEAD.COMPANY":FM:ACCT.ID
+        CALL STORE.END.ERROR
+    END
+    RETURN
+
+*************************************************************************
+TITLE.VAL:
+***********
+    IF R.NEW(VAL.FIELD.NUM) EQ '' THEN
+        R.NEW(VAL.FIELD.NUM)=YCUS.SHORT.NAME
+    END
+
+    IF NOT(GTSACTIVE) THEN
+        IF R.NEW.LAST(AC.CUSTOMER) AND (R.NEW.LAST(AC.CUSTOMER) NE R.NEW(AC.CUSTOMER)) AND (R.NEW(VAL.FIELD.NUM) EQ R.NEW.LAST(VAL.FIELD.NUM)) THEN
+            R.NEW(VAL.FIELD.NUM)=YCUS.SHORT.NAME
+        END
+    END ELSE
+        FINDSTR VAL.FIELD IN OFS$CHANGED.FIELDS SETTING POS ELSE
+            IF CUS.CHANGE THEN
+                R.NEW(VAL.FIELD.NUM) = YCUS.SHORT.NAME
+            END
+        END
+    END
+    RETURN
+
+*************************************************************************
+** said no to an override
+PROGRAM.ABORT:
+**************
+
+    RETURN TO PROGRAM.ABORT
+
+**************************************************************************
+****  Fatal error handling                                           ****
+FATAL.ERROR:
+************
+
+    TEXT = ETEXT
+    CALL FATAL.ERROR("ACCOUNT")
+*
+END

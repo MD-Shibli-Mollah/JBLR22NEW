@@ -1,0 +1,39 @@
+*-----------------------------------------------------------------------------
+* <Rating>-31</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VVR.EXPADV.CHRG.RTN1
+*-----------------------------------------------------------
+*this routine gives the total charges
+*------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.DRAWINGS
+
+    GOSUB INITIALISE
+    GOSUB OPENFILES
+    GOSUB TOTAL.CHRG
+
+    RETURN
+
+INITIALISE:
+
+    FN.DRAWINGS="F.DRAWINGS"
+    F.DRAWINGS=""
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.DRAWINGS,F.DRAWINGS)
+
+    RETURN
+
+TOTAL.CHRG:
+
+    Y.ID=ID.NEW
+
+    CALL GET.LOC.REF("DRAWINGS","TOTAL.CHARGES",Y.TOT.CHRG.POS)
+*calculates the total charges 
+    Y.TOT.CHARGE= SUM(R.NEW(TF.DR.CHARGE.AMOUNT)+0)
+    R.NEW(TF.DR.LOCAL.REF)<1,Y.TOT.CHRG.POS>=Y.TOT.CHARGE
+    RETURN
+END

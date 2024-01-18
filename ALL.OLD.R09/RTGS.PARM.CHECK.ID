@@ -1,0 +1,15 @@
+***************************************************************
+*Developed By: Md. Aminul Islam (Datasoft Systems)            * 
+*id routine                                                   *
+*Date:2016/01/12                                              *
+***************************************************************
+    SUBROUTINE RTGS.PARM.CHECK.ID
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+
+    IF COMI NE 'SYSTEM' THEN
+        E = 'RECORD ID MUST BE SYSTEM'
+    END
+
+    RETURN
+END

@@ -1,0 +1,46 @@
+******************************************************************************************
+*Developed By: Mohammad Kabir Hossain(PO-IT)                                             *
+*This routine is attachted to the version 'FUNDS.TRANSFER,RTGS.TREASURY.TXN' as a        *
+*BEFORE.AUTH.RTN For Validation Custom Office Code, Reg. NO and Declarant Code           *
+*Date:2017/10/02                                                                         *
+******************************************************************************************
+    SUBROUTINE CONF.DIGIT.RTGS.RTN
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+
+    CALL GET.LOC.REF('FUNDS.TRANSFER','L.CUSTOM.OFF.CO',L.CUSTOM.OFF.CO.POS)
+    CALL GET.LOC.REF('FUNDS.TRANSFER','L.CUSTOM.REG.NO',L.CUSTOM.REG.NO.POS)
+    CALL GET.LOC.REF('FUNDS.TRANSFER','L.DECL.CODE',L.DECL.CODE.POS)
+
+    Y.L.CUSTOM.OFF.CODE= R.NEW(FT.LOCAL.REF)<1,L.CUSTOM.OFF.CO.POS>
+    Y.L.CUSTOM.REG.NO = R.NEW(FT.LOCAL.REF)<1,L.CUSTOM.REG.NO.POS>
+    Y.L.DECL.CODE = R.NEW(FT.LOCAL.REF)<1,L.DECL.CODE.POS>
+
+    Y.CHECK.ISDIGIT.CUSTOM.OFF.CODE= ISDIGIT(Y.L.CUSTOM.OFF.CODE)
+    Y.CHECK.ISDIGIT.CUSTOM.REG.NO= ISDIGIT(Y.L.CUSTOM.REG.NO)
+    Y.CHECK.ISDIGIT.CUSTOM.DECL.CODE= ISDIGIT(Y.L.DECL.CODE) 
+
+    IF Y.CHECK.ISDIGIT.CUSTOM.OFF.CODE EQ '0' THEN
+        AF = FT.LOCAL.REF
+        ETEXT = 'Custom Office Code Must be Digit Only'
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    IF Y.CHECK.ISDIGIT.CUSTOM.REG.NO EQ '0' THEN
+        AF = FT.LOCAL.REF
+        ETEXT = 'Custom Registration No Must be Digit Only'
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    IF Y.CHECK.ISDIGIT.CUSTOM.DECL.CODE EQ '0' THEN
+        AF = FT.LOCAL.REF
+        ETEXT = 'Custom Declarant Code Must be Digit Only'
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    RETURN
+END

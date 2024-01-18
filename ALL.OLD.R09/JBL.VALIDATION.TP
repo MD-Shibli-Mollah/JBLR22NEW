@@ -1,0 +1,89 @@
+*-----------------------------------------------------------------------------
+* <Rating>500</Rating>
+*-----------------------------------------------------------------------------
+********************************
+*LIVE DATE 2016-09-21
+*UPDATE 2019-04-08
+**************************
+    SUBROUTINE JBL.VALIDATION.TP
+!PROGRAM JBL.VALIDATION.TP
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT BP I_F.EB.JBL.DCC.TP
+
+    Y.NO.TXN.MON = R.NEW(EB.JBL52.NO.TXN.MON)
+    Y.MAX.TXN.AMT = R.NEW(EB.JBL52.MAX.TXN.AMT)
+    Y.DEP.TOT.AMT = R.NEW(EB.JBL52.DEP.TOT.AMT)
+    Y.MON = DCOUNT(Y.NO.TXN.MON,@VM)
+
+    Y.WITH.NO.TXN.MON = R.NEW (EB.JBL52.WITH.NO.TXN.MON)
+    Y.WITH.MAX.TXN.AM = R.NEW (EB.JBL52.WITH.MAX.TXN.AM)
+    Y.WITH.TOT.AMT = R.NEW(EB.JBL52.WITH.TOT.AMT)
+    Y.WITH.MON = DCOUNT(Y.WITH.NO.TXN.MON,@VM)
+
+    FOR I = 1 TO Y.MON
+
+        IF (Y.NO.TXN.MON)<1,I> EQ '' AND (Y.MAX.TXN.AMT)<1,I> EQ '' AND (Y.DEP.TOT.AMT)<1,I> EQ '' THEN
+            CONTINUE
+        END
+        ELSE
+            IF (Y.NO.TXN.MON)<1,I> EQ '' OR (Y.MAX.TXN.AMT)<1,I> EQ '' OR (Y.DEP.TOT.AMT)<1,I> EQ '' THEN
+                IF (Y.NO.TXN.MON)<1,I> EQ '' THEN
+                    AF = EB.JBL52.NO.TXN.MON
+                    AV = I
+                    ETEXT = 'Input missing for Deposit '
+                    CALL STORE.END.ERROR
+                END
+                ELSE
+                    IF (Y.MAX.TXN.AMT)<1,I> EQ '' THEN
+                        AF = EB.JBL52.MAX.TXN.AMT
+                        AV = I
+                        ETEXT = 'Input missing for Deposit '
+                        CALL STORE.END.ERROR
+                    END
+                    ELSE
+                        IF (Y.DEP.TOT.AMT)<1,I> EQ '' THEN
+                            AF = EB.JBL52.DEP.TOT.AMT
+                            AV = I
+                            ETEXT = 'Input missing for Deposit '
+                            CALL STORE.END.ERROR
+                        END
+                    END
+                END
+            END
+        END
+    NEXT  I
+
+    FOR J = 1 TO Y.WITH.MON
+        IF (Y.WITH.NO.TXN.MON)<1,J> EQ '' AND (Y.WITH.MAX.TXN.AM)<1,J> EQ '' AND (Y.WITH.TOT.AMT)<1,J> EQ '' THEN
+            CONTINUE
+        END
+        ELSE
+            IF (Y.WITH.NO.TXN.MON)<1,J> EQ '' OR (Y.WITH.MAX.TXN.AM)<1,J> EQ '' OR (Y.WITH.TOT.AMT)<1,J> EQ '' THEN
+                IF (Y.WITH.NO.TXN.MON)<1,J> EQ '' THEN
+                    AF = EB.JBL52.WITH.NO.TXN.MON
+                    AV = J
+                    ETEXT = 'Input missing for Withdraw'
+                    CALL STORE.END.ERROR
+                END
+                ELSE
+                    IF (Y.WITH.MAX.TXN.AM)<1,J> EQ '' THEN
+                        AF = EB.JBL52.WITH.MAX.TXN.AM
+                        AV = J
+                        ETEXT = 'Input missing for withdraw'
+                        CALL STORE.END.ERROR
+                    END
+                    ELSE
+                        IF (Y.WITH.TOT.AMT)<1,J> EQ '' THEN
+                            AF = EB.JBL52.WITH.TOT.AMT
+                            AV = J
+                            ETEXT = 'Input missing for Withdraw'
+                            CALL STORE.END.ERROR
+                        END
+                    END
+                END
+            END
+        END
+    NEXT J
+    RETURN
+END

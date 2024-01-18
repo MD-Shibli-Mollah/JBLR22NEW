@@ -1,0 +1,88 @@
+    SUBROUTINE MICR.PREFIX.VLD.RTN
+!PROGRAM MICR.PREFIX.VLD.RTN
+*-----
+* Description : INPUT Prefix validation IN Batch Creation
+* Author      : AVIJIT SAHA
+* Date        : 03.03.2022
+*-----
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.CHEQUE.TYPE
+    $INSERT  BP I_F.JBL.MICR.STOCK.MGT
+    $INSERT  BP I_F.JBL.MICR.CHQ.BATCH
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*------
+INIT:
+*------
+    FN.MICR.STOCK='F.JBL.MICR.STOCK.MGT'
+    F.MICR.STOCK=''
+
+    FN.CHQ.TYPE='F.CHEQUE.TYPE'
+    F.CHQ.TYPE=''
+*
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.MICR.STOCK, F.MICR.STOCK)
+    CALL OPF(FN.CHQ.TYPE, F.CHQ.TYPE)
+    RETURN
+*
+*--------
+PROCESS:
+*--------
+!DEBUG
+    IF V$FUNCTION EQ "I" THEN
+        Y.SERIES.ID = R.NEW(CHQ.BATCH.SERIES.ID)
+        Y.TR.TYPE = R.NEW(CHQ.BATCH.TR.TYPE)
+        Y.CHQ.ISS = R.NEW(CHQ.BATCH.LEAF.CODE)
+        Y.PRINT.ISS = R.NEW(CHQ.BATCH.TOTAL.BOOK)
+
+*------------------------Leaf Number Validation----------------------------------*
+
+        SEL.CMD = "SELECT ": FN.CHQ.TYPE :" WITH TR.TYPE EQ ": Y.TR.TYPE
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+        CALL F.READ(FN.CHQ.TYPE,SEL.LIST,REC.CHQ.REQ,F.CHQ.TYPE,ERR.REQ)
+        CALL GET.LOC.REF('CHEQUE.TYPE','LEAF.TYPE',Y.PRE.NO)
+
+        Y.LEAF = REC.CHQ.REQ<CHEQUE.TYPE.LOCAL.REF,Y.PRE.NO>
+        FIND Y.CHQ.ISS IN Y.LEAF SETTING Ap, Vp ELSE
+            ETEXT="Invalid leaf number"
+            CALL STORE.END.ERROR
+            RETURN
+        END
+*------------------------Prefix Validation----------------------------------*
+
+        IF LEFT(Y.SERIES.ID,2) EQ Y.TR.TYPE THEN
+            CALL F.READ(FN.MICR.STOCK,Y.SERIES.ID,REC.STOCK,F.MICR.STOCK,ERR.REQ)
+            IF REC.STOCK EQ '' OR REC.STOCK<MICR.STOCK.STATUS> EQ "CLOSED" THEN
+                ETEXT="Invalid Cheque Prefix"
+                CALL STORE.END.ERROR
+                RETURN
+            END
+        END
+        ELSE
+            ETEXT="Invalid Cheque Prefix"
+            CALL STORE.END.ERROR
+        END
+*------------------------Printing Book Slot Validation----------------------------------*
+
+        IF Y.PRINT.ISS NE '' THEN
+            CALL GET.LOC.REF('CHEQUE.TYPE','PRINT.SLAT',Y.PRE.NO1)
+
+            Y.PRINT.SLOT = REC.CHQ.REQ<CHEQUE.TYPE.LOCAL.REF,Y.PRE.NO1>
+            FIND Y.PRINT.ISS IN Y.PRINT.SLOT SETTING Ap, Vp ELSE
+                ETEXT="Invalid Book Number"
+                CALL STORE.END.ERROR
+                RETURN
+            END
+        END
+    END
+    RETURN
+END

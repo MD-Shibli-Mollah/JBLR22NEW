@@ -1,0 +1,50 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE EB.BD.EXCISE.DUTY.SLAB.CHECKFLD
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This is a check field Routine for table BD.EXCISE.DUTY.SLAB.
+* This checks if the Amount to entered is less than Amount From.
+*-------------------------------------------------------------------------
+* Project Name : National Bank Limited(Bangladesh)
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*  NA
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+* Variable name:   Insert file:          Description:
+* COMI             I_COMMON              Will hold the last entered value
+* R.NEW            I_COMMON              Will hold the currently opened record
+* E                I_COMMON              Used to store the error
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+* NA
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 07/02/2011 -                            New   - Rashmitha M
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE JBL.BP I_F.BD.EXCISE.DUTY.SLAB
+
+    IF AF EQ EB.BD.2.AMT.TO AND COMI NE '' THEN
+        Y.AMT.FRM=R.NEW(EB.BD.2.AMT.FROM)<1,AV>
+        IF COMI LT Y.AMT.FRM THEN
+             E="EB-AMT.FROM.GT.TO"
+        END
+    END
+
+    RETURN
+**************************************************************************
+END

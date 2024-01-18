@@ -1,0 +1,176 @@
+*-----------------------------------------------------------------------------
+*Developed By:MD ROBIUL ISLAM
+*This routine provide OIBTA Account Balance Summary Branch Wise
+*Published Date: 25 JULY 2016
+*-----------------------------------------------------------------------------
+    SUBROUTINE INTER.BR.TRANS1.CM(Y.RETURN)
+!    PROGRAM INTER.BR.TRANS1.CM
+    $INSERT  GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP  I_EQUATE
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.COMPANY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    Y.TIME=TIMEDATE()
+    Y.DATETIME=Y.TIME[9,12]:" ":Y.TIME[1,2]:":":Y.TIME[4,2]:":":Y.TIME[7,2]
+    FN.AC.ENT = "F.ACCT.ENT.TODAY"
+    F.AC.ENT = ""
+    FN.STMT.XREF = "F.STMT.ENTRY.DETAIL.XREF"
+    F.STMT.XREF = ""
+    FN.STMT.DET = "F.STMT.ENTRY.DETAIL"
+    F.STMT.DET = ""
+    FN.STMT.ENT = "F.STMT.ENTRY"
+    F.STMT.ENT = ""
+    FN.TT = "F.TELLER"
+    F.TT = ""
+    FN.FT = "F.FUNDS.TRANSFER"
+    F.FT = ""
+    Y.ONUS.CR.AMOUNT=0
+    Y.ONUS.DR.AMOUNT=0
+    Y.OFFUS.CR.AMOUNT=0
+    Y.OFFUS.DR.AMOUNT=0
+
+    Y.ONUS.CR=0
+    Y.ONUS.DR=0
+    Y.OFFUS.CR=0
+    Y.OFFUS.DR=0
+
+    Y.BR.CODE = RIGHT(ID.COMPANY,4)
+    Y.ENTRY.COUNT = ""
+    Y.XREF.ID.COUNT = ""
+    Y.XREF.ID = ""
+    Y.TRANS.REF = ""
+    DBT.COM.CODE = ""
+    CRDT.COM.CODE = ""
+    BANK.ACCOUNT = ""
+    CUS.ACCT.NO = ""
+    Y.CO.MNEMONIC = ""
+    Y.REC.STATUS = ""
+    Y.BANK.CO.CODE = ""
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.AC.ENT,F.AC.ENT)
+    CALL OPF(FN.STMT.XREF,F.STMT.XREF)
+    CALL OPF(FN.STMT.DET,F.STMT.DET)
+    CALL OPF(FN.STMT.ENT,F.STMT.ENT)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.FT,F.FT)
+    RETURN
+
+PROCESS:
+
+    SEL.CMD = "SELECT ":FN.AC.ENT:" WITH @ID LIKE ...12800...":Y.BR.CODE
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+
+        CALL F.READ(FN.AC.ENT,Y.ID,R.REC,F.AC.ENT,Y.ERR)
+        Y.ENTRY.COUNT = DCOUNT(R.REC,@FM)
+        FOR I = 1 TO Y.ENTRY.COUNT
+
+
+            Y.XREF.ID=R.REC<I>
+
+            CALL F.READ(FN.STMT.ENT,Y.XREF.ID,R.STMT.REC,F.STMT.ENT,Y.ERR)
+            IF R.STMT.REC<AC.STE.TRANS.REFERENCE> MATCHES "...\..."  THEN
+                Y.TRANS.REF = FIELD(R.STMT.REC<AC.STE.TRANS.REFERENCE>,"\",1)
+                Y.REC.STATUS = R.STMT.REC<AC.STE.RECORD.STATUS>
+
+                IF Y.TRANS.REF MATCHES "TT..." AND Y.REC.STATUS EQ "" THEN
+                    CALL F.READ(FN.TT,Y.TRANS.REF,R.TT.REC,F.TT,Y.ERR)
+                    Y.AMOUNT = R.TT.REC<TT.TE.AMOUNT.LOCAL.1>
+                    IF Y.AMOUNT EQ "" THEN
+                        Y.AMOUNT = R.TT.REC<TT.TE.AMOUNT.LOCAL.2>
+                    END
+                END ELSE
+                    IF Y.TRANS.REF MATCHES "FT..." AND Y.REC.STATUS EQ "" THEN
+                        CALL F.READ(FN.FT,Y.TRANS.REF,R.FT.REC,F.FT,Y.ERR)
+                        Y.AMOUNT = R.FT.REC<FT.DEBIT.AMOUNT>
+                        IF Y.AMOUNT EQ "" THEN
+                            Y.AMOUNT = R.FT.REC<FT.CREDIT.AMOUNT>
+                        END
+                    END
+                END
+
+                IF Y.REC.STATUS EQ "" AND (DBT.COM.CODE EQ "" OR DBT.COM.CODE EQ ID.COMPANY OR CRDT.COM.CODE EQ "" OR CRDT.COM.CODE EQ ID.COMPANY) THEN
+
+                    IF R.STMT.REC<AC.STE.AMOUNT.LCY> LT 0 THEN
+                        TRANS.TYPE ="DR"
+                        Y.OFFUS.DR.AMOUNT=Y.OFFUS.DR.AMOUNT+Y.AMOUNT
+                        Y.OFFUS.DR=Y.OFFUS.DR+1
+                    END
+                    ELSE
+                        TRANS.TYPE ="CR"
+                        Y.OFFUS.CR.AMOUNT=Y.OFFUS.CR.AMOUNT+Y.AMOUNT
+                        Y.OFFUS.CR=Y.OFFUS.CR+1
+                    END
+! Y.RETURN<-1> ="OFFUS " :Y.AMOUNT:"*":Y.TRANS.REF
+                END
+            END
+*******************************************onus**********************************
+            ELSE
+                Y.TRANS.REF = R.STMT.REC<AC.STE.TRANS.REFERENCE>
+                Y.REC.STATUS = R.STMT.REC<AC.STE.RECORD.STATUS>
+                IF Y.TRANS.REF MATCHES "TT..." AND Y.REC.STATUS EQ "" THEN
+                    CALL F.READ(FN.TT,Y.TRANS.REF,R.TT.REC,F.TT,Y.ERR)
+
+                    Y.AMOUNT = R.TT.REC<TT.TE.AMOUNT.LOCAL.1>
+                    IF Y.AMOUNT EQ "" THEN
+                        Y.AMOUNT = R.TT.REC<TT.TE.AMOUNT.LOCAL.2>
+                    END
+
+
+                END ELSE
+                    IF Y.TRANS.REF MATCHES "FT..." AND Y.REC.STATUS EQ "" THEN
+                        CALL F.READ(FN.FT,Y.TRANS.REF,R.FT.REC,F.FT,Y.ERR)
+
+                        Y.AMOUNT = R.FT.REC<FT.DEBIT.AMOUNT>
+                        IF Y.AMOUNT EQ "" THEN
+                            Y.AMOUNT = R.FT.REC<FT.CREDIT.AMOUNT>
+                        END
+
+                    END
+                END
+
+
+                IF Y.REC.STATUS EQ "" AND (DBT.COM.CODE EQ "" OR DBT.COM.CODE EQ ID.COMPANY OR CRDT.COM.CODE EQ "" OR CRDT.COM.CODE EQ ID.COMPANY) THEN
+
+                    IF R.STMT.REC<AC.STE.AMOUNT.LCY> LT 0 THEN
+                        TRANS.TYPE ="DR"
+                        Y.ONUS.DR.AMOUNT=Y.ONUS.DR.AMOUNT+Y.AMOUNT
+                        Y.ONUS.DR=Y.ONUS.DR+1
+
+                    END
+                    ELSE
+                        TRANS.TYPE ="CR"
+                        Y.ONUS.CR.AMOUNT=Y.ONUS.CR.AMOUNT+Y.AMOUNT
+                        Y.ONUS.CR=Y.ONUS.CR+1
+                    END
+                END
+
+                Y.TRANS.REF = ""
+                TRANS.TYPE = ""
+                Y.AMOUNT = ""
+                Y.REC.STATUS = ""
+
+            END
+        NEXT
+    REPEAT
+
+    Y.RETURN<-1>=Y.DATETIME:"*":"ONUS(From Own Branch)":"*": Y.ONUS.DR : "*" : Y.ONUS.DR.AMOUNT : "*" : Y.ONUS.CR :"*" :Y.ONUS.CR.AMOUNT
+    Y.RETURN<-1>=Y.DATETIME:"*":"OFFUS(From Other Branches)":"*": Y.OFFUS.DR : "*" : Y.OFFUS.DR.AMOUNT : "*" : Y.OFFUS.CR :"*" :Y.OFFUS.CR.AMOUNT
+    RETURN
+END
+

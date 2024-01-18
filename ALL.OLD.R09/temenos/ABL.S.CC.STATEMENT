@@ -1,0 +1,313 @@
+*-----------------------------------------------------------------------------
+* <Rating>588</Rating>
+*-----------------------------------------------------------------------------
+!    PROGRAM ABL.S.CC.STATEMENT
+
+    SUBROUTINE ABL.S.CC.STATEMENT(Y.RETURN)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.RE.CONSOL.SPEC.ENTRY
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.PD.PAYMENT.DUE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.TRANSACTION
+    $INSERT GLOBUS.BP I_F.RE.TXN.CODE
+    $INSERT GLOBUS.BP I_F.LIMIT
+
+    FN.STMT='F.STMT.ENTRY'
+    F.STMT=''
+    REC.STMT=''
+
+    FN.RE='F.RE.SPEC.ENTRY.DETAIL'
+    F.RE=''
+    REC.RE=''
+
+    FN.PD='F.PD.PAYMENT.DUE'
+    F.PD=''
+    REC.PD=''
+
+    FN.PD.HIS='F.PD.PAYMENT.DUE$HIS'
+    F.PD.HIS=''
+
+    FN.PD.CUS='F.PD.CUSTOMER'
+    F.PD.CUS=''
+    REC.PD.CUS=''
+
+    FN.AC='F.ACCOUNT'
+    F.AC=''
+    REC.AC=''
+
+    FN.AC.HIS='F.ACCOUNT$HIS'
+    F.AC.HIS=''
+
+    FN.LIM='F.LIMIT'
+    F.LIM=''
+    REC.LIM=''
+
+    CALL OPF(FN.RE,F.RE)
+    CALL OPF(FN.STMT,F.STMT)
+    CALL OPF(FN.PD,F.PD)
+    CALL OPF(FN.PD.HIS,F.PD.HIS)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.PD.CUS,F.PD.CUS)
+    CALL OPF(FN.LIM,F.LIM)
+
+
+    Y.CC.OD.ID=ENQ.SELECTION<4,1>
+!Y.CC.OD.ID='0200000245378'
+    Y.FROM.DATE=ENQ.SELECTION<4,2>
+!Y.FROM.DATE='20110101'
+    Y.TO.DATE=ENQ.SELECTION<4,3>
+!Y.TO.DATE='20110331'
+    Y.AC.STMT.LIST=''
+    Y.AC.OPEN.BAL=''
+    Y.AC.ER=''
+    Y.PD.ENTRY.LIST.OPEN=''
+    Y.PD.ENTRY.LIST=''
+    Y.PD.START.DATE=''
+    Y.PD.END.DATE=''
+    Y.PD.DATE.CNT=''
+    Y.PD.OPEN.BAL=''
+    Y.OPEN.ENTRY.NO=''
+    Y.AC.CUS=''
+    Y.LIMIT.ID=''
+    Y.LIMIT.AMT=''
+    Y.LIMIT.ST.DT=''
+    Y.LIMIT.ED.DT=''
+    Y.LIMIT.PROD=''
+    Y.LIMIT.PR='LIMIT.PROD'
+    Y.LIMIT.PROD.POS=''
+    Y.LIMIT.PROD.PD.POS=''
+    CALL GET.LOC.REF("ACCOUNT",Y.LIMIT.PR,Y.LIMIT.PROD.POS)
+    CALL GET.LOC.REF("PD.PAYMENT.DUE",Y.LIMIT.PR,Y.LIMIT.PROD.PD.POS)
+!----------------------------------------------------------------------------------------------------!
+!                  Findout the PD contract of a Cutomer                                              !
+!                                                                                                    !
+!----------------------------------------------------------------------------------------------------!
+
+    CALL  F.READ(FN.AC,Y.CC.OD.ID,REC.AC,F.AC,ERR.AC)
+    IF REC.AC THEN
+    END
+    ELSE
+        CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.CC.OD.ID,REC.AC,YERROR)
+    END
+    Y.LIMIT.PROD=REC.AC<AC.LOCAL.REF,Y.LIMIT.PROD.POS>
+    Y.AC.CUS=REC.AC<AC.CUSTOMER>
+
+    Y.LIMIT.ID=Y.AC.CUS:".000":REC.AC<AC.LIMIT.REF>
+
+    CALL F.READ(FN.LIM,Y.LIMIT.ID,REC.LIM,F.LIM,ERR.LIM)
+    Y.LIMIT.AMT=REC.LIM<LI.INTERNAL.AMOUNT>
+    Y.LIMIT.ST.DT=REC.LIM<LI.ONLINE.LIMIT.DATE>
+    Y.LIMIT.ED.DT=REC.LIM<LI.EXPIRY.DATE>
+
+    CALL F.READ(FN.PD.CUS,REC.AC<AC.CUSTOMER>,REC.PD.CUS,F.PD.CUS,ERR.PD.CUS)
+    Y.TOTAL.PD=''
+    Y.TOTAL.PD = DCOUNT(REC.PD.CUS,FM)
+    Y.PD.ID=''
+    FOR J = 1 TO Y.TOTAL.PD
+        Y.PD.ID=REC.PD.CUS<J>
+        CALL F.READ(FN.PD,Y.PD.ID,REC.PD,F.PD,ERR.PD)
+
+        IF REC.PD NE '' THEN
+            IF REC.PD<PD.LOCAL.REF,Y.LIMIT.PROD.PD.POS> EQ Y.LIMIT.PROD AND REC.PD<PD.REPAYMENT.ACCT> EQ Y.CC.OD.ID THEN
+                Y.CONTRACT.ID = REC.PD.CUS<J>
+                BREAK
+            END
+        END
+        ELSE
+            CALL EB.READ.HISTORY.REC(F.PD.HIS,REC.PD.CUS<J>,REC.PD,YERROR.PD)
+            IF REC.PD<PD.LOCAL.REF,Y.LIMIT.PROD.PD.POS> EQ Y.LIMIT.PROD AND REC.PD<PD.REPAYMENT.ACCT> EQ Y.CC.OD.ID THEN
+                Y.CONTRACT.ID = REC.PD.CUS<J>
+                BREAK
+            END
+        END
+
+    NEXT
+
+!----------------------------------------------------------------------------------------------------!
+!                  Findout the opening balance for PD contract                                       !
+!                                                                                                    !
+!----------------------------------------------------------------------------------------------------!
+    REC.PD=''
+    CALL F.READ(FN.PD,Y.CONTRACT.ID,REC.PD,F.PD,ERR.PD)
+    Y.PD.DATE.CNT=DCOUNT(REC.PD<PD.PAYMENT.DTE.DUE>,VM)
+    Y.PD.START.DATE=REC.PD<PD.PAYMENT.DTE.DUE,Y.PD.DATE.CNT>
+    Y.PD.END.DATE=Y.FROM.DATE
+
+    CALL  EB.GET.CONTRACT.ENTRIES(Y.CONTRACT.ID,"R",Y.PD.START.DATE,Y.PD.END.DATE,Y.PD.ENTRY.LIST.OPEN)
+
+    IF Y.PD.ENTRY.LIST.OPEN NE '' THEN
+        LOOP
+            REMOVE Y.OPEN.ENTRY.NO FROM Y.PD.ENTRY.LIST.OPEN SETTING OPEN.ENT.POS
+        WHILE Y.OPEN.ENTRY.NO:OPEN.ENT.POS
+            Y.ASSET.TYPE=''
+            Y.OPEN.ENTRY.NO=FIELD(Y.OPEN.ENTRY.NO,"/",1)
+            CALL F.READ(FN.RE,Y.OPEN.ENTRY.NO,REC.RE,F.RE,ERR.RE)
+            IF REC.RE<RE.CSE.TRANSACTION.CODE> EQ 'RPY' OR REC.RE<RE.CSE.TRANSACTION.CODE> EQ 'CRT' OR REC.RE<RE.CSE.TRANSACTION.CODE> EQ 'ACC' THEN
+                Y.ASSET.TYPE=FIELD(REC.RE<RE.CSE.CONSOL.KEY.TYPE>,".",18)
+                IF Y.ASSET.TYPE NE "51001" AND Y.ASSET.TYPE NE "51001SP" THEN
+!    PRINT" ":Y.ENTRY.NO:"  ":REC.RE<RE.CSE.BOOKING.DATE>:"   ":REC.RE<RE.CSE.AMOUNT.LCY> :" ":REC.RE<RE.CSE.TRANSA
+                    Y.PD.OPEN.BAL = Y.PD.OPEN.BAL + REC.RE<RE.CSE.AMOUNT.LCY>
+                END
+            END
+        REPEAT
+    END
+
+    CALL  EB.GET.CONTRACT.ENTRIES(Y.CONTRACT.ID,"R",Y.FROM.DATE,Y.TO.DATE,Y.PD.ENTRY.LIST)
+    Y.OPEN.ENTRY.NO=''
+    OPEN.ENT.POS=''
+    REC.RE=''
+    Y.PD.ENTRY.LIST.FINAL= ''
+    IF Y.PD.ENTRY.LIST NE '' THEN
+        LOOP
+            REMOVE Y.OPEN.ENTRY.NO FROM Y.PD.ENTRY.LIST SETTING OPEN.ENT.POS
+        WHILE Y.OPEN.ENTRY.NO:OPEN.ENT.POS
+            Y.ASSET.TYPE=''
+            Y.OPEN.ENTRY.NO=FIELD(Y.OPEN.ENTRY.NO,"/",1)
+            CALL F.READ(FN.RE,Y.OPEN.ENTRY.NO,REC.RE,F.RE,ERR.RE)
+            IF REC.RE<RE.CSE.TRANSACTION.CODE> EQ 'RPY' OR REC.RE<RE.CSE.TRANSACTION.CODE> EQ 'CRT' OR REC.RE<RE.CSE.TRANSACTION.CODE> EQ 'ACC' THEN
+                Y.ASSET.TYPE=FIELD(REC.RE<RE.CSE.CONSOL.KEY.TYPE>,".",18)
+                IF Y.ASSET.TYPE NE "51001" AND Y.ASSET.TYPE NE "51001SP" THEN
+                    Y.PD.ENTRY.LIST.FINAL = Y.PD.ENTRY.LIST.FINAL:SM:Y.OPEN.ENTRY.NO:"R"
+                END
+            END
+        REPEAT
+    END
+
+    Y.COMBINED.AC.PD.LIST=''
+    CALL EB.ACCT.ENTRY.LIST(Y.CC.OD.ID,Y.FROM.DATE,Y.TO.DATE,Y.AC.STMT.LIST,Y.AC.OPEN.BAL,Y.AC.ER)
+!  PRINT"AC.LIST== ":Y.AC.STMT.LIST
+!  PRINT"PD LIST=":Y.PD.ENTRY.LIST.FINAL
+    IF Y.AC.STMT.LIST NE '' THEN
+        IF Y.PD.ENTRY.LIST.FINAL NE '' THEN
+            Y.COMBINED.AC.PD.LIST=SORT(Y.AC.STMT.LIST:Y.PD.ENTRY.LIST.FINAL)
+        END
+        ELSE
+            Y.COMBINED.AC.PD.LIST=SORT(Y.AC.STMT.LIST)
+        END
+    END
+    ELSE
+        Y.COMBINED.AC.PD.LIST=SORT(Y.PD.ENTRY.LIST.FINAL[2,LEN(Y.PD.ENTRY.LIST.FINAL)-1])
+    END
+!------------------------------------------------------------------------------------------!
+!                               Generating Account Statement Data                          !
+!------------------------------------------------------------------------------------------!
+    Y.COMBINED.ENTRY=''
+    Y.COMM.MARKER=''
+    Y.COMM.VAL.DT=''
+    Y.COMM.BK.DT=''
+    CHECKFILE1 = ''
+    Y.TR.NARR=''
+    Y.AC.TR.BAL=''
+    Y.PD.TR.BAL=''
+    Y.AC.RUN.BAL=''
+    Y.PD.RUN.BAL=''
+    Y.COMM.TOTAL=''
+! PRINT"  ":Y.COMBINED.AC.PD.LIST
+    IF Y.COMBINED.AC.PD.LIST NE '' THEN
+        LOOP
+            REMOVE Y.COMBINED.ENTRY FROM Y.COMBINED.AC.PD.LIST SETTING COM.POS
+        WHILE Y.COMBINED.ENTRY:COM.POS
+
+            IF Y.COMBINED.ENTRY[LEN(Y.COMBINED.ENTRY),1] EQ 'R' THEN
+                Y.COMBINED.ENTRY=Y.COMBINED.ENTRY[1,LEN(Y.COMBINED.ENTRY)-1]
+                CALL F.READ(FN.RE,Y.COMBINED.ENTRY,REC.RE,F.RE,ERR.RE)
+
+                IF REC.RE<RE.CSE.AMOUNT.LCY> LT 0 THEN
+                    Y.COMM.MARKER='DR'
+                END
+                ELSE
+                    Y.COMM.MARKER='CR'
+                END
+                Y.COMM.VAL.DT=REC.RE<RE.CSE.VALUE.DATE>
+                Y.COMM.BK.DT=REC.RE<RE.CSE.BOOKING.DATE>
+                CHECKFILE1 = 'RE.TXN.CODE': FM:RE.TXN.SHORT.DESC: FM: 'L.A'
+                CALL DBR(CHECKFILE1,REC.RE<RE.CSE.TRANSACTION.CODE>,Y.TR.NARR)
+                Y.PD.TR.BAL=ABS(REC.RE<RE.CSE.AMOUNT.LCY>)
+                Y.PD.RUN.BAL= Y.PD.RUN.BAL + REC.RE<RE.CSE.AMOUNT.LCY>
+                Y.AC.TR.BAL=''
+            END
+
+            ELSE
+                CALL F.READ(FN.STMT,Y.COMBINED.ENTRY,REC.STMT,F.STMT,ERR.STMT)
+                IF REC.STMT<AC.STE.AMOUNT.LCY> LT 0 THEN
+                    Y.COMM.MARKER='DR'
+                END
+                ELSE
+                    Y.COMM.MARKER='CR'
+                END
+                Y.COMM.VAL.DT = REC.STMT<AC.STE.VALUE.DATE>
+                Y.COMM.BK.DT = REC.STMT<AC.STE.BOOKING.DATE>
+                CHECKFILE1 = 'TRANSACTION': FM:AC.TRA.NARRATIVE: FM: 'L.A'
+                CALL DBR(CHECKFILE1,REC.STMT<AC.STE.TRANSACTION.CODE>,Y.TR.NARR)
+                Y.AC.TR.BAL = ABS(REC.STMT<AC.STE.AMOUNT.LCY>)
+                Y.AC.RUN.BAL = Y.AC.RUN.BAL + REC.STMT<AC.STE.AMOUNT.LCY>
+                Y.PD.TR.BAL=''
+
+            END
+
+!            BEGIN CASE
+!            CASE REC.RE NE '' AND REC.STMT NE ''
+!                IF REC.RE<RE.CSE.AMOUNT.LCY> LT 0 THEN
+!                    Y.COMM.MARKER='DR'
+!                END
+!                ELSE
+!                    Y.COMM.MARKER='CR'
+!                END
+!                Y.COMM.VAL.DT=REC.RE<RE.CSE.VALUE.DATE>
+!                Y.COMM.BK.DT=REC.RE<RE.CSE.BOOKING.DATE>
+!                CHECKFILE1 = 'TRANSACTION': FM:AC.TRA.NARRATIVE: FM: 'L.A'
+!                CALL DBR(CHECKFILE1,REC.RE<RE.CSE.TRANSACTION.CODE>,Y.TR.NARR)
+!                Y.PD.TR.BAL=ABS(REC.RE<RE.CSE.AMOUNT.LCY>)
+!                Y.PD.RUN.BAL= Y.PD.RUN.BAL + REC.RE<RE.CSE.AMOUNT.LCY>
+!               Y.AC.TR.BAL=''
+!             CASE REC.RE NE ''
+!                IF REC.RE<RE.CSE.AMOUNT.LCY> LT 0 THEN
+!                    Y.COMM.MARKER='DR'
+!                END
+!                ELSE
+!                    Y.COMM.MARKER='CR'
+!                END
+!                Y.COMM.VAL.DT=REC.RE<RE.CSE.VALUE.DATE>
+!                Y.COMM.BK.DT=REC.RE<RE.CSE.BOOKING.DATE>
+!                CHECKFILE1 = 'TRANSACTION': FM:AC.TRA.NARRATIVE: FM: 'L.A'
+!                CALL DBR(CHECKFILE1,REC.RE<RE.CSE.TRANSACTION.CODE>,Y.TR.NARR)
+!                Y.PD.TR.BAL=ABS(REC.RE<RE.CSE.AMOUNT.LCY>)
+!                Y.PD.RUN.BAL= Y.PD.RUN.BAL + REC.RE<RE.CSE.AMOUNT.LCY>
+!                Y.AC.TR.BAL=''
+!
+!            CASE REC.STMT NE ''
+!                IF REC.STMT<AC.STE.AMOUNT.LCY> LT 0 THEN
+!                    Y.COMM.MARKER='DR'
+!                END
+!                ELSE
+!                    Y.COMM.MARKER='CR'
+!                END
+!                Y.COMM.VAL.DT = REC.STMT<AC.STE.VALUE.DATE>
+!                Y.COMM.BK.DT = REC.STMT<AC.STE.BOOKING.DATE>
+!                CHECKFILE1 = 'TRANSACTION': FM:AC.TRA.NARRATIVE: FM: 'L.A'
+!                CALL DBR(CHECKFILE1,REC.STMT<AC.STE.TRANSACTION.CODE>,Y.TR.NARR)
+!                Y.AC.TR.BAL = ABS(REC.STMT<AC.STE.AMOUNT.LCY>)
+!                Y.AC.RUN.BAL = Y.AC.RUN.BAL + REC.STMT<AC.STE.AMOUNT.LCY>
+!                Y.PD.TR.BAL=''
+!            END CASE
+            Y.COMM.TOTAL = Y.AC.RUN.BAL + Y.PD.RUN.BAL
+            Y.RETURN<-1>=Y.COMM.VAL.DT:"*":Y.COMM.BK.DT:"*":Y.TR.NARR:"*":Y.COMM.MARKER:"*":Y.AC.TR.BAL:"*":Y.AC.RUN.BAL:"*":Y.PD.TR.BAL:"*":Y.PD.RUN.BAL:"*":Y.COMM.TOTAL:"*":Y.AC.CUS:"*":Y.LIMIT.PROD:"*":"":"*":"":"*":Y.LIMIT.AMT:"*":Y.LIMIT.ST.DT:"*":Y.LIMIT.ED.DT
+!            PRINT" ":Y.COMM.VAL.DT:"*":Y.COMM.BK.DT:"*":Y.COMM.MARKER:"*":Y.TR.NARR:"*":Y.AC.TR.BAL:"*":Y.PD.TR.BAL:"*":Y.AC.RUN.BAL:"*":Y.PD.RUN.BAL:"*":Y.COMM.TOTAL:"*":Y.LIMIT.PROD:"*":Y.AC.CUS
+            REC.RE=''
+            REC.STMT=''
+            Y.COMM.MARKER=''
+            Y.COMM.VAL.DT=''
+            Y.COMM.BK.DT=''
+            CHECKFILE1 = ''
+            Y.TR.NARR=''
+            Y.AC.TR.BAL=''
+            Y.PD.TR.BAL=''
+            Y.COMBINED.ENTRY=''
+        REPEAT
+    END
+
+END

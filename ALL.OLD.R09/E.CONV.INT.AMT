@@ -1,0 +1,71 @@
+**************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>180</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE E.CONV.INT.AMT
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This conversion routine is used to fetch the internal amount from limit application and
+* is returned to enquiry.
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+* O.DATA : Will returns the value to enquiry
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+*Variable name:   Insert file:          Description:
+* O.DATA            I_COMMON          Holds the last fetched data.
+*-------------------------------------------------------------------------
+*Called Subroutines: Not Applicable
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 10/02/2011 -                            New   - Shiva Shankar G
+*                                                 Thesys Technologies
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.LIMIT
+    $INCLUDE GLOBUS.BP I_ENQUIRY.COMMON
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+
+
+    Y.LD.ID = O.DATA
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*--------------------------------------------------------------------------
+INITIALISE:
+*----------
+    FN.LD.LOANS.AND.DEPOSITS = 'F.LD.LOANS.AND.DEPOSITS'
+    F.LD.LOANS.AND.DEPOSITS = ''
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+
+    FN.LIMIT = 'F.LIMIT'
+    F.LIMIT = ''
+    CALL OPF(FN.LIMIT,F.LIMIT)
+
+    RETURN
+*--------------------------------------------------------------------------
+PROCESS:
+*-------
+
+    CALL F.READ(FN.LD.LOANS.AND.DEPOSITS,Y.LD.ID,R.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS,Y.LD.LOANS.AND.DEPOSITS.ERR)
+    IF R.LD.LOANS.AND.DEPOSITS EQ '' THEN RETURN
+    Y.LIMIT = R.LD.LOANS.AND.DEPOSITS<LD.LIMIT.REFERENCE>
+    Y.CUSTOMER.ID = R.LD.LOANS.AND.DEPOSITS<LD.CUSTOMER.ID>
+    Y.LIMIT.ID = Y.CUSTOMER.ID:'.000':Y.LIMIT
+    CALL F.READ(FN.LIMIT,Y.LIMIT.ID,R.LIMIT,F.LIMIT,Y.LIMIT.ERR)
+    IF R.LIMIT EQ '' THEN RETURN
+    Y.INT.AMT = R.LIMIT<LI.INTERNAL.AMOUNT>
+    O.DATA = Y.INT.AMT
+
+    RETURN
+*--------------------------------------------------------------------------
+END

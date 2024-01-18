@@ -1,0 +1,138 @@
+****************************************************
+*-----------------------------------------------------------------------------
+* <Rating>58</Rating>
+*-----------------------------------------------------------------------------
+* PROGRAM : PROGRAM TO CREATE A CSV FILE FOR ALL ACCOUNT BALANCE INFORMATION FOR INDIVISUAL COMPANY FROM COMPANY APP
+* DEV BY      : MD. IMRAN HASAN
+* DEV DATE    : 2016-03-20
+* UPDATE DATE : 2017-10-12
+* REQ         : ICTD
+****************************************************
+
+    PROGRAM ALL.AC.BALANCE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.COMPANY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+!----
+INIT:
+!----
+    FN.ACCT = 'FBNK.ACCOUNT'
+    F.ACCT = ''
+    R.ACCT = ''
+
+    FN.COMP = 'F.COMPANY'
+    F.COMP = ''
+    R.COMP = ''
+    RETURN
+!---------
+OPENFILES:
+!---------
+    CALL OPF(FN.ACCT,F.ACCT)
+    CALL OPF(FN.COMP,F.COMP)
+
+!-------Check Directory----------
+    CMD.STR = "CREATE.FILE ALL.ACCOUNT.BALANCE.DIR/ONDEMAND/":TODAY:" TYPE=UD"
+    CUR.DIR = "ALL.ACCOUNT.BALANCE.DIR/ONDEMAND/":TODAY
+
+    OPEN CUR.DIR TO F.ALL.ACCOUNT.BALANCE.DIR
+    ELSE
+        EXECUTE CMD.STR
+        OPEN CUR.DIR TO F.ALL.ACCOUNT.BALANCE.DIR
+        ELSE
+            CRT CUR.DIR "OPENING FAILED"
+            RETURN
+        END
+    END
+!-------------------------------
+
+    RETURN
+!-------
+PROCESS:
+!-------
+    CRT "ALL BRANCH ? (Y/N)"
+    INPUT USER.CHOICE
+    IF USER.CHOICE EQ 'Y' THEN
+        GOSUB READ.FROM.COMPANY
+    END
+    ELSE
+        IF USER.CHOICE EQ 'N' THEN
+            CRT "INPUT BRANCH CODE"
+            INPUT BRANCH.CODES
+            Y.TOT.BR=DCOUNT(BRANCH.CODES,' ')
+            FOR I=1 TO Y.TOT.BR
+                COMPANY.LIST<-1> = FIELD(BRANCH.CODES,' ',I)
+            NEXT
+        END
+        ELSE
+            CRT 'INVALID CHARECTER'
+            RETURN
+        END
+    END
+
+    Y.COUNT = 0
+    Y.FILE.DIR = CUR.DIR
+    OPEN Y.FILE.DIR TO F.FILE.DIR
+    ELSE
+        CRT 'FAILED TO OPEN FILE DIRECTORY'
+        RETURN
+    END
+    FOR I=1 TO DCOUNT(COMPANY.LIST,@FM)
+        COMP.ID =  FIELD(COMPANY.LIST,@FM,I)
+        Y.RETURN = ''
+        Y.RETURN<-1> = 'Y.ACC.ID':'|':'Y.TITLE':'|':'Y.LEGACY.ID':'|':'Y.CATEGORY':'|':'Y.OPEN.ACTUAL.BAL':'|':'Y.WORKING.BALANCE':'|':'Y.OPENING.DATE':'|':'Y.REC.DATE':'|':'Y.CO.CODE'
+
+        Y.FILE.NAME = 'ALL.AC.BALANCE.':COMP.ID:'.':TODAY:'.csv'
+        Y.FILE.PATH = Y.FILE.DIR:'/':Y.FILE.NAME
+
+        SEL.CMD='SELECT ':FN.ACCT:' WITH CO.CODE EQ ':COMP.ID
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+        LOOP
+            REMOVE  Y.ACCT.ID FROM SEL.LIST SETTING Y.POS
+        WHILE Y.ACCT.ID:Y.POS
+
+            CALL F.READ(FN.ACCT,Y.ACCT.ID,R.ACCT,F.ACCT,ERR.CODE.ACCT)
+            Y.TITLE = R.ACCT<AC.ACCOUNT.TITLE.1>
+            Y.LEGACY.ID = R.ACCT<AC.ALT.ACCT.ID>
+            Y.CATEG = R.ACCT<AC.CATEGORY>
+            Y.OPEN.ACTUAL.BAL = R.ACCT<AC.OPEN.ACTUAL.BAL>
+            Y.WORKING.BALANCE = R.ACCT<AC.WORKING.BALANCE>
+            Y.OPENING.DATE = R.ACCT<AC.OPENING.DATE>
+
+            Y.RETURN<-1>= Y.ACCT.ID:'|':Y.TITLE:'|':Y.LEGACY.ID:'|':Y.CATEG:'|':Y.OPEN.ACTUAL.BAL:'|':Y.WORKING.BALANCE:'|':Y.OPENING.DATE:'|':TODAY:'|':COMP.ID
+
+        REPEAT
+        OPEN Y.FILE.DIR TO F.FILE.DIR ELSE NULL
+        WRITE Y.RETURN TO F.FILE.DIR,Y.FILE.NAME
+        Y.COUNT++
+        CRT "COMPLETED ": Y.COUNT :" OF ": DCOUNT(COMPANY.LIST,@FM)
+
+    NEXT
+
+    RETURN
+!-----------------
+READ.FROM.COMPANY:
+!-----------------
+    COMPANY.LIST = ''
+
+    CALL GET.LOC.REF("COMPANY","BRANCH.STATUS",Y.BRANCH.STATUS.POS)
+    SEL.CMD1='SELECT ':FN.COMP
+    CALL EB.READLIST(SEL.CMD1,SEL.LIST1,'',NO.OF.REC1,RET.CODE1)
+    LOOP
+        REMOVE  Y.COMP.ID FROM SEL.LIST1 SETTING Y.POS
+    WHILE Y.COMP.ID:Y.POS
+        CALL F.READ(FN.COMP,Y.COMP.ID,R.COMP,F.COMP,ERR.CODE.COMP)
+        Y.BRANCH.STATUS = R.COMP<EB.COM.LOCAL.REF,Y.BRANCH.STATUS.POS>
+        IF Y.BRANCH.STATUS EQ 'SINGLE' THEN
+            COMPANY.LIST<-1> = Y.COMP.ID
+        END
+    REPEAT
+    CRT "TOTAL SINGLE BRANCH : " : DCOUNT(COMPANY.LIST,@FM)
+    RETURN
+END

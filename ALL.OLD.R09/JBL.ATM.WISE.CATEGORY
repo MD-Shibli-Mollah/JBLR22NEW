@@ -1,0 +1,141 @@
+****************************************************
+*-----------------------------------------------------------------------------
+* <Rating>1036</Rating>
+*-----------------------------------------------------------------------------
+* PROGRAM : PROGRAM REPORT GENERATE ATM Maintenance Fee CATEGORY BRANCH WISE
+* DEV DATE    : 2017-12-4
+* REQ         : ICTD
+****************************************************
+    SUBROUTINE JBL.ATM.WISE.CATEGORY
+!PROGRAM JBL.ATM.WISE.CATEGORY
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT BP I_F.ATM.CARD.MGT
+    $INSERT GLOBUS.BP I_F.COMPANY.SMS.GROUP
+    $INSERT BP I_F.JBL.ATM.MAINT.CALC
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*----
+INIT:
+*----
+
+    FN.ACCT = 'FBNK.ACCOUNT'
+    F.ACCT = ''
+    FN.COMP = 'F.COMPANY'
+    F.COMP = ''
+    FN.ATM="F.EB.ATM.CARD.MGT"
+    F.ATM=""
+    FN.JBL.ATM='F.JBL.ATM.MAINT.CALC'
+    F.JBL.ATM=''
+
+    Y.CATEG.LIST =""
+    COMPANY.LIST=""
+    Y.SOURCE="BUILD.CONTROL"
+
+    RETURN
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.ACCT,F.ACCT)
+    CALL OPF(FN.COMP,F.COMP)
+    CALL OPF(FN.ATM,F.ATM)
+    CALL OPF(FN.JBL.ATM,F.JBL.ATM)
+
+
+    RETURN
+*-------
+PROCESS:
+*-------
+
+!---------------------------------------------------------------
+!READ SINGLE STATUS COMPANY
+!---------------------------------------------------------------
+    CALL F.READ(FN.JBL.ATM,'SYSTEM',REC.ATM.CHRG,F.JBL.ATM,ERR.CDSTD.HF)
+    IF REC.ATM.CHRG EQ '' THEN
+        ETEXT="There must be a record SYSTEM in JBL.ATM.MAINT.CALC"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    Y.CATEG.LIST=REC.ATM.CHRG<ATM.MAINT.INCLUDE.CATEGORY>
+    Y.CLOSE.TYPE =REC.ATM.CHRG<ATM.MAINT.CLOSE.TYPE>
+
+    SEL.CMD.AC="SELECT ":FN.ATM:" WITH  FROM.DATE NE '' AND CARD.CLOSE.DATE EQ '' "
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.AC,'',NO.OF.REC.AC,ERR.AC)
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST.AC SETTING POS
+    WHILE Y.ID:POS
+        CALL F.READ(FN.ATM,Y.ID,R.ATM,F.ATM,Y.ERR)
+        Y.COM.CODE=R.ATM<EB.ATM19.CO.CODE>
+        Y.ACCT.NO=R.ATM<EB.ATM19.ACCT.NO>
+        CALL F.READ(FN.ACCT,Y.ACCT.NO,R.ACCT,F.ACCT,Y.ERR)
+        Y.ACC.ADD=0
+        Y.CAT.FIND=0
+        Y.DAYS="C"
+
+        IF R.ACCT NE "" THEN
+            Y.CAT=R.ACCT<AC.CATEGORY>
+            FIND Y.CAT IN Y.CATEG.LIST SETTING Ap, Vp THEN
+                Y.CAT.FIND=1
+            END
+        END
+
+        IF  Y.CAT.FIND EQ 1 THEN
+            Y.FROM.DATE=R.ATM<EB.ATM19.FROM.DATE>
+
+            IF Y.FROM.DATE[5,2] GE 1 AND Y.FROM.DATE[5,2] LE 6 AND Y.CLOSE.TYPE EQ "HALF" THEN
+                Y.EFF.DATE=TODAY[1,4]:"06":"30"
+                CALL CDD("",Y.FROM.DATE,Y.EFF.DATE,Y.DAYS)
+                IF Y.DAYS GE 365 THEN
+                    Y.ACC.ADD=1
+                END
+            END
+
+            IF Y.FROM.DATE[5,2] GE 7 AND Y.FROM.DATE[5,2] LE 12 AND Y.CLOSE.TYPE EQ "YEARLY" THEN
+                Y.EFF.DATE=TODAY[1,4]:"12":"31"
+                CALL CDD("",Y.FROM.DATE,Y.EFF.DATE,Y.DAYS)
+                IF Y.DAYS GE 365 THEN
+                    Y.ACC.ADD=1
+                END
+            END
+
+
+            IF Y.ACC.ADD=1 THEN
+                Y.RPT=Y.COM.CODE:"-":Y.CAT
+                IF COMPANY.LIST="" THEN
+                    COMPANY.LIST=Y.RPT
+                END
+                FIND Y.RPT IN COMPANY.LIST SETTING Ap, Vp THEN
+
+                END ELSE
+                    COMPANY.LIST=COMPANY.LIST:@FM:Y.RPT
+                END
+            END
+        END
+
+    REPEAT
+    COMPANY.LIST=SORT(COMPANY.LIST)
+    Y.CNT=DCOUNT(COMPANY.LIST,@FM)
+
+    CRT "Total Report=": Y.CNT
+!---------------------------------------------------------------
+
+    FOR I=1 TO DCOUNT(COMPANY.LIST,@FM)
+        COMP.ID =  FIELD(COMPANY.LIST,@FM,I)
+        Y.COMP.ID =  FIELD(COMP.ID,"-",1)
+        Y.CAT.ID =  FIELD(COMP.ID,"-",2)
+!Y.MESSAGE = "ENQUIRY.REPORT,ATM.MAINT.DEDUCT/V/PROCESS,//":Y.COMP.ID:",ER.ATM.MAINT.DEDUCT.":Y.CAT.ID
+        Y.MESSAGE = "ENQUIRY.REPORT,ATM.MAINT.DEDUCT/V/PROCESS,//":Y.COMP.ID:",ER.ATM.MAINT.DEDUCT.":Y.CAT.ID
+        MSG.ID = ''
+        CALL OFS.POST.MESSAGE(Y.MESSAGE, MSG.ID , Y.SOURCE, "DMUSER")
+        CALL JOURNAL.UPDATE ('TEST')
+!CRT Y.MESSAGE
+    NEXT
+
+    RETURN
+END

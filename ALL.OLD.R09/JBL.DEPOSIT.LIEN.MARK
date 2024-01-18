@@ -1,0 +1,77 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+*********************************************************************************************
+*Purpose: This routine is attachted to VERSION ACCOUNT,BD.CONT.LOAN as a                    *
+*BEFORE AUTH ROUTINE and is used to mark Debit Block against a Loan account                 *
+*Developed By: Kamran Mallick                                                               *
+*********************************************************************************************
+    SUBROUTINE JBL.DEPOSIT.LIEN.MARK
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.ALTERNATE.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+******
+INIT:
+******
+    FN.ACCOUNT.NAU = 'FBNK.ACCOUNT$NAU'
+    F.ACCOUNT.NAU = ''
+    FN.ACCOUNT = 'FBNK.ACCOUNT'
+    F.ACCOUNT = ''
+    FN.ALT.ACCOUNT = 'F.ALTERNATE.ACCOUNT'
+    F.ALT.ACCOUNT = ''
+    RETURN
+
+***********
+OPENFILES:
+***********
+    CALL OPF(FN.ACCOUNT.NAU,F.ACCOUNT.NAU)
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    CALL OPF (FN.ALT.ACCOUNT,F.ALT.ACCOUNT)
+    RETURN
+********
+PROCESS:
+********
+    Y.LOAN.ACCT = ID.NEW
+
+    CALL F.READ(FN.ACCOUNT.NAU,Y.LOAN.ACCT,R.ACCOUNT.NAU,F.ACCOUNT.NAU,Y.ERR)
+    CALL GET.LOC.REF('ACCOUNT','LIEN.AGAINST',Y.LIEN.AGAINST.POS)
+    CALL GET.LOC.REF('ACCOUNT','LOAN.START.DATE',Y.LOAN.ST.DT.POS)
+    Y.ACCT = R.ACCOUNT.NAU<AC.LOCAL.REF,Y.LIEN.AGAINST.POS>
+    Y.LEGACY.FLAG = 'T'
+    IF  Y.ACCT NE '' THEN
+        CALL F.READ(FN.ACCOUNT,Y.ACCT,R.ACCOUNT,F.ACCOUNT,Y.ERR)
+        IF R.ACCOUNT EQ '' THEN
+            CALL F.READ(FN.ALT.ACCOUNT,Y.ACCT,R.ALT.ACC,F.ALT.ACCOUNT,Y.ALT.ERR)
+            Y.ACCT = R.ALT.ACC<1>
+            CALL F.READ(FN.ACCOUNT,Y.ACCT,R.ACCOUNT,F.ACCOUNT,Y.ERR)
+            Y.LEGACY.FLAG = ''
+        END
+        IF Y.LEGACY.FLAG EQ 'T' THEN
+            CALL F.READ(FN.ALT.ACCOUNT,Y.ACCT,R.ALT.ACC,F.ALT.ACCOUNT,Y.ALT.ERR)
+            IF R.ALT.ACC NE '' THEN
+                Y.ACCT = R.ALT.ACC<1>
+            END
+        END
+        IF R.ACCOUNT NE '' THEN
+            CALL GET.LOC.REF('ACCOUNT','LIEN.MARK',Y.LIEN.MARK.POS)
+            CALL GET.LOC.REF('ACCOUNT','LIEN.DATE',Y.LIEN.DATE.POS)
+            CALL GET.LOC.REF('ACCOUNT','LIEN.AGAINST',Y.LIEN.AGAINST.POS)
+            R.ACCOUNT<AC.LOCAL.REF,Y.LIEN.MARK.POS> = 'YES'
+            IF R.ACCOUNT<AC.LOCAL.REF,Y.LIEN.DATE.POS> EQ '' THEN
+                R.ACCOUNT<AC.LOCAL.REF,Y.LIEN.DATE.POS> = R.ACCOUNT.NAU<AC.LOCAL.REF,Y.LOAN.ST.DT.POS>[1,8]
+            END
+            R.ACCOUNT<AC.LOCAL.REF,Y.LIEN.AGAINST.POS> = Y.LOAN.ACCT
+            R.ACCOUNT<AC.POSTING.RESTRICT> = '16'
+            CALL F.WRITE(FN.ACCOUNT,Y.ACCT,R.ACCOUNT)
+        END
+    END
+    RETURN
+END

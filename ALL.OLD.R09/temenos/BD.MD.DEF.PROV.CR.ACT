@@ -1,0 +1,24 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.MD.DEF.PROV.CR.ACT
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.MD.DEAL
+
+    FN.MD.DEAL = 'F.MD.DEAL'
+    F.MD.DEAL = ''
+    CALL OPF(FN.MD.DEAL,F.MD.DEAL)
+
+    FN.COM = 'F.COMPANY'
+    F.COM = ''
+    CALL OPF(FN.COM,F.COM)
+
+    IF R.NEW(MD.DEA.PROVISION) EQ 'YES' THEN
+        R.NEW(MD.DEA.PROV.CR.ACCOUNT) = 'BDT':'165000001':ID.COMPANY[6,4]
+    END
+
+    CALL REBUILD.SCREEN
+    RETURN
+END

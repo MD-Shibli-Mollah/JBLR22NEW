@@ -1,0 +1,69 @@
+*-----------------------------------------------------------------------------
+* <Rating>-65</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.H.LCAF.FIELD.DEFINITIONS
+*-------------------------------------------------------------------------
+*
+*-------------------------------------------------------------------------
+* Modification History :
+*-------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT       ;* Other Inserts required for Checkfiles, e
+    $INSERT I_F.CUSTOMER
+    $INSERT I_F.SEC.ACC.MASTER
+    $INSERT I_F.PR.H.CURRENCY
+*-------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB DEFINE.FIELDS
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+DEFINE.FIELDS:
+    ID.F = "IDNAME" ; ID.N = "16" ; ID.T = "A"
+*
+    Z=0
+
+    Z+=1 ; F(Z) = "XX.NAME.OF.IMPORTER" ; N(Z) = "32" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "XX.ADDRESS.OF.IMPORTER" ; N(Z) = "32" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "NATURE.OF.LCAF" ; N(Z) = "10" ; T(Z)<2> = "INDUSTRIAL_COMMERCIAL"
+    Z+=1 ; F(Z) = "LCAF.NUMBER" ; N(Z) = "16" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "LCAF.ISS.DATE" ; N(Z) = "16" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "LCAF.VALUE.IN.FC" ; N(Z) = "18" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "CURRENCY.CODE" ; N(Z) = "2" ; T(Z) = "A"
+    CHECKFILE(Z) = CHK.CURRENCY
+    Z+=1 ; F(Z) = "IRC.NO" ; N(Z) = "18" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "NATURE.OF.IRC" ; N(Z) = "10" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "DATE.OF.LCAF.SUBMISSION" ; N(Z) = "12" ; T(Z) = "D"
+    Z+=1 ; F(Z) = "CUSTOMER.ID" ; N(Z) = "32" ; T(Z) = "A"
+    CHECKFILE(Z)="CUSTOMER"
+    Z+=1 ; F(Z) = "CURRENCY" ; N(Z) = "8" ; T(Z) = "A"
+    CHECKFILE(Z)="CURRENCY"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > CHECKFILE(Z) = CHK.ACCOUNT
+*
+    V = Z + 9
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+INITIALISE:
+    MAT F = "" ; MAT N = "" ; MAT T = ""
+    MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+    ID.CHECKFILE = "" ; ID.CONCATFILE = ""
+*
+* Define often used checkfile variables
+*
+    CHK.ACCOUNT = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+    CHK.CUSTOMER = "CUSTOMER":FM:EB.CUS.SHORT.NAME:FM:'.A'
+    CHK.CUSTOMER.SECURITY = "CUSTOMER.SECURITY":FM:0:FM:'':FM:"CUSTOMER"
+    CHK.SAM = "SEC.ACC.MASTER":FM:SC.SAM.ACCOUNT.NAME:FM:'..S'
+    CHK.CURRENCY = "PR.H.CURRENCY":FM:PR.H.CUR.CURRENCY.NAME
+    RETURN
+*
+*-------------------------------------------------------------------------
+*
+END

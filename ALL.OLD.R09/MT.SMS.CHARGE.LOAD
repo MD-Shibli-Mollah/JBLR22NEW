@@ -1,0 +1,73 @@
+*-----------------------------------------------------------------------------
+* <Rating>96</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.SMS.CHARGE.LOAD
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_F.CUSTOMER.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CURRENCY
+
+    $INSERT JBL.BP/REPGEN MT.SMS.CHARGE.VARS
+
+    FN.ACCT = 'FBNK.ACCOUNT'
+    F.ACCT = ''
+
+    FN.CCY = 'FBNK.CURRENCY'
+    F.CCY = ''
+
+    FN.CUS = 'FBNK.CUSTOMER'
+    F.CUS = ''
+
+    FN.CUS.AC = 'FBNK.CUSTOMER.ACCOUNT'
+    F.CUS.AC = ''
+
+    Y.CATEGORY.LIST = '6001':@FM:'6003':@FM:'6004':@FM:'6006':@FM:'6010':@FM:'6019':@FM:'6009':@FM:'1001':@FM:'1002':@FM:'1003':@FM:'6026':@FM:'6027':@FM:'6028'
+
+    Y.CATEG.LIST = '6001 6003 6004 6006 6010 6019 6009 1001 1002 1003 6026 6027 6028'
+
+    Y.POST.REST.LIST = '12':@FM:'13':@FM:'14':@FM:'15':@FM:'80':@FM:'90'
+
+    CALL OPF(FN.ACCT,F.ACCT)
+    CALL OPF(FN.CCY,F.CCY)
+    CALL OPF(FN.CUS,F.CUS)
+    CALL OPF(FN.CUS.AC,F.CUS.AC)
+
+    CALL GET.LOC.REF("CUSTOMER","SMS.ALERT",Y.SMS.ALERT.POS)
+
+!-------Check Directory----------
+    OPEN "RPT.DATA.DIR" TO F.RPT.DATA.DIR
+    ELSE
+        CMD = "CREATE.FILE RPT.DATA.DIR TYPE=UD"
+        EXECUTE CMD
+        OPEN "RPT.DATA.DIR" TO F.RPT.DATA.DIR
+        ELSE
+            CRT "OPENING OF RPT.DATA.DIR FAILED"
+        END
+    END
+!-------------------------------
+
+!-------Get Doller Rate------------
+
+    CALL F.READ(FN.CCY,'USD',R.CCY,F.CCY,CCY.ERR)
+    Y.MARKET.ARRY = R.CCY<EB.CUR.CURRENCY.MARKET>
+    Y.RATE.ARRY = R.CCY<EB.CUR.MID.REVAL.RATE>
+    FOR I=1 TO DCOUNT(Y.MARKET.ARRY,@VM)
+        Y.MARKET.ID = FIELD(Y.MARKET.ARRY,@VM,I)
+        IF Y.MARKET.ID EQ 5 THEN
+            Y.USD.RATE = FIELD(Y.RATE.ARRY,@VM,I)
+
+        END
+    NEXT
+
+    CRT "USD RATE IS :":Y.USD.RATE
+
+!----------------------------------
+
+    RETURN
+END

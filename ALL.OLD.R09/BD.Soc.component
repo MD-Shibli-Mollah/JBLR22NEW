@@ -1,0 +1,80 @@
+component BD.Soc
+# Component Isolation Definition
+metamodelVersion 1.6
+# -------------------------------------------------
+public table BdSocBalInfo{
+    
+    t24: BD.SOC.BALINFO
+    fields:{
+        SOC.BAL.MAXIMUM.DATE =1
+        SOC.BAL.MAXIMUM.BALANCE = 2
+        SOC.BAL.MINIMUM.DATE = 3
+        SOC.BAL.MINIMUM.BALANCE = 4
+        SOC.BAL.AVERAGE.DATE = 5
+        SOC.BAL.AVERAGE.BALANCE = 6
+        SOC.BAL.CO.CODE = 7
+    
+    }
+}
+public table BdSocPAram{
+    t24: BD.SOC.PARAM
+    fields:{
+        SOC.PARAM.CHARGE.NAME=1
+        SOC.PARAM.CALC.TYPE=2
+        SOC.PARAM.BALANCE=3
+        SOC.PARAM.SOURCE.BALANCE=4
+        SOC.PARAM.CHARGE.CODE=5
+        SOC.PARAM.APPLIED.CHARGE=6
+        SOC.PARAM.RESTRICTION=7
+        SOC.PARAM.THRESHOLD.CHARGE.AMOUNT=8
+        SOC.PARAM.PARTIAL.FLAG=9
+    }
+}
+public table BdScheduleChargeInfo{
+    t24: BD.SCHEDULE.CHARGE.INFO
+    fields:{
+        SOC.INFO.BASE.BALANCE=1
+        SOC.INFO.TOTAL.CHARGE.AMOUNT=2
+        SOC.INFO.TOTAL.VAT.AMOUNT=3
+        SOC.INFO.TOTAL.REALIZE.AMOUNT=4
+        SOC.INFO.TOTAL.REALIZE.VAT=5
+        SOC.INFO.TOTAL.DUE.AMT=6
+        SOC.INFO.TOTAL.DUE.VAT=7
+        SOC.INFO.TXN.REF=8
+        SOC.INFO.TXN.AMOUNT=9
+        SOC.INFO.STATUS=10
+    }
+}
+public method SocUpdateHighBal(IN Y.ACCOUNTNO string,IN Y.RECORD.STATUS string)
+{
+    jBC: BD.SOC.ANYTIME.HIGHBAL
+}
+public method SocGetHighBal(IN Y.ACCOUNTNO string,IN Y.YEAR number,OUT Y.BALANCE number)
+{
+    jBC: BD.SOC.CALC.HIGHBAL
+}
+public method SocGetAvgBal(IN Y.ACCOUNTNO string,IN Y.START.DATE date,IN Y.END.DATE date,IN Y.BALANCE.TYPE string,IN Y.PROPERTY string,OUT Y.BALANCE number)
+{
+    jBC: BD.SOC.CALC.AVGBAL
+}
+public method SocGetDate: date(IN Y.ACCOUNTNO string, OUT Y.START.DATE date, OUT Y.END.DATE date)
+{
+    jBC: BD.SOC.GETDATE
+}
+public method SocGetChgAmt(IN Y.ACCOUNTNO string,IN Y.COM.CODE string, IN Y.BASE.BALANCE number,IN Y.THRESHOLD.CHG number,IN Y.PARITAL.FLAG string,IN Y.APPLIED.CHG,
+IN Y.RESTRICTIONS string,OUT Y.CHG.AMT number,OUT Y.VAT.AMT number,OUT Y.REL.CHG number,OUT Y.REL.VAT number,OUT Y.DUE.AMT number,OUT Y.DUE.VAT number)
+{
+    jBC: BD.SOC.GET.CHGAMT
+}
+public method SocGetEdChgAmt(IN Y.ACCOUNTNO string,IN Y.COM.CODE string, IN Y.BASE.BALANCE number,OUT Y.CHG.AMT number,OUT Y.DUE.AMT number)
+{
+    jBC: BD.SOC.GET.EDCHGAMT
+}
+public method GetWBal:number(IN Y.ACCOUNTNO string, OUT Y.WBAL number)
+{
+    jBC: BD.SOC.WBAL
+}
+public method SocUPDATECHGINFO(IN Y.SOC.INFO.ID string, IN Y.BASE.BALANCE number,IN Y.CHG.AMT number,IN Y.VAT.AMT number,IN Y.REL.CHG number,IN Y.REL.VAT number,IN Y.DUE.AMT number,IN Y.DUE.VAT number)
+{
+    jBC: BD.SOC.UPDATE.CHGINFO
+}

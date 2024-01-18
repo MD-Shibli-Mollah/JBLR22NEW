@@ -1,0 +1,72 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE EB.BD.EXCISE.DUTY.PARAM.CHECKID
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This ID Routine validates the id of table BD.EXCISE.DUTY.PARAM.
+*-------------------------------------------------------------------------
+* Project Name : National Bank Limited(Bangladesh)
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*  NA
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+* Variable name:   Insert file:          Description:
+* COMI             I_COMMON              Will hold the last entered value
+* E                I_COMMON              Used to store the error
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+* ERR                       CORE            Which displays the error
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 03/02/2011 -                            New   - Rashmitha M
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.EB.PRODUCT
+    $INCLUDE JBL.BP I_F.EB.BD.EXCISE.DUTY.PARAM
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+**************************************************************************
+INIT:
+*****
+    FN.EB.PRODUCT='F.EB.PRODUCT'
+    F.EB.PRODUCT=''
+    R.EB.PRODUCT=''
+    EB.PRODUCT.ERR=''
+
+    RETURN
+**************************************************************************
+OPENFILES:
+**********
+    CALL OPF(FN.EB.PRODUCT,F.EB.PRODUCT)
+
+    RETURN 
+**************************************************************************
+PROCESS:
+********
+    CALL F.READ(FN.EB.PRODUCT,COMI,R.EB.PRODUCT,F.EB.PRODUCT,EB.PRODUCT.ERR)
+    IF NOT(R.EB.PRODUCT) THEN
+        E="EB-INVALID.ID"
+        CALL ERR
+        MESSAGE='REPEAT'
+    END
+
+    RETURN
+**************************************************************************
+END

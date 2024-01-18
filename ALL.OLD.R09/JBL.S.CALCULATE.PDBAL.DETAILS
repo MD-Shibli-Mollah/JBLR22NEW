@@ -1,0 +1,138 @@
+*
+*-----------------------------------------------------------------------------
+* <Rating>-51</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.CALCULATE.PDBAL.DETAILS
+*------------------------------------------------------------------------------------------------------
+*Description:
+*          Conversion routine attached to the enquiry PD.OUTSTANDINGS.REPORT to get Principal, Interest,
+*          Penalty Interest, Penalty spread, Capitalised Interest and Captialised spread
+*
+*---------------------------------------------------------------------------------------------------------
+* Version No: 1.0
+* ------------------
+*
+* Change History
+* --------------
+* 12-09-08 - BG_100019950
+*            Routine restructure
+*            Addition of gosub GET.AMOUNT
+*----------------------------------------------------------------------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.PD.BALANCES
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+    GOSUB BUILD.R.RECORD
+    RETURN
+
+INITIALISE:
+
+* Initialise Varaibles and open required files
+
+    AMT.TYPES = ""
+    PD.BALANCES.ID = ""
+    R.PD.BALANCES = ""
+    IN.AMT = ""
+    PR.AMT = ""
+    PE.AMT = ""
+    PS.AMT = ""
+    CE.AMT = ""
+    CS.AMT = ""
+    CO.AMT = ""
+    IN.POS = ""
+    PR.POS = ""
+    PE.POS = ""
+    PS.POS = ""
+    CE.POS = ""
+    CS.POS = ""
+    CO.POS = ""
+    OTHERS.AMT = ""
+
+
+    FN.PD.BALANCES = 'F.PD.BALANCES'
+    F.PD.BALANCES = ''
+    CALL OPF(FN.PD.BALANCES,F.PD.BALANCES)
+
+    RETURN
+
+PROCESS:
+
+* Need to calculate the following details from the pd balances record
+* then push it to the curr R.RECORD to enable the enq to display the same
+
+* IN Interest Amt
+* PR Principal Amt
+* PE Penalty Interest
+* PS Penalty Spread
+* CE + CS Sum of Capitailised Interest and Capitalised Spread
+*
+* The above codes hard coded in PD.AMOUNT.TYPE
+DEBUG
+    PD.BALANCES.ID = O.DATA
+    CALL F.READ(FN.PD.BALANCES,PD.BALANCES.ID,R.PD.BALANCES,F.PD.BALANCES,PD.BALANCES.ERR)
+
+    IF NOT(PD.BALANCES.ERR) THEN
+
+        AMT.TYPES = R.PD.BALANCES<PD.BAL.AMT.TYPE>
+
+        AMOUNT.TYPE = "IN"
+        GOSUB GET.AMOUNT
+        IN.AMT = AMOUNT
+
+        AMOUNT.TYPE = "PR"
+        GOSUB GET.AMOUNT
+        PR.AMT = AMOUNT
+
+        AMOUNT.TYPE = "PE"
+        GOSUB GET.AMOUNT
+        PE.AMT = AMOUNT
+
+        AMOUNT.TYPE = "PS"
+        GOSUB GET.AMOUNT
+        PS.AMT = AMOUNT
+
+        AMOUNT.TYPE = "CE"
+        GOSUB GET.AMOUNT
+        CE.AMT = AMOUNT
+
+        AMOUNT.TYPE = "CS"
+        GOSUB GET.AMOUNT
+        CS.AMT = AMOUNT
+
+        AMOUNT.TYPE = "CO"
+        GOSUB GET.AMOUNT
+        CO.AMT = AMOUNT
+
+        OTHERS.AMT = CE.AMT + CS.AMT + CO.AMT
+
+    END
+    RETURN
+
+GET.AMOUNT:
+
+*Locate the amount type and get the value.
+
+    LOCATE AMOUNT.TYPE IN AMT.TYPES<1,1> SETTING AMT.POS THEN
+        AMOUNT = R.PD.BALANCES<PD.BAL.CURR.OS.AMT,AMT.POS>
+    END ELSE
+        AMOUNT = 0
+    END
+    RETURN
+
+BUILD.R.RECORD:
+
+*Populate the amounts in R.RECORD
+
+    R.RECORD<175> := IN.AMT:VM
+    R.RECORD<176> := PR.AMT:VM
+    R.RECORD<177> := PE.AMT:VM
+    R.RECORD<178> := PS.AMT:VM
+    R.RECORD<179> := OTHERS.AMT:VM
+
+    RETURN
+
+END

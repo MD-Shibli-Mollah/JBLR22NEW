@@ -1,0 +1,71 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.CLEAR.BD.EXCISE.DUTY
+**************************************************************************
+* Subroutine Description:
+*-----------------------
+* The Purpose of this Routine is to clear all the records in EB.BD.EXCISE.DUTY
+* except the last two year records
+*-------------------------------------------------------------------------
+* Parameter Description
+*--------- -----------
+* NA
+*-------------------------------------------------------------------------
+* Common Variable Description
+*------  ------- -----------
+*
+* Variable name:    Insert file:          Description:
+* TODAY            I_COMMON              Will hold Today's date
+*-------------------------------------------------------------------------
+* Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+* NA
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 01/03/2011 -                            New   - Rashmitha M
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INSERT JBL.BP I_F.EB.BD.EXCISE.DUTY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+*--------------------------------------------------------------------------
+INIT:
+*****
+    FN.EB.BD.EXCISE.DUTY='F.EB.BD.EXCISE.DUTY'
+    F.EB.BD.EXCISE.DUTY=''
+    SEL.LIST=''
+    NO.OF.REC=''
+    SEL.ERR=''
+
+    RETURN
+*--------------------------------------------------------------------------
+OPENFILES:
+**********
+    CALL OPF(FN.EB.BD.EXCISE.DUTY,F.EB.BD.EXCISE.DUTY)
+
+    RETURN
+*--------------------------------------------------------------------------
+PROCESS:
+********
+    Y.LATEST.YEAR.1=TODAY[1,4]
+    Y.LATEST.YEAR.2=Y.LATEST.YEAR.1-1
+    SEL.CMD='SELECT ':FN.EB.BD.EXCISE.DUTY:' WITH @ID UNLIKE ...-':Y.LATEST.YEAR.1:' AND @ID UNLIKE ...-':Y.LATEST.YEAR.2
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,SEL.ERR)
+    CONVERT FM TO ' ' IN SEL.LIST
+    IF NO.OF.REC EQ 0 THEN
+        RETURN
+    END
+    EXECUTE "DELETE ":FN.EB.BD.EXCISE.DUTY:" ":SEL.LIST
+
+    RETURN
+*--------------------------------------------------------------------------
+END

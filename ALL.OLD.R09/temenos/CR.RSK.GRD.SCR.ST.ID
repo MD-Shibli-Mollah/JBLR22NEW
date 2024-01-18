@@ -1,0 +1,99 @@
+*-----------------------------------------------------------------------------
+* <Rating>-80</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE CR.RSK.GRD.SCR.ST.ID
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CR.RSK.GRD.SCR.ST
+    $INSERT I_F.CUSTOMER
+    GOSUB INIT
+    GOSUB OPEN.FILES
+    GOSUB PROCESS
+    RETURN
+*----
+INIT:
+*----
+    E = ""
+    APP.ID = ""
+    APP.ID = ID.NEW
+    FN.CUS = "F.CUSTOMER"
+    FV.CUS = ""
+    FN.CCL.APP = "F.CR.RSK.GRD.SCR.ST"
+    FV.CCL.APP = ""
+    CUS.ID = ""
+    CUS.ER = ""
+    R.CUS = ""
+    SEL.CNT = ""
+    SEL.ID = ""
+    SEL.CMD = ""
+    SEQ.NO = 0
+    RETURN
+*----------
+OPEN.FILES:
+*----------
+    CALL OPF(FN.CUS,FV.CUS)
+    CALL OPF(FN.CCL.APP,FV.CCL.APP)
+    RETURN
+*-------
+PROCESS:
+*-------
+    FINDSTR "." IN APP.ID SETTING POS THEN
+        GOSUB CHECK.SEQUENCE
+    END ELSE
+        CUS.ID = APP.ID
+        GOSUB CHECK.CUSTOMER
+    END
+    RETURN
+*--------------
+CHECK.CUSTOMER:
+*--------------
+    CALL F.READ(FN.CUS,CUS.ID,R.CUS,FV.CUS,CUS.ER)
+    IF CUS.ER THEN
+        GOSUB FORM.ERROR
+    END ELSE
+        GOSUB CREATE.SEQUENCE
+        ID.NEW = CUS.ID
+    END
+    RETURN
+*--------------
+CHECK.SEQUENCE:
+*--------------
+    CUS.ID = FIELD(APP.ID,'.',1)
+    SEQ.ID = FIELD(APP.ID,'.',2)
+    CCL.APP.ID = ""
+    R.CCL.APP = ""
+    CCL.APP.ER = ""
+    CCL.APP.ID = APP.ID
+    IF LEN(SEQ.ID) EQ 1 THEN
+        GOSUB FORM.ERROR
+    END ELSE
+        CALL F.READ(FN.CCL.APP,CCL.APP.ID,R.CCL.APP,FV.CCL.APP,CCL.AAP.ER)
+        IF NOT(R.CCL.APP) THEN
+            GOSUB CREATE.SEQUENCE
+            ID.NEW = CUS.ID
+        END ELSE
+            ID.NEW = APP.ID
+            RETURN
+        END
+    END
+    RETURN
+*----------
+FORM.ERROR:
+*----------
+    E = "EB-INVALID.ID"
+    CALL ERR
+    MESSAGE='REPEAT'
+    RETURN
+*---------------
+CREATE.SEQUENCE:
+*---------------
+    SEL.CMD = 'SELECT ':FN.CCL.APP:' WITH @ID LIKE ':CUS.ID:'...'
+    CALL EB.READLIST(SEL.CMD,SEL.ID,'',SEL.CNT,'')
+    SEQ.NO = SEL.CNT + 1
+    IF LEN(SEQ.NO) EQ 1 THEN
+        SEQ.NO = '0':SEQ.NO
+    END
+    CUS.ID = CUS.ID:'.':SEQ.NO
+    RETURN
+END

@@ -1,0 +1,77 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM MAIN.CHRG.SB.TEST
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT I_F.ABL.H.SB.YRPAR
+    $INSERT I_F.ACCOUNT
+
+
+    FN.MAIN.CHRG = 'F.ABL.H.SB.YRPAR'
+    F.MAIN.CHRG = ''
+    REC.SB.YR.SYS = ''
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    R.AC = ''
+
+    Y.EXCLUDE.AC.LIST = ''
+
+    CALL OPF(FN.MAIN.CHRG,F.MAIN.CHRG)
+    CALL OPF(FN.AC,F.AC)
+
+    CALL F.READ(FN.MAIN.CHRG,'SYSTEM',REC.SB.YR.SYS,F.MAIN.CHRG,ERR.MAIN.CHRG)
+
+
+    SEL.CMD.AC="SELECT ":FN.AC:" WITH ( CO.CODE EQ "
+    CNT.CO = DCOUNT(REC.SB.YR.SYS<SY.INCLUDE.COMP>,VM)
+    FOR I = 1 TO CNT.CO
+        IF I = CNT.CO THEN
+            SEL.CMD.AC :=  REC.SB.YR.SYS<SY.INCLUDE.COMP,I>
+        END ELSE
+            SEL.CMD.AC :=  REC.SB.YR.SYS<SY.INCLUDE.COMP,I>:" OR CO.CODE EQ "
+        END
+    NEXT I
+
+    SEL.CMD.AC= SEL.CMD.AC:" ) AND ( CATEGORY EQ "
+    CNT.CATEG = DCOUNT(REC.SB.YR.SYS<SY.INCLUDE.CATEG>,VM)
+    FOR I = 1 TO CNT.CATEG
+        IF I = CNT.CATEG THEN
+            SEL.CMD.AC :=  REC.SB.YR.SYS<SY.INCLUDE.CATEG,I>
+        END ELSE
+            SEL.CMD.AC :=  REC.SB.YR.SYS<SY.INCLUDE.CATEG,I>:" OR CATEGORY EQ "
+        END
+    NEXT I
+
+    IF Y.EXCLUDE.AC.LIST THEN
+        SEL.CMD.AC= SEL.CMD.AC:") AND ( @ID NE "
+
+        CONVERT FM TO VM IN Y.EXCLUDE.AC.LIST
+
+        CNT.EX.ACC = DCOUNT(Y.EXCLUDE.AC.LIST,VM)
+        FOR I = 1 TO CNT.EX.ACC
+            IF I = CNT.EX.ACC THEN
+                SEL.CMD.AC := Y.EXCLUDE.AC.LIST<1,I>
+            END ELSE
+                SEL.CMD.AC := Y.EXCLUDE.AC.LIST<1,I>:" AND @ID NE "
+            END
+        NEXT I
+
+        SEL.CMD.AC= SEL.CMD.AC:") "
+    END
+    ELSE
+        SEL.CMD.AC= SEL.CMD.AC:") "
+    END
+
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.AC,'',NO.OF.REC.AC,ERR.AC)
+    CRT" TOTAL RECORDS SELECTED FOR SAVINGS HALF YEARLY CHRG ......":NO.OF.REC.AC
+    CRT" DO YOU WANT TO START THE PROCESSING OF SAVING HALF YEARLY CHRG Y/N"
+
+    INPUT USER.CHOICE
+    IF USER.CHOICE EQ 'Y' THEN
+        CRT 'EXIT'
+    END
+
+END

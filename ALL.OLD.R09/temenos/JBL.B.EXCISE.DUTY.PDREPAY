@@ -1,0 +1,322 @@
+*-----------------------------------------------------------------------------
+* <Rating>293</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.EXCISE.DUTY.PDREPAY(Y.ID)
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine is used to detect and apply excise duty on all the
+* matured/ preclosed pDs
+*-------------------------------------------------------------------------
+* Project Name : Janata Bank
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+* Y.ID                       -                      Holds the PD.REPAYMENT.ID
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*  NA
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+*
+* EXCISE.DUTY.MAIN.PROCESS     LOCAL        Detects whether the excise
+*                                           duty needs to be applied.
+* EB.ACCOUNTING                 CORE        Used to generate accounting
+*                                           entries
+* EB.CURR.CONV                  CORE        Used to convert a currency amt
+*                                           to another currency amount
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 03/05/2011 -                            New   - Chethana .H.N
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE JBL.BP I_JBL.B.EXCISE.DUTY.PDREPAY.COMMON
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE GLOBUS.BP I_F.PD.REPAYMENT
+    $INCLUDE GLOBUS.BP I_F.PD.PAYMENT.DUE
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE JBL.BP I_F.BD.EXCISE.DUTY.SLAB
+    $INCLUDE JBL.BP I_F.EB.BD.EXCISE.DUTY.PARAM
+    $INCLUDE GLOBUS.BP I_F.COMPANY
+    $INCLUDE GLOBUS.BP I_F.FT.COMMISSION.TYPE
+    $INCLUDE GLOBUS.BP I_F.TAX
+    $INCLUDE GLOBUS.BP I_F.STMT.ENTRY
+    $INCLUDE GLOBUS.BP I_F.CATEG.ENTRY
+    $INCLUDE GLOBUS.BP I_ACCT.COMMON
+****************************************************************************
+*
+    GOSUB INIT
+    GOSUB PROCESS
+*
+    RETURN
+****************************************************************************
+PROCESS:
+********
+! Main Process
+
+    IF (Y.ID[1,4] NE 'PDPD') OR (Y.ID[1,4] NE 'PDLD') THEN RETURN
+*  Read PD.REPAYMENT record if not exist return
+    CALL F.READ(FN.PD.REPAYMENT,Y.ID,R.PD.REPAYMENT,F.PD.REPAYMENT,Y.REP.ERR)
+*
+    IF NOT(R.PD.REPAYMENT) OR Y.REP.ERR THEN RETURN
+*
+    Y.OUT.AMT = R.PD.REPAYMENT<PD.RPY.TOT.REPAY.AMT>
+
+* Read PD record if not exist return
+
+    Y.PD.ID = Y.ID['-',1,1]
+
+    CALL F.READ(FN.PD.PAYMENT.DUE,Y.PD.ID,R.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE,Y.ERR.PD)
+*
+    IF NOT(R.PD.PAYMENT.DUE) OR Y.ERR.PD THEN RETURN
+*
+    IF R.PD.PAYMENT.DUE<PD.TOTAL.AMT.TO.REPAY> NE '0' THEN
+        RETURN
+    END
+
+    Y.PARAM.ID = 'PD'
+    Y.INT.LIQ.ACCT = R.PD.PAYMENT.DUE<PD.ORIG.STLMNT.ACT>
+    Y.LN.ACCT =  R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.LN.ACCT.POS>
+
+    CALL F.READ(FN.ACCOUNT,Y.LN.ACCT,R.ACC,F.ACCOUNT,AC.ERR)
+
+    Y.CATEGORY = R.ACC<AC.CATEGORY>
+
+    IF Y.PD.ID[1,4] EQ 'PDLD' THEN
+* Read LD record if not exist return
+        Y.LD.ID = Y.PD.ID[3,12]
+        CALL F.READ(FN.LD.LOANS.AND.DEPOSITS,Y.LD.ID,R.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS,Y.LD.ERR)
+*
+        IF NOT(R.LD.LOANS.AND.DEPOSITS) OR Y.LD.ERR THEN RETURN
+*
+        Y.PARAM.ID = 'LD'
+        Y.CATEGORY =  R.LD.LOANS.AND.DEPOSITS<LD.CATEGORY>
+        Y.INT.LIQ.ACCT=R.LD.LOANS.AND.DEPOSITS<LD.INT.LIQ.ACCT>
+
+    END
+
+*
+    GOSUB READ.EB.BD.EXCISE.DUTY.PARAM
+    GOSUB GET.INTERNAL.ACCT.CAT
+    CALL EXCISE.DUTY.MAIN.PROCESS(R.EB.BD.EXCISE.DUTY.PARAM,Y.CATEGORY,Y.APPLY.CHARGE)
+    GOSUB APPLY.EXCISE.DUTY
+*
+    RETURN
+****************************************************************************
+GET.INTERNAL.ACCT.CAT:
+**********************
+! Get the internal acct category for the company
+
+    Y.CO=R.EB.BD.EXCISE.DUTY.PARAM<EB.BD.30.COMPANY>
+
+    LOCATE ID.COMPANY IN Y.CO<1,1> SETTING CO.POS THEN
+        Y.INTERNAL.ACCT.CAT=R.EB.BD.EXCISE.DUTY.PARAM<EB.BD.30.INT.AC.CATEGORY,CO.POS>
+    END ELSE
+        Y.FIN.COMP=R.COMPANY(EB.COM.FINANCIAL.COM)
+        LOCATE Y.FIN.COMP IN Y.CO SETTING CO.POS THEN
+            Y.INTERNAL.ACCT.CAT=R.EB.BD.EXCISE.DUTY.PARAM<EB.BD.30.INT.AC.CATEGORY,CO.POS>
+        END
+    END
+*
+    RETURN
+*****************************************************************************
+READ.EB.BD.EXCISE.DUTY.PARAM:
+*****************************
+
+    R.EB.BD.EXCISE.DUTY.PARAM='' ; Y.ERR.EBP = ''
+    CALL F.READ(FN.EB.BD.EXCISE.DUTY.PARAM,Y.PARAM.ID,R.EB.BD.EXCISE.DUTY.PARAM,F.EB.BD.EXCISE.DUTY.PARAM,Y.ERR.EBP)
+    IF NOT(R.EB.BD.EXCISE.DUTY.PARAM) THEN
+        RETURN
+    END
+    Y.COMM.TYPE=R.EB.BD.EXCISE.DUTY.PARAM<EB.BD.30.COM.TYPE.EXCISE>
+
+    CALL F.READ(FN.FT.COMMISSION.TYPE,Y.COMM.TYPE,R.FT.COMMISSION.TYPE,F.FT.COMMISSION.TYPE,FT.COMMISSION.TYPE.ERR)
+    IF NOT(R.FT.COMMISSION.TYPE) THEN
+        RETURN
+    END
+    RETURN
+
+*****************************************************************************
+APPLY.EXCISE.DUTY:
+******************
+! Apply excise duty on LD if it satisfies with the conditions given in BD.EXCISE.DUTY.PARAM
+
+    IF Y.APPLY.CHARGE EQ 'Y' THEN
+        GOSUB GET.DUTY.AMT
+        GOSUB GEN.ENTRIES
+    END
+
+    RETURN
+
+************************************************************************
+GET.DUTY.AMT:
+*************
+! Get the excise duty amount for the calculated outstanding amount.
+
+    Y.AMT=R.EB.BD.EXCISE.DUTY.SLAB<EB.BD.2.AMT.FROM>
+    CONVERT VM TO FM IN Y.AMT
+    Y.COUNT.AMT=DCOUNT(Y.AMT,FM)
+    LOOP
+    WHILE AMT.FROM.POS LE Y.COUNT.AMT
+        Y.AMT.FRM=R.EB.BD.EXCISE.DUTY.SLAB<EB.BD.2.AMT.FROM,AMT.FROM.POS>
+        Y.AMT.TO=R.EB.BD.EXCISE.DUTY.SLAB<EB.BD.2.AMT.TO,AMT.FROM.POS>
+        IF Y.AMT.TO EQ '' AND  Y.OUT.AMT GE Y.AMT.FRM THEN
+            Y.SLAB.AMT =R.EB.BD.EXCISE.DUTY.SLAB<EB.BD.2.EXCISE.DUTY.AMT,AMT.FROM.POS>
+            EXIT
+        END ELSE
+            IF Y.OUT.AMT GE Y.AMT.FRM AND Y.OUT.AMT LE Y.AMT.TO THEN
+                Y.SLAB.AMT =R.EB.BD.EXCISE.DUTY.SLAB<EB.BD.2.EXCISE.DUTY.AMT,AMT.FROM.POS>
+                EXIT
+            END
+        END
+        AMT.FROM.POS++
+    REPEAT
+    Y.SLAB.AMT=Y.SLAB.AMT
+*
+    RETURN
+**************************************************************************
+GEN.ENTRIES:
+************
+! Generate entries:
+! Generate entries debiting the excise duty from loan contract and crediting
+! it to the given internal account
+! Form internal account
+
+    CALL F.READ(FN.ACCOUNT,Y.INT.LIQ.ACCT,R.ACCOUNT,F.ACCOUNT,Y.ERR.AC)
+*
+    IF NOT(R.ACCOUNT) OR Y.SLAB.AMT EQ '0' THEN
+        RETURN
+    END
+*
+    Y.INT.LIQ.CCY=R.ACCOUNT<AC.CURRENCY>
+
+    Y.INTERNAL.ACCT=LCCY:Y.INTERNAL.ACCT.CAT:'0001'
+    IF C$MULTI.BOOK THEN
+        Y.INTERNAL.ACCT:= R.COMPANY(EB.COM.SUB.DIVISION.CODE)
+    END
+*
+    GOSUB CURR.CHK.4.DR.ENTRIES
+
+! Statement entry debiting excise duty from the interest liquidation account
+*
+    ENTRY.REC=""
+    ENTRY.REC<AC.STE.ACCOUNT.NUMBER>   = Y.INT.LIQ.ACCT
+    ENTRY.REC<AC.STE.COMPANY.CODE>     = ID.COMPANY
+    ENTRY.REC<AC.STE.AMOUNT.LCY>       = -1 * Y.LCY.DR.AMT
+    ENTRY.REC<AC.STE.AMOUNT.FCY>       = Y.FCY.DR.AMT       ;* already marked in -sign
+    ENTRY.REC<AC.STE.EXCHANGE.RATE>    = Y.EXC.RATE
+    ENTRY.REC<AC.STE.TRANSACTION.CODE> = R.FT.COMMISSION.TYPE<FT4.TXN.CODE.DR>
+    ENTRY.REC<AC.STE.THEIR.REFERENCE>  = Y.PD.ID
+    ENTRY.REC<AC.STE.NARRATIVE,1>      ='Excise Duty'
+    ENTRY.REC<AC.STE.CUSTOMER.ID>      = R.ACCOUNT<AC.CUSTOMER>
+    ENTRY.REC<AC.STE.ACCOUNT.OFFICER>  = R.ACCOUNT<AC.ACCOUNT.OFFICER>
+    ENTRY.REC<AC.STE.PRODUCT.CATEGORY> = R.ACCOUNT<AC.CATEGORY>
+    ENTRY.REC<AC.STE.VALUE.DATE>       = TODAY
+    ENTRY.REC<AC.STE.CURRENCY>         = R.ACCOUNT<AC.CURRENCY>
+    ENTRY.REC<AC.STE.OUR.REFERENCE>    = Y.PD.ID
+    ENTRY.REC<AC.STE.CURRENCY.MARKET>  = R.ACCOUNT<AC.CURRENCY.MARKET>
+    ENTRY.REC<AC.STE.DEPARTMENT.CODE>  = "1"
+    ENTRY.REC<AC.STE.EXPOSURE.DATE>    = TODAY
+    ENTRY.REC<AC.STE.TRANS.REFERENCE>  = Y.PD.ID
+    ENTRY.REC<AC.STE.SYSTEM.ID>        = Y.PARAM.ID
+    ENTRY.REC<AC.STE.BOOKING.DATE>     = TODAY
+    YENTRY.REC<-1> = LOWER(ENTRY.REC)
+*
+! Statement entry crediting excise duty to the internal account
+*For testing purpose chenged the internal acct to 38695
+    ENTRY.REC=""
+    ENTRY.REC<AC.STE.ACCOUNT.NUMBER>   = Y.INTERNAL.ACCT
+    ENTRY.REC<AC.STE.COMPANY.CODE>     = ID.COMPANY
+    ENTRY.REC<AC.STE.AMOUNT.LCY>       = Y.LCY.DR.AMT
+    ENTRY.REC<AC.STE.AMOUNT.FCY>       = ''
+    ENTRY.REC<AC.STE.EXCHANGE.RATE>    = ''
+    ENTRY.REC<AC.STE.TRANSACTION.CODE> = R.FT.COMMISSION.TYPE<FT4.TXN.CODE.CR>
+    ENTRY.REC<AC.STE.THEIR.REFERENCE>  = Y.PD.ID
+    ENTRY.REC<AC.STE.NARRATIVE,1>      = 'Excise Duty'
+    ENTRY.REC<AC.STE.CUSTOMER.ID>      = R.ACCOUNT<AC.CUSTOMER>
+    ENTRY.REC<AC.STE.ACCOUNT.OFFICER>  = R.ACCOUNT<AC.ACCOUNT.OFFICER>
+    ENTRY.REC<AC.STE.PRODUCT.CATEGORY> = R.ACCOUNT<AC.CATEGORY>
+    ENTRY.REC<AC.STE.VALUE.DATE>       = TODAY
+    ENTRY.REC<AC.STE.CURRENCY>         = LCCY
+    ENTRY.REC<AC.STE.OUR.REFERENCE>    = Y.PD.ID
+    ENTRY.REC<AC.STE.CURRENCY.MARKET>  = R.ACCOUNT<AC.CURRENCY.MARKET>
+    ENTRY.REC<AC.STE.DEPARTMENT.CODE>  = "1"
+    ENTRY.REC<AC.STE.EXPOSURE.DATE>    = TODAY
+    ENTRY.REC<AC.STE.TRANS.REFERENCE>  = Y.PD.ID
+    ENTRY.REC<AC.STE.SYSTEM.ID>        = Y.PARAM.ID
+    ENTRY.REC<AC.STE.BOOKING.DATE>     = TODAY
+    YENTRY.REC<-1> = LOWER(ENTRY.REC)
+*
+    CALL EB.ACCOUNTING('PD','SAO',YENTRY.REC,'')
+
+*
+    RETURN
+*
+*------------------------------------------------------------------------------------------------------------
+CURR.CHK.4.DR.ENTRIES:
+*---------------------
+* converting currency for db entries
+    IF Y.INT.LIQ.CCY NE LCCY THEN
+        Y.FCY.AMT=''
+        Y.FCY.CUR=Y.INT.LIQ.CCY
+        Y.RATE= ''
+        Y.MARKET=''
+        Y.LCY.DR.AMT=Y.SLAB.AMT
+        YDIF.AMT=''
+        Y.DIF.RATE=''
+        CALL MIDDLE.RATE.CONV.CHECK(Y.FCY.AMT,Y.FCY.CUR,Y.RATE,Y.MARKET,Y.LCY.DR.AMT,YDIF.AMT,YDIF.RATE)
+        Y.FCY.DR.AMT=Y.FCY.AMT
+        Y.FCY.DR.AMT = -1 * Y.FCY.DR.AMT
+        Y.EXC.RATE=Y.RATE
+    END ELSE
+        Y.LCY.DR.AMT =Y.SLAB.AMT
+        Y.FCY.DR.AMT =''
+    END
+    RETURN
+*-------------------------------------------------------------------------------------------------------------
+****************************************************************************
+INIT:
+*****
+!Initialise Variables
+! Initialise Variables
+    Y.APPLY.CHARGE=''
+*
+    R.LD.LOANS.AND.DEPOSITS=''
+    Y.ERR.LD=''
+    R.PD.PAYMENT.DUE=''
+    Y.ERR.PD=''
+    R.LMM.ACCOUNT.BALANCES=''
+    Y.ERR.AB=''
+    R.ACCT.REC=''
+    Y.ERR.AC=''
+*
+    AMT.FROM.POS='1'
+    Y.SLAB.AMT='0'
+    CO.POS=''
+    Y.INTERNAL.ACCT.CAT=''
+    Y.INTERNAL.ACCT=''
+    Y.MAT.LEN=''
+*
+    Y.INT.LIQ.CCY=''
+    Y.FCY.AMT=''
+    Y.FCY.CUR=''
+    Y.RATE= ''
+    Y.MARKET=''
+    Y.LCY.DR.AMT=''
+    YDIF.AMT=''
+    Y.DIF.RATE=''
+    Y.FCY.DR.AMT=''
+    Y.EXC.RATE=''
+*
+
+    CALL GET.LOC.REF('PD.PAYMENT.DUE','ACCOUNT.NO',Y.LN.ACCT.POS)
+*
+    RETURN
+END
+*

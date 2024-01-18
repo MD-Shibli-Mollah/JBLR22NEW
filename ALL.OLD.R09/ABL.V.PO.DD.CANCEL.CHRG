@@ -1,0 +1,65 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.V.PO.DD.CANCEL.CHRG
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.TELLER
+
+!--------------------------------------------------!
+!This Subroutine is used if the instrument(PO/DD)  !
+!is cancel.                                        !
+!--------------------------------------------------!
+
+    Y.PO.DD.STATUS='PO.PS.DD.STATUS'
+    Y.PO.DD.STATUS.POS = ''
+    Y.APP = ''
+    Y.PO.STATUS = COMI
+
+    BEGIN CASE
+    CASE APPLICATION EQ 'FUNDS.TRANSFER'
+        CALL GET.LOC.REF("FUNDS.TRANSFER",Y.PO.DD.STATUS,Y.PO.DD.STATUS.POS)
+!------------------HURAIRA.20170718-----------------
+        IF Y.PO.STATUS EQ 'CANCEL' AND R.NEW(FT.COMMISSION.CODE) EQ '' THEN
+            R.NEW(FT.COMMISSION.CODE) = 'CREDIT LESS CHARGES'
+            R.NEW(FT.COMMISSION.TYPE) = 'POCAN'
+        END
+        IF Y.PO.STATUS EQ 'CANCEL' AND R.NEW(FT.COMMISSION.CODE) EQ 'WAIVE' THEN
+            R.NEW(FT.CHARGES.ACCT.NO) = ''
+            R.NEW(FT.COMMISSION.TYPE) = ''
+            R.NEW(FT.COMMISSION.AMT)  = ''
+        END
+        IF Y.PO.STATUS EQ 'CANCEL' AND R.NEW(FT.COMMISSION.CODE) EQ 'DEBIT PLUS CHARGES' THEN
+            R.NEW(FT.COMMISSION.CODE) = 'CREDIT LESS CHARGES'
+            R.NEW(FT.COMMISSION.TYPE) = 'POCAN'
+        END
+        IF Y.PO.STATUS EQ 'CANCEL' AND R.NEW(FT.COMMISSION.CODE) EQ 'CREDIT LESS CHARGES' THEN
+            R.NEW(FT.COMMISSION.TYPE) = 'POCAN'
+        END
+        IF Y.PO.STATUS EQ '' THEN
+            R.NEW(FT.COMMISSION.CODE) = 'WAIVE'
+            R.NEW(FT.CHARGES.ACCT.NO) = ''
+            R.NEW(FT.COMMISSION.TYPE) = ''
+            R.NEW(FT.COMMISSION.AMT)  = ''
+
+        END
+!----------------------------------------------------
+
+    CASE APPLICATION EQ 'TELLER'
+        CALL GET.LOC.REF("TELLER",Y.PO.DD.STATUS,Y.PO.DD.STATUS.POS)
+        IF R.NEW(TT.TE.LOCAL.REF)<1,Y.PO.DD.STATUS.POS> EQ 'CANCEL' THEN
+!IF R.NEW(TT.TE.WAIVE.CHARGES) EQ 'NO' THEN
+            R.NEW(TT.TE.CHARGE.CODE) = 'POCAN'
+!END
+        END
+        ELSE
+            R.NEW(TT.TE.CHARGE.CODE) = ''
+            R.NEW(TT.TE.CHRG.AMT.LOCAL) = ''
+            RETURN
+        END
+    CASE 1
+    END CASE
+
+    RETURN
+END

@@ -1,0 +1,40 @@
+*-----------------------------------------------------------------------------
+* <Rating>-1</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE E.GET.PADAC.NO(ID.LIST)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.ACCOUNT.CLOSURE
+
+    CLEARSELECT
+    FN.AC.CLOSE = 'F.ACCOUNT.CLOSURE'
+    F.AC.CLOSE = ''
+    R.AC.CLOSE.REC = ''
+    Y.AC.CLOSE.ERR = ''
+    CALL OPF(FN.AC.CLOSE,F.AC.CLOSE)
+
+    FN.AC.HIS = 'F.ACCOUNT$HIS'
+    F.AC.HIS = ''
+    R.AC.HIS.REC = ''
+    Y.AC.HIS.ERR = ''
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+
+    SEL.CMD="SELECT ":FN.AC.CLOSE:" WITH CO.CODE EQ ":ID.COMPANY
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,ERR)
+    LOOP
+        REMOVE Y.AC.ID FROM SEL.LIST SETTING AC.POS
+    WHILE Y.AC.ID:AC.POS
+        Y.OLD.AC.ID = Y.AC.ID
+        CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.AC.ID,R.AC.HIS.REC,Y.AC.HIS.ERR)
+        IF R.AC.HIS.REC<AC.CATEGORY> GE '1970' AND R.AC.HIS.REC<AC.CATEGORY> LE '1976' THEN
+            ID.LIST<-1> = Y.OLD.AC.ID:'*':R.AC.HIS.REC<AC.SHORT.TITLE>:'*':R.AC.HIS.REC<AC.CATEGORY>
+            Y.AC.ID=''
+            Y.OLD.AC.ID = ''
+            Y.AC.HIS.ERR=''
+            R.AC.HIS.REC=''
+        END
+    REPEAT
+    RETURN
+END

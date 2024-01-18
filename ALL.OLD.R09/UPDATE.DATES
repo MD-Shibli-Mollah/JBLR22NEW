@@ -1,0 +1,80 @@
+****************************************************
+*-----------------------------------------------------------------------------
+* <Rating>1036</Rating>
+*-----------------------------------------------------------------------------
+* PROGRAM : PROGRAM TO CREATE A CSV FILE FOR CURRENT SINGLE BRANCH LIST
+* DEV BY      : MD. IMRAN HASAN
+* DEV DATE    : 2016-05-19
+* UPDATE DATE : 2016-05-19
+* REQ         : ICTD
+****************************************************
+
+    PROGRAM UPDATE.DATES
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.DATES
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+!----
+INIT:
+!----
+
+    FN.COMP = 'F.COMPANY'
+    F.COMP = ''
+    R.COMP = ''
+
+    FN.DATES = 'F.DATES'
+    F.DATES = ''
+
+    RETURN
+!---------
+OPENFILES:
+!---------
+    CALL OPF(FN.COMP,F.COMP)
+    CALL OPF(FN.DATES,F.DATES)
+    RETURN
+!-------
+PROCESS:
+!-------
+
+    Y.COUNT = 0
+
+    CALL GET.LOC.REF("COMPANY","BRANCH.STATUS",Y.BRANCH.STATUS.POS)
+    SEL.CMD1='SELECT ':FN.COMP
+    CALL EB.READLIST(SEL.CMD1,SEL.LIST1,'',NO.OF.REC1,RET.CODE1)
+    LOOP
+        REMOVE  Y.COMP.ID FROM SEL.LIST1 SETTING Y.POS
+    WHILE Y.COMP.ID:Y.POS
+        CALL F.READ(FN.COMP,Y.COMP.ID,R.COMP,F.COMP,ERR.CODE.COMP)
+        Y.BRANCH.STATUS = R.COMP<EB.COM.LOCAL.REF,Y.BRANCH.STATUS.POS>
+        IF Y.BRANCH.STATUS EQ 'SINGLE' THEN
+
+            CALL F.READ(FN.DATES,Y.COMP.ID,R.DAT,F.DATES,Y.ER)
+
+            R.DAT<EB.DAT.TODAY> = '20220308'
+            R.DAT<EB.DAT.CO.BATCH.STATUS> = 'O'
+
+            R.DAT<EB.DAT.BACK.VALUE.MINIMUM> = '20210126'
+            R.DAT<EB.DAT.FORW.VALUE.MINIMUM> = '20220310'
+            R.DAT<EB.DAT.FORW.VALUE.MAXIMUM> = '20220310'
+
+            R.DAT<EB.DAT.JULIAN.DATE> = '2022067'
+            R.DAT<EB.DAT.LAST.WORKING.DAY> = '20220307'
+            R.DAT<EB.DAT.NEXT.WORKING.DAY> = '20220309'
+            R.DAT<EB.DAT.LOCAL.PAYMENT.DAY> = '20220308'
+            R.DAT<EB.DAT.LOCAL.DISPO.DAY> = '20220308'
+            R.DAT<EB.DAT.PERIOD.END> = '20220308'
+            R.DAT<EB.DAT.LAST.PERIOD.END> = '20220307'
+
+            WRITE R.DAT TO F.DATES,Y.COMP.ID
+
+        END
+    REPEAT
+
+    RETURN
+
+END

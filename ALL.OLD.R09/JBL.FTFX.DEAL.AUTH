@@ -1,0 +1,150 @@
+*-----------------------------------------------------------------------------
+* <Rating>-76</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.FTFX.DEAL.AUTH
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This for FT Details update to the Live Template
+*
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 21/08/2013 - New - Manjunath Suvarna
+*                    Sepit SoftTech Pvt. Ltd.
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CURRENCY
+    $INSERT I_F.FOREX
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT JBL.BP I_F.BD.FIRST.PAIR.DEAL.DETAILS
+*
+*
+*-----------------------------------------------------------------------------
+*
+    GOSUB INITIALISE
+    GOSUB PROCESS
+*
+    RETURN
+*
+*
+*-----------------------------------------------------------------------------
+INITIALISE:
+*
+    FN.FOREX = 'F.FOREX'
+    F.FOREX = ''
+*
+    FN.FOREX$HIS = 'F.FOREX$HIS'
+    F.FOREX$HIS = ''
+*
+    FN.FIRST.PAIR = 'F.BD.FIRST.PAIR.DEAL.DETAILS'
+    F.FIRST.PAIR = ''
+*
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+*
+    CALL OPF(FN.FOREX,F.FOREX)
+    CALL OPF(FN.FOREX$HIS,F.FOREX$HIS)
+    CALL OPF(FN.FIRST.PAIR,F.FIRST.PAIR)
+    CALL OPF(FN.FT,F.FT)
+*
+    RETURN
+*
+*
+*-----------------------------------------------------------------------------
+PROCESS:
+*
+    Y.APP = "FUNDS.TRANSFER":FM:"FOREX"
+    Y.FLD = "FX.DEAL.REF":FM:"FIRST.DEAL.REF":VM:'FT.TRANS.REF'
+    CALL MULTI.GET.LOC.REF(Y.APP, Y.FLD, Y.POS)
+    Y.FX.POS = Y.POS<1,1>
+    Y.FIRST.POS = Y.POS<2,1>
+    Y.FT.POS = Y.POS<2,2>
+*
+    Y.PAIR = R.NEW(FT.LOCAL.REF)<1,Y.FX.POS>
+    CALL F.READ(FN.FOREX,Y.PAIR,R.FOREX,F.FOREX,Y.ERR)
+    IF R.FOREX THEN
+        Y.FIRST = R.FOREX<FX.LOCAL.REF,Y.FIRST.POS>
+        Y.ID = Y.FIRST:".":TODAY
+    END ELSE
+        SELECT.CMD = "SELECT ":FN.FIRST.PAIR:" WITH PAIR.DEAL.REF EQ ":Y.PAIR.ID
+        CALL EB.READLIST(SELECT.CMD,SELECT.LIST,"",NO.OF.REC,RETURN.CODE)
+        Y.ID = SELECT.LIST
+    END
+*
+* Update the FT Id to the Live Template
+    GOSUB WRITE.TMP
+*
+* Update the FT Id to First Deal Transaction
+    GOSUB WRITE.FIRST
+*
+* Update the FT Id to Pair Deal Transaction
+    GOSUB WRITE.PAIR
+*
+    RETURN
+*
+*
+*-----------------------------------------------------------------------------
+*
+WRITE.TMP:
+*
+*Update the FT Id to the Live Template
+*
+    CALL F.READ(FN.FIRST.PAIR,Y.ID,R.FIRST.PAIR,F.FIRST.PAIR,Y.ERR)
+    IF R.FIRST.PAIR THEN
+        R.FIRST.PAIR<BD.FPD.FT.TRANS.REF> = ID.NEW
+        R.FIRST.PAIR<BD.FPD.FT.TRANS.DATE> = TODAY
+        R.FIRST.PAIR<BD.FPD.FP.DEAL.COMPLEATED> = 'YES'
+        WRITE R.FIRST.PAIR TO F.FIRST.PAIR,Y.ID
+    END
+*
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+WRITE.FIRST:
+* Update the FT Id to First Deal Transaction
+*
+    R.FOREX = ''
+    CALL F.READ(FN.FOREX,Y.FIRST,R.FOREX,F.FOREX,Y.ERR)
+    IF R.FOREX THEN
+        R.FOREX<FX.LOCAL.REF,Y.FT.POS> = ID.NEW
+        WRITE R.FOREX TO F.FOREX,Y.FIRST
+    END ELSE
+        R.FIRST.PAIR = ''
+        CALL F.READ(FN.FIRST.PAIR,Y.ID,R.FIRST.PAIR,F.FIRST.PAIR,Y.ERR)
+        Y.CUR.F = R.FIRST.PAIR<BD.FPD.FIRST.CURR.NO>
+        Y.HF.ID = Y.FIRST:";":Y.CUR.F
+        CALL F.READ(FN.FOREX$HIS,Y.HF.ID,R.FOREX$HIS,F.FOREX$HIS,Y.ERR)
+        R.FOREX$HIS<FX.LOCAL.REF,Y.FT.POS> = ID.NEW
+        WRITE R.FOREX$HIS TO F.FOREX$HIS,Y.HS.ID
+    END
+*
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+WRITE.PAIR:
+* Update the FT Id to Pair Deal Transaction
+*
+    R.FOREX = ''
+    CALL F.READ(FN.FOREX,Y.PAIR,R.FOREX,F.FOREX,Y.ERR)
+    IF R.FOREX THEN
+        R.FOREX<FX.LOCAL.REF,Y.FT.POS> = ID.NEW
+        WRITE R.FOREX TO F.FOREX,Y.FIRST
+    END ELSE
+        R.FIRST.PAIR = ''
+        CALL F.READ(FN.FIRST.PAIR,Y.ID,R.FIRST.PAIR,F.FIRST.PAIR,Y.ERR)
+        Y.CUR.P = R.FIRST.PAIR<BD.FPD.PAIR.CURR.NO>
+        Y.HP.ID = Y.PAIR:";":Y.CUR.P
+        CALL F.READ(FN.FOREX$HIS,Y.HP.ID,R.FOREX$HIS,F.FOREX$HIS,Y.ERR)
+        R.FOREX$HIS<FX.LOCAL.REF,Y.FT.POS> = ID.NEW
+        WRITE R.FOREX$HIS TO F.FOREX$HIS,Y.HP.ID
+    END
+*
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+END

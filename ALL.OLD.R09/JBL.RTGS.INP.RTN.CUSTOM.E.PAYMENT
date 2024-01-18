@@ -1,0 +1,235 @@
+****************************************************************************************
+*Developed By: Md. Aminul Islam(Datasoft Systems)                                      *
+*This routine is attachted to FUNDS.TRANSFER,RTGS.OUTW.TXN VERSION as a INPUT ROUTINE, *
+*it is used to validation purpose.                                                     *
+*Date:2016/01/12                                                                       *
+****************************************************************************************
+!PROGRAM JBL.RTGS.INP.RTN
+    SUBROUTINE JBL.RTGS.INP.RTN.CUSTOM.E.PAYMENT
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT JBL.BP I_F.BD.RTGS.PARAM
+    $INSERT JBL.BP I_F.BD.BIC.CODE.LIST
+    $INSERT JBL.BP I_F.BD.BANK.ROUTING.LIST
+    $INSERT JBL.BP I_F.BD.RTGS.CONS.INFO
+
+    IF V$FUNCTION EQ 'R' THEN
+        ETEXT = 'Reverse transaction not possible'
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    GOSUB INIT
+    GOSUB OPEN.FILE
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.FT = 'F.FUNDS.TRANSFER';              F.FT = ''
+    FN.AC='F.ACCOUNT';                       F.AC=''
+    FN.RTGS.PARAM = 'F.EB.BD.RTGS.PARAM';    F.RTGS.PARAM = ''
+    FN.BCL = 'F.EB.BD.BIC.CODE.LIST';        F.BCL = ''
+    FN.RNL = 'F.EB.BD.BANK.ROUTING.LIST';    F.RNL = ''
+    FN.CONS = 'F.EB.BD.RTGS.CONS.INFO';      F.CONS = ''
+    FN.CATEGORY = 'F.CATEGORY';              F.CATEGORY= ''
+
+    Y.LIEN.MARK = 'LIEN.MARK';                 Y.LIEN.MARK.POS=''
+    CALL GET.LOC.REF("ACCOUNT",Y.LIEN.MARK,Y.LIEN.MARK.POS)
+    CALL GET.LOC.REF('FUNDS.TRANSFER','BICC.CODE',BICC.CODE.POS)
+    CALL GET.LOC.REF('FUNDS.TRANSFER','BRANCH',BRANCH.POS)
+
+********Check registration year and mobile no is digit or not*****************************
+    CALL GET.LOC.REF('FUNDS.TRANSFER','L.CUS.REG.YEAR',L.CUSTOM.REG.YEAR.POS)
+    CALL GET.LOC.REF('FUNDS.TRANSFER','L.IMPORTER.MOB',L.IMPORTER.MOB.POS)
+************************End*************************************
+
+    RETURN
+
+OPEN.FILE:
+
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.RTGS.PARAM,F.RTGS.PARAM)
+    CALL OPF(FN.BCL,F.BCL)
+    CALL OPF(FN.RNL,F.RNL)
+    CALL OPF(FN.CONS,F.CONS)
+    RETURN
+
+PROCESS:
+! TO check parameter file exist or not
+    CALL F.READ(FN.RTGS.PARAM,'SYSTEM',REC.RTGS.PARAM,F.RTGS.PARAM,ERR.RTGS.PARAM)
+    IF NOT(REC.RTGS.PARAM) THEN
+        ETEX = 'Parameter file ':FN.RTGS.PARAM: 'Missing'
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+! Check registration year is digit or not
+    Y.YEAR =R.NEW(FT.LOCAL.REF)<1,L.CUSTOM.REG.YEAR.POS>
+    Y.YEAR.ISDIGIT = ISDIGIT(Y.YEAR)
+
+    IF Y.YEAR.ISDIGIT EQ 0 THEN
+        ETEXT="Custom Reg. year must be digit only."
+        CALL STORE.END.ERROR
+    END
+
+! Check mobile no. is digit or not
+    Y.MOB.NO =R.NEW(FT.LOCAL.REF)<1,L.IMPORTER.MOB.POS>
+    Y.MOB.ISDIGIT = ISDIGIT(Y.MOB.NO)
+
+    IF Y.MOB.ISDIGIT EQ 0 THEN
+        ETEXT="Mobile no. must be digit only."
+        CALL STORE.END.ERROR
+    END
+
+
+!To check debit account is customer account
+    Y.AC.ID=R.NEW(FT.DEBIT.ACCT.NO)
+    Y.DEBIT.AMT = R.NEW(FT.DEBIT.AMOUNT)
+    IF Y.AC.ID MATCHES '3A...' THEN
+        AF = FT.DEBIT.ACCT.NO
+        ETEXT = 'Debit account should be Customer account'
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+!To check minimum transaction amount
+!    IF Y.DEBIT.AMT LT REC.RTGS.PARAM<EB.BD.29.MIN.TXN.AMT> THEN
+!       AF = FT.DEBIT.AMOUNT
+!       ETEXT = 'Minimum transaction amount is ':REC.RTGS.PARAM<EB.BD.29.MIN.TXN.AMT>
+!       CALL STORE.END.ERROR
+!       RETURN
+!  END
+
+!=============TEMP UPDATE==============
+!    IF Y.DEBIT.AMT LT '500000' THEN
+!        AF = FT.DEBIT.AMOUNT
+!        ETEXT = 'Minimum transaction amount is 500000'
+!        CALL STORE.END.ERROR
+!        RETURN
+!    END
+
+!To check maximum transaction amount
+    IF Y.DEBIT.AMT GT REC.RTGS.PARAM<EB.BD.29.MAX.TXN.AMT> THEN
+        AF = FT.DEBIT.AMOUNT
+        ETEXT = 'Maximum transaction amount is ':REC.RTGS.PARAM<EB.BD.29.MAX.TXN.AMT>
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+!To check lien mark
+    CALL F.READ(FN.AC,Y.AC.ID,REC.AC,F.AC,ERR.AC)
+    IF REC.AC<AC.LOCAL.REF,Y.LIEN.MARK.POS> THEN
+        AF = FT.DEBIT.ACCT.NO
+        ETEXT="ACCOUNT ":Y.AC.ID:",ALREADY LIEN MARK"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+!To check debit account is available in existing company
+    IF REC.AC<AC.CO.CODE> NE ID.COMPANY THEN
+        AF = FT.DEBIT.ACCT.NO
+        ETEXT="Account ":Y.AC.ID:", not belongs to this company "
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+!To check valid category
+    Y.CATEGORY = REC.AC<AC.CATEGORY>
+    CALL F.READ(FN.CONS,'SYSTEM',REC.CONS,F.CONS,ERR.CONS)
+    Y.CONS.CATEGORY = REC.CONS<EB.BD.54.INSERT.CATEG>
+    FINDSTR Y.CATEGORY IN Y.CONS.CATEGORY SETTING REC.POS ELSE
+        CALL F.READ(FN.CATEGORY,Y.CATEGORY,REC.CATEGORY,F.CATEGORY,ERR.CATEGORY)
+        Y.CATEG.DESC = REC.CATEGORY<EB.CAT.DESCRIPTION>
+        ETEXT = "Txn not allowed for ":Y.CATEG.DESC
+        CALL STORE.END.ERROR
+    END
+
+!To check unauthorised OD, posting restriction and locked amount
+    POS = 1
+    Y.OVERRIDE.VAL = R.NEW(V-9)
+    Y.OVRRD.NO = DCOUNT(Y.OVERRIDE.VAL,VM)
+    FOR I=1 TO Y.OVRRD.NO
+        Y.OVRRD.DETLS = FIELD(Y.OVERRIDE.VAL,VM,I)
+        Y.OVRRD.ID = FIELD(Y.OVRRD.DETLS,'}',1)
+
+        IF (Y.OVRRD.ID = 'ACCT.UNAUTH.OD') THEN
+            GOSUB ACCT.UNAUTH.OD
+        END
+
+        IF (Y.OVRRD.ID = 'ACCT.BAL.LT.LOCKED') THEN
+            GOSUB ACCT.BAL.LT.LOCKED
+        END
+
+        IF (Y.OVRRD.ID = 'POSTING.RESTRICT') THEN
+            GOSUB POSTING.RESTRICT
+        END
+
+    NEXT I
+
+!*********************************************
+!To check bank name(BICC CODE) and branch name
+!*********************************************
+    Y.BICC.CODE =  R.NEW(FT.LOCAL.REF)<1,BICC.CODE.POS>
+    CALL F.READ(FN.BCL,Y.BICC.CODE,REC.BCL,F.BCL,ERR.BCL)
+    IF NOT(REC.BCL) THEN      ;!If EB.BD.BIC.CODE.LIST table  BICC.CODE does not exis
+        AF = FT.LOCAL.REF
+        AV = BICC.CODE.POS
+        ETEXT = 'Invalid Bank Selected'
+        CALL STORE.END.ERROR
+    END ELSE
+        Y.BRANCH = FIELD(R.NEW(FT.LOCAL.REF)<1,BRANCH.POS>,'-',2)
+        CALL F.READ(FN.RNL,Y.BRANCH,REC.RNL,F.RNL,ERR.RNL)
+        Y.BICC.CODE2 = REC.RNL<EB.BD.91.BIC.CODE>
+        IF Y.BICC.CODE NE Y.BICC.CODE2 THEN       ;!If EB.BD.BANK.ROUTING.LIST table BICC CODE and BD.BIC.CODE.LIST table BICC.CODE is not same
+            AF = FT.LOCAL.REF
+            AV = BRANCH.POS
+            ETEXT = 'Invalid Branch Selected'
+            CALL STORE.END.ERROR
+        END ELSE
+            Y.BRANCH.CODE = REC.RNL<EB.BD.91.BRANCH.CODE>
+            IF Y.BRANCH.CODE THEN       ;!Inter branch transaction not alloed in RTGS
+                AF = FT.LOCAL.REF
+                AV = BRANCH.POS
+                ETEXT = 'Invalid Branch ':Y.BRANCH.CODE:' Selected'
+                CALL STORE.END.ERROR
+            END ELSE
+                Y.IS.ACTIVE = REC.RNL<EB.BD.91.RTGS.TXN.ALLOWED>
+                IF Y.IS.ACTIVE NE 'YES' THEN      ;!If transaction not allowed for any branch
+                    AF = FT.LOCAL.REF
+                    AV = BRANCH.POS
+                    ETEXT = 'Inactive Branch Selected'
+                    CALL STORE.END.ERROR
+                END
+            END
+        END
+    END
+!**********************************************
+!End check bank name(BICC CODE) and branch name
+***********************************************
+    RETURN
+
+ACCT.UNAUTH.OD:
+    AF = I
+    ETEXT = 'Unauthorised Overdraft Not Possible'
+    CALL STORE.END.ERROR
+    RETURN
+
+ACCT.BAL.LT.LOCKED:
+    AF = I
+    ETEXT = 'Account Balance will fall in Locked Amount'
+    CALL STORE.END.ERROR
+    RETURN
+
+POSTING.RESTRICT:
+    AF=I
+    ETEXT = 'Posting Restriction'
+    CALL STORE.END.ERROR
+    RETURN
+END

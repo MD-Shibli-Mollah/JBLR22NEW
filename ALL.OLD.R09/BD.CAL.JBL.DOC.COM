@@ -1,0 +1,108 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.CAL.JBL.DOC.COM(Y.DR.DOC.ID,Y.CONTINUE.FLAG,Y.MIN.CHRG.AMT,Y.TOT.CHG.AMT)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.DRAWINGS
+    $INSERT GLOBUS.BP I_F.FT.COMMISSION.TYPE
+    $INSERT GLOBUS.BP I_F.CURRENCY
+    $INSERT GLOBUS.BP I_F.CURRENCY.MARKET
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INSERT GLOBUS.BP I_F.LC.TYPES
+
+    GOSUB INITIALISE
+    GOSUB ASSIGN.RATE
+
+    RETURN
+
+
+*----------
+INITIALISE:
+*----------
+
+    Y.CHRG.AMT = 0
+    Y.LC.TYPE = ''
+    Y.IMP.EXP = ''
+    Y.BBLC.TYPE = ''
+    Y.PROV.PER = ''
+    Y.LCOPEN.COM = 0
+    Y.LCOPEN.SEQ.COM = 0
+    Y.DR.ISSUE.DATE = ''
+    Y.DR.EXPIRY.DATE = ''
+    Y.TENOR.DAYS = ''
+    Y.TOT.CHG.QTR = 0
+    Y.TOT.CHG.QTR1 = 0
+    Y.TOT.CHG.QTR2 = 0
+    Y.LC.AMT = ''
+    Y.CAL.CHG.AMT = ''
+    Y.TOT.CHG.AMT = ''
+    Y.LCY.CHRG.AMT = ''
+    Y.PERCENT.VALUE = ''
+    Y.FLAT.AMT = ''
+    Y.CHRG.AMT.WOSTAX = ''
+    Y.SOURCE.TAX.AMT = ''
+
+
+    F.LC.TYPES = ''
+    FN.LC.TYPES = 'F.LC.TYPES'
+    CALL OPF(FN.LC.TYPES,F.LC.TYPES)
+    R.LC.TYPE.REC = ''
+
+    FN.LC = 'F.LETTER.OF.CREDIT'
+    F.LC =''
+    CALL OPF(FN.LC,F.LC)
+    R.LC.REC = ''
+
+    FN.DR = 'F.DRAWINGS'
+    F.DR = ''
+    CALL OPF(FN.DR,F.DR)
+    R.DR.REC = ''
+
+    FN.CUR = 'F.CURRENCY'
+    F.CUR = ''
+    CALL OPF(FN.CUR,F.CUR)
+    R.CUR.REC = ''
+
+    FN.FTCT = 'F.FT.COMMISSION.TYPE'
+    F.FTCT = ''
+    CALL OPF(FN.FTCT,F.FTCT)
+    R.FTCT.REC = ''
+
+    RETURN
+
+*----------
+ASSIGN.RATE:
+*----------
+    Y.CONTINUE.FLAG = ''
+    CALL F.READ(FN.FTCT,Y.DR.DOC.ID,R.FTCT.REC,F.FTCT,Y.FTCT.ERR)
+    Y.FLAT.AMT = R.FTCT.REC<FT4.FLAT.AMT,1>
+
+    Y.LC.TYPE = R.NEW(TF.DR.LC.CREDIT.TYPE)
+    CALL F.READ(FN.LC.TYPES,Y.LC.TYPE,R.LC.TYPE.REC,F.LC.TYPES,ERR.MSG)
+    Y.IMP.EXP = R.LC.TYPE.REC<LC.TYP.IMPORT.EXPORT>
+    IF Y.IMP.EXP EQ 'I' THEN
+        Y.CONTINUE.FLAG = 'Y'
+        Y.LCOPEN.COM = R.FTCT.REC<FT4.PERCENTAGE,1,1>
+        GOSUB COND.CHECK
+    END ELSE
+        Y.CONTINUE.FLAG = 'N'
+        RETURN
+    END
+    Y.MIN.CHRG.AMT = R.FTCT.REC<FT4.MINIMUM.AMT,1,1>
+    RETURN
+
+*----------
+COND.CHECK:
+*----------
+    IF Y.FLAT.AMT EQ "" AND Y.LCOPEN.COM NE "" THEN
+        Y.DR.AMT = R.NEW(TF.DR.DOCUMENT.AMOUNT)
+        Y.CAL.CHG.AMT = (Y.DR.AMT * Y.LCOPEN.COM)/100
+        Y.TOT.CHG.AMT = Y.CAL.CHG.AMT
+        Y.CAL.CHG.AMT = ''
+    END ELSE
+        Y.TOT.CHG.AMT = Y.FLAT.AMT
+    END
+    RETURN
+END

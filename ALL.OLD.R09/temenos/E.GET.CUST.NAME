@@ -1,0 +1,28 @@
+*-----------------------------------------------------------------------------
+* <Rating>89</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE E.GET.CUST.NAME(ID.LIST)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.CUSTOMER
+    CLEARSELECT
+
+    LOCATE 'CUSTOMER.NAME' IN D.FIELDS<1> SETTING POS ELSE POS = ''
+    CUST.NAME = D.RANGE.AND.VALUE<1,POS>
+    FN.CUST = 'F.CUSTOMER'
+    F.CUST = ''
+    CALL OPF(FN.CUST,F.CUST)
+    SEL.CMD="SELECT ":FN.CUST:" WITH SHORT.NAME LIKE '":CUST.NAME:"'"
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.REC,ERR)
+    LOOP
+        REMOVE Y.CUST.ID FROM SEL.LIST SETTING POS1
+    WHILE Y.CUST.ID:POS1
+        CALL F.READ(FN.CUST,Y.CUST.ID,R.CUST.REC,F.CUST,Y.CUST.ERR)
+        Y.CUST.NAME = R.CUST.REC<EB.CUS.SHORT.NAME>
+        ID.LIST<-1> = Y.CUST.ID:'*':Y.CUST.NAME
+        Y.CUST.ID=''
+        Y.CUST.NAME=''
+    REPEAT
+    RETURN
+END

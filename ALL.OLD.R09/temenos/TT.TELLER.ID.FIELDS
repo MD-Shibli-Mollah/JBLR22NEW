@@ -1,0 +1,33 @@
+    SUBROUTINE TT.TELLER.ID.FIELDS
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_DataTypes
+
+    CALL Table.defineId("REF.ID", T24_String)
+    CALL Table.addField("BR.INFO",T24_String,"NOINPUT","")
+    CALL Table.addField("TELLER.ID",T24_String,"NOINPUT","")
+    CALL Table.addField("CATEGORY",T24_String,"NOINPUT","")
+    CALL Table.addFieldDefinition("XX<CCY","3","A","")
+    CALL Field.setCheckFile('CURRENCY')
+    CALL Table.addAmountField("XX-SAFE.LIMIT","CURRENCY","","")
+    CALL Table.addAmountField("XX-COUNTER.LIMIT","CURRENCY","","")
+    CALL Table.addFieldDefinition("XX-XX<DR.CR","2","":FM:"DR_CR","")
+    CALL Table.addAmountField("XX-XX-LIMIT","CURRENCY","","")
+    CALL Table.addReservedField('XX-XX-RESERVED.01')
+    CALL Table.addReservedField('XX-XX-RESERVED.02')
+    CALL Table.addReservedField('XX-XX>RESERVED.03')
+    CALL Table.addReservedField('XX-RESERVED.04')
+    CALL Table.addReservedField('XX-RESERVED.05')
+    CALL Table.addReservedField('XX-RESERVED.06')
+    CALL Table.addField("XX>IN.WORD",T24_Text,"NOINPUT","")
+    CALL Table.addField("USER.ID",T24_String,"NOINPUT","")
+    CALL Table.addField("USER.INFO",T24_String,"NOINPUT","")
+    CALL Table.addReservedField('XX.RESERVED.07')
+    CALL Table.addReservedField('XX.RESERVED.08')
+    CALL Table.addLocalReferenceField('XX.LOCAL.REF')
+    CALL Table.addOverrideField
+    CALL Table.setAuditPosition
+
+    RETURN
+END

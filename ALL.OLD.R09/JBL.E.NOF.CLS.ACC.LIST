@@ -1,0 +1,95 @@
+*-----------------------------------------------------------------------------
+* <Rating>168</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.E.NOF.CLS.ACC.LIST(Y.RET.ARRAY)
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This is a Nofile routine which is used to fetch the details from ACCOUNT$HIS file
+*and return them to enquiry
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*
+* Outgoing Parameter : Y.RET.ARRAY (Contains the final array)
+*
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+*Variable name:   Insert file:          Description:
+*
+*
+*-------------------------------------------------------------------------
+*Called Subroutines: Not Applicable
+*------ -----------
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 01/02/2011 -                            New   - Shiva Shankar G
+*                                                 Thesys Technologies
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.DATES
+    $INSERT JBL.BP I_F.JBL.H.GEN.PARAMETER
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*--------------------------------------------------------------------------
+INITIALISE:
+*--------------------------------------------------------------------------
+    FN.ACCOUNT.HIS = 'F.ACCOUNT$HIS'
+    F.ACCOUNT.HIS = ''
+    CALL OPF(FN.ACCOUNT.HIS,F.ACCOUNT.HIS)
+
+    FN.JBL.H.GEN.PARAMETER = 'F.JBL.H.GEN.PARAMETER'
+    F.JBL.H.GEN.PARAMETER = ''
+    CALL OPF(FN.JBL.H.GEN.PARAMETER,F.JBL.H.GEN.PARAMETER)
+
+    Y.RET.ARRAY = ''
+    Y.TRFD.AMT = ''
+    RETURN
+*--------------------------------------------------------------------------
+PROCESS:
+*--------------------------------------------------------------------------
+
+!Selecting accounts with CLOSURE.DATE equal to last working day and NRB.BATCH.TEXT like TFRD... and authoriser like ...CLOSURE...
+    CALL F.READ(FN.JBL.H.GEN.PARAMETER, 'SYSTEM', R.JBL.H.GEN.PARAMETER, F.JBL.H.GEN.PARAMETER,Y.JBL.H.GEN.PARAMETER.ERR)
+
+    Y.DATE = TODAY
+    SEL.CMD = 'SELECT ':FN.ACCOUNT.HIS:' WITH JBL.BATCH.TEXT LIKE "TFRD..." AND CLOSURE.DATE EQ ':Y.DATE:' AND AUTHORISER LIKE "...CLOSURE..."'
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'','','')
+    IF SEL.LIST THEN
+        LOOP
+            REMOVE Y.AC.ID FROM SEL.LIST SETTING Y.POS
+        WHILE Y.AC.ID:Y.POS
+            Y.ACCOUNT.ID = FIELD(Y.AC.ID,';',1)
+
+            CALL F.READ(FN.ACCOUNT.HIS,Y.AC.ID,R.ACCOUNT.HIS,F.ACCOUNT.HIS,Y.ACCOUNT.HIS.ERR)
+            IF R.ACCOUNT.HIS THEN
+                Y.ACCOUNT.TITLE = R.ACCOUNT.HIS<AC.ACCOUNT.TITLE.1>
+                IF R.ACCOUNT.HIS<AC.TRAN.LAST.DR.CUST> EQ '125' OR R.ACCOUNT.HIS<AC.TRAN.LAST.DR.CUST> EQ R.JBL.H.GEN.PARAMETER<JBL.PARAM.ACC.CLS.TXN> OR R.ACCOUNT.HIS<AC.TRAN.LAST.DR.CUST> EQ '126' THEN
+                    Y.TRFD.AMT = -1*R.ACCOUNT.HIS<AC.AMNT.LAST.DR.CUST>
+                END ELSE
+                    Y.TRFD.AMT = 0
+                END
+                Y.ACCOUNT.HIST = FIELD(Y.AC.ID,';',1)
+                Y.CURRENCY = R.ACCOUNT.HIS<AC.CURRENCY>
+
+                IF Y.RET.ARRAY THEN
+                    Y.RET.ARRAY:=FM:Y.DATE:"*":Y.ACCOUNT.HIST:'*':Y.ACCOUNT.TITLE:'*':Y.CURRENCY:'*':Y.TRFD.AMT
+                END ELSE
+                    Y.RET.ARRAY=Y.DATE:"*":Y.ACCOUNT.HIST:'*':Y.ACCOUNT.TITLE:'*':Y.CURRENCY:'*':Y.TRFD.AMT
+                END
+            END
+        REPEAT
+    END
+    RETURN
+*--------------------------------------------------------------------------
+END

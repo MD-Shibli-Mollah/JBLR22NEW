@@ -1,0 +1,44 @@
+*-----------------------------------------------------------------------------
+* <Rating>-1</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM CHECKRTN
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.TELLER
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.STMT.ENTRY
+    $INSERT I_F.RE.CONSOL.SPEC.ENTRY
+    $INSERT I_F.CATEG.ENTRY
+    $INSERT I_F.COMPANY
+    $INSERT I_F.ACCOUNT
+
+    OPEN '','&SAVEDLISTS&' TO SAVEDLISTS ELSE
+        PRINT 'CANNOT OPEN &SAVEDLISTS&'
+    END
+    TEMP = ''
+    FN.OFS.MESSAGE.QUEUE = "F.OFS.MESSAGE.QUEUE"
+    Y.ID = ''
+    R.OFS.MSG = ''
+    F.OFS.MESSAGE.QUEUE = ''
+    CALL OPF(FN.OFS.MESSAGE.QUEUE, F.OFS.MESSAGE.QUEUE)
+    ERR = ''
+    AC.ID = ''
+    SEL.CMD = "SELECT F.OFS.MESSAGE.QUEUE"
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+        MSG.ID = Y.ID
+        CALL F.READ(FN.OFS.MESSAGE.QUEUE, MSG.ID, R.OFS.MSG, F.OFS.MESSAGE.QUEUE, ERR)
+
+        AC.ID = FIELD(R.OFS.MSG, ',',4)
+
+        TEMP<-1> = AC.ID
+
+
+    REPEAT
+    IF TEMP THEN
+        WRITE TEMP TO SAVEDLISTS, "ACCOUNT.CORRECTION"
+    END
+    RETURN

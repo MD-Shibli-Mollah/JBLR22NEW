@@ -1,0 +1,42 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MCD.ALLOW.ID
+*This routine is used to restrict id validation*
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.COMPANY.SMS.GROUP
+
+    Y.COM=COMI
+    Y.LEN=LEN(Y.COM)
+    JUL.DATE = ""
+    CALL JULDATE(TODAY,JUL.DATE)
+    IF Y.LEN NE 15 OR Y.COM[1,5] NE 'JBLBK' OR Y.COM[6,5] NE JUL.DATE[3,5] THEN
+        E="Please Click New Deal for creating new Request."
+        CALL STORE.END.ERROR
+    END
+    FN.COM.ALLOW='F.COMPANY.SMS.GROUP'
+    F.COM.ALLOW=''
+    Y.MCD.ID='MCD.COMP.ALLOW'
+    CALL OPF(FN.COM.ALLOW,F.COM.ALLOW)
+    CALL F.READ(FN.COM.ALLOW,Y.MCD.ID,R.SMS,F.COM.ALLOW,ERR.SMS)
+    Y.COUNT=DCOUNT(R.SMS,@VM)
+    Y.FLAG=1
+    FOR I=1 TO Y.COUNT
+        CO.CODE=R.SMS<CO.SMS.COMPANY.CODE,I>
+        IF ID.COMPANY EQ CO.CODE THEN
+            Y.FLAG=0
+            BREAK
+        END
+    NEXT I
+
+    IF Y.FLAG THEN
+        E="Your Branch are not allow to Create Breakup."
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+END
+

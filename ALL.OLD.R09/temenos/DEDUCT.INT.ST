@@ -1,0 +1,133 @@
+*-----------------------------------------------------------------------------
+* <Rating>-61</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE DEDUCT.INT.ST(Y.RETURN)
+!PROGRAM DEDUCT.INT.ST
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.STMT.ACCT.CR
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.AC = 'F.ACCOUNT'; F.AC = ''
+!    FN.AC.HIS = 'F.ACCOUNT$HIS'; F.AC.HIS = ''
+    FN.STMT.ACCT.CR = 'F.STMT.ACCT.CR';
+    F.STMT.ACCT.CR = ''
+!    FN.AC.CL = 'F.ACCOUNT.CLOSED'; F.AC.CL = ''
+
+    LOCATE "START.DATE" IN ENQ.SELECTION<2,1> SETTING START.DATE.POS THEN
+        Y.START.DATE = ENQ.SELECTION<4,START.DATE.POS>
+    END
+    LOCATE "END.DATE" IN ENQ.SELECTION<2,1> SETTING END.DATE.POS THEN
+        Y.END.DATE = ENQ.SELECTION<4,END.DATE.POS>
+    END
+    LOCATE "CATEGORY" IN ENQ.SELECTION<2,1> SETTING CATEGORY.POS THEN
+        Y.CATEGORY = ENQ.SELECTION<4,CATEGORY.POS>
+    END
+    LOCATE "PERCENTAGE" IN ENQ.SELECTION<2,1> SETTING PERCENTAGE.POS THEN
+        Y.PERCENTAGE = ENQ.SELECTION<4,PERCENTAGE.POS>
+    END
+
+    Y.NO.DAYS = 'C'
+    Y.DAYS = '-1C'
+    Y.DAYS1 = '+1C'
+    Y.PERCENT = ''
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.AC,F.AC)
+!    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.STMT.ACCT.CR,F.STMT.ACCT.CR)
+!    CALL OPF(FN.AC.CL,F.AC.CL)
+    RETURN
+
+PROCESS:
+
+*******************************************
+!list all dates between begin and end date
+*******************************************
+    IF Y.START.DATE GT Y.END.DATE THEN
+        RETURN
+    END ELSE
+        CALL CDD ('', Y.START.DATE, Y.END.DATE, Y.NO.DAYS)
+        Y.BEGIN.DT = Y.START.DATE
+!CALL CDT('', Y.BEGIN.DT, Y.DAYS)
+        FOR I = 1 TO Y.NO.DAYS + 1
+            Y.DATE.LIST<-1> = Y.BEGIN.DT
+            CALL CDT('', Y.BEGIN.DT, Y.DAYS1)
+        NEXT
+    END
+
+*********************************
+!calculate tax for closed account
+*********************************
+
+!    SEL.CMD.AC.CL = "SELECT ":FN.AC.CL:" WITH ACCT.CLOSE.DATE GE ":Y.START.DATE:" AND CATEGORY EQ ":Y.CATEGORY:" AND CO.CODE EQ ":ID.COMPANY
+!    CALL EB.READLIST(SEL.CMD.AC.CL,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+!    LOOP
+!        REMOVE Y.ID FROM SEL.LIST SETTING POS
+!    WHILE Y.ID:POS
+!        CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.ID,R.AC.REC,Y.ERR)
+!        Y.ID = FIELD(Y.ID,";",1)
+!        CI.CNT = DCOUNT(R.AC.REC<AC.CAP.DATE.CR.INT>,VM)
+!        FOR CNT = 1 TO CI.CNT
+!            CI.DT = R.AC.REC<AC.CAP.DATE.CR.INT,CNT>
+!            FINDSTR CI.DT IN Y.DATE.LIST SETTING DT.POS THEN
+!                STMT.CI.ID = Y.ID:"-":CI.DT
+!                CALL F.READ(FN.STMT.ACCT.CR,STMT.CI.ID,R.STMT.CI.REC,F.STMT.ACCT.CR,Y.CI.ERR)
+!                Y.ACCT.TITLE = R.AC.REC<AC.ACCOUNT.TITLE.1>:R.AC.REC<AC.ACCOUNT.TITLE.2>
+!!Y.INT.POST.DT = R.STMT.CI.REC<IC.STMCR.INT.POST.DATE>
+!                Y.CUS.TAX = R.STMT.CI.REC<IC.STMCR.TAX.FOR.CUSTOMER>
+!                Y.TOT.INT = R.STMT.CI.REC<IC.STMCR.TOTAL.INTEREST>
+!                Y.MAN.ADJ = R.STMT.CI.REC<IC.STMCR.MANUAL.ADJ.AMT>
+!                IF ((Y.CUS.TAX NE "") OR (Y.CUS.TAX NE '0')) THEN
+!                    Y.PERCENT = DROUND(((100*Y.CUS.TAX)/(Y.TOT.INT+Y.MAN.ADJ)),0)
+!                END
+!                IF ((Y.CUS.TAX NE "") AND (Y.PERCENT EQ Y.PERCENTAGE)) THEN
+!                    Y.RETURN<-1> = Y.CATEGORY:"*":Y.ID:"*":Y.ACCT.TITLE:"*":CI.DT:"*":Y.CUS.TAX
+!                END
+!            END
+!        NEXT
+!    REPEAT
+
+****************************
+!calculate tax for live file
+****************************
+    SEL.CMD.AC = "SELECT ":FN.AC:" WITH CO.CODE EQ ":ID.COMPANY:" AND CATEGORY EQ ":Y.CATEGORY
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+        CALL F.READ(FN.AC,Y.ID,R.AC.REC,F.AC,Y.ERR)
+
+        CI.DT = FIELD(R.AC.REC<AC.CAP.DATE.CR.INT>,VM,1)
+        FINDSTR CI.DT IN Y.DATE.LIST SETTING DT.POS THEN
+            STMT.CI.ID = Y.ID:"-":CI.DT
+            CALL F.READ(FN.STMT.ACCT.CR,STMT.CI.ID,R.STMT.CI.REC,F.STMT.ACCT.CR,Y.CI.ERR) 
+            Y.ACCT.TITLE = R.AC.REC<AC.ACCOUNT.TITLE.1>
+!Y.INT.POST.DT = R.STMT.CI.REC<IC.STMCR.INT.POST.DATE>
+            Y.CUS.TAX = R.STMT.CI.REC<IC.STMCR.TAX.FOR.CUSTOMER>
+            Y.TOT.INT = R.STMT.CI.REC<IC.STMCR.TOTAL.INTEREST>
+            Y.MAN.ADJ = R.STMT.CI.REC<IC.STMCR.MANUAL.ADJ.AMT>
+            IF ((Y.CUS.TAX NE "") OR (Y.CUS.TAX NE '0')) THEN
+                Y.PERCENT = DROUND(((100*Y.CUS.TAX)/(Y.TOT.INT+Y.MAN.ADJ)),0)
+            END
+!CRT STMT.CI.ID:" ":Y.PERCENT
+            IF ((Y.CUS.TAX NE "") AND (Y.PERCENT EQ Y.PERCENTAGE)) THEN
+                Y.RETURN<-1> = Y.CATEGORY:"*":Y.ID:"*":Y.ACCT.TITLE:"*":CI.DT:"*":Y.CUS.TAX
+            END
+        END
+
+    REPEAT
+    RETURN
+END
+

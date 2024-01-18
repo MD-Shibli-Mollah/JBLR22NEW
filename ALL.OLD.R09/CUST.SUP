@@ -1,0 +1,132 @@
+*-----------------------------------------------------------------------------
+* <Rating>-31</Rating>
+*-----------------------------------------------------------------------------
+****************************************************************************************
+*Developed By: Md. Zakir Hossain(JBL)*
+*Date:10/09/2015*
+****************************************************************************************
+
+!  PROGRAM CUST.SUP
+    SUBROUTINE CUST.SUP(Y.RETURN)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT BP I_F.EB.DAILY.TXN
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+
+*------
+INIT:
+*------
+    FN.TXN='F.EB.DAILY.TXN'
+    F.TXN=''
+
+    Y.CATEGORY=''
+    Y.ALT.ACCT.ID=''
+    Y.T24.ID=''
+    Y.AC.TITLE=''
+    Y.INST.NO=''
+    Y.TRANS.AMOUNT=''
+    Y.TRANS.REF=''
+    FALSE = ""
+
+    RETURN
+
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.TXN,F.TXN)
+
+    RETURN
+
+*-------
+PROCESS:
+*-------
+
+    LOCATE "PRODUCT" IN ENQ.SELECTION<2,1> SETTING PROD.POS THEN
+        Y.PRODUCT = ENQ.SELECTION<4,PROD.POS>
+    END
+    LOCATE "DEBIT.CREDIT" IN ENQ.SELECTION<2,1> SETTING DR.CR.POS THEN
+        Y.DR.CR.MARK = ENQ.SELECTION<4,DR.CR.POS>
+        IF Y.DR.CR.MARK EQ "DEBIT" THEN
+            Y.DR.CR.MARK="DR"
+        END
+        IF Y.DR.CR.MARK EQ "CREDIT" THEN
+            Y.DR.CR.MARK="CR"
+        END
+    END
+
+!Y.MODE=""
+    LOCATE "TRANSACTION.MODE" IN ENQ.SELECTION<2,1> SETTING MODE.POS THEN
+        Y.MODE = ENQ.SELECTION<4,MODE.POS>
+        IF Y.MODE EQ "ALL" THEN
+            Y.MODE=""
+        END
+! IF Y.MODE EQ "CASH" THEN
+!    Y.MODE="CH"
+!END
+!IF Y.MODE EQ "TRANSFER" THEN
+!   Y.MODE="FT"
+!END
+
+    END
+
+
+!Y.PRODUCT="U-SB"
+!Y.DR.CR.MARK="DR"
+
+    BEGIN CASE
+    CASE Y.PRODUCT EQ "U-STD"
+        SEL.CMD = "SELECT ":FN.TXN:" WITH @ID LIKE ":RIGHT(ID.COMPANY,4):".":RIGHT(ID.COMPANY,4):".":Y.DR.CR.MARK:".":Y.PRODUCT:".":Y.MODE:"..."
+    CASE Y.PRODUCT EQ "ALL"
+        SEL.CMD = "SELECT ":FN.TXN:" WITH @ID LIKE ":RIGHT(ID.COMPANY,4):".":RIGHT(ID.COMPANY,4):".":Y.DR.CR.MARK:"... AND (@ID UNLIKE ":RIGHT(ID.COMPANY,4):".":RIGHT(ID.COMPANY,4):".DR.GL... AND UNLIKE ":RIGHT(ID.COMPANY,4):".":RIGHT(ID.COMPANY,4):".DR.PL... AND UNLIKE ":RIGHT(ID.COMPANY,4):".":RIGHT(ID.COMPANY,4):".CR.GL... AND UNLIKE ":RIGHT(ID.COMPANY,4):".":RIGHT(ID.COMPANY,4):".CR.PL...)"
+    CASE 1
+        SEL.CMD = "SELECT ":FN.TXN:" WITH @ID LIKE ":RIGHT(ID.COMPANY,4):".":RIGHT(ID.COMPANY,4):".":Y.DR.CR.MARK:".":Y.PRODUCT:".":Y.MODE:"..."
+
+    END CASE
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+
+    LOOP
+        REMOVE Y.REC.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.REC.ID:Y.POS
+
+!IF RIGHT(FIELD(Y.REC.ID,".",8),5) NE '18132' THEN
+!   CONTINUE
+
+! END
+
+
+        IF Y.MODE NE "" THEN
+            IF FIELD(Y.REC.ID,".",5) NE Y.MODE THEN
+                CONTINUE
+            END
+        END
+
+
+
+        CALL F.READ(FN.TXN,Y.REC.ID,REC.TXN,F.TXN,TXN.ERR)
+
+        Y.CATEGORY=REC.TXN<EB.DAI69.CATEGORY>
+        Y.ALT.ACCT.ID=REC.TXN<EB.DAI69.LAGACY.ID>
+        Y.T24.ID=REC.TXN<EB.DAI69.ACCT.NO>
+        Y.AC.TITLE=REC.TXN<EB.DAI69.ACCT.TITLE>
+        Y.INST.NO=REC.TXN<EB.DAI69.INSTRUMENT.NO>
+        Y.TRANS.AMOUNT=REC.TXN<EB.DAI69.AMOUNT>
+        Y.TRANS.REF=REC.TXN<EB.DAI69.TXN.ID>
+
+        BEGIN CASE
+        CASE FIELD(Y.REC.ID,".",5) EQ "CH"
+            Y.RETURN<-1> = Y.CATEGORY:"*":Y.ALT.ACCT.ID:"*":Y.T24.ID:"*":Y.AC.TITLE:"*":Y.INST.NO:"*":Y.TRANS.AMOUNT:"*":FALSE:"*":FALSE:"*":Y.TRANS.REF
+        CASE FIELD(Y.REC.ID,".",5) EQ "CL"
+            Y.RETURN<-1> = Y.CATEGORY:"*":Y.ALT.ACCT.ID:"*":Y.T24.ID:"*":Y.AC.TITLE:"*":Y.INST.NO:"*":FALSE:"*":Y.TRANS.AMOUNT:"*":FALSE:"*":Y.TRANS.REF
+        CASE FIELD(Y.REC.ID,".",5) EQ "FT"
+            Y.RETURN<-1> = Y.CATEGORY:"*":Y.ALT.ACCT.ID:"*":Y.T24.ID:"*":Y.AC.TITLE:"*":Y.INST.NO:"*":FALSE:"*":FALSE:"*":Y.TRANS.AMOUNT:"*":Y.TRANS.REF
+        END CASE
+    REPEAT
+    Y.RETURN=SORT(Y.RETURN)
+    RETURN
+END

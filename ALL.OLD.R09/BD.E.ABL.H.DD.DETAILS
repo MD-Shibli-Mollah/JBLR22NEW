@@ -1,0 +1,67 @@
+*-------------------------------------------------------------------------------*
+* <Rating>-32</Rating>                                                          *
+*PURPOSE: SHOW DD DATA WITH ADVICE AND INTRUMENT PAID NOT DONE                  *
+*ENQ.ANYDAY.DD.INS.ADV.N                                                        *
+*DEVELOPED BY: KAMRAN MALLICK                                                   *
+*MODIFIED BY: NA                                                                *
+*CREATION DATE: 01 OCTOBER 2018                                                 *
+*MODIFICATION DATE:NA                                                           *
+*-------------------------------------------------------------------------------*
+    SUBROUTINE BD.E.ABL.H.DD.DETAILS(Y.DATA)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.ABL.H.DD.DETAILS
+    $INSERT JBL.BP I_F.ABL.H.BRANCH.CODE
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+
+*----
+INIT:
+*----
+    FN.DD.DET = 'F.ABL.H.DD.DETAILS'
+    F.DD.DET = ''
+    FN.ABL.BC = 'F.ABL.H.BRANCH.CODE'
+    F.ABL.BC = ''
+    Y.CO.ID = '...':ID.COMPANY[6,4]:'...'
+    RETURN
+
+*--------
+OPENFILE:
+*--------
+    CALL OPF(FN.DD.DET,F.DD.DET)
+    RETURN
+
+*-------
+PROCESS:
+*-------
+    SEL.CMD = 'SELECT ':FN.DD.DET:' WITH @ID LIKE ...':Y.CO.ID:'...'
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+    LOOP
+        REMOVE Y.DD.ID FROM SEL.LIST SETTING POS
+    WHILE Y.DD.ID : POS
+        IF FIELD(Y.DD.ID,'.',3) EQ ID.COMPANY[6,4] AND FIELD(Y.DD.ID,'.',1) EQ 'DD' THEN
+            CALL F.READ(FN.DD.DET,Y.DD.ID,R.DD,F.DD.DET,Y.DD.ERR)
+            Y.ADV = R.DD<DDT.ADVICE>
+            Y.INS.PAID = R.DD<DDT.INS.PAID>
+            Y.REV = R.DD<DDT.RESERVED.1>
+            IF Y.ADV EQ 'N' AND Y.INS.PAID EQ 'Y' AND Y.REV NE 'Y' THEN
+                Y.ISSUE.BR = FIELD(Y.DD.ID,'.',2,1)
+                CALL F.READ(FN.ABL.BC,Y.ISSUE.BR,R.BC,F.ABL.BC,Y.BC.ERR)
+                Y.BR.NAME = R.BC<BRN.BRANCH.NAME>
+                Y.INS.PRINTED.NO = R.DD<DDT.INS.PRINTED.NO>
+                Y.SCROLL = FIELD(Y.DD.ID,'.',5,1)
+                Y.DATE.OF.ISSUE = R.DD<DDT.DATE.OF.ISSUE>
+                Y.BENIFICIARY = R.DD<DDT.BENIFICIARY>
+                Y.INS.DATE.OF.PAY = R.DD<DDT.INS.DATE.OF.PAY>
+                Y.AMOUNT = R.DD<DDT.AMOUNT>
+                Y.DATA<-1> = Y.ISSUE.BR:'*':Y.BR.NAME:'*':Y.INS.PRINTED.NO:'*':Y.SCROLL:'*':Y.DATE.OF.ISSUE:'*':Y.BENIFICIARY:'*':Y.INS.DATE.OF.PAY:'*':Y.AMOUNT
+!                         1               2                3                4                5                  6                 7                  8
+                Y.DATA = SORT(Y.DATA)
+            END
+        END
+    REPEAT
+    RETURN
+END

@@ -1,0 +1,63 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*Developed By: Kamran Mallick
+*Organization: Datasoft
+*Development Date: 24th October 2019
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.PC.DISB.AUTH.ADI
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.ACCOUNT.DEBIT.INT
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.ADI = 'F.ACCOUNT.DEBIT.INT'
+    F.ADI = ''
+    FN.FT = 'F.FUNDS.TRANSFER$NAU'
+    F.FT = ''
+    Y.SOURCE = 'DM.OFS.SRC.VAL'
+    Y.TODAY = TODAY
+    Y.COMPANY.ID =  ID.COMPANY
+    RETURN
+
+OPENFILE:
+
+    CALL OPF(FN.ADI,F.ADI)
+    CALL OPF(FN.FT,F.FT)
+    RETURN
+
+PROCESS:
+    Y.FT.ID = ID.NEW
+    CALL F.READ(FN.FT,Y.FT.ID,R.FT,F.FT,Y.FT.ERR)
+    Y.DR.ACC = R.FT<FT.DEBIT.ACCT.NO>
+    CALL CDT('', Y.TODAY, '45C')
+    Y.ADI.ID = Y.DR.ACC:'-':Y.TODAY
+
+    Y.CHARGE.KEY = '99'
+    Y.INTEREST.DAY.BASIS = 'B'
+    Y.DR.BALANCE.TYPE = 'DAILY'
+    Y.DR.INT.RATE = '9.00'
+    Y.OFS.STR = 'CHARGE.KEY::=':Y.CHARGE.KEY:','
+    Y.OFS.STR := 'INTEREST.DAY.BASIS::=':Y.INTEREST.DAY.BASIS:','
+    Y.OFS.STR := 'DR.BALANCE.TYPE::=':Y.DR.BALANCE.TYPE:','
+    Y.OFS.STR := 'DR.INT.RATE::=':Y.DR.INT.RATE
+
+    Y.OFS.MSG.POST = 'ACCOUNT.DEBIT.INT,PCI/I/PROCESS,DMUSER.1//':Y.COMPANY.ID:',':Y.ADI.ID:',':Y.OFS.STR
+    RUNNING.UNDER.BATCH = 1
+    CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.OFS.MSG.POST)
+    RUNNING.UNDER.BATCH = 0
+    SENSITIVITY = ''
+    Y.OFS.ERR.CODE = FIELD(Y.OFS.MSG.POST,"/",3)
+    IF Y.OFS.ERR.CODE EQ '-1' THEN
+        E = FIELD(Y.OFS.MSG.POST,',',2,4):' ERROR'
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    RETURN
+END

@@ -1,0 +1,79 @@
+*-----------------------------------------------------------------------------
+* <Rating>48</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SP.CLOSE.CONDITION
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT SP.BP I_F.BD.H.SP.STOCK.ISSUE
+    $INSERT SP.BP I_F.BD.H.SP.COUPON
+
+    FN.SP.COUPON = 'F.BD.H.SP.COUPON'
+    F.SP.COUPON = ''
+    FN.SP='F.BD.H.SP.STOCK.ISSUE'
+    F.SP=''
+
+    CALL OPF(FN.SP,F.SP)
+    CALL OPF(FN.SP.COUPON,F.SP.COUPON)
+
+    ALL.IDS = DCOUNT(ENQ.KEYS,@FM)
+    W.ENQ.KEYS = ""
+
+    FOR I = 1 TO ALL.IDS
+        Y.VAL=0
+        CALL F.READ(FN.SP,ENQ.KEYS<I>,R.SP.REC,F.SP,Y.ERR)
+        SEL.CMD = "SELECT ":FN.SP.COUPON:" WITH @ID LIKE ":R.SP.REC<SP.STK.SP.SL.ID>:"... DSND-BY @ID"
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+        LOOP
+            REMOVE Y.COUP.ID FROM SEL.LIST SETTING POS
+        WHILE Y.COUP.ID:POS
+            CALL F.READ(FN.SP.COUPON,Y.COUP.ID,R.COUPON,F.SP.COUPON,Y.COP.ER)
+            Y.STATUS=R.COUPON<SP.CP.MATURITY.STATUS>
+            IF Y.STATUS EQ '' THEN
+                Y.VAL=1
+                BREAK
+            END
+
+        REPEAT
+        IF Y.VAL EQ 0 THEN
+            W.ENQ.KEYS<-1> = ENQ.KEYS<I>
+        END
+
+    NEXT I
+
+    IF ID NE '' THEN
+        Y.VAL=0
+        CALL F.READ(FN.SP,ID,R.SP.REC,F.SP,Y.ERR)
+        IF R.SP.REC NE '' THEN
+            SEL.CMD = "SELECT ":FN.SP.COUPON:" WITH @ID LIKE ":R.SP.REC<SP.STK.SP.SL.ID>:"... DSND-BY @ID"
+            CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+            LOOP
+                REMOVE Y.COUP.ID FROM SEL.LIST SETTING POS
+            WHILE Y.COUP.ID:POS
+                CALL F.READ(FN.SP.COUPON,Y.COUP.ID,R.COUPON,F.SP.COUPON,Y.COP.ER)
+                Y.STATUS=R.COUPON<SP.CP.MATURITY.STATUS>
+                IF Y.STATUS EQ '' THEN
+                    Y.VAL=1
+                    BREAK
+                END
+
+            REPEAT
+            IF Y.VAL EQ 1 THEN
+                LINE = ''
+                O.DATA=''
+                R.RECORD=''
+                ID=''
+
+            END
+
+        END
+    END
+
+    ENQ.KEYS = ""
+    ENQ.KEYS = W.ENQ.KEYS
+
+    RETURN
+END

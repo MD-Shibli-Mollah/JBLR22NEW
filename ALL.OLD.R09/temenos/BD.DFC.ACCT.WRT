@@ -1,0 +1,173 @@
+*-----------------------------------------------------------------------------
+* <Rating>70</Rating>
+*-----------------------------------------------------------------------------
+**************************************************************************
+*-------------Update DFC Account Details-------------------------------
+*Company Name   : Datasoft
+*Developed By   : Mehedi
+*
+*----------------------------------------------------------------------
+*Subroutine Type:
+*
+*Attached To    :
+*
+*Attached As    : Attached as an AUTH Routine
+*
+*In Parameter   : N/A
+*
+*Out Parameter  : N/A
+*---------------------------------------------------------------------------------------
+*Description    : This routine Update DFC Account details in Local Template
+*                 "BD.L.DFC.ACCT.DETAILS"
+*
+*---------------------------------------------------------------------------------------
+*Modification Details:
+*New:
+*
+*-------------------------------------------------------------------------
+*Modification History :
+*
+*-------------------------------------------------------------------------
+*Info :
+**************************************************************************
+    SUBROUTINE BD.DFC.ACCT.WRT
+
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.DRAWINGS
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INCLUDE BP I_F.BD.L.DFC.ACCT.DETAILS
+
+    GOSUB INIT
+    GOSUB OPENFILES
+
+    IF APPLICATION EQ 'DRAWINGS' THEN
+        GOSUB DR.PROCESS
+    END
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        GOSUB FT.PROCESS
+    END
+
+    RETURN
+
+*------
+INIT:
+*------
+    FN.DR = 'F.DRAWINGS'
+    F.DR = ''
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+    FN.DFC.ACCT = 'F.BD.L.DFC.ACCT.DETAILS'
+    F.DFC.ACCT = ''
+    RETURN
+
+*-----------
+OPENFILES:
+*-----------
+    CALL OPF(FN.DR,F.DR)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.DFC.ACCT,F.DFC.ACCT)
+!CALL GET.LOC.REF('DRAWINGS','LINKED.TF.NO',Y.LINKED.TF.NO.POS)
+!CALL GET.LOC.REF('FUNDS.TRANSFER','FDBP.LDBP.REF',Y.FDBP.LDBP.REF.POS)
+    CALL GET.LOC.REF('FUNDS.TRANSFER','LINKED.TF.NO',Y.LINKED.TF.NO.POS)
+    RETURN
+
+*-----------
+DR.PROCESS:
+*-----------
+    Y.TF.REF.NO.LEN = LEN(ID.NEW)-2
+    Y.TF.REF.NO = LEFT(ID.NEW,Y.TF.REF.NO.LEN)
+    Y.CR.ACCT.CNT  = DCOUNT(R.NEW(TF.DR.ASSN.CR.ACCT),@VM)
+
+    FOR I = 1 TO Y.CR.ACCT.CNT
+        Y.CR.ACCT = R.NEW(TF.DR.ASSN.CR.ACCT)<1,I>
+        CALL F.READ(FN.AC,Y.CR.ACCT,R.ACC,F.AC,Y.AC.ERR)
+        Y.CATEGORY = R.ACC<AC.CATEGORY>
+
+        IF ISALPHA(LEFT(Y.CR.ACCT,3)) EQ '0' AND Y.CATEGORY EQ '4101' THEN
+!CALL F.READ(FN.DFC.ACCT,Y.CR.ACCT,R.DFC.ACCT.REC,F.DFC.ACCT,Y.DFC.ACCT.ERR)
+            CALL F.READU(FN.DFC.ACCT,Y.CR.ACCT,R.DFC.ACCT.REC,F.DFC.ACCT,Y.DFC.ACCT.ERR,"")
+            IF R.DFC.ACCT.REC EQ '' THEN
+                R.DFC.ACCT.REC<DFC.ACCT.REF.NO,1> = Y.TF.REF.NO
+                R.DFC.ACCT.REC<DFC.ACCT.CURRENCY,1> = R.NEW(TF.DR.ASSN.AC.CCY)<1,I>
+                R.DFC.ACCT.REC<DFC.ACCT.AMOUNT,1> = R.NEW(TF.DR.ASSN.AMOUNT)<1,I>
+                CALL F.WRITE(FN.DFC.ACCT,Y.CR.ACCT,R.DFC.ACCT.REC)
+                CALL JOURNAL.UPDATE('')
+                SENSITIVITY = ''
+            END ELSE
+                FIND Y.TF.REF.NO IN R.DFC.ACCT.REC<DFC.ACCT.REF.NO> SETTING FVPOS,MVPOS,SVPOS THEN
+                    R.DFC.ACCT.REC<DFC.ACCT.AMOUNT,MVPOS> = R.DFC.ACCT.REC<DFC.ACCT.AMOUNT,MVPOS> + R.NEW(TF.DR.ASSN.AMOUNT)<1,I>
+                    CALL F.WRITE(FN.DFC.ACCT,Y.CR.ACCT,R.DFC.ACCT.REC)
+                    CALL JOURNAL.UPDATE('')
+                    SENSITIVITY = ''
+                END ELSE
+!Y.R.DFC.REC.CNT = DCOUNT(R.DFC.ACCT.REC,@VM)+1
+                    Y.R.DFC.REC.CNT = DCOUNT(R.DFC.ACCT.REC<DFC.ACCT.REF.NO>,@VM)+1
+                    R.DFC.ACCT.REC<DFC.ACCT.REF.NO,Y.R.DFC.REC.CNT> = Y.TF.REF.NO
+                    R.DFC.ACCT.REC<DFC.ACCT.CURRENCY,Y.R.DFC.REC.CNT> = R.NEW(TF.DR.ASSN.AC.CCY)<1,I>
+                    R.DFC.ACCT.REC<DFC.ACCT.AMOUNT,Y.R.DFC.REC.CNT> = R.NEW(TF.DR.ASSN.AMOUNT)<1,I>
+                    CALL F.WRITE(FN.DFC.ACCT,Y.CR.ACCT,R.DFC.ACCT.REC)
+                    CALL JOURNAL.UPDATE('')
+                    SENSITIVITY = ''
+                END
+            END
+        END
+    NEXT I
+    RETURN
+
+*-----------
+FT.PROCESS:
+*-----------
+!Y.TF.REF.NO = R.NEW(FT.LOCAL.REF)<1,Y.FDBP.LDBP.REF.POS>
+    Y.TF.REF.NO = R.NEW(FT.LOCAL.REF)<1,Y.LINKED.TF.NO.POS>
+    IF Y.TF.REF.NO NE '' THEN
+        Y.CR.ACCT = R.NEW(FT.CREDIT.ACCT.NO)
+        CALL F.READ(FN.AC,Y.CR.ACCT,R.ACC,F.AC,Y.AC.ERR)
+        Y.CATEGORY = R.ACC<AC.CATEGORY>
+
+        IF ISALPHA(LEFT(Y.CR.ACCT,3)) EQ '0' AND Y.CATEGORY EQ '4101' THEN
+!CALL F.READ(FN.DFC.ACCT,Y.CR.ACCT,R.DFC.ACCT.REC,F.DFC.ACCT,Y.DFC.ACCT.ERR)
+            CALL F.READU(FN.DFC.ACCT,Y.CR.ACCT,R.DFC.ACCT.REC,F.DFC.ACCT,Y.DFC.ACCT.ERR,"")
+!IF R.DFC.ACCT.REC EQ '' THEN
+            IF R.DFC.ACCT.REC EQ '' AND R.NEW(FT.RECORD.STATUS) NE 'RNAU' THEN
+                R.DFC.ACCT.REC<DFC.ACCT.REF.NO,1> = Y.TF.REF.NO
+                R.DFC.ACCT.REC<DFC.ACCT.CURRENCY,1> = R.NEW(FT.CREDIT.CURRENCY)
+!R.DFC.ACCT.REC<DFC.ACCT.AMOUNT> = R.NEW(FT.CREDIT.AMOUNT)
+                R.DFC.ACCT.REC<DFC.ACCT.AMOUNT,1> = R.NEW(FT.AMOUNT.CREDITED)[4,20]
+                CALL F.WRITE(FN.DFC.ACCT,Y.CR.ACCT,R.DFC.ACCT.REC)
+                CALL JOURNAL.UPDATE('')
+                SENSITIVITY = ''
+
+            END ELSE
+                FIND Y.TF.REF.NO IN R.DFC.ACCT.REC<DFC.ACCT.REF.NO> SETTING FVPOS,MVPOS,SVPOS THEN
+!R.DFC.ACCT.REC<DFC.ACCT.AMOUNT,MVPOS> = R.DFC.ACCT.REC<DFC.ACCT.AMOUNT,MVPOS> + R.NEW(FT.CREDIT.AMOUNT)
+                    IF R.NEW(FT.RECORD.STATUS) NE 'RNAU' THEN
+                        R.DFC.ACCT.REC<DFC.ACCT.AMOUNT,MVPOS> = R.DFC.ACCT.REC<DFC.ACCT.AMOUNT,MVPOS> + R.NEW(FT.AMOUNT.CREDITED)[4,20]
+                    END ELSE
+                        R.DFC.ACCT.REC<DFC.ACCT.AMOUNT,MVPOS> = R.DFC.ACCT.REC<DFC.ACCT.AMOUNT,MVPOS> - R.NEW(FT.AMOUNT.CREDITED)[4,20]
+                    END
+                    CALL F.WRITE(FN.DFC.ACCT,Y.CR.ACCT,R.DFC.ACCT.REC)
+                    CALL JOURNAL.UPDATE('')
+                    SENSITIVITY = ''
+                END ELSE
+!Y.R.DFC.REC.CNT = DCOUNT(R.DFC.ACCT.REC,@VM)+1
+                    IF R.NEW(FT.RECORD.STATUS) NE 'RNAU' THEN
+                        Y.R.DFC.REC.CNT = DCOUNT(R.DFC.ACCT.REC<DFC.ACCT.REF.NO>,@VM)+1
+                        R.DFC.ACCT.REC<DFC.ACCT.REF.NO,Y.R.DFC.REC.CNT> = Y.TF.REF.NO
+                        R.DFC.ACCT.REC<DFC.ACCT.CURRENCY,Y.R.DFC.REC.CNT> = R.NEW(FT.CREDIT.CURRENCY)
+!R.DFC.ACCT.REC<DFC.ACCT.AMOUNT,Y.R.DFC.REC.CNT> = R.NEW(FT.CREDIT.AMOUNT)
+                        R.DFC.ACCT.REC<DFC.ACCT.AMOUNT,Y.R.DFC.REC.CNT> = R.NEW(FT.AMOUNT.CREDITED)[4,20]
+                        CALL F.WRITE(FN.DFC.ACCT,Y.CR.ACCT,R.DFC.ACCT.REC)
+                        CALL JOURNAL.UPDATE('')
+                        SENSITIVITY = ''
+                    END
+                END
+            END
+        END
+    END
+    RETURN
+END

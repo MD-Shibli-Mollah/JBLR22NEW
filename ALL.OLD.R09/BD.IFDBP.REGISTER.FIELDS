@@ -1,0 +1,99 @@
+*-----------------------------------------------------------------------------
+* <Rating>-6</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.IFDBP.REGISTER.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine YOURAPPLICATION.FIELDS
+*
+* @author tcoleman@temenos.com
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* Modification History :
+*
+* 19/10/07 - EN_10003543
+*            New Template changes
+*
+* 14/11/07 - BG_100015736
+*            Exclude routines that are not released
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("BD.FTT.NUMBER", T24_String)        ;* Define Table id
+*-----------------------------------------------------------------------------
+    CALL Table.addFieldDefinition("FTT.CUSTOMER.ID","15","","")
+    CALL Field.setCheckFile("CUSTOMER")
+    CALL Table.addFieldDefinition("BD.FT.NUMBER","15","A","")
+    CALL Table.addFieldDefinition("FTT.DATE","12","D","")
+    CALL Table.addFieldDefinition("FTT.CURRENCY","3","A","")
+    CALL Table.addAmountField("FTT.AMOUNT","CURRENCY", Field_AllowNegative,"")
+    CALL Table.addAmountField("EXCHANGE.RATE","CURRENCY","","")
+    CALL Table.addAmountField("FTT.AMOUNT.LOCAL","CURRENCY", Field_AllowNegative,"")
+    CALL Table.addFieldDefinition("FTT.VALUE.DATE","12","D","")
+    CALL Table.addFieldDefinition("FTT.ENTRY.DATE","12","D","")
+    CALL Table.addFieldDefinition("EXPORT.LC.NO","35","A","")
+    CALL Table.addFieldDefinition("CONTRACT.NO","45","A","")
+    CALL Table.addFieldDefinition("LCCONT.ISSUE.DATE","12","D","")
+    CALL Table.addFieldDefinition("LCCONT.CURRENCY","3","A","")
+    CALL Table.addAmountField("LCCONT.VALUE","CURRENCY", Field_AllowNegative,"")
+    CALL Table.addFieldDefinition("XX.REM.BNK.BR.NAME","35","A","")
+    CALL Table.addFieldDefinition("XX.COR.BNK.BR.NAME","35","A","")
+    CALL Table.addFieldDefinition("XX.REMITER.NAME.ADD","35","A","")
+    CALL Table.addFieldDefinition("XX.BENEFIC.NAME.ADD","35","A","")
+    CALL Table.addFieldDefinition("XX.BENEFIC.BNK.ACNO","35","A","")
+    CALL Table.addFieldDefinition("XX.NOSTRO.BNK.ACNO","35","A","")
+    CALL Table.addFieldDefinition("ARV.NUMBER","35","A","")
+    CALL Table.addFieldDefinition("FORMC.YN","5","A","")
+    CALL Table.addFieldDefinition("INVOIC.NO","35","A","")
+    CALL Table.addAmountField("INVOIC.VALUE","CURRENCY", Field_AllowNegative,"")
+    CALL Table.addFieldDefinition("INVOIC.DATE","12","D","")
+    CALL Table.addFieldDefinition("BOL.AWB.NO","35","A","")
+    CALL Table.addFieldDefinition("BOL.AWB.DATE","12","D","")
+    CALL Table.addFieldDefinition("FCR.HAWB.NO","35","A","")
+    CALL Table.addFieldDefinition("FCR.HAWB.DATE","12","D","")
+    CALL Table.addFieldDefinition("BIL.OF.EXP.NO","35","A","")
+    CALL Table.addFieldDefinition("BIL.OF.EXP.DATE","12","D","")
+    CALL Table.addFieldDefinition("ISSU.AUTHORITY","35","A","")
+    CALL Table.addFieldDefinition("SHIPMENT.FROM","35","A","")
+    CALL Table.addFieldDefinition("SHIPMENT.TO","35","A","")
+    CALL Table.addFieldDefinition("SHIPMENT.DATE","12","D","")
+    CALL Table.addFieldDefinition("XX.EXP.FORM.NO","35","A","")
+    CALL Table.addFieldDefinition("EXP.FORM.DATE","12","D","")
+    CALL Table.addFieldDefinition("EXP.DUP.SUB.DT.BB","12","D","")
+    CALL Table.addFieldDefinition("EXP.TRIP.SUB.DT.BB","12","D","")
+    CALL Table.addOptionsField("PRC.ISS.STAT","YES_NO","","")
+    CALL Table.addFieldDefinition("PRC.ISS.DATE","12","D","")
+    CALL Table.addFieldDefinition("XX.COMIDITY.EXPORT","35","A","")
+    CALL Table.addFieldDefinition("COMIDITY.QTY","35","A","")
+    CALL Table.addFieldDefinition("BANK.REF.NO","35","A","")
+    CALL Table.addFieldDefinition("NOSTO.CR.DATE","12","D","")
+    CALL Table.addFieldDefinition("PUR.OF.REMITT","35","A","")
+    CALL Table.addReservedField('RESERVED.10')
+    CALL Table.addReservedField('RESERVED.09')
+    CALL Table.addReservedField('RESERVED.08')
+    CALL Table.addReservedField('RESERVED.07')
+    CALL Table.addReservedField('RESERVED.06')
+    CALL Table.addReservedField('RESERVED.05')
+    CALL Table.addReservedField('RESERVED.04')
+    CALL Table.addReservedField('RESERVED.03')
+    CALL Table.addReservedField('RESERVED.02')
+    CALL Table.addReservedField('RESERVED.01')
+
+*  CALL Table.addFieldWithEbLookup(fieldName,virtualTableName,neighbour)       ;* Specify Lookup values
+*  CALL Field.setDefault(defaultValue) ;* Assign default value
+*-----------------------------------------------------------------------------
+    CALL Table.addOverrideField
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

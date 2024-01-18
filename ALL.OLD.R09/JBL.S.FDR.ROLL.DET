@@ -1,0 +1,78 @@
+*-----------------------------------------------------------------------------
+* <Rating>498</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.FDR.ROLL.DET
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.AZ.ACCOUNT
+
+    IF R.NEW(AZ.MATURITY.INSTR) NE 'PAYMENT TO NOMINATED ACCOUNT' THEN
+        IF R.NEW(AZ.ALL.IN.ONE.PRODUCT) EQ 'FIXEDDEP1M' OR R.NEW(AZ.ALL.IN.ONE.PRODUCT) EQ 'FD2-MONTH' THEN
+            IF R.OLD(AZ.MATURITY.INSTR) EQ R.NEW(AZ.MATURITY.INSTR) THEN
+                R.NEW(AZ.MATURITY.INSTR) = 'PAYMENT TO NOMINATED ACCOUNT'
+            END
+            IF R.OLD(AZ.ROLLOVER.TERM) EQ R.NEW(AZ.ROLLOVER.TERM) THEN
+                R.NEW(AZ.ROLLOVER.TERM)=''
+            END
+            IF R.OLD(AZ.ROLLOVER.INT.RATE) EQ R.NEW(AZ.ROLLOVER.INT.RATE) THEN
+                R.NEW(AZ.ROLLOVER.INT.RATE)=''
+            END
+            IF R.OLD(AZ.ROLL.AIO.PRODUCT) EQ R.NEW(AZ.ROLL.AIO.PRODUCT) THEN
+                R.NEW(AZ.ROLL.AIO.PRODUCT)=''
+            END
+        END
+        ELSE
+            IF R.OLD(AZ.MATURITY.INSTR) EQ R.NEW(AZ.MATURITY.INSTR) THEN
+                R.NEW(AZ.MATURITY.INSTR) = 'AUTOMATIC ROLLOVER'
+            END
+            IF R.OLD(AZ.ROLLOVER.TERM) EQ R.NEW(AZ.ROLLOVER.TERM) THEN
+                R.NEW(AZ.ROLLOVER.TERM)='3M'
+            END
+            IF R.OLD(AZ.ROLLOVER.INT.RATE) EQ R.NEW(AZ.ROLLOVER.INT.RATE) THEN
+                R.NEW(AZ.ROLLOVER.INT.RATE)='P02'
+            END
+            IF R.OLD(AZ.ROLL.AIO.PRODUCT) EQ R.NEW(AZ.ROLL.AIO.PRODUCT) THEN
+                R.NEW(AZ.ROLL.AIO.PRODUCT)='FIXEDDEP3-6M'
+            END
+        END
+
+        IF R.NEW(AZ.ROLLOVER.TERM) EQ '3M' OR R.NEW(AZ.ROLLOVER.TERM) EQ '0003M' THEN
+            IF R.NEW(AZ.ALL.IN.ONE.PRODUCT) NE 'FIXEDDEP3-6M' THEN
+                R.NEW(AZ.ROLL.AIO.PRODUCT) = 'FIXEDDEP3-6M'
+            END ELSE
+                R.NEW(AZ.ROLL.AIO.PRODUCT) = ''
+            END
+        END
+        ELSE
+            IF R.NEW(AZ.ROLLOVER.TERM) EQ '6M' OR R.NEW(AZ.ROLLOVER.TERM) EQ '0006M' THEN
+                R.NEW(AZ.ROLL.AIO.PRODUCT) = 'FIXEDDEP6-12M'
+                R.NEW(AZ.ROLLOVER.INT.RATE)='P01'
+            END
+            ELSE
+                IF R.NEW(AZ.ROLLOVER.TERM) EQ '12M' OR R.NEW(AZ.ROLLOVER.TERM) EQ '0012M' THEN
+                    R.NEW(AZ.ROLL.AIO.PRODUCT) = 'FIXEDDEP1-2Y'
+                    R.NEW(AZ.ROLLOVER.INT.RATE)='P01'
+                END
+                ELSE
+                    IF R.NEW(AZ.ROLLOVER.TERM) EQ '24M' OR R.NEW(AZ.ROLLOVER.TERM) EQ '0024M' THEN
+                        R.NEW(AZ.ROLL.AIO.PRODUCT) = 'FIXEDDEP2-3Y'
+                        R.NEW(AZ.ROLLOVER.INT.RATE)='P01'
+                    END
+                    ELSE
+                        R.NEW(AZ.ROLL.AIO.PRODUCT) = ''
+                    END
+                END
+            END
+        END
+        IF R.NEW(AZ.ALL.IN.ONE.PRODUCT) EQ R.NEW(AZ.ROLL.AIO.PRODUCT) THEN
+            R.NEW(AZ.ROLL.AIO.PRODUCT) = ''
+        END
+    END
+    ELSE
+        R.NEW(AZ.ROLLOVER.TERM)=''
+        R.NEW(AZ.ROLLOVER.INT.RATE)=''
+        R.NEW(AZ.ROLL.AIO.PRODUCT)=''
+    END
+
+    RETURN
+END

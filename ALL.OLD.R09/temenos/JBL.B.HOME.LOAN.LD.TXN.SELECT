@@ -1,0 +1,55 @@
+*--------------------------------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.HOME.LOAN.LD.TXN.SELECT
+*--------------------------------------------------------------------------------------------------------
+* This is a select routine ,which process the ids needed for the main routine.
+* Processed ids are passed through BATCH.BUILD.LIST
+*--------------------------------------------------------------------------------------------------------
+* Modification History :
+* --------------------
+* 20110210 - New - Naveen Kumar N
+*--------------------------------------------------------------------------------------------------------
+* Common Variables :
+* ----------------
+*  R.DATES = Holds the date record values.
+*--------------------------------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.DATES
+    $INCLUDE JBL.BP I_JBL.B.HOME.LOAN.LD.TXN.COMMON
+    $INCLUDE JBL.BP I_F.BD.L.HME.LOAN.REBATE
+*
+    Y.FINAL.LIST        = ""
+    Y.LAST.WORKING.DAY  = R.DATES(EB.DAT.LAST.WORKING.DAY)  
+*
+    CALL F.READ(FN.BD.L.HME.LOAN.REBATE,Y.LAST.WORKING.DAY,R.BD.L.HME.LOAN.REBATE,F.BD.L.HME.LOAN.REBATE,Y.BD.L.HME.LOAN.REBATE.ERR)
+    IF R.BD.L.HME.LOAN.REBATE THEN
+        GOSUB GET.LD.ID.AND.AMT
+    END
+*
+    CALL BATCH.BUILD.LIST('',Y.FINAL.LIST)
+    RETURN
+*
+GET.LD.ID.AND.AMT:
+    Y.I   = 1
+    Y.CNT = DCOUNT(R.BD.L.HME.LOAN.REBATE<BD.LOAN.ID>,VM)
+    LOOP
+    WHILE Y.I LE Y.CNT
+        Y.LD.ID = R.BD.L.HME.LOAN.REBATE<BD.LOAN.ID><1,Y.I>
+        Y.AMT   = R.BD.L.HME.LOAN.REBATE<BD.AMT.TO.REBATE><1,Y.I>
+        GOSUB UPDATE.FINAL.LIST
+        Y.I += 1
+    REPEAT
+    RETURN
+*
+UPDATE.FINAL.LIST:
+    IF Y.FINAL.LIST THEN
+        Y.FINAL.LIST := FM:Y.LD.ID:"*":Y.AMT
+    END ELSE
+        Y.FINAL.LIST = Y.LD.ID:"*":Y.AMT
+    END
+*
+    RETURN
+END

@@ -1,0 +1,157 @@
+*-------------------------------------------------------------------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-67</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.INP.EXEMPT.CHG
+*-------------------------------------------------------------------------------------------------------------------------------------------
+* Subroutine Description:
+*-------------------------------------------------------------------------------------------------------------------------------------------
+* It is a input routine to check lrf EXCEPTION field value. If it is having value 'YES' then
+* next 2 associated lrf EXCEPTION.REASON & EXEMPTED.AMT is mandatory
+* This is attached to
+* LD Version : LD.LOANS.AND.DEPOSITS,BD.CREATE.LOAN
+* Account Version : ACCOUNT,BD.CREATE.LOAN
+*-------------------------------------------------------------------------------------------------------------------------------------------
+* Parameter Description
+*-------------------------------------------------------------------------------------------------------------------------------------------
+* N/A
+*-------------------------------------------------------------------------------------------------------------------------------------------
+* Common Variable Description
+*-------------------------------------------------------------------------------------------------------------------------------------------
+* Variable name:   Insert file:          Description:
+* R.NEW           I_COMMON              It holds the currently opened record
+* APPLICATION     I_COMMON              It holds the currently opened application
+*-------------------------------------------------------------------------------------------------------------------------------------------
+* Called Subroutines:
+*-------------------------------------------------------------------------------------------------------------------------------------------
+* Routine Name:          Local/Core :     Description:
+*
+* F.READ                 CORE             Used to read a record from a file
+*
+*-------------------------------------------------------------------------------------------------------------------------------------------
+* Modification History:
+*-------------------------------------------------------------------------------------------------------------------------------------------
+* 09/02/2011 -          New   - Archana
+*                               Thesys Technologies
+*-------------------------------------------------------------------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INITIATE
+    GOSUB PROCESS
+
+    RETURN
+
+*-------------------------------------------------------------------------------------------------------------------------------------------
+INITIATE:
+*-------------------------------------------------------------------------------------------------------------------------------------------
+
+    FN.LD.LOANS.AND.DEPOSITS = 'F.LD.LOANS.AND.DEPOSITS'
+    F.LD.LOANS.AND.DEPOSITS = ''
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    Y.APPLICATION = APPLICATION
+
+    Y.APPN = 'LD.LOANS.AND.DEPOSITS':FM:'ACCOUNT'
+    Y.FLDS = 'EXCEPTION':VM:'EXP.REASON':VM:'EXMD.AMT':FM:'EXCEPTION':VM:'EXP.REASON':VM:'EXMD.AMT'
+    Y.POS = ''
+
+    CALL MULTI.GET.LOC.REF(Y.APPN,Y.FLDS,Y.POS)
+*   Y.LD.EXCEPTION.POS = Y.POS<1,1>
+*   Y.LD.EXP.REASON.POS = Y.POS<1,2>
+*   Y.LD.EXMD.AMT.POS = Y.POS<1,3>
+*   Y.AC.EXCEPTION.POS = Y.POS<2,1>
+*   Y.AC.EXP.REASON.POS = Y.POS<2,2>
+*   Y.AC.EXMD.AMT.POS = Y.POS<2,3>
+
+    RETURN
+
+*-------------------------------------------------------------------------------------------------------------------------------------------
+PROCESS:
+*-------------------------------------------------------------------------------------------------------------------------------------------
+
+    BEGIN CASE
+    CASE Y.APPLICATION = 'LD.LOANS.AND.DEPOSITS'
+        GOSUB PROCESS.LD
+    CASE Y.APPLICATION = 'ACCOUNT'
+        GOSUB PROCESS.AC
+    END CASE
+
+*    AF = LD.LOCAL.REF
+
+    IF Y.EXCEPTION EQ 'YES' THEN
+        BEGIN CASE
+        CASE Y.EXP.REASON EQ ''
+            AF = Y.LOCAL.REF
+            AV = Y.EXP.REASON.POS
+            ETEXT = 'EB-EXCEPTION.REASON.MISSING'
+            CALL STORE.END.ERROR
+        CASE Y.EXMD.AMT EQ ''
+            AF = Y.LOCAL.REF
+            AV = Y.EXMD.AMT.POS
+            ETEXT = 'EB-EXEMPTION.AMT.MISSING'
+            CALL STORE.END.ERROR
+        CASE Y.EXP.REASON EQ '' AND Y.EXMD.AMT EQ ''
+            AF = Y.LOCAL.REF
+            AV = Y.EXP.REASON.POS
+            ETEXT = 'EB-EB-EXCEPTION.REASON.AND.AMT.MISSING'
+        END CASE
+    END ELSE
+        BEGIN CASE
+        CASE Y.EXP.REASON AND Y.EXMD.AMT
+            AF = Y.LOCAL.REF
+            AV = Y.EXCEPTION.POS
+            ETEXT = 'EB-EXCEPTION.MISSING'
+            CALL STORE.END.ERROR
+        CASE Y.EXP.REASON AND Y.EXMD.AMT EQ ''
+            AF = Y.LOCAL.REF
+            AV = Y.EXCEPTION.POS
+            ETEXT = 'EB-EXCEPTION.AND.AMT.MISSING'
+            CALL STORE.END.ERROR
+        CASE Y.EXP.REASON EQ '' AND Y.EXMD.AMT
+            AF = Y.LOCAL.REF
+            AV = Y.EXCEPTION.POS
+            ETEXT = 'EB-EXCEPTION.AND.REASON.MISSING'
+            CALL STORE.END.ERROR
+        END CASE
+
+    END
+    RETURN
+
+*-------------------------------------------------------------------------------------------------------------------------------------------
+PROCESS.LD:
+*-------------------------------------------------------------------------------------------------------------------------------------------
+
+    Y.EXCEPTION.POS = Y.POS<1,1>
+    Y.EXP.REASON.POS = Y.POS<1,2>
+    Y.EXMD.AMT.POS = Y.POS<1,3>
+
+    Y.EXCEPTION = R.NEW(LD.LOCAL.REF)<1,Y.EXCEPTION.POS>
+    Y.EXP.REASON = R.NEW(LD.LOCAL.REF)<1,Y.EXP.REASON.POS>
+    Y.EXMD.AMT = R.NEW(LD.LOCAL.REF)<1,Y.EXMD.AMT.POS>
+    Y.LOCAL.REF = LD.LOCAL.REF
+    RETURN
+
+*-------------------------------------------------------------------------------------------------------------------------------------------
+PROCESS.AC:
+*-------------------------------------------------------------------------------------------------------------------------------------------
+
+    Y.EXCEPTION.POS = Y.POS<2,1>
+    Y.EXP.REASON.POS = Y.POS<2,2>
+    Y.EXMD.AMT.POS = Y.POS<2,3>
+
+    Y.EXCEPTION = R.NEW(AC.LOCAL.REF)<1,Y.EXCEPTION.POS>
+    Y.EXP.REASON = R.NEW(AC.LOCAL.REF)<1,Y.EXP.REASON.POS>
+    Y.EXMD.AMT = R.NEW(AC.LOCAL.REF)<1,Y.EXMD.AMT.POS>
+    Y.LOCAL.REF = AC.LOCAL.REF
+    RETURN
+
+*-------------------------------------------------------------------------------------------------------------------------------------------
+END
+*-------------------------------------------------------------------------------------------------------------------------------------------

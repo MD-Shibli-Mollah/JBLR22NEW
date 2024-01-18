@@ -1,0 +1,622 @@
+*-----------------------------------------------------------------------------
+* <Rating>3413</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE COB.IS.LD.ASSET.CLASS(Y.LIMIT.REF)
+!PROGRAM COB.AB.LD.ASSET.CLASS
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.PD.PAYMENT.DUE
+    $INCLUDE GLOBUS.BP I_F.LMM.ACCOUNT.BALANCES
+    $INCLUDE GLOBUS.BP I_F.LD.SCHEDULE.DEFINE
+    $INCLUDE GLOBUS.BP I_F.CUSTOMER
+    $INSERT I_F.LD.LOANS.AND.DEPOSITS
+    $INSERT I_F.DATES
+    $INCLUDE GLOBUS.BP I_F.COLLATERAL
+    $INCLUDE GLOBUS.BP I_F.COLLATERAL.RIGHT
+    $INSERT I_F.AB.H.ASSET.CLASS.PARAM
+    $INCLUDE GLOBUS.BP I_F.EB.CONTRACT.BALANCES
+    $INSERT I_COB.AB.LD.ASSET.CLASS.COMMON
+    $INCLUDE GLOBUS.BP I_F.DATES
+    $INSERT I_F.AB.H.LOAN.BROAD.CATEG
+    $INSERT I_F.AB.L.CLASSIFICATION.HIST
+    $INSERT I_F.AB.H.CLASSIFICATION.AMT
+
+    GOSUB WRITE.REC
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+*---------
+WRITE.REC:
+*---------
+*Header for Flat File
+    Y.SEQ.ID = 'IS.LD.PROV.' : TODAY
+    OPEN "IS.LD.PD" TO F.IS.LD.PD ELSE
+        CMD = "CREATE.FILE IS.LD.PD TYPE=UD"
+        EXECUTE CMD
+        OPEN "IS.LD.PD" TO F.IS.LD.PD ELSE NULL
+    END
+    RETURN
+*----
+INIT:
+*----
+!DEBUG
+!CALL COB.IS.LD.ASSET.CLASS.LOAD
+
+*---Initialization of variables
+    R.LD.LOANS.AND.DEPOSITS=''
+    R.PD.PAYMENT.DUE=''
+    R.IS.H.ASSET.CLASS.PARAM = ''
+    R.LMM.ACCOUNT.BALANCES=''
+    R.LD.SCHEDULE.DEFINE=''
+    Y.ASSET.PARAM.ERR = ''
+    Y.LD.ERR=''
+    Y.PD.ERR=''
+    Y.LMM.ACCOUNT.BALANCES.ERR=''
+    Y.LD.SCHEDULE.DEFINE.ERR=''
+    Y.LD.AMT.OUTS =0
+    Y.LD.CATEGORY=''
+    Y.LIMIT.REF = ''
+    Y.LD.OVERDUE.STATUS =''
+    Y.LD.STATUS = ''
+    Y.LD.VALUE.DATE = ''
+    Y.LD.MAT.DATE  = ''
+    Y.CTR = 0
+    Y.START.DATE=''
+    Y.LAST.WDAY=TODAY
+    Y.DAYS = ''
+    SEL.LIST=''
+    NO.OF.RECORDS=''
+    Y.RET.CODE=''
+    Y.LD.ASSET.CLASS=''
+    Y.TOT.EXE.VAL=''
+    Y.PERCENTAGE=''
+    Y.SEC.AMT = ''
+    Y.REMAIN.SEC = ''
+    Y.ELIGIBLE.SEC = ''
+    Y.TOT.SUSPENSE.AMT=''
+    ACCRUED.OUTS=''
+    SUSP.OUTS=''
+    SD.AMT=''
+    Y.MONTHLY.INS=''
+    Y.OVD.MON=''
+    Y.CHECK=''
+    Y.DUE.MON=''
+    Y.FREQUENCY.INS = ''
+    Y.FREQUENCY = ''
+    Y.CL.DATE=''
+    POS=''
+    POS1=''
+    Y.SEC.AMT = ''
+    Y.REMAIN.SEC = ''
+    Y.ELIGIBLE.SEC = ''
+    R.CUSTOMER.REC = ''
+    Y.CUS.SEC.ID=''
+    Y.SUSPENSE.AMT=0
+    Y.LD.SUSPENSE.AMT=0
+    Y.PD.SUSPENSE.AMT=0
+    Y.TOT.SUSPENSE.AMT=0
+
+    RETURN
+*-------
+PROCESS:
+*-------
+!DEBUG
+!SEL.CMD='SELECT ':FN.LD.LOANS.AND.DEPOSITS : ' WITH (CATEGORY EQ 21053 OR CATEGORY EQ 21054 OR CATEGORY EQ 21056 OR CATEGORY EQ 21068 OR CATEGORY EQ 21070 OR CATEGORY EQ 21071 OR CATEGORY EQ 21072 OR CATEGORY EQ 21073) AND OVERDUE.STATUS NE "LIQ" BY CUSTOMER.ID'
+!CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.RECORDS,Y.RET.CODE)
+!LOOP
+!REMOVE Y.LOAN.ID FROM SEL.LIST SETTING Y.POS
+!WHILE Y.LOAN.ID:Y.POS
+!Y.LOAN.ID='LD0833502958'
+
+    SEL.CMD = 'SELECT ': FN.LD.LOANS.AND.DEPOSITS : ' WITH LIMIT.REFERENCE LIKE "' : Y.LIMIT.REF : '..."'
+    CALL EB.READLIST(SEL.CMD,LD.LIST,'',NO.OF.LD,LD.ERR)
+    IF LD.LIST THEN
+        LOOP
+            REMOVE Y.LOAN.ID FROM LD.LIST SETTING LD.POS
+        WHILE Y.LD.ID : LD.POS
+            GOSUB PROCESS.FOR.LD
+        REPEAT
+    END
+    RETURN
+
+*___________
+PROCESS.FOR.LD:
+*---------------
+*---Read LD.LOANS.AND.DEPOSITS application where ID comes from
+*---SUBROUTINE'S parameter
+    CALL F.READ(FN.LD.LOANS.AND.DEPOSITS,Y.LOAN.ID,R.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS,Y.LD.ERR)
+    Y.LD.CUSTOMER= R.LD.LOANS.AND.DEPOSITS<LD.CUSTOMER.ID>
+    Y.LD.OUTS = R.LD.LOANS.AND.DEPOSITS<LD.AMOUNT>
+    Y.LD.CATEGORY=R.LD.LOANS.AND.DEPOSITS<LD.CATEGORY>
+    Y.LIMIT.REF = FIELD(R.LD.LOANS.AND.DEPOSITS<LD.LIMIT.REFERENCE>,".",1)
+    Y.LD.OVERDUE.STATUS = R.LD.LOANS.AND.DEPOSITS<LD.OVERDUE.STATUS>
+    Y.LD.STATUS = R.LD.LOANS.AND.DEPOSITS<LD.STATUS>
+    Y.LD.VALUE.DATE = R.LD.LOANS.AND.DEPOSITS<LD.VALUE.DATE>
+    Y.LD.MAT.DATE  = R.LD.LOANS.AND.DEPOSITS<LD.FIN.MAT.DATE>
+    Y.LMM.ID=Y.LOAN.ID:'00'
+
+    IF LEN(Y.LMM.ID) EQ 14 THEN
+*-------Read LMM.ACCOUNT.BALANCES application where ID comes from
+*-------concatenating LOAN ID with '00'
+        CALL F.READ(FN.LMM.ACCOUNT.BALANCES,Y.LMM.ID,R.LMM.ACCOUNT.BALANCES,F.LMM.ACCOUNT.BALANCES,Y.LMM.ACCOUNT.BALANCES.ERR)
+        ACCRUED.OUTS=ABS(R.LMM.ACCOUNT.BALANCES<LD27.OUTS.ACCRUED.INT>)
+        SUSP.OUTS=ABS(R.LMM.ACCOUNT.BALANCES<LD27.OUTS.SUSP.INT>)
+    END
+*---Read LD.SCHEDULE.DEFINE application where ID comes from LOAN ID
+    CALL F.READ(FN.LD.SCHEDULE.DEFINE,Y.LOAN.ID,R.LD.SCHEDULE.DEFINE,F.LD.SCHEDULE.DEFINE,Y.LD.SCHEDULE.DEFINE.ERR)
+
+    LOCATE 'B' IN R.LD.SCHEDULE.DEFINE<LD.SD.SCH.TYPE,1> SETTING POS THEN
+        SD.AMT=R.LD.SCHEDULE.DEFINE<LD.SD.AMOUNT,POS>
+    END
+*---Getting total Loan Outstanding
+    Y.LD.AMT.OUTS=Y.LD.OUTS+ACCRUED.OUTS+SUSP.OUTS+SD.AMT
+
+*---Getting Frequency and Frequency installment to find out monthly
+*---installment
+    IF R.LD.SCHEDULE.DEFINE THEN
+        IF Y.LD.CATEGORY EQ 21073 THEN
+            Y.FREQUENCY.INS = R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF,Y.REPAY.AMT.POS>
+            LOCATE 'IP' IN R.LD.SCHEDULE.DEFINE<LD.SD.SCH.TYPE,1> SETTING POS1 THEN
+                Y.FREQUENCY=FIELD(R.LD.SCHEDULE.DEFINE<LD.SD.FREQUENCY,POS1>,'M',1)
+            END
+        END ELSE
+            LOCATE 'P' IN R.LD.SCHEDULE.DEFINE<LD.SD.SCH.TYPE,1> SETTING POS1 THEN
+                Y.FREQUENCY.INS = R.LD.SCHEDULE.DEFINE<LD.SD.AMOUNT,POS1>
+                Y.FREQUENCY = FIELD(R.LD.SCHEDULE.DEFINE<LD.SD.FREQUENCY,POS1>,'M',1)
+            END
+        END
+        IF Y.FREQUENCY GT 0 THEN
+            Y.MONTHLY.INS=Y.FREQUENCY.INS/Y.FREQUENCY
+        END
+    END
+
+*---condition for IJARA
+    IF Y.LD.CATEGORY MATCHES Y.DEMAND.CATEG THEN
+        GOSUB COB.EXIM.MARKUP.PROV.CALC
+    END
+    ELSE
+        IF Y.LD.OVERDUE.STATUS NE 'LIQ' THEN
+            GOSUB COB.EXIM.IJARA.PROV.CALC
+        END
+    END
+
+*---Clear Cache after performing all the operations
+    EXECUTE "CLEAR.FILE F.OS.XML.CACHE"
+
+!REPEAT
+!CALL JOURNAL.UPDATE("")
+
+    RETURN
+
+*------------------------
+COB.EXIM.IJARA.PROV.CALC:
+*------------------------
+!DEBUG
+    Y.PD.ID = 'PD':Y.LOAN.ID
+*---Read PD.PAYMENT.DUE application where ID comes from concatenating
+*---'PD' with LOAN ID
+    CALL F.READ(FN.PD.PAYMENT.DUE,Y.PD.ID,R.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE,Y.PD.ERR)
+    IF Y.LD.OVERDUE.STATUS EQ 'CUR' OR Y.LD.OVERDUE.STATUS EQ '' THEN
+        GOSUB LOAN.PROCESS
+        Y.PD.ID = ''
+    END ELSE
+        IF R.PD.PAYMENT.DUE THEN
+            GOSUB PROCESS.PD
+        END
+    END
+    RETURN
+*-------------------------
+COB.EXIM.MARKUP.PROV.CALC:
+*-------------------------
+    IF Y.LD.OVERDUE.STATUS EQ 'CUR' OR Y.LD.OVERDUE.STATUS EQ '' THEN
+        GOSUB LOAN.MARKUP.PROCESS
+    END
+    RETURN
+*------------
+LOAN.PROCESS:
+*------------
+*---Clearing relative values from LD.LOANS.AND.DEPOSITS and PD.PAYMENT.DUE
+*---application in case of IJARA
+    IF R.LD.LOANS.AND.DEPOSITS THEN
+        R.LD.LOANS.AND.DEPOSITS<LD.ASSET.CLASS> = '1'
+        R.LD.LOANS.AND.DEPOSITS<LD.PROVISION> = ''
+        R.LD.LOANS.AND.DEPOSITS<LD.PROVISION.AMOUNT> = ''
+        R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF,Y.LD.BASEPROV.POS> = ''
+        WRITE R.LD.LOANS.AND.DEPOSITS ON F.LD.LOANS.AND.DEPOSITS,Y.LOAN.ID
+    END
+
+    IF R.PD.PAYMENT.DUE THEN
+        R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.ASSET.CLASS.POS> = '1'
+        R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.PROVISION.POS> = ''
+        R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.BASE.PROV.POS> = ''
+        R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.PROV.AMT.POS> = ''
+        R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.MAN.ASSET.CLASS.POS> = '1'
+        R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.PD.TOT.SUSP.POS> = ''
+        R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.PD.TOT.EXE.POS> = ''
+
+        WRITE R.PD.PAYMENT.DUE ON F.PD.PAYMENT.DUE,Y.PD.ID
+    END
+
+    RETURN
+*-------------------
+LOAN.MARKUP.PROCESS:
+*-------------------
+*---Clearing relative values from LD.LOANS.AND.DEPOSITS in case of MARKUP
+    IF R.LD.LOANS.AND.DEPOSITS THEN
+        R.LD.LOANS.AND.DEPOSITS<LD.ASSET.CLASS> = '1'
+        R.LD.LOANS.AND.DEPOSITS<LD.PROVISION> = ''
+        R.LD.LOANS.AND.DEPOSITS<LD.PROVISION.AMOUNT> = ''
+        R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF,Y.LD.BASEPROV.POS> = ''
+        WRITE R.LD.LOANS.AND.DEPOSITS ON F.LD.LOANS.AND.DEPOSITS,Y.LOAN.ID
+    END
+    RETURN
+*----------
+PROCESS.PD:
+*----------
+!DEBUG
+    IF R.PD.PAYMENT.DUE THEN
+        Y.SUSPENSE.AMT=0
+        Y.LD.SUSPENSE.AMT=0
+        Y.PD.SUSPENSE.AMT=0
+        Y.TOT.SUSPENSE.AMT=0
+        Y.PD.MAN.ASSET.CLASS=R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.MAN.ASSET.CLASS.POS>
+        Y.PD.AMT.OUTS = R.PD.PAYMENT.DUE<PD.TOTAL.OVERDUE.AMT>
+        Y.PRV.CLASS=R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.ASSET.CLASS.POS>
+        Y.CL.DATE = R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.CL.DATE.POS>
+        Y.CTR = DCOUNT(R.PD.PAYMENT.DUE<PD.PAYMENT.DTE.DUE>,@VM)
+        Y.START.DATE = R.PD.PAYMENT.DUE<PD.PAYMENT.DTE.DUE,Y.CTR>
+        Y.DAYS = 'C'
+*-------Calculate the Difference to get the number of days overdue
+        CALL CDD('',Y.START.DATE,Y.LAST.WDAY,Y.DAYS)
+
+        R.IS.H.ASSET.CLASS.PARAM = ''
+        Y.ASSET.PARAM.ERR = ''
+        CALL F.READ(FN.IS.H.ASSET.CLASS.PARAM,Y.LIMIT.REF,R.IS.H.ASSET.CLASS.PARAM,F.IS.H.ASSET.CLASS.PARAM,Y.ASSET.PARAM.ERR)
+        IF R.IS.H.ASSET.CLASS.PARAM THEN
+!Y.RUN.FREQ = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.PROV.REVIEW.FREQ>[1,8]
+!Y.NEXT.WORKING.DAY = R.DATES(EB.DAT.NEXT.WORKING.DAY)
+*-----------Checking TODAY is frequency date or not
+!IF Y.RUN.FREQ GE TODAY AND Y.RUN.FREQ LE Y.NEXT.WORKING.DAY THEN
+            Y.FLAG = 1
+!END ELSE
+!    Y.FLAG = 0
+!END
+            IF Y.FLAG = 1 THEN
+                Y.MAIN.CNT = DCOUNT(R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.TENOR>,VM)
+                Y.MAIN.CTR = 1
+                LOOP
+                WHILE (Y.MAIN.CTR LE Y.MAIN.CNT)
+!DEBUG
+                    Y.TENOR = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.TENOR><1,Y.MAIN.CTR>
+
+                    IF (Y.LD.CATEGORY EQ 21068 OR Y.LD.CATEGORY EQ 21072) AND Y.TENOR  NE '> 5 YEARS' THEN
+                        Y.MAIN.CTR +=1
+                    END ELSE
+                        Y.INC.REC = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.INCOME.RECOG,Y.MAIN.CTR>
+                        Y.OP = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.OPERAND,Y.MAIN.CTR>
+                        Y.DESC = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.DECISION,Y.MAIN.CTR>
+                        Y.OVD.FR = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.OVERDUE.FR,Y.MAIN.CTR>
+                        Y.OVD.TO = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.OVERDUE.TO,Y.MAIN.CTR>
+
+                        Y.OVD.MON=FIELD(Y.OVD.FR/30,'.',1)
+
+                        GOSUB GET.RESULT
+
+                        IF Y.RESULT EQ 1 THEN
+*-------------------------------------------------------------------------
+*----------compare PD OUTSTANDING AMOUNT with OVERDUE MONTH to find out---
+*----------the actual asset class-----------------------------------------
+
+                            IF Y.PD.AMT.OUTS GE (Y.MONTHLY.INS * Y.OVD.MON) THEN
+                                Y.ASSET=R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.ASSET.CLASS,Y.MAIN.CTR>
+                            END ELSE
+                                Y.CHECK=0
+                                LOOP
+                                WHILE (Y.CHECK NE 1)
+                                    Y.MAIN.CTR = Y.MAIN.CTR-1
+                                    Y.OVD.FR = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.OVERDUE.FR,Y.MAIN.CTR>
+                                    Y.OVD.TO = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.OVERDUE.TO,Y.MAIN.CTR>
+                                    Y.DUE.MON=Y.PD.AMT.OUTS/Y.MONTHLY.INS
+                                    IF (Y.DUE.MON * 30) GE Y.OVD.FR AND (Y.DUE.MON * 30) LE Y.OVD.TO THEN
+                                        Y.ASSET=R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.ASSET.CLASS,Y.MAIN.CTR>
+                                        Y.CHECK=1
+                                    END
+                                REPEAT
+                            END
+*----------------------End find out actual asset class--------------------
+
+*----------compare with manual asset class to find out the worst one------
+                            IF Y.PD.MAN.ASSET.CLASS EQ '' THEN
+                                Y.ASSET=R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.ASSET.CLASS,Y.MAIN.CTR>
+                            END ELSE
+                                IF Y.PD.MAN.ASSET.CLASS GT Y.ASSET THEN
+                                    Y.ASSET=Y.PD.MAN.ASSET.CLASS
+                                END
+                            END
+*----------End checking manual asset class with system generated class----
+
+                            IF (Y.PRV.CLASS EQ '' OR Y.PRV.CLASS EQ 10 OR Y.PRV.CLASS EQ 20) AND (Y.ASSET EQ 30 OR Y.ASSET EQ 40 OR Y.ASSET EQ 50) THEN
+                                Y.CL.DATE = TODAY
+                            END ELSE
+                                IF (Y.PRV.CLASS EQ 30 OR Y.PRV.CLASS EQ 40 OR Y.PRV.CLASS EQ 50 ) AND (Y.ASSET EQ '' OR Y.ASSET EQ 10 OR Y.ASSET EQ 20) THEN
+                                    Y.CL.DATE = TODAY
+                                END
+                            END
+                            LOCATE Y.ASSET IN R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.ASSET.CLASS,1> SETTING POS THEN
+                                Y.PERCENTAGE=R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.PROV.PERC,POS>
+                            END
+                            Y.TOT.OUTS.AMT=Y.LD.AMT.OUTS+Y.PD.AMT.OUTS
+
+                            Y.TRANS.CODE = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.DR.CR.TXN.CODE><1,Y.MAIN.CTR>
+                            Y.DR.ACCT = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.PROV.EXP.CATEG,Y.MAIN.CTR>
+                            Y.CR.ACCOUNT = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.PROV.RESV.CATEG,Y.MAIN.CTR>
+                            Y.CR.ACCT = 'BDT':Y.CR.ACCOUNT:'0001'
+!DEBUG
+!--------------Find out customer's SUSPENSE Amount------------------------
+                            IF Y.ASSET GE 20 THEN
+                                GOSUB GET.LD.SUSPENSE
+                                GOSUB GET.PD.SUSPENSE
+!DEBUG
+!-----------------Add commission amount with suspense --------------------
+                                Y.COMMISSION=0
+                                Y.COUNT=DCOUNT(R.PD.PAYMENT.DUE<PD.TOT.OVRDUE.TYPE>,VM)
+                                Y.LOOP.CTR=1
+                                LOOP
+                                    WHILE(Y.LOOP.CTR LE Y.COUNT)
+                                    IF R.PD.PAYMENT.DUE<PD.TOT.OVRDUE.TYPE,Y.LOOP.CTR> EQ 'CO' THEN
+                                        Y.COMMISSION=R.PD.PAYMENT.DUE<PD.TOT.OD.TYPE.AMT,Y.LOOP.CTR>
+                                        Y.LOOP.CTR=Y.COUNT
+                                    END
+                                    Y.LOOP.CTR+=1
+                                REPEAT
+!---------------------------End calculating commission--------------------
+
+                                Y.TOT.SUSPENSE.AMT=Y.LD.SUSPENSE.AMT+Y.PD.SUSPENSE.AMT+Y.COMMISSION
+                                IF  Y.TOT.SUSPENSE.AMT GE 0 THEN
+                                    Y.TOT.SUSPENSE.AMT=Y.TOT.SUSPENSE.AMT
+                                END ELSE
+                                    Y.TOT.SUSPENSE.AMT=0
+                                END
+                            END
+!---------------------------End calculating SUSPENCE AMOUNT---------------
+
+*--------------------Start calculating provisioning amount----------------
+
+                            IF Y.ASSET EQ 10 THEN
+                                Y.BASE.AMT = Y.TOT.OUTS.AMT
+                                Y.PROV.CALC = Y.TOT.OUTS.AMT*Y.PERCENTAGE/100
+                            END ELSE
+                                IF Y.ASSET EQ 20 THEN
+                                    Y.BASE.AMT=Y.TOT.OUTS.AMT-Y.TOT.SUSPENSE.AMT
+                                    Y.PROV.CALC=Y.BASE.AMT*Y.PERCENTAGE/100
+                                END
+                            END
+
+                            Y.BASE.FR.PROV=DROUND(Y.BASE.AMT,2)
+                            Y.PROV.AMT = DROUND(Y.PROV.CALC,2)
+                            Y.CO.CODE = R.PD.PAYMENT.DUE<PD.CO.CODE>
+
+                            Y.WRITE = Y.DR.ACCT:"*":Y.CR.ACCT:"*":Y.PROV.AMT:"*":Y.CO.CODE
+
+                            IF Y.BASE.AMT LT 0 THEN
+                                Y.BASE.AMT=0
+                            END
+*--------------------End calculating provision amount---------------------
+
+*---------------------------Start writing on files------------------------
+
+                            R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.ASSET.CLASS.POS> = Y.ASSET
+                            R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.PROVISION.POS> = Y.PERCENTAGE
+                            R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.BASE.PROV.POS> = Y.BASE.FR.PROV
+                            R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.PROV.AMT.POS> = Y.PROV.AMT
+                            R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.PD.TOT.SUSP.POS> = Y.TOT.SUSPENSE.AMT
+                            R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.PD.TOT.EXE.POS> = Y.ELIGIBLE.SEC
+                            R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.CL.DATE.POS> = Y.CL.DATE
+
+                            WRITE R.PD.PAYMENT.DUE ON F.PD.PAYMENT.DUE,Y.PD.ID
+
+                            IF Y.ASSET.CLASS LE 20  THEN
+                                CALL F.READ(FN.CLASS.HIST,Y.PD.ID,R.CLASS.HIST,F.CLASS.HIST,ERR)
+                                IF R.CLASS.HIST THEN
+                                    R.CLASS.HIST<1,-1> = TODAY
+                                    R.CLASS.HIST<2,-1> = Y.ASSET.CLASS
+                                    R.CLASS.HIST<3,-1> = Y.TOT.OUTS.AMT
+                                    R.CLASS.HIST<4,-1> = Y.FIN.SUSP.AMT
+                                    R.CLASS.HIST<6,-1> = Y.BASE.FR.PROV
+                                END
+                                ELSE
+                                    R.CLASS.HIST<1> = TODAY
+                                    R.CLASS.HIST<2> = Y.ASSET.CLASS
+                                    R.CLASS.HIST<3> = Y.TOT.OUTS.AMT
+                                    R.CLASS.HIST<4> = Y.FIN.SUSP.AMT
+                                    R.CLASS.HIST<6> = Y.BASE.FR.PROV
+                                END
+
+                                WRITE R.CLASS.HIST ON F.CLASS.HIST,Y.PD.ID
+                            END
+
+                            IF Y.ASSET.CLASS LE 20 THEN
+                                R.CLASS.AMT<CL.AMT.PROVISION.AMT> = Y.BASE.FR.PROV
+                            END
+                            R.CLASS.AMT<CL.AMT.DR.CR.TXN.CODE> = Y.TRANS.CODE
+                            R.CLASS.AMT<CL.AMT.PROV.RESV.CATEG> = Y.CR.ACCT
+                            R.CLASS.AMT<CL.AMT.PROV.EXP.CATEG> = Y.DR.ACCT
+                            R.CLASS.AMT<CL.AMT.PROV.APPLIED> = 'N'
+
+                            WRITE R.CLASS.AMT TO F.CLASS.AMT,Y.PD.ID
+
+*---------------------------End writing on files--------------------------
+* write to file
+                            IF R.LD.LOANS.AND.DEPOSITS THEN
+                                R.LD.LOANS.AND.DEPOSITS<LD.ASSET.CLASS> = Y.ASSET
+                                WRITE R.LD.LOANS.AND.DEPOSITS ON F.LD.LOANS.AND.DEPOSITS,Y.LOAN.ID
+                            END
+
+                            READ Y.SEQ.REC FROM F.IS.LD.PD,Y.SEQ.ID THEN
+                                Y.SEQ.REC<-1> = Y.WRITE
+                                WRITE Y.SEQ.REC TO F.IS.LD.PD, Y.SEQ.ID
+                            END ELSE
+                                Y.SEQ.REC = Y.WRITE
+                                WRITE Y.SEQ.REC TO F.IS.LD.PD, Y.SEQ.ID
+                            END
+                            Y.ASSET=''
+                            Y.PERCENTAGE=''
+                            Y.BASE.FR.PROV=''
+                            Y.PROV.AMT=''
+                            Y.TOT.SUSPENSE.AMT=''
+                            Y.ELIGIBLE.SEC=''
+                            Y.LD.SUSPENSE.AMT=''
+                            Y.PD.SUSPENSE.AMT=''
+                            Y.COMMISSION=''
+
+                            Y.MAIN.CTR = Y.MAIN.CNT
+                        END
+                        Y.MAIN.CTR +=1
+                    END
+                REPEAT
+            END
+        END
+*END
+    END
+    RETURN
+*----------
+GET.RESULT:
+*----------
+    Y.RESULT = 0
+    BEGIN CASE
+    CASE Y.DESC EQ "LT"
+        IF Y.DAYS LT Y.OVD.FR THEN Y.RESULT = 1
+    CASE Y.DESC EQ "LE"
+        IF Y.DAYS LE Y.OVD.FR THEN Y.RESULT = 1
+    CASE Y.DESC EQ "GT"
+        IF Y.DAYS GT Y.OVD.FR THEN Y.RESULT = 1
+    CASE Y.DESC EQ "GE"
+        IF Y.DAYS GE Y.OVD.FR THEN Y.RESULT = 1
+    CASE Y.DESC EQ "EQ"
+        IF Y.DAYS EQ Y.OVD.FR THEN Y.RESULT = 1
+    CASE Y.DESC EQ "NE"
+        IF Y.DAYS NE Y.OVD.FR THEN Y.RESULT = 1
+    CASE Y.DESC EQ "RG"
+        IF Y.DAYS GE Y.OVD.FR AND Y.DAYS LE Y.OVD.TO THEN Y.RESULT = 1
+    CASE Y.DESC EQ "NR"
+        IF Y.DAYS LT Y.OVD.FR OR Y.DAYS GE Y.OVD.TO THEN Y.RESULT = 1
+
+    END CASE
+
+    RETURN
+*---------------
+GET.LD.SUSPENSE:
+*---------------
+    Y.LD.CONTRACT.ID=Y.LOAN.ID
+    R.EB.CONTRACT.BALANCES=''
+    Y.ERR.EB.CONTRACT.BALANCES=''
+    Y.LD.OPEN.CNT=''
+    Y.LD.OPEN.BAL=0
+    Y.LD.DEBIT.MVMNT=0
+    Y.LD.CREDIT.MVMNT=0
+    Y.LD.SUSPENSE.AMT=0
+    CALL F.READ(FN.EB.CONTRACT.BALANCES,Y.LD.CONTRACT.ID,R.EB.CONTRACT.BALANCES,F.EB.CONTRACT.BALANCES,Y.ERR.EB.CONTRACT.BALANCES)
+    IF R.EB.CONTRACT.BALANCES THEN
+        Y.SP.CNT=DCOUNT(R.EB.CONTRACT.BALANCES<ECB.TYPE.SYSDATE>,VM)
+        Y.SP.CTR=1
+        LOOP
+        WHILE (Y.SP.CTR LE Y.SP.CNT)
+            IF R.EB.CONTRACT.BALANCES<ECB.TYPE.SYSDATE,Y.SP.CTR>[6,2] EQ 'SP' THEN
+
+                Y.LD.OPEN.CNT = DCOUNT(R.EB.CONTRACT.BALANCES<ECB.OPEN.BALANCE,Y.SP.CTR>,@SM)
+                Y.LD.OPEN.CTR = 1
+                LOOP
+                    WHILE(Y.LD.OPEN.CTR LE Y.LD.OPEN.CNT)
+                    Y.LD.OPEN.BAL+=R.EB.CONTRACT.BALANCES<ECB.OPEN.BALANCE,Y.SP.CTR,Y.LD.OPEN.CTR>
+                    Y.LD.OPEN.CTR += 1
+                REPEAT
+
+                Y.LD.DBT.CNT = DCOUNT(R.EB.CONTRACT.BALANCES<ECB.DEBIT.MVMT,Y.SP.CTR>,@SM)
+                Y.LD.DBT.CTR = 1
+                LOOP
+                    WHILE(Y.LD.DBT.CTR LE Y.LD.DBT.CNT)
+                    Y.LD.DEBIT.MVMNT += R.EB.CONTRACT.BALANCES<ECB.DEBIT.MVMT,Y.SP.CTR,Y.LD.DBT.CTR>
+                    Y.LD.DBT.CTR += 1
+                REPEAT
+
+                Y.LD.CRT.CNT = DCOUNT(R.EB.CONTRACT.BALANCES<ECB.CREDIT.MVMT,Y.SP.CTR>,@SM)
+                Y.LD.CRT.CTR = 1
+                LOOP
+                    WHILE(Y.LD.CRT.CTR LE Y.LD.CRT.CNT)
+                    Y.LD.CREDIT.MVMNT+=R.EB.CONTRACT.BALANCES<ECB.CREDIT.MVMT,Y.SP.CTR,Y.LD.CRT.CTR>
+                    Y.LD.CRT.CTR += 1
+                REPEAT
+            END
+            Y.SP.CTR+=1
+        REPEAT
+        Y.LD.SUSPENSE.AMT=Y.LD.OPEN.BAL+Y.LD.DEBIT.MVMNT+Y.LD.CREDIT.MVMNT
+
+        R.EB.CONTRACT.BALANCES=''
+        Y.ERR.EB.CONTRACT.BALANCES=''
+        Y.LD.OPEN.BAL=''
+        Y.LD.DEBIT.MVMNT=''
+        Y.LD.CREDIT.MVMNT=''
+
+    END
+    RETURN
+*---------------
+GET.PD.SUSPENSE:
+*---------------
+!DEBUG
+    Y.LD.CONTRACT.ID=Y.LOAN.ID
+    Y.PD.CONTRACT.ID='PD':Y.LD.CONTRACT.ID
+    R.EB.CONTRACT.BALANCES=''
+    Y.ERR.EB.CONTRACT.BALANCES=''
+    Y.PD.OPEN.CNT=''
+    Y.PD.OPEN.BAL=0
+    Y.PD.DEBIT.MVMNT=0
+    Y.PD.CREDIT.MVMNT=0
+    Y.PD.SUSPENSE.AMT=0
+    CALL F.READ(FN.EB.CONTRACT.BALANCES,Y.PD.CONTRACT.ID,R.EB.CONTRACT.BALANCES,F.EB.CONTRACT.BALANCES,Y.ERR.EB.CONTRACT.BALANCES)
+    IF R.EB.CONTRACT.BALANCES THEN
+        Y.SP.CNT=DCOUNT(R.EB.CONTRACT.BALANCES<ECB.TYPE.SYSDATE>,VM)
+        Y.SP.CTR=1
+        LOOP
+        WHILE (Y.SP.CTR LE Y.SP.CNT)
+            IF R.EB.CONTRACT.BALANCES<ECB.TYPE.SYSDATE,Y.SP.CTR>[6,2] EQ 'SP' THEN
+
+                Y.PD.OPEN.CNT = DCOUNT(R.EB.CONTRACT.BALANCES<ECB.OPEN.BALANCE,Y.SP.CTR>,@SM)
+                Y.PD.OPEN.CTR = 1
+                LOOP
+                    WHILE(Y.PD.OPEN.CTR LE Y.PD.OPEN.CNT)
+                    Y.PD.OPEN.BAL+=R.EB.CONTRACT.BALANCES<ECB.OPEN.BALANCE,Y.SP.CTR,Y.PD.OPEN.CTR>
+                    Y.PD.OPEN.CTR += 1
+                REPEAT
+
+                Y.PD.DBT.CNT = DCOUNT(R.EB.CONTRACT.BALANCES<ECB.DEBIT.MVMT,Y.SP.CTR>,@SM)
+                Y.PD.DBT.CTR = 1
+                LOOP
+                    WHILE(Y.PD.DBT.CTR LE Y.PD.DBT.CNT)
+                    Y.PD.DEBIT.MVMNT+=R.EB.CONTRACT.BALANCES<ECB.DEBIT.MVMT,Y.SP.CTR,Y.PD.DBT.CTR>
+                    Y.PD.DBT.CTR +=1
+                REPEAT
+
+                Y.PD.CRT.CNT = DCOUNT(R.EB.CONTRACT.BALANCES<ECB.CREDIT.MVMT,Y.SP.CTR>,@SM)
+                Y.PD.CRT.CTR = 1
+                LOOP
+                    WHILE(Y.PD.CRT.CTR LE Y.PD.CRT.CNT)
+                    Y.PD.CREDIT.MVMNT+=R.EB.CONTRACT.BALANCES<ECB.CREDIT.MVMT,Y.SP.CTR,Y.PD.CRT.CTR>
+                    Y.PD.CRT.CTR += 1
+                REPEAT
+            END
+            Y.SP.CTR+=1
+        REPEAT
+
+        Y.PD.SUSPENSE.AMT=Y.PD.OPEN.BAL+Y.PD.DEBIT.MVMNT+Y.PD.CREDIT.MVMNT
+        R.EB.CONTRACT.BALANCES=''
+        Y.ERR.EB.CONTRACT.BALANCES=''
+        Y.PD.OPEN.BAL=''
+        Y.PD.DEBIT.MVMNT=''
+        Y.PD.CREDIT.MVMNT=''
+    END
+    RETURN
+END
+
+

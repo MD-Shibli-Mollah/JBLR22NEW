@@ -1,0 +1,61 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+*************************************************************
+******** Developed By : Zakir ********
+******** Dated: 25 DEC 2016***********
+
+    PROGRAM EXCISE.DEDUCT.DETAILS
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.COMPANY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    Y.SOURCE="BUILD.CONTROL"
+
+    RETURN
+
+OPENFILES:
+
+    OPEN "&SAVEDLISTS&" TO F.SAVEDLISTS ELSE
+        TEXT ="CANNOT OPEN SAVEDLISTS,PRESS ANY KEY TO EXIT"
+        CRT TEXT
+        INPUT USER.CHOICE1
+        RETURN
+    END
+
+    RETURN
+
+PROCESS:
+
+    READ RCC.IDS FROM F.SAVEDLISTS,"BR.PARAM" ELSE
+        TEXT ="CANNOT READ FILE NAME 'BR.PARAM' FROM SAVEDLISTS,PRESS ANY KEY TO EXIT"
+        CRT TEXT
+        INPUT USER.CHOICE2
+        RETURN
+    END
+
+    Y.DATA=DCOUNT(RCC.IDS,@FM)
+    FOR Y.NO=1 TO Y.DATA
+
+        Y.SINGLE.DATA=FIELD(RCC.IDS,@FM,Y.NO)
+
+        COMP.ID=FIELD(Y.SINGLE.DATA,",",1)
+        CATEG.ID=FIELD(Y.SINGLE.DATA,",",2)
+
+        Y.MESSAGE = "ENQUIRY.REPORT,EXCISE.DUTY/V/PROCESS,//":COMP.ID:",ER.EXCISE.DUTY.":CATEG.ID
+
+        MSG.ID = ''
+        CALL OFS.POST.MESSAGE(Y.MESSAGE, MSG.ID , Y.SOURCE, "DMUSER")
+        CALL JOURNAL.UPDATE ('TEST')
+
+    NEXT
+    RETURN
+END

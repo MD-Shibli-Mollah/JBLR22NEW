@@ -1,0 +1,47 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VALIDATE.FLD.VALUE
+!
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.JBL.UPD.SANCHAYA.PATRA.TXN.ID
+    $INSERT I_F.FUNDS.TRANSFER
+!
+    FN.JUSP = "F.JBL.UPD.SANCHAYA.PATRA.TXN.ID"
+    F.JUSP = ''
+    CALL OPF(FN.JUSP, F.JUSP)
+!
+    NEW.REG.NO = ''
+!
+    IF APPLICATION EQ "FUNDS.TRANSFER" THEN
+        NEW.REG.NO = COMI
+        IF COMI THEN
+            SEL = "SELECT " : FN.JUSP
+            SEL:= " WITH @ID LIKE FT... AND REG.NO EQ ": NEW.REG.NO
+            CALL EB.READLIST(SEL, SEL.LIST, '', SEL.CNT, SEL.ERR)
+            IF SEL.LIST THEN
+                COMI = NEW.REG.NO
+            END ELSE
+                ETEXT = "Please Enter Correct REG.NO"
+                CALL STORE.END.ERROR
+            END
+        END
+    END
+    IF APPLICATION EQ "TELLER" THEN
+        NEW.REG.NO = COMI
+        IF COMI THEN
+            SEL = "SELECT " : FN.JUSP
+            SEL:= " WITH @ID LIKE TT... AND REG.NO EQ ": NEW.REG.NO
+            CALL EB.READLIST(SEL, SEL.LIST, '', SEL.CNT, SEL.ERR)
+            IF SEL.LIST THEN
+                COMI = NEW.REG.NO
+            END ELSE
+                ETEXT = "Please Enter Correct REG.NO"
+                CALL STORE.END.ERROR
+            END
+        END
+    END
+!
+    RETURN
+END

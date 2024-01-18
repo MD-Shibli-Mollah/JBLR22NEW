@@ -1,0 +1,62 @@
+*-------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-31</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.HOME.LOAN.REBATE.POST
+*-------------------------------------------------------------------------
+* This routine is to select all the records in BD.L.HME.LOAN.REBATE like TODAY
+* and combine all the selected records into one record with id as TODAY
+* and to delete the above selected records.
+*-------------------------------------------------------------------------
+* Modification History:
+* 11/03/20101                       New - Naveen Kumar N
+*                                   Thesys Technologies
+*-------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE JBL.BP I_F.BD.L.HME.LOAN.REBATE
+*-------------------------------------------------------------------------
+
+    GOSUB INIT
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.BD.L.HME.LOAN.REBATE    = 'F.BD.L.HME.LOAN.REBATE'
+    F.BD.L.HME.LOAN.REBATE     = ''
+    R.BD.L.HME.LOAN.REBATE     = ''
+    E.BD.L.HME.LOAN.REBATE     = ''
+    CALL OPF(FN.BD.L.HME.LOAN.REBATE,F.BD.L.HME.LOAN.REBATE)
+    R.REC                      = ''
+    RETURN
+
+PROCESS:
+    SEL.CMD = 'SELECT ':FN.BD.L.HME.LOAN.REBATE :' WITH @ID LIKE ': TODAY:'-...'
+    CALL EB.READLIST(SEL.CMD,Y.SEL.LIST,'',NO.REC,Y.ERR)
+    Y.COPY.LIST = ''
+    Y.COPY.LIST = Y.SEL.LIST
+
+    LOOP
+        REMOVE Y.ID FROM Y.SEL.LIST SETTING Y.POS
+    WHILE Y.ID:Y.POS
+        CALL F.READ(FN.BD.L.HME.LOAN.REBATE,Y.ID,R.BD.L.HME.LOAN.REBATE,F.BD.L.HME.LOAN.REBATE,E.BD.L.HME.LOAN.REBATE)
+        IF R.REC THEN
+            R.REC<BD.LOAN.ID>         := VM:R.BD.L.HME.LOAN.REBATE<BD.LOAN.ID>
+            R.REC<BD.INTEREST.AMOUNT> := VM:R.BD.L.HME.LOAN.REBATE<BD.INTEREST.AMOUNT>
+            R.REC<BD.AMT.TO.REBATE>   := VM:R.BD.L.HME.LOAN.REBATE<BD.AMT.TO.REBATE>
+        END ELSE
+            R.REC                      = R.BD.L.HME.LOAN.REBATE
+        END
+    REPEAT
+
+    Y.NEW.ID = TODAY
+    CALL F.WRITE(FN.BD.L.HME.LOAN.REBATE,Y.NEW.ID,R.REC)
+
+    CONVERT FM TO ' ' IN Y.COPY.LIST
+    DEL.CMD = 'DELETE ':FN.BD.L.HME.LOAN.REBATE:' ':Y.COPY.LIST
+    IF Y.COPY.LIST THEN
+        EXECUTE DEL.CMD
+    END
+    RETURN
+*
+END

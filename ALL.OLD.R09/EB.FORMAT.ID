@@ -1,0 +1,175 @@
+* Version 4 02/06/00  GLOBUS Release No. 200512 09/12/05
+*-----------------------------------------------------------------------------
+* <Rating>-105</Rating>
+    SUBROUTINE EB.FORMAT.ID(TXN.PREFIX)
+*
+*------------------------------------------------------------------------
+*
+* Routine to format ID.NEW to AAyydddNNNNN;NN format and return E if an
+* error occurs. TXN.PREFIX = FT, TT etc.
+*
+*------------------------------------------------------------------------
+*                    M O D I F I C A T I O N S
+*------------------------------------------------------------------------
+*
+* GB9800004 - 06/01/98
+*             Year 2000 changes - ensure that ids with Julian dates
+*                                 before and after Year 2000 are
+*                                 valid and accessible
+* 30/05/00 - GB0001344
+*            Don't format sequence number unless it is less than 5 characters
+*            caters for longer keys
+*
+*
+* 23/11/00 - EN_10000283
+*        Allow a 16 character ref in Funds Transfer.  Format is
+*            FTYYDDDPPPSSSSSS where YYDDD is Julian date, PPP is Process
+*            Dept from USER and SSSSSS is sequqnce number.  Used when
+*            LOCKING record FBNK.FUNDS.TRANSFER<3> is set to 'UNIQUE'
+*
+*10/12/00 - EN_10000314
+*           Correction to history ref input
+*
+* 15/10/03 - CI_10013632
+*            Incorrect ID format, when ID input is Application indicator
+*            followed by a sequence number.(Ex:ACSW1).
+*            Prefixed ID.NEW with Application indicator, if it doesn't contain.
+*
+* 27/10/03 - CI_10014048 ; BG_100005569
+*            Invalid swap id accept in swap deal.
+*
+* 06/10/04 - EN_10002346
+*            Read LOCKING record only when TXN.PREFIX is 'FT'.
+*
+* 29/10/04 - CI_10024325
+*            Allow ID formatting when ID is of the form 5 digit date
+*            followed by Sequence number.
+*
+* 14/07/05 - GLOBUS_BG_100009080
+*            Unable to enter a trade through OFS with an alphanumeric Id
+*
+* 13/08/06 - EN_10003053
+*            Unique ID Enhancement Remove hardcoded checks for FT and remove any validation on the
+*            sequence part of the ID if it's UNIQUE.
+*
+* 10/10/06 - GLOBUS_BG_100012205
+*            problems with unique id, suffix is being padded with additional
+*            zeros causing application errors. "ideal" length is now 12 not 16.
+*            work out maximum number of suffix characters based on this length
+*            and the application prefix
+*
+* 03/07/07 - CI_10050141(HD0711004)
+*            Fix to make sure that no alpha character is possible if there is
+*            no LOCKING set.
+*
+* 04/03/08 - BG_100017455 (TTS0800622)
+*            CI_10050141 Case misplaced and Case to check ',' in DATES
+*
+* 26/11/08 - BG_100020855
+*            Id formatting  not to be done while reading sim record.
+*
+* 17/08/12 - CI_10075742 / Defect:465139
+*            History records not to be formatted in EB.FORMAT.ID
+*
+*------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.DATES
+    $INSERT I_F.USER
+    $INSERT I_F.LOCKING
+    $INSERT I_F.PGM.FILE
+    $INSERT I_ENQUIRY.COMMON
+*------------------------------------------------------------------------
+IF OPERATOR EQ 'TEMENOS01' THEN
+DEBUG
+END
+    GOSUB INITIALISATION
+    GOSUB VALIDATION
+
+    RETURN
+*------------------------------------------------------------------------
+INITIALISATION:
+
+
+    E = ""          ;* Errors returned here
+    JULIAN.DATE = R.DATES(EB.DAT.JULIAN.DATE)[5]  ;* YYDDD
+    FULL.JULIAN.DATE = R.DATES(EB.DAT.JULIAN.DATE)          ;* GB9800004
+*
+    PREFIX.LENGTH = LEN(TXN.PREFIX)
+    TXN.HIST = ID.NEW[";",2,1]          ;* History number ;NNN
+    TXN.ID = ID.NEW[";",1,1]  ;* Main contract key
+*
+    ID.PREFIX = ID.NEW[1,PREFIX.LENGTH] ;* Test prefix
+    IF ID.PREFIX = TXN.PREFIX THEN
+        TXN.ID = TXN.ID[PREFIX.LENGTH+1,999]      ;* Will be added BACK LATER
+    END
+
+    CALL CACHE.READ('F.LOCKING',APPLICATION:'.UNIQUE',R.LOCKING,"")   ;* Determine if application allows a UNIQUE ID
+
+    IF R.LOCKING THEN
+        ID.LENGTH = R.LOCKING<2>        ;* BG_100012205 s
+        IF ID.LENGTH LT 12 THEN
+            ID.LENGTH = 12
+        END
+* calculate how many characters are in the suffix,
+*                key length minus julian date minus prefix length
+        ALLOWED.SUFFIX = ID.LENGTH - 5 - PREFIX.LENGTH      ;* BG_100012205 e
+    END ELSE
+        ALLOWED.SUFFIX = 5    ;*Max of 5
+    END
+    IF LEN(TXN.ID) LE ALLOWED.SUFFIX AND NOT(HIST.NO) THEN  ;* Just a sequence number.History records not to be formatted
+        TXN.DATE = JULIAN.DATE          ;* Default to today
+        TXN.SEQ = TXN.ID      ;* Only passed the sequence number
+    END ELSE
+        TXN.DATE = TXN.ID[1,5]          ;* ID passed with date
+        TXN.SEQ = TXN.ID[6,99]          ;* Extract the sequence number
+    END
+
+    FULL.TXN.DATE = TXN.DATE
+    CALL EB.CHECK.DATE(FULL.TXN.DATE)   ;* Perform century check on date
+
+    RETURN
+*------------------------------------------------------------------------
+VALIDATION:
+* At this stage we have TXN.PREFIX, TXN.DATE, TXN.SEQ & TXN.HIST
+* Assemble all this and  validate
+
+    IF R.LOCKING AND LEN(TXN.SEQ) < ALLOWED.SUFFIX AND NOT(HIST.NO) THEN        ;* Do not perform any formatting of the sequence number.Don't format for the history records
+        SMASK = ALLOWED.SUFFIX:"'0'R"   ;* BG_100012205
+        TXN.SEQ = FMT(TXN.SEQ,SMASK)    ;* Pad with leading zeroes        ; * BG_100012205
+    END
+    IF NOT(R.LOCKING) AND LEN(TXN.SEQ) < 5 THEN
+        TXN.SEQ = FMT(TXN.SEQ,"5'0'R")
+    END
+    ID.NEW =TXN.DATE:TXN.SEQ
+
+    IF ID.PREFIX # TXN.PREFIX OR ID.NEW[1,LEN(TXN.PREFIX)] # TXN.PREFIX THEN    ;* CI_10013632 - Input is TXN.PREFIX followed by sequence no.
+        ID.NEW = TXN.PREFIX: ID.NEW
+    END
+
+    IF TXN.HIST THEN          ;* Reassemble with the history number
+        ID.NEW = ID.NEW: ";": TXN.HIST
+    END
+
+    DATE.SEQ.HIST = TXN.DATE: TXN.SEQ: TXN.HIST
+    IF  ENQ$THIS.FILE.VERSION = 'SIM' AND V$FUNCTION = 'S' THEN       ;*trying to see a simulation record through drill down
+        RETURN
+    END
+    BEGIN CASE
+    CASE NOT(R.LOCKING) AND NOT(NUM(DATE.SEQ.HIST))         ;* if locking not set, alpha chars not allowed
+        E = "EB.RTN.INVALID.CHARACTERS"
+    CASE INDEX(DATE.SEQ.HIST,".",1) OR INDEX(DATE.SEQ.HIST,",",1)     ;* DATE should not contain ","
+        E ="EB.RTN...NOT.ALLOWED"
+    CASE FULL.TXN.DATE > FULL.JULIAN.DATE
+        E ="EB.RTN.DATE.CANT.GT.THAN.TODAY"
+    CASE R.LOCKING<3> = 'UNIQUE'        ;* No more validation on sequence or length
+        NULL
+    CASE LEN(ID.NEW) > ID.N[".",1,1]    ;* Check against N parameter
+        E ="EB.RTN.TOO.MANY.CHARACTERS"
+    CASE LEN(TXN.ID) > 10 AND ID.NEW[1,2]= "SW"   ;* CI_10014048 S & BG_100005569
+        E ="EB.RTN.TOO.MANY.CHARACTERS" ;* CI_10014048 E
+    END CASE
+
+    RETURN
+*-----------------------------------------------------------------------
+END

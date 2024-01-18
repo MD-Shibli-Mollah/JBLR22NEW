@@ -1,0 +1,97 @@
+    SUBROUTINE TTTI.MSG.CONV(Y.RET)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT BP I_F.TT.OVER.LIMT
+!DEBUG
+    IF Y.RET<1> EQ 'E.TT.LIMIT.AUTH' THEN
+        Y.RET<4,1>= Y.RET<4,1>:'.':ID.COMPANY[6,4]
+        RETURN
+    END
+    Y.ENQ = ENQ.SELECTION<1,1>
+    LOCATE 'TXN.DATE' IN ENQ.SELECTION<2,1> SETTING POS THEN
+        Y.DT = ENQ.SELECTION<4,POS>
+        Y.DT.OPD = ENQ.SELECTION<3,POS>
+    END
+    LOCATE 'BR.CODE' IN ENQ.SELECTION<2,1> SETTING POS1 THEN Y.BR.CODE = ENQ.SELECTION<4,POS1>
+    LOCATE 'TELLER.ID' IN ENQ.SELECTION<2,1> SETTING POS2 THEN Y.TID = ENQ.SELECTION<4,POS2>
+
+    IF Y.DT.OPD EQ 'RG' THEN
+        Y.DT1 = FIELD(Y.DT,@SM,1)
+        Y.DT2 = FIELD(Y.DT,@SM,2)
+        IF Y.DT1 EQ '!TODAY' THEN Y.DT1 = TODAY
+        IF Y.DT2 EQ '!TODAY' THEN Y.DT2 = TODAY
+        IF Y.DT1 GT Y.DT2 OR Y.DT1 EQ '' OR Y.DT2 EQ '' THEN RETURN
+    END
+    IF Y.DT GT TODAY THEN RETURN
+    IF Y.ENQ EQ 'E.TT.LIMIT' THEN Y.BR.CODE = ID.COMPANY[6,4]
+    IF Y.ENQ EQ 'E.TT.LIMIT' AND ID.COMPANY EQ 'BD0012001' THEN RETURN
+    IF Y.ENQ EQ 'E.TT.LIMIT.BR' AND ID.COMPANY NE 'BD0012001' THEN RETURN
+    IF Y.ENQ EQ 'E.TT.LIMIT.DT' AND ID.COMPANY NE 'BD0012001' THEN RETURN
+
+    FN.TL = 'F.EB.TT.OVER.LIMT'
+    F.TL = ''
+    CALL OPF(FN.TL,F.TL)
+    FN.TT = 'F.TELLER'
+    F.TT = ''
+    CALL OPF(FN.TT,F.TT)
+    FN.TTH = 'F.TELLER$HIS'
+    F.TTH = ''
+    CALL OPF(FN.TTH,F.TTH)
+
+    SEL.CMD = 'SELECT ':FN.TL:' WITH @ID LIKE ':Y.BR.CODE:'.':Y.DT:'...'
+    IF Y.ENQ EQ 'E.TT.LIMIT.DT' AND Y.DT EQ '' THEN SEL.CMD = 'SELECT ':FN.TL:' WITH @ID LIKE ':Y.BR.CODE:'...'
+    IF Y.ENQ EQ 'E.TT.LIMIT.BR' AND Y.BR.CODE EQ '' THEN SEL.CMD = 'SELECT ':FN.TL:' WITH @ID LIKE ...':Y.DT:'...'
+
+    CALL EB.READLIST(SEL.CMD, SEL.LIST, F.TL, NO.OF.REC, RET.CODE)
+    SEL.LIST = SORT(SEL.LIST)
+    FOR I = 1 TO NO.OF.REC
+        Y.TID.CK = 1
+        IF Y.TID NE '' THEN
+            IF FIELD(SEL.LIST<I>,'.',5) EQ Y.TID OR FIELD(SEL.LIST<I>,'.',4) EQ Y.TID THEN
+            END
+            ELSE Y.TID.CK = ''
+        END
+        IF Y.TID.CK EQ '1' AND ((Y.BR.CODE NE '' AND FIELD(SEL.LIST<I>,'.',1) EQ Y.BR.CODE) OR Y.BR.CODE EQ '' OR (Y.DT.OPD EQ 'EQ' AND FIELD(SEL.LIST<I>,'.',2) EQ Y.DT) OR (Y.DT.OPD EQ 'RG' AND FIELD(SEL.LIST<I>,'.',2) GE Y.DT1 AND FIELD(SEL.LIST<I>,'.',2) LE Y.DT2)) THEN
+            IF FIELD(SEL.LIST<I>,'.',2) EQ TODAY THEN CALL F.READ(FN.TT,FIELD(SEL.LIST<I>,'.',3),R.TT,F.TT,ERR.CODE)
+            IF FIELD(SEL.LIST<I>,'.',2) LT TODAY THEN
+                CALL F.READ(FN.TTH,FIELD(SEL.LIST<I>,'.',3):';1',R.TT1,F.TTH,ERR.CODE)
+                CALL F.READ(FN.TTH,FIELD(SEL.LIST<I>,'.',3):';2',R.TT2,F.TTH,ERR.CODE)
+                IF R.TT2 EQ '' THEN R.TT = R.TT1 ELSE R.TT = R.TT2
+            END
+            IF COUNT(R.TT<TT.TE.OVERRIDE>,'Teller Limit Over for Curreny: ') GT 0 THEN
+                Y.ID = FIELD(SEL.LIST<I>,'.',3)
+                CALL F.READ(FN.TL,SEL.LIST<I>,R.TL,F.TL,ERR.TL)
+                Y.LIMIT = R.TL<EB.TT.57.TT.ID>
+                Y.DR.CR = R.TT<TT.TE.DR.CR.MARKER>
+                Y.AC1 = R.TT<TT.TE.ACCOUNT.1>
+                Y.AC2 = R.TT<TT.TE.ACCOUNT.2>
+                Y.CCY1 = R.TT<TT.TE.CURRENCY.1>
+                Y.CCY2 = R.TT<TT.TE.CURRENCY.2>
+                Y.LAMT1 = R.TT<TT.TE.AMOUNT.LOCAL.1>
+                Y.LAMT2 = R.TT<TT.TE.AMOUNT.LOCAL.2>
+                Y.FAMT1 = R.TT<TT.TE.AMOUNT.FCY.1>
+                Y.FAMT2 = R.TT<TT.TE.AMOUNT.FCY.2>
+                Y.RATE1 = R.TT<TT.TE.RATE.1>
+                Y.RATE2 = R.TT<TT.TE.RATE.2>
+                IF Y.DR.CR = 'DEBIT' THEN Y.CCY = Y.CCY2 ELSE Y.CCY = Y.CCY1
+                IF Y.DR.CR = 'DEBIT' THEN Y.AC = Y.AC2 ELSE Y.AC = Y.AC1
+                IF Y.DR.CR = 'DEBIT' THEN Y.LAMT = Y.LAMT2 ELSE Y.LAMT = Y.LAMT1
+                IF Y.DR.CR = 'DEBIT' THEN Y.FAMT = Y.FAMT2 ELSE Y.FAMT = Y.FAMT1
+                IF Y.DR.CR = 'DEBIT' THEN Y.RATE = Y.RATE2 ELSE Y.RATE = Y.RATE1
+                IF Y.CCY EQ 'BDT' THEN Y.AMT = Y.LAMT ELSE Y.AMT = Y.FAMT
+                Y.TIME = R.TT<TT.TE.DATE.TIME>[7,2]:':':R.TT<TT.TE.DATE.TIME>[9,2]
+                Y.TRC = R.TT<TT.TE.TRANSACTION.CODE>
+                Y.CK = R.TT<TT.TE.CHEQUE.NUMBER>
+                Y.NAMT = R.TT<TT.TE.NET.AMOUNT>
+                Y.STS = R.TT<TT.TE.RECORD.STATUS>
+                Y.INP = FIELD(R.TT<TT.TE.INPUTTER>,'_',2)
+                Y.AUTH = FIELD(R.TT<TT.TE.AUTHORISER>,'_',2)
+                Y.RET<-1> = Y.ID:'*':Y.TRC:'*':Y.CK:'*':Y.CCY:'*':Y.AC:'*':Y.AMT:'*':Y.RATE:'*':Y.NAMT:'*':Y.STS:'*':Y.INP:'*':Y.AUTH:'*':Y.TIME:'*':'BD001':FIELD(SEL.LIST<I>,'.',1):'*':Y.LIMIT:'*':FIELD(SEL.LIST<I>,'.',2)
+!                            1         2         3        4         5        6          7          8         9         10         11        12                      13                       14                 15
+            END
+        END
+    NEXT I
+    RETURN
+END 

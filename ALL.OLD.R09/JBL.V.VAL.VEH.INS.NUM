@@ -1,0 +1,194 @@
+*-------------------------------------------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>45</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VAL.VEH.INS.NUM
+*-------------------------------------------------------------------------------------------------------------------
+* This routine check the value in the INS.VEHICLE.NUMBER local fields and validates the
+* record. When INS.VEHICLE.NUMBER is "N" then its associated fields will be noinput & Validation to throw error if
+* Fields values are provided.
+* When INS.VEHICLE.NUMBER is "Y" then its associated fields will be inputable & Validation to throw error if field
+* Values are not Provided.
+*-------------------------------------------------------------------------------------------------------------------
+* Modification History :
+* --------------------
+* 20110210 - New - Naveen Kumar N
+*-------------------------------------------------------------------------------------------------------------------
+* Common Variables :
+* ----------------
+* R.NEW - Holds the current record values
+* ETEXT - Error Varable in the cross validations
+* AF    - Current Field number at the field validation
+* AV    - Current Value number at the field validation
+* AS    - Current SUB value number at the field validation
+* COMI  - Holds the current inputted field value and used at field validation
+*--------------------------------------------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.COLLATERAL
+*---------------------------------------------------------------------------------------------------------------------
+!------------------------------Main Para------------------------------------------------------------------------------
+*
+    GOSUB GET.LOC.MULTI.REF
+    GOSUB PROCESS.ONE
+    IF MESSAGE EQ "VAL" THEN
+        GOSUB PROCESS.TWO
+    END
+    RETURN
+*----------------------------------------------------------------------------------------------------------------------
+GET.LOC.MULTI.REF:
+******************
+! This gosub is to get the respective positions for the Local reference Fields
+*
+    Y.APPLICATION       = "COLLATERAL"
+    FIELD.NAME          = "CHASSIS.NUMBER":VM:"DATE.OF.REPOSS":VM:"DATE.OF.DISPOS":VM:"INS.CLAIMED":VM:"INS.CLAIM.DATE":VM:"INS.AMT.CLAIMED"
+    FIELD.POS           = ""
+    CALL MULTI.GET.LOC.REF(Y.APPLICATION,FIELD.NAME,FIELD.POS)
+*
+    CHASSIS.NUMBER.POS  = FIELD.POS<1,1>
+    DATE.OF.REPOSS.POS  = FIELD.POS<1,2>
+    DATE.OF.DISPOS.POS  = FIELD.POS<1,3>
+    INS.CLAIMED.POS     = FIELD.POS<1,4>
+    INS.CLAIM.DATE.POS  = FIELD.POS<1,5>
+    INS.AMT.CLAIMED.POS = FIELD.POS<1,6>
+    RETURN
+*-------------------------------------------------------------------------------------------------------------------------
+PROCESS.ONE:
+************
+! Cross validation is returned . And Process is executed only at field validation
+*
+    IF MESSAGE EQ "VAL" THEN RETURN
+    Y.VEHICLE.NUMBER = COMI
+*
+    BEGIN CASE
+    CASE Y.VEHICLE.NUMBER EQ "N"
+        R.NEW(COLL.LOCAL.REF)<1,CHASSIS.NUMBER.POS>  = ""
+        R.NEW(COLL.LOCAL.REF)<1,DATE.OF.REPOSS.POS>  = ""
+        R.NEW(COLL.LOCAL.REF)<1,DATE.OF.DISPOS.POS>  = ""
+        R.NEW(COLL.LOCAL.REF)<1,INS.CLAIMED.POS>     = ""
+        R.NEW(COLL.LOCAL.REF)<1,INS.CLAIM.DATE.POS>  = ""
+        R.NEW(COLL.LOCAL.REF)<1,INS.AMT.CLAIMED.POS> = ""
+*
+        T.LOCREF<CHASSIS.NUMBER.POS,7>  = "NOINPUT"
+        T.LOCREF<DATE.OF.REPOSS.POS,7>  = "NOINPUT"
+        T.LOCREF<DATE.OF.DISPOS.POS,7>  = "NOINPUT"
+        T.LOCREF<INS.CLAIMED.POS,7>     = "NOINPUT"
+        T.LOCREF<INS.CLAIM.DATE.POS,7>  = "NOINPUT"
+        T.LOCREF<INS.AMT.CLAIMED.POS,7> = "NOINPUT"
+*
+        CALL REFRESH.FIELD(COLL.LOCAL.REF<1,CHASSIS.NUMBER.POS>,'')
+        CALL REFRESH.FIELD(COLL.LOCAL.REF<1,DATE.OF.REPOSS.POS>,'')
+        CALL REFRESH.FIELD(COLL.LOCAL.REF<1,DATE.OF.DISPOS.POS>,'')
+        CALL REFRESH.FIELD(COLL.LOCAL.REF<1,INS.CLAIMED.POS>,'')
+        CALL REFRESH.FIELD(COLL.LOCAL.REF<1,INS.CLAIM.DATE.POS>,'')
+        CALL REFRESH.FIELD(COLL.LOCAL.REF<1,INS.AMT.CLAIMED.POS>,'')
+*
+    CASE Y.VEHICLE.NUMBER EQ "Y"
+        GOSUB INNER.CASE
+    END CASE
+*
+    RETURN
+*------------------------------------------------------------------------------------------------------------------------
+INNER.CASE:
+***********
+! Inner case to Make Associated fields as Inputtable. When INS.VEHICLE.NUMBER is "Y"
+*
+    T.LOCREF<CHASSIS.NUMBER.POS,7>  = ""
+    T.LOCREF<DATE.OF.REPOSS.POS,7>  = ""
+    T.LOCREF<DATE.OF.DISPOS.POS,7>  = ""
+    T.LOCREF<INS.CLAIMED.POS,7>     = ""
+    T.LOCREF<INS.CLAIM.DATE.POS,7>  = ""
+    T.LOCREF<INS.AMT.CLAIMED.POS,7> = ""
+*
+    CALL REFRESH.FIELD(COLL.LOCAL.REF<1,CHASSIS.NUMBER.POS>,'')
+    CALL REFRESH.FIELD(COLL.LOCAL.REF<1,DATE.OF.REPOSS.POS>,'')
+    CALL REFRESH.FIELD(COLL.LOCAL.REF<1,DATE.OF.DISPOS.POS>,'')
+    CALL REFRESH.FIELD(COLL.LOCAL.REF<1,INS.CLAIMED.POS>,'')
+    CALL REFRESH.FIELD(COLL.LOCAL.REF<1,INS.CLAIM.DATE.POS>,'')
+    CALL REFRESH.FIELD(COLL.LOCAL.REF<1,INS.AMT.CLAIMED.POS>,'')
+*
+    RETURN
+*--------------------------------------------------------------------------------------------------------------------------
+PROCESS.TWO:
+************
+! Process.Two is executed only at cross validation time.
+! Validations are provided when no data is provided in the associated fields.
+*
+    IF COMI EQ "Y" THEN
+        IF NOT(R.NEW(COLL.LOCAL.REF)<1,CHASSIS.NUMBER.POS>) THEN
+            ETEXT = "EB-INPUT.MADATORY"
+            AF    = COLL.LOCAL.REF
+            AV    = CHASSIS.NUMBER.POS
+            CALL STORE.END.ERROR
+        END
+        IF NOT(R.NEW(COLL.LOCAL.REF)<1,DATE.OF.REPOSS.POS>) THEN
+            ETEXT = "EB-INPUT.MADATORY"
+            AF    = COLL.LOCAL.REF
+            AV    = DATE.OF.REPOSS.POS
+            CALL STORE.END.ERROR
+        END
+        IF NOT(R.NEW(COLL.LOCAL.REF)<1,DATE.OF.DISPOS.POS>) THEN
+            ETEXT = "EB-INPUT.MADATORY"
+            AF    = COLL.LOCAL.REF
+            AV    = DATE.OF.DISPOS.POS
+            CALL STORE.END.ERROR
+        END
+        IF NOT(R.NEW(COLL.LOCAL.REF)<1,INS.CLAIMED.POS>) THEN
+            ETEXT = "EB-INPUT.MADATORY"
+            AF    = COLL.LOCAL.REF
+            AV    = INS.CLAIMED.POS
+            CALL STORE.END.ERROR
+        END
+        IF NOT(R.NEW(COLL.LOCAL.REF)<1,INS.CLAIM.DATE.POS>) THEN
+            ETEXT = "EB-INPUT.MADATORY"
+            AF    = COLL.LOCAL.REF
+            AV    = INS.CLAIM.DATE.POS
+            CALL STORE.END.ERROR
+        END
+        IF NOT(R.NEW(COLL.LOCAL.REF)<1,INS.AMT.CLAIMED.POS>) THEN
+            ETEXT = "EB-INPUT.MADATORY"
+            AF    = COLL.LOCAL.REF
+            AV    = INS.AMT.CLAIMED.POS
+            CALL STORE.END.ERROR
+        END
+    END ELSE
+        IF R.NEW(COLL.LOCAL.REF)<1,CHASSIS.NUMBER.POS> THEN
+            ETEXT = "EB-INPUT.NOT.MADATORY"
+            AF    = COLL.LOCAL.REF
+            AV    = CHASSIS.NUMBER.POS
+            CALL STORE.END.ERROR
+        END
+        IF R.NEW(COLL.LOCAL.REF)<1,DATE.OF.REPOSS.POS> THEN
+            ETEXT = "EB-INPUT.NOT.MADATORY"
+            AF    = COLL.LOCAL.REF
+            AV    = DATE.OF.REPOSS.POS
+            CALL STORE.END.ERROR
+        END
+        IF R.NEW(COLL.LOCAL.REF)<1,DATE.OF.DISPOS.POS> THEN
+            ETEXT = "EB-INPUT.NOT.MADATORY"
+            AF    = COLL.LOCAL.REF
+            AV    = DATE.OF.DISPOS.POS
+            CALL STORE.END.ERROR
+        END
+        IF R.NEW(COLL.LOCAL.REF)<1,INS.CLAIMED.POS> THEN
+            ETEXT = "EB-INPUT.NOT.MADATORY"
+            AF    = COLL.LOCAL.REF
+            AV    = INS.CLAIMED.POS
+            CALL STORE.END.ERROR
+        END
+        IF R.NEW(COLL.LOCAL.REF)<1,INS.CLAIM.DATE.POS> THEN
+            ETEXT = "EB-INPUT.NOT.MADATORY"
+            AF    = COLL.LOCAL.REF
+            AV    = INS.CLAIM.DATE.POS
+            CALL STORE.END.ERROR
+        END
+        IF R.NEW(COLL.LOCAL.REF)<1,INS.AMT.CLAIMED.POS> THEN
+            ETEXT = "EB-INPUT.NOT.MADATORY"
+            AF    = COLL.LOCAL.REF
+            AV    = INS.AMT.CLAIMED.POS
+            CALL STORE.END.ERROR
+        END
+    END
+    RETURN
+*-------------------------------------------------------------------------------------------------------------------------
+END

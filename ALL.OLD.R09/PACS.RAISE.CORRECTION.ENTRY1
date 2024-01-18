@@ -1,0 +1,199 @@
+*-----------------------------------------------------------------------------
+* <Rating>565</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PACS.RAISE.CORRECTION.ENTRY1
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.EB.CONTRACT.BALANCES
+    $INSERT GLOBUS.BP I_F.CURRENCY
+    $INSERT GLOBUS.BP I_F.DATES
+    $INSERT GLOBUS.BP I_ACCT.COMMON
+
+    ACC.DIF.ID = "0100084702735":"#":"-12000":"#":"20180605"
+
+    YR.MULTI.STMT=""
+
+    R.ACCOUNT="" ; STMT.DATE ="" ; OPEN.ACT = 0 ; ONLINE.ACT =0
+    OPN.ACT.BAL = 0 ; OPN.CLR.BAL = 0; ONL.ACT.BAL = 0 ; ONL.CLR.BAL = 0 ; WORK.BAL = 0
+    CO.CODE=""; PROD.ID=""; ACCT.OFF=""; CUST.NO=""; CCY.MKT=""; POS.TYPE=""; CON.KEY=""; ASST.TYPE="" ; UPD.BAL = ""
+
+    GOSUB OPENFILES
+
+    GOSUB MAIN.PROCESS
+
+
+    RETURN
+
+************MAIN PROCESS*******************************************************************************
+MAIN.PROCESS:
+
+    ACC.ID = '' ; DIFF.AMT = '' ; UPD.BAL = '' ; OPEN.ACT = '' ; ONLINE.ACT = '' ; WRK.BAL = '' ; CLR.BAL = ''
+    CO.CODE = '' ; PROD.ID = '' ; ACCT.OFF = '' ; CUST.NO = '' ; CCY.MKT = '' ; POS.TYPE = '' ; CON.KEY = ''
+    ASST.TYPE = '' ; CURREN = '' ; R.ECB = '';VD.DAT = '' ; TC = '' ; REF = ''
+
+    OPN.ACT.BAL = '' ; OPN.CLR.BAL = '' ; ONL.ACT.BAL = '' ;
+
+    ACC.ID = FIELD(ACC.DIF.ID,"#",1)
+    DIFF.AMT = FIELD(ACC.DIF.ID,"#",2)
+    BD.DAT = FIELD(ACC.DIF.ID,"#",3)
+    VD.DAT = BD.DAT
+    READ R.ACCOUNT FROM F.ACCOUNT, ACC.ID ELSE R.ACCOUNT=""
+
+
+***********Extract  Basic details of entries from ECB to form base array*************************************
+
+    CO.CODE=R.ACCOUNT<AC.CO.CODE>
+    PROD.ID=R.ACCOUNT<AC.CATEGORY>
+    ACCT.OFF=R.ACCOUNT<AC.ACCOUNT.OFFICER>
+    CUST.NO=R.ACCOUNT<AC.CUSTOMER>
+    CCY.MKT=R.ACCOUNT<AC.CURRENCY.MARKET>
+    POS.TYPE=R.ACCOUNT<AC.POSITION.TYPE>
+    CON.KEY=R.ACCOUNT<AC.CONSOL.KEY>
+    ASST.TYPE=R.ACCOUNT<AC.OPEN.ASSET.TYPE>
+    CURREN=R.ACCOUNT<AC.CURRENCY>
+
+    GOSUB BUILD.BASE.ENTRY    ;* Formation of base array
+    YR.MULTI.STMT=""
+    YR.MULTI.STMT<-1> = LOWER(ENTRY)
+    ENTRY.INDEX = ""
+    ENTRYID.LIST = ""
+    ENTRY.TEXT = ""
+    ENTRY.TEXT.SHORT = ""
+
+    CALL ALLOCATE.ENTRIES(YR.MULTI.STMT, ENTRYID.LIST, ENTRY.INDEX, ENTRY.TEXT, ENTRY.TEXT.SHORT)
+
+
+**********************New entry created and updated in STMT.PRINTED file******************************************************
+
+
+    LOOP E.IDX = REMOVE(ENTRY.INDEX,D) UNTIL NOT(E.IDX:D)
+        YR.ENTRY = YR.MULTI.STMT<1>
+        YENT.ID = REMOVE(ENTRYID.LIST,D)
+        PRINT " ENTRYID.LIST #":ENTRYID.LIST
+        YR.ENTRY = RAISE(YR.ENTRY)
+        IF YR.ENTRY EQ '' THEN CONTINUE
+        IF YENT.ID EQ '' THEN CONTINUE
+        WRITE YR.ENTRY TO F.STMT.ENTRY, YENT.ID
+        PRINT "STMT.ENTRY WRITTEN #":YENT.ID:"# YR.ENTRY #":YR.ENTRY
+
+        READ R.ASM FROM F.ASM, ACC.ID ELSE R.ASM = ''
+        STMT.DATES = FIELDS(R.ASM,'/',1)
+        LOCATE BD.DAT IN STMT.DATES<1> BY 'AR' SETTING DATE.POS ELSE NULL
+
+
+        LAST.DATE = DCOUNT(STMT.DATES,@FM)
+
+        STMT.PR.ID = ''
+        IF DATE.POS EQ '' THEN
+            STMT.PR.ID = ACC.ID:'-':STMT.DATES<LAST.DATE>
+        END ELSE
+            STMT.PR.ID = ACC.ID:'-':STMT.DATES<DATE.POS>
+        END
+
+        READU R.SP FROM F.SP,STMT.PR.ID ELSE R.SP=""
+
+        R.SP<-1> = YENT.ID
+        R.SP = SORT(R.SP)
+
+        R.SP2 = ''
+        X.COUNT=DCOUNT(R.SP,@FM)
+        FOR J = 1 TO X.COUNT
+            STMT.ID = R.SP<J>
+            READ STMT.REC FROM F.STMT.ENTRY,STMT.ID THEN
+                BO.DATE = STMT.REC<AC.STE.BOOKING.DATE>
+                DATE.TIME = STMT.REC<AC.STE.DATE.TIME>
+                R.SP2<-1> = BO.DATE:'*':DATE.TIME:'*':STMT.ID
+            END ELSE
+                PRINT 'CANNOT READ STMT.ENTRY ':STMT.ID
+            END
+        NEXT J
+
+        R.SP = SORT(R.SP2)
+        R.SP = FIELDS(R.SP,'*',3)
+
+**SSORT SP END
+
+        PRINT "NEW ENTRY :":YENT.ID
+        PRINT "WRITING TO SP :":STMT.PR.ID
+        WRITE R.SP TO F.SP,STMT.PR.ID
+
+
+    REPEAT
+    RETURN
+
+*****************
+BUILD.BASE.ENTRY:
+*****************
+*
+***********************************************************
+*  Build base STMT.ENTRY entry fields.                    *
+***********************************************************
+*
+    ENTRY = ""
+*
+    ENTRY<AC.STE.ACCOUNT.NUMBER> = ACC.ID
+    ENTRY<AC.STE.COMPANY.CODE> = CO.CODE
+    ENTRY<AC.STE.TRANSACTION.CODE> = '213'
+    ENTRY<AC.STE.PL.CATEGORY> = ""
+    ENTRY<AC.STE.CUSTOMER.ID> = CUST.NO
+    ENTRY<AC.STE.ACCOUNT.OFFICER> = ACCT.OFF
+    ENTRY<AC.STE.PRODUCT.CATEGORY> = PROD.ID
+    ENTRY<AC.STE.VALUE.DATE> = VD.DAT
+    ENTRY<AC.STE.CURRENCY> = CURREN
+    ENTRY<AC.STE.EXCHANGE.RATE> = ""
+    ENTRY<AC.STE.POSITION.TYPE> = POS.TYPE
+    ENTRY<AC.STE.CURRENCY.MARKET> = CCY.MKT
+    ENTRY<AC.STE.DEPARTMENT.CODE> = ''
+    ENTRY<AC.STE.SYSTEM.ID> = "AC"
+    ENTRY<AC.STE.BOOKING.DATE> = VD.DAT
+    ENTRY<AC.STE.CRF.TYPE> = ASST.TYPE
+    ENTRY<AC.STE.CRF.TXN.CODE> = ""
+    ENTRY<AC.STE.CRF.MAT.DATE> = ""
+    ENTRY<AC.STE.REVERSAL.MARKER> = ""
+    ENTRY<AC.STE.TRANS.REFERENCE> = "TT181566VWKJ":"-":ACC.ID
+    ENTRY<AC.STE.OUR.REFERENCE> = "PACS00755652"
+
+    X = OCONV(DATE(),"D-")
+    YTIME=OCONV(TIME(),"MT.")
+    YDATETIME = X[9,2]:X[1,2]:X[4,2]:YTIME[1,2]:YTIME[4,2]
+    ENTRY<AC.STE.DATE.TIME>= YDATETIME
+    ENTRY<AC.STE.INPUTTER> = TNO:"_":OPERATOR
+    ENTRY<AC.STE.AUTHORISER> = TNO:"_":OPERATOR
+
+    IF CURREN EQ LCCY THEN
+        ENTRY<AC.STE.AMOUNT.LCY> = DIFF.AMT
+    END ELSE
+        ENTRY<AC.STE.AMOUNT.FCY> = DIFF.AMT
+    END
+    ENTRY<AC.STE.CONSOL.KEY>= CON.KEY
+
+    RETURN
+**********
+OPENFILES:
+**********
+
+    YR.MULTI.STMT=""
+    ACC.ID=""
+
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT, F.ACCOUNT)
+
+    FN.STMT.ENTRY = 'F.STMT.ENTRY'
+    F.STMT.ENTRY = ''
+    CALL OPF(FN.STMT.ENTRY, F.STMT.ENTRY)
+
+    MNE.ID = FN.ACCOUNT[2,3]
+    FN.ASM="F.ACCT.STMT.PRINT"
+    F.ASM=""
+    CALL OPF(FN.ASM,F.ASM)
+
+    FN.SP="F.STMT.PRINTED"
+    F.SP=""
+    CALL OPF(FN.SP,F.SP)
+
+    RETURN
+END 

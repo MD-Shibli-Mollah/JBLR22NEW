@@ -1,0 +1,149 @@
+    SUBROUTINE GL.PL.TXN.BR.HO(Y.RETURN)
+!PROGRAM GL.PL.TXN.BR.HO
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+
+*------
+INIT:
+*------
+    FN.FT = 'FBNK.FUNDS.TRANSFER'
+    F.FT = ''
+
+    FN.AC = 'FBNK.ACCOUNT'
+    F.AC = ''
+
+    FN.CAT = 'F.CATEGORY'
+    F.CAT = ''
+
+    Y.ERR = ''
+
+    LOCATE "GL.PL" IN ENQ.SELECTION<2,1> SETTING INC.EXP.POS THEN
+        Y.GL.PL = ENQ.SELECTION<4,INC.EXP.POS>
+    END
+
+    LOCATE "DEBIT.CREDIT" IN ENQ.SELECTION<2,1> SETTING DR.CR.POS THEN
+        Y.DR.CR.MARK = ENQ.SELECTION<4,DR.CR.POS>
+    END
+
+    LOCATE "DEPT.CODE" IN ENQ.SELECTION<2,1> SETTING DR.CR.POS THEN
+        Y.DEPT.CODE = ENQ.SELECTION<4,DR.CR.POS>
+    END
+
+    LOCATE "USER" IN ENQ.SELECTION<2,1> SETTING USER.POS THEN
+        Y.INPUTTER = ENQ.SELECTION<4,USER.POS>
+    END
+
+    RETURN
+*---------
+OPENFILE:
+*---------
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.CAT,F.CAT)
+    CALL OPF(FN.AC,F.AC)
+
+    RETURN
+*--------
+PROCESS:
+*--------
+!DEBUG
+    BEGIN CASE
+    CASE Y.INPUTTER NE ''
+        SEL.CMD = "SELECT ":FN.FT:" WITH CO.CODE EQ ":ID.COMPANY:" AND TRANSACTION.TYPE EQ ACHO AND INPUTTER LIKE ...":Y.INPUTTER:"..."
+    CASE Y.DEPT.CODE NE ''
+        SEL.CMD = "SELECT ":FN.FT:" WITH CO.CODE EQ ":ID.COMPANY:" AND TRANSACTION.TYPE EQ ACHO AND DEPT.CODE EQ ":Y.DEPT.CODE
+    CASE Y.INPUTTER EQ '' AND Y.DEPT.CODE EQ ''
+        SEL.CMD = "SELECT ":FN.FT:" WITH CO.CODE EQ ":ID.COMPANY:" AND TRANSACTION.TYPE EQ ACHO"
+    END CASE
+
+!Y.USER = OPERATOR
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,Y.ERR)
+    LOOP
+        REMOVE Y.REC.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.REC.ID:Y.POS
+        CALL F.READ(FN.FT,Y.REC.ID,R.FT,F.FT,Y.ERR)
+        Y.DEBIT.AC = R.FT<FT.DEBIT.ACCT.NO>
+        Y.DEBIT.AMT = R.FT<FT.DEBIT.AMOUNT>
+        Y.CREDIT.AC = R.FT<FT.CREDIT.ACCT.NO>
+!Y.CREDIT.AMT = R.FT<FT.CREDIT.AMOUNT>
+        Y.TXN.TYPE = R.FT<FT.TRANSACTION.TYPE>
+        Y.INPUTTER =FIELD(R.FT<FT.INPUTTER>,"_",2,1)
+        Y.AUTHOR = FIELD(R.FT<FT.AUTHORISER>,"_",2,1)
+        Y.DEPT.CODE = R.FT<FT.DEPT.CODE>
+        Y.DEBIT.CREDIT = ''
+
+        IF RIGHT(Y.DEBIT.AC,4) EQ 9999 OR LEN(Y.DEBIT.AC) EQ 7 THEN
+            Y.DEBIT.CREDIT = 'DEBIT'
+
+            IF LEFT(Y.DEBIT.AC,2) NE 'PL' THEN
+                CALL F.READ(FN.AC,Y.DEBIT.AC,R.AC,F.AC,Y.ERR)
+                Y.AC.TITLE = R.AC<AC.SHORT.TITLE>
+            END
+            ELSE
+                Y.CATEGORY = SUBSTRINGS(Y.DEBIT.AC,3,7)
+                CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.ERR)
+                Y.AC.TITLE = R.CAT<EB.CAT.SHORT.NAME>
+            END
+
+            BEGIN CASE
+            CASE Y.GL.PL EQ 'GL' AND LEFT(Y.DEBIT.AC,3) EQ 'BDT'
+                CALL F.READ(FN.AC,Y.DEBIT.AC,R.AC,F.AC,Y.ERR)
+                Y.AC.TITLE = R.AC<AC.SHORT.TITLE>
+                Y.RTN.DEBIT<-1> = Y.REC.ID:'*':Y.DEBIT.CREDIT:'*':Y.DEBIT.AC:'*':Y.DEBIT.AMT:'*':Y.TXN.TYPE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.AC.TITLE:'*':Y.DEPT.CODE
+
+            CASE Y.GL.PL EQ 'PL' AND LEFT(Y.DEBIT.AC,2) EQ 'PL'
+                Y.RTN.DEBIT<-1> = Y.REC.ID:'*':Y.DEBIT.CREDIT:'*':Y.DEBIT.AC:'*':Y.DEBIT.AMT:'*':Y.TXN.TYPE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.AC.TITLE:'*':Y.DEPT.CODE
+
+            CASE Y.GL.PL EQ '' OR Y.GL.PL EQ 'ALL'
+                Y.RTN.DEBIT<-1> = Y.REC.ID:'*':Y.DEBIT.CREDIT:'*':Y.DEBIT.AC:'*':Y.DEBIT.AMT:'*':Y.TXN.TYPE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.AC.TITLE:'*':Y.DEPT.CODE
+!                                    1                2               3               4              5               6            7             8               9
+            END CASE
+
+        END
+        ELSE
+            Y.DEBIT.CREDIT = 'CREDIT'
+
+            IF LEFT(Y.CREDIT.AC,2) NE 'PL' THEN
+                CALL F.READ(FN.AC,Y.CREDIT.AC,R.AC,F.AC,Y.ERR)
+                Y.AC.TITLE = R.AC<AC.SHORT.TITLE>
+            END
+            ELSE
+                Y.CATEGORY = SUBSTRINGS(Y.CREDIT.AC,3,7)
+                CALL F.READ(FN.CAT,Y.CATEGORY,R.CAT,F.CAT,Y.ERR)
+                Y.AC.TITLE = R.CAT<EB.CAT.SHORT.NAME>
+            END
+
+            BEGIN CASE
+            CASE Y.GL.PL EQ 'GL' AND LEFT(Y.CREDIT.AC,3) EQ 'BDT'
+                Y.RTN.CREDIT<-1> = Y.REC.ID:'*':Y.DEBIT.CREDIT:'*':Y.CREDIT.AC:'*':Y.DEBIT.AMT:'*':Y.TXN.TYPE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.AC.TITLE:'*':Y.DEPT.CODE
+
+            CASE Y.GL.PL EQ 'PL' AND LEFT(Y.CREDIT.AC,2) EQ 'PL'
+                Y.RTN.CREDIT<-1> = Y.REC.ID:'*':Y.DEBIT.CREDIT:'*':Y.CREDIT.AC:'*':Y.DEBIT.AMT:'*':Y.TXN.TYPE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.AC.TITLE:'*':Y.DEPT.CODE
+
+            CASE Y.GL.PL EQ '' OR Y.GL.PL EQ 'ALL'
+                Y.RTN.CREDIT<-1> = Y.REC.ID:'*':Y.DEBIT.CREDIT:'*':Y.CREDIT.AC:'*':Y.DEBIT.AMT:'*':Y.TXN.TYPE:'*':Y.INPUTTER:'*':Y.AUTHOR:'*':Y.AC.TITLE:'*':Y.DEPT.CODE
+!                                      1                2               3               4              5               6            7              8             9
+            END CASE
+        END
+!Y.RETURN<-1> = Y.DEBIT.AC:'*':Y.DEBIT.AMT:'*':Y.CREDIT.AC:'*':Y.CREDIT.AMT:'*':Y.TXN.TYPE
+    REPEAT
+    BEGIN CASE
+    CASE Y.DR.CR.MARK EQ 'DEBIT'
+        Y.RETURN = Y.RTN.DEBIT
+    CASE Y.DR.CR.MARK EQ 'CREDIT'
+        Y.RETURN = Y.RTN.CREDIT
+    CASE Y.DR.CR.MARK EQ '' OR Y.DR.CR.MARK EQ 'ALL'
+        Y.RETURN<-1> = Y.RTN.DEBIT
+        Y.RETURN<-1> = Y.RTN.CREDIT
+    END CASE
+!CRT Y.RETURN
+    RETURN
+END

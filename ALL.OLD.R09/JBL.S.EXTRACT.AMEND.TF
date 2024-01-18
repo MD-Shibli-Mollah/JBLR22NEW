@@ -1,0 +1,45 @@
+*-----------------------------------------------------------------------------
+* <Rating>1570</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.EXTRACT.AMEND.TF
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT JBL.BP I_F.ABL.H.NM.ER
+    $INSERT JBL.BP I_F.ABL.H.BRANCH.CODE
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+
+    FN.BR.CODE = "F.ABL.H.BRANCH.CODE"
+    F.BR.CODE = ""
+
+    FN.STMT = 'F.STMT.ENTRY'
+    F.STMT = ''
+
+    CALL OPF(FN.STMT,F.STMT)
+    CALL OPF(FN.BR.CODE,F.BR.CODE)
+
+    Y.STMT.ID = ID.NEW
+
+    CALL F.READ(FN.STMT,Y.STMT.ID,R.STMT,F.STMT,STMT.ERR)
+
+    R.NEW(NM.BRANCH.CODE) = COMI
+
+    CALL F.READ(FN.BR.CODE,COMI,R.BR.CODE,F.BR.CODE,Y.BR.ERR)
+    R.NEW(NM.ZONAL.CODE) = R.BR.CODE<BRN.ZONAL.CODE>
+
+
+    Y.STMT.AMT = R.STMT<AC.STE.AMOUNT.LCY>
+
+    IF Y.STMT.AMT LT 0 THEN
+        DR.CR.MARK = 'DR'
+    END ELSE
+        DR.CR.MARK = 'CR'
+    END
+
+    R.NEW(NM.VALUE.DATE)  = R.STMT<AC.STE.PROCESSING.DATE>
+    R.NEW(NM.AMOUNT)      = ABS(Y.STMT.AMT)
+    R.NEW(NM.DR.CR.MARKER)= DR.CR.MARK
+
+    RETURN
+END

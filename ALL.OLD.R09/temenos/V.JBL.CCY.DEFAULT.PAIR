@@ -1,0 +1,96 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE V.JBL.CCY.DEFAULT.PAIR
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This for Bought and Sold CCY defaulting based on the transaction in First Deal
+*
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 12/08/2013 - New - Manjunath Suvarna
+*                    Sepit SoftTech Pvt. Ltd.
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CURRENCY
+    $INSERT I_F.FOREX
+    $INSERT JBL.BP I_F.BD.BASE.CURRENCY.TABLE
+*
+*
+*-----------------------------------------------------------------------------
+*
+    GOSUB INITIALISE
+    GOSUB PROCESS
+*
+    RETURN
+*
+*
+*-----------------------------------------------------------------------------
+INITIALISE:
+*
+    FN.FOREX = 'F.FOREX'
+    F.FOREX = ''
+*
+    FN.FOREXNAU = 'F.FOREX$NAU'
+    F.FOREXNAU = ''
+*
+    FN.BASE.CCY = 'F.BD.BASE.CURRENCY.TABLE'
+    F.BASE.CCY = ''
+*
+    CALL OPF(FN.FOREX,F.FOREX)
+    CALL OPF(FN.FOREXNAU,F.FOREXNAU)
+    CALL OPF(FN.BASE.CCY,F.BASE.CCY)
+*
+    RETURN
+*
+*
+*-----------------------------------------------------------------------------
+PROCESS:
+*
+    Y.ID = COMI
+*
+    CALL F.READ(FN.FOREXNAU,Y.ID,R.FOREXNAU,F.FOREXNAU,Y.ERR)
+    IF R.FOREXNAU THEN
+        ETEXT = 'EB-FX.UNAUTH.PAIR.DEAL'
+        CALL STORE.END.ERROR
+    END ELSE
+        CALL F.READ(FN.FOREX,Y.ID,R.FOREX,F.FOREX,Y.ERR)
+        Y.BOUGHT.CCY = R.FOREX<FX.CURRENCY.BOUGHT>
+        Y.BOUGHT.AMT = R.FOREX<FX.AMOUNT.BOUGHT>
+        Y.SOLD.CCY = R.FOREX<FX.CURRENCY.SOLD>
+        Y.SOLD.AMT = R.FOREX<FX.AMOUNT.SOLD>
+        CALL F.READ(FN.BASE.CCY,'SYSTEM',R.BASE.CCY,F.BASE.CCY,Y.ERR)
+*
+        IF Y.BOUGHT.CCY EQ 'USD' THEN
+            LOCATE Y.SOLD.CCY IN R.BASE.CCY<1,1> SETTING BASE.POS THEN
+                R.NEW(FX.CURRENCY.BOUGHT) = Y.SOLD.CCY
+                R.NEW(FX.CURRENCY.SOLD) = Y.BOUGHT.CCY
+                R.NEW(FX.AMOUNT.BOUGHT) = Y.SOLD.AMT
+            END ELSE
+                R.NEW(FX.CURRENCY.BOUGHT) = Y.SOLD.CCY
+                R.NEW(FX.CURRENCY.SOLD) = Y.BOUGHT.CCY
+                R.NEW(FX.AMOUNT.SOLD) = Y.BOUGHT.AMT
+            END
+        END ELSE
+            R.NEW(FX.CURRENCY.BOUGHT) = Y.SOLD.CCY
+            R.NEW(FX.CURRENCY.SOLD) = Y.BOUGHT.CCY
+            R.NEW(FX.AMOUNT.SOLD) = Y.BOUGHT.AMT
+        END
+*
+        CALL REFRESH.FIELD(FX.CURRENCY.BOUGHT,'')
+        CALL REFRESH.FIELD(FX.CURRENCY.SOLD,'')
+        CALL REFRESH.FIELD(FX.AMOUNT.BOUGHT,'')
+        CALL REFRESH.FIELD(FX.AMOUNT.SOLD,'')
+
+        CALL REBUILD.SCREEN
+    END
+*
+    RETURN
+*
+*
+*-----------------------------------------------------------------------------
+*
+END

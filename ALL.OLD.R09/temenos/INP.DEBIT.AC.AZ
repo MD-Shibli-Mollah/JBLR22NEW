@@ -1,0 +1,32 @@
+***********************************************
+*Company Name   : Datasoft
+*Developed By   : Mazba Uddin
+*Subroutine Type: Auto new input
+*Perpouse : For input AZ credit account field
+***********************************************
+
+    SUBROUTINE INP.DEBIT.AC.AZ
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.AZ.ACCOUNT
+
+    FN.AZ = 'FBNK.AZ.ACCOUNT'
+    F.AZ = ''
+
+    FN.AC = 'FBNK.ACCOUNT'
+    F.AC = ''
+    Y.AC.NO = ID.NEW
+
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AZ,F.AZ)
+
+    CALL F.READ(FN.AC ,Y.AC.NO,R.AC,F.AC,Y.ERR)
+
+    Y.INT.LIQ.AC =  R.AC<AC.INTEREST.LIQU.ACCT>
+    Y.CATEGORY = R.AC<AC.CATEGORY>
+    IF Y.CATEGORY EQ 6627 THEN
+        R.NEW(AZ.NOMINATED.ACCOUNT)=Y.INT.LIQ.AC
+    END
+    RETURN
+END

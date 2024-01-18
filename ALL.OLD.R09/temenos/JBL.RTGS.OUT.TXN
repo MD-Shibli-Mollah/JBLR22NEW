@@ -1,0 +1,338 @@
+**************************************************************************************
+*Developed By: Md. Aminul Islam(Datasoft Systems)                                    *
+*This routine is attachted to BATCH record 'BNK/RTGS.OUT.TXN BATCH'                  *
+*and generate FT transactions for pacs004,pacs002,camp025 messages against           *
+*outward pacs008                                                                     *
+*Date:2016/01/12                                                                     *
+**************************************************************************************
+!PROGRAM JBL.RTGS.OUT.TXN
+    SUBROUTINE JBL.RTGS.OUT.TXN
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT JBL.BP I_F.BD.RTGS.PARAM
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+*****
+INIT:
+*****
+
+    FN.ACC = 'F.ACCOUNT'                    ;F.ACC = ''
+    FN.FT = 'F.FUNDS.TRANSFER'              ;F.FT = ''
+    FN.FT.HIS = 'F.FUNDS.TRANSFER$HIS'      ;F.FT.HIS = ''
+    FN.RTGS.PARAM = 'F.EB.BD.RTGS.PARAM'    ;F.RTGS.PARAM = ''
+    Y.CCY = 'BDT'
+
+    CALL OPF(FN.RTGS.PARAM,F.RTGS.PARAM)
+    CALL F.READ(FN.RTGS.PARAM,'SYSTEM',REC.RTGS.PARAM,F.RTGS.PARAM,ERR.RTGS.PARAM)
+
+*assigning Inward,Outward,Txn Log and Inward file Copy directory
+    FROM.DIR = REC.RTGS.PARAM<EB.BD.29.ROOT.DIR>:'/':REC.RTGS.PARAM<EB.BD.29.INW.SUB.DIR>
+    TO.DIR = REC.RTGS.PARAM<EB.BD.29.ROOT.DIR>:'/INW.CPY.FILES'
+    Y.IN.REV.ERR.TXN.LOG.DIR = REC.RTGS.PARAM<EB.BD.29.ROOT.DIR>:'/RTGS.TXN.LOG'
+    Y.OUTW.DIR = REC.RTGS.PARAM<EB.BD.29.ROOT.DIR>:'/':REC.RTGS.PARAM<EB.BD.29.OUTW.SUB.DIR>
+
+*Assigning Inward Campt025,Packs004,Packs002 file
+    Y.INWCAMP025.FN = 'IwrdCamp025D':TODAY:'.csv'
+    Y.INWPACS004.FN = 'IwrdPacs004D':TODAY:'.csv'
+    Y.INWPACS002.FN = 'IwrdPacs002D':TODAY:'.csv'
+
+*Assigning Related Log file for Inward Campt025,Packs004,Packs002 file
+    Y.INWCAMP025.TXN.LOG.FN = 'IwrdCamp025D':TODAY:'TxnLog.csv'
+    Y.INWPACS004.TXN.LOG.FN = 'IwrdPacs004D':TODAY:'TxnLog.csv'
+    Y.INWPACS002.TXN.LOG.FN = 'IwrdPacs002D':TODAY:'TxnLog.csv'
+
+*Assigning Related Log file path for Inward Campt025,Packs004,Packs002 file
+    Y.INWCAMP025.TXN.LOG.PATH = Y.IN.REV.ERR.TXN.LOG.DIR:'/':Y.INWCAMP025.TXN.LOG.FN
+    Y.INWPACS004.TXN.LOG.PATH = Y.IN.REV.ERR.TXN.LOG.DIR:'/':Y.INWPACS004.TXN.LOG.FN
+    Y.INWPACS002.TXN.LOG.PATH = Y.IN.REV.ERR.TXN.LOG.DIR:'/':Y.INWPACS002.TXN.LOG.FN
+
+*Assigning Outward txn File
+    Y.OUTW.FILE.NAME = 'OwrdPacs008D':TODAY:'.csv'
+
+    Y.ERR.CODE.LIST = 'R 01':@FM:'R 02':@FM:'R 03':@FM:'R 04':@FM:'R 05':@FM:'R 06':@FM:'R 07':@FM:'R 08':@FM:'R 09':@FM:'R01':@FM:'R02':@FM:'R03':@FM:'R04':@FM:'R05':@FM:'R06':@FM:'R07':@FM:'R08':@FM:'R09'
+    CALL GET.LOC.REF('FUNDS.TRANSFER','PAY.TYPE',PAY.TYPE.POS)
+    RETURN
+
+**********
+OPENFILES:
+**********
+
+    OPENSEQ Y.INWCAMP025.TXN.LOG.PATH TO F.FILE.INWCAMP025.TXN.LOG THEN NULL
+    OPENSEQ Y.INWPACS004.TXN.LOG.PATH TO F.FILE.INWPACS004.TXN.LOG THEN NULL
+    OPENSEQ Y.INWPACS002.TXN.LOG.PATH TO F.FILE.INWPACS002.TXN.LOG THEN NULL
+    OPEN TO.DIR TO JBASE.RQST.INW.CPY.DIR ELSE STOP
+
+    CALL OPF(FN.ACC,F.ACC)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    RETURN
+
+********
+PROCESS:
+********
+!*************************
+!Start camp025 processing
+!*************************
+
+    PACS = 'CAMP025'
+    TXN.TYPE = 'Campt025 Return'
+    CPY.FILE.NAME = Y.INWCAMP025.FN
+    GOSUB COPY.FILE ;*Copy file from RTGS inward directory to RTGS inward file copy directory
+!OPEN TO.DIR TO JBASE.RQST.INW.CPY.DIR ELSE STOP
+    READ ALL.VALUES FROM JBASE.RQST.INW.CPY.DIR,Y.INWCAMP025.FN THEN
+        TXN.LOG.FN = Y.INWCAMP025.TXN.LOG.FN
+        GOSUB GET.LAST.START.POS        ;*get last txn id position + 1 from related log file
+        TOT.VALUES = DCOUNT(ALL.VALUES,@FM)
+        FOR I = START.POS TO TOT.VALUES ;*'START.POS' is last txn id position + 1
+            L.VALUES = FIELD(ALL.VALUES,@FM,I)
+            Y.OUTW.ID = FIELD(L.VALUES,',',10)
+            Y.ERR.CODE = FIELD(L.VALUES,',',11)
+            IF Y.ERR.CODE EQ 'ERRC' THEN
+                GOSUB RECORD.BUILD      ;*get all necessary field value from outward txn file to complete FT reverse txn
+                GOSUB OFS.POST          ;*do reverse txn for same outward 'FT' and write same record details to log file
+            END ELSE
+                GOSUB WRITE.CAMP025.LOG ;*if txn is success then write same txn log details to related log file
+            END
+        NEXT I
+    END
+
+!*************************************************
+!End of camp025 processing & Start pacs004 processing
+!*************************************************
+    PACS = 'PACS004'
+    TXN.TYPE = 'Pacs004 Return'
+    CPY.FILE.NAME = Y.INWPACS004.FN
+    GOSUB COPY.FILE ;*Copy file from RTGS inward directory to RTGS inward file copy directory
+!OPEN TO.DIR TO JBASE.RQST.INW.CPY.DIR ELSE STOP
+    READ ALL.VALUES FROM JBASE.RQST.INW.CPY.DIR,Y.INWPACS004.FN THEN
+        TXN.LOG.FN = Y.INWPACS004.TXN.LOG.FN
+        GOSUB GET.LAST.START.POS
+        TOT.VALUES = DCOUNT(ALL.VALUES,@FM)
+        FOR I = START.POS TO TOT.VALUES
+            L.VALUES = FIELD(ALL.VALUES,@FM,I)
+!Y.OUTW.ID = FIELD(L.VALUES,',',24)
+!Y.OUTW.ID = FIELD(L.VALUES,',',22)
+            Y.OUTW.ID = FIELD(L.VALUES,',',12)
+            Y.ERR.CODE = FIELD(L.VALUES,',',17)
+*************************************************NEWLY ADDED FOR CUSTOM E-PAYMENT*****************
+            FINDSTR Y.ERR.CODE IN Y.ERR.CODE.LIST SETTING ERR.POS ELSE NULL
+            IF ERR.POS EQ '' THEN
+                Y.ERR.CODE = FIELD(L.VALUES,',',16)
+                FINDSTR Y.ERR.CODE IN Y.ERR.CODE.LIST SETTING ERR.POS ELSE NULL
+            END
+*************************************************************************************************
+*FINDSTR Y.ERR.CODE IN Y.ERR.CODE.LIST SETTING ERR.POS ELSE NULL 
+            IF ERR.POS THEN
+                GOSUB RECORD.BUILD
+                GOSUB OFS.POST
+            END ELSE
+                GOSUB WRITE.PACS004.LOG
+            END
+        NEXT I
+    END
+
+!*************************************************
+!End of pacs004 processing & Start pacs002 processing
+!*************************************************
+
+    PACS = 'PACS002'
+    TXN.TYPE = 'Pacs002 Return'
+    CPY.FILE.NAME = Y.INWPACS002.FN
+    GOSUB COPY.FILE ;*Copy file from RTGS inward directory to RTGS inward file copy directory
+!OPEN TO.DIR TO JBASE.RQST.INW.CPY.DIR ELSE STOP
+    READ ALL.VALUES FROM JBASE.RQST.INW.CPY.DIR,Y.INWPACS002.FN THEN
+        TXN.LOG.FN = Y.INWPACS002.TXN.LOG.FN
+        GOSUB GET.LAST.START.POS
+        TOT.VALUES = DCOUNT(ALL.VALUES,@FM)
+        FOR I = START.POS TO TOT.VALUES
+            L.VALUES = FIELD(ALL.VALUES,@FM,I)
+!Y.OUTW.ID = FIELD(L.VALUES,',',18)
+            Y.OUTW.ID = FIELD(L.VALUES,',',10)
+            Y.ERR.CODE = FIELD(L.VALUES,',',19)
+            IF Y.ERR.CODE EQ 'RJCT' THEN
+                GOSUB RECORD.BUILD
+                GOSUB OFS.POST
+            END ELSE
+                GOSUB WRITE.PACS002.LOG
+            END
+        NEXT I
+    END
+    RETURN
+
+***************************
+!end of packs002 processing
+***************************
+
+**********
+COPY.FILE:
+**********
+****************************************************************
+!Copy file from RTGS/RTGS.INWARD directory to RTGS/INW.CPY.FILES
+****************************************************************
+!FROM.DIR = REC.RTGS.PARAM<EB.BD.29.ROOT.DIR>:'/':REC.RTGS.PARAM<EB.BD.29.INW.SUB.DIR>
+!TO.DIR = REC.RTGS.PARAM<EB.BD.29.ROOT.DIR>:'/INW.CPY.FILES'
+
+    ERROR.NO = ""
+
+    LOOP
+    UNTIL ERROR.NO EQ "0" DO
+        OPEN FROM.DIR TO FP.FROM.DIR ELSE STOP
+        READ RECORD FROM FP.FROM.DIR,CPY.FILE.NAME SETTING ERROR.NO ON ERROR
+        END ELSE
+        END
+        IF ERROR.NO NE '0' AND ERROR.NO EQ '128' THEN
+            BREAK   ;*error '0' states file exists in the location path
+        END ELSE    ;*error '128' states file doesn't exists in the location path
+            IF ERROR.NO EQ '32768' THEN
+                CONTINUE      ;*error '32768' states existing file is either deleting or pasting
+            END ELSE
+                IF ERROR.NO EQ '0' THEN
+                    CMD = 'COPY FROM ':FROM.DIR:' TO ':TO.DIR:' ':CPY.FILE.NAME:' OVERWRITING'
+                    EXECUTE CMD
+                END
+            END
+        END
+    REPEAT
+    CLOSE FP.FROM.DIR
+    RETURN
+
+*******************
+GET.LAST.START.POS:
+*******************
+!get last record position from Txn log file
+***********************************************
+
+    OPEN Y.IN.REV.ERR.TXN.LOG.DIR TO FP.FILE.INTERIOR.DIR ELSE STOP
+    READ MY.INTERIOR.REC FROM FP.FILE.INTERIOR.DIR,TXN.LOG.FN THEN
+        TOT.INTERIOR.REC = DCOUNT(MY.INTERIOR.REC,@FM)
+        TEMP.MY.REC = FIELD(MY.INTERIOR.REC,@FM,TOT.INTERIOR.REC)
+        LAST.TXN.ID = FIELD(TEMP.MY.REC,',',1)
+    END
+
+    FINDSTR LAST.TXN.ID IN ALL.VALUES SETTING LAST.TXN.POS ELSE
+        LAST.TXN.POS = 0
+    END
+    IF LAST.TXN.POS EQ 0 THEN
+        START.POS = 1
+    END ELSE
+        START.POS = LAST.TXN.POS + 1
+    END
+    CLOSE FP.FILE.INTERIOR.DIR
+    RETURN
+
+*************
+RECORD.BUILD:
+*************
+!fetch necessary field value from outward txn file
+**************************************************
+
+    OPEN Y.OUTW.DIR TO JBASE.FILE ELSE STOP
+    READ MY.REC FROM JBASE.FILE,Y.OUTW.FILE.NAME THEN
+        FINDSTR Y.OUTW.ID IN MY.REC SETTING REC.POS ELSE NULL
+        Y.OUTW.DATA = FIELD(MY.REC,@FM,REC.POS)
+        REC.POS = ''
+    END
+    CLOSESEQ JBASE.FILE
+
+!Y.AMOUNT = FIELD(Y.OUTW.DATA,',',21)
+    Y.CR.ACC.NO = FIELD(Y.OUTW.DATA,',',41)
+    CALL F.READ(FN.ACC, Y.CR.ACC.NO , R.ACC , F.ACC , Y.ACC.ERR)
+    Y.CO.CODE = R.ACC<AC.CO.CODE>
+!Y.DR.ACC.NO = 'BDT':REC.RTGS.PARAM<EB.BD.29.OW.SETT.CATEG>:'0001':Y.CO.CODE[6,4]
+    Y.PAYMENT.DET = FIELD(Y.OUTW.DATA,',',63)
+!CALL F.READ(FN.FT, Y.PAYMENT.DET, R.FT.OUW , F.FT , Y.FT.OUW)
+!Y.AMOUNT = R.FT.OUW<FT.LOC.AMT.DEBITED>
+    RETURN
+
+*********
+OFS.POST:
+*********
+!reverse outward txn which status is error
+******************************************
+
+    Y.B.USER = 'DMUSER'
+    Y.SOURCE = 'DM.OFS.SRC.VAL'
+    CALL LOAD.COMPANY(Y.CO.CODE)
+    OPERATOR = Y.B.USER
+    Y.OFS.MSG.POST = "FUNDS.TRANSFER,RTGS.INW.TXN/R/PROCESS,//,":Y.PAYMENT.DET
+!Y.SOURCE = 'DM.OFS.SRC'
+    RUNNING.UNDER.BATCH = 1
+    CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.OFS.MSG.POST)
+    RUNNING.UNDER.BATCH = 0
+
+    Y.GEN.FT.ID = FIELD(Y.OFS.MSG.POST,'/',1)
+    Y.OFS.ERR.CODE = FIELD(FIELD(Y.OFS.MSG.POST,'/',3),',',1)
+    CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.PAYMENT.DET,R.FTHIS.REC,Y.FTHIS.ERR)
+    IF Y.OFS.ERR.CODE EQ '1' THEN
+        Y.IS.ERROR = 'Success'
+        IF R.FTHIS.REC<FT.RECORD.STATUS> EQ 'REVE' THEN
+            R.FTHIS.REC<FT.LOCAL.REF,PAY.TYPE.POS> = TXN.TYPE
+            WRITE R.FTHIS.REC TO F.FT.HIS,Y.PAYMENT.DET
+        END
+        Y.GEN.FT.ID = Y.PAYMENT.DET
+        L.VALUES = L.VALUES:',':Y.IS.ERROR:',':Y.GEN.FT.ID
+    END
+    ELSE
+        IF R.FTHIS.REC<FT.RECORD.STATUS> EQ 'REVE' THEN
+            Y.IS.ERROR = 'Success'
+            Y.GEN.FT.ID = Y.PAYMENT.DET
+            L.VALUES = L.VALUES:',':Y.IS.ERROR:',':Y.GEN.FT.ID
+        END ELSE
+            Y.IS.ERROR = 'Error'
+            Y.ERR = FIELD(Y.OFS.MSG.POST,'/',4)
+            Y.ERRF = FIELD(Y.ERR,',',2)
+            L.VALUES = L.VALUES :',':Y.IS.ERROR:',':Y.ERRF
+        END
+    END
+    IF PACS EQ 'CAMP025' THEN
+        GOSUB WRITE.CAMP025.LOG
+    END ELSE
+        IF PACS EQ 'PACS004' THEN
+            GOSUB WRITE.PACS004.LOG
+        END ELSE
+            GOSUB WRITE.PACS002.LOG
+        END
+    END
+    RETURN
+
+******************
+WRITE.CAMP025.LOG:
+******************
+!write txn record to related log file
+*************************************
+
+    WRITESEQ L.VALUES APPEND TO F.FILE.INWCAMP025.TXN.LOG ELSE
+        CRT "No file name found to WRITE TRANSACTION data"
+    END
+    RETURN
+
+******************
+WRITE.PACS004.LOG:
+******************
+!write txn record to related log file
+*************************************
+
+    WRITESEQ L.VALUES APPEND TO F.FILE.INWPACS004.TXN.LOG ELSE
+        CRT "No file name found to WRITE TRANSACTION data"
+    END
+    RETURN
+
+******************
+WRITE.PACS002.LOG:
+******************
+!write txn record to related log file
+*************************************
+
+    WRITESEQ L.VALUES APPEND TO F.FILE.INWPACS002.TXN.LOG ELSE
+        CRT "No file name found to WRITE TRANSACTION data"
+    END
+    RETURN
+END

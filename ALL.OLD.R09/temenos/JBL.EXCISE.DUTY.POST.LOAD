@@ -1,0 +1,81 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.EXCISE.DUTY.POST.LOAD
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT JBL.BP I_F.ABL.H.ED
+    $INSERT JBL.BP I_F.AB.H.ED.SLAB.PARAM
+    $INSERT JBL.BP I_F.ABL.H.ED.CATEG
+    $INSERT JBL.BP I_JBL.S.EXCISE.DUTY.POST.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*-----
+INIT:
+*-----
+    FN.SLAB ='F.AB.H.ED.SLAB.PARAM'
+    F.SLAB = ''
+    Y.SLAB.ID ='SYSTEM'
+    REC.SLAB = ''
+    Y.EXCISE.ACCT=''
+    Y.EXCISE.AMT=''
+
+    FN.ABL.ED ='F.ABL.H.ED'
+    F.ABL.ED=''
+    REC.ED=''
+    Y.ED.ID=''
+
+    FN.ACCT='F.ACCOUNT'
+    F.ACCT=''
+    REC.ACCT=''
+    Y.AC.ID=''
+    Y.SOURCE = "DM.OFS.SRC"
+    Y.MESSAGE=''
+    CNT =''
+
+    FN.ED.CATEG='F.ABL.H.ED.CATEG'
+    F.ED.CATEG=''
+    REC.ED.CATEG=''
+
+    RETURN
+
+*---------
+OPENFILES:
+*--------
+    CALL OPF(FN.ABL.ED,F.ABL.ED)
+    CALL OPF(FN.SLAB,F.SLAB)
+    CALL OPF(FN.ED.CATEG,F.ED.CATEG)
+
+    RETURN
+
+*--------
+PROCESS:
+*--------
+    CALL F.READ(FN.SLAB,Y.SLAB.ID,REC.SLAB,F.SLAB,ERR.SLAB)
+
+    IF REC.SLAB EQ "" THEN
+        ETEXT="There must be a record SYSTEM in AB.H.ED.SLAB.PARAM"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    Y.EXCISE.ACCT="BDT":REC.SLAB<EB.SL.PARAM.CATEGORY>:"0001"
+
+    CALL F.READ(FN.ED.CATEG,'SYSTEM',REC.ED.CATEG,F.ED.CATEG,ERR.ED.CATEG)
+
+    IF REC.ED.CATEG EQ "" THEN
+        ETEXT="There must be a record SYSTEM in ABL.H.ED.CATEG"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    Y.EN.MN.YR=''
+    Y.EN.MN.YR=REC.ED.CATEG<EDC.END.DATE>[1,6]
+    RETURN
+END

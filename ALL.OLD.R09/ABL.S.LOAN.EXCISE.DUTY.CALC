@@ -1,0 +1,396 @@
+*-----------------------------------------------------------------------------
+* <Rating>1380</Rating>
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* The Program finds the Maximum Balance of an Account of a Specific Category and
+* Corresponding date to calculate Excise Duty.
+*
+*------Modification History---------*
+*1) 2011/12/07----Branch Wise Excise Duty Calculation and Change in ABL.H.ED local Template
+*2) 2012/12/23----For No ACCT.ACTIVITY File
+*3) 2012/12/23----For Positive Balance
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.LOAN.EXCISE.DUTY.CALC
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCT.ACTIVITY
+    $INSERT I_F.ABL.H.LOAN.ED.CATEG
+    $INSERT I_F.ABL.H.ED
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.AB.H.ED.SLAB.PARAM
+    $INSERT I_F.PD.PAYMENT.DUE
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.ACC='F.ACCOUNT'
+    F.ACC=''
+    REC.ACC = ''
+    Y.AC.ID = ''
+    Y.AC.CALC.ID=''
+
+    FN.ACCT='F.ACCT.ACTIVITY'
+    F.ACCT=''
+    Y.ACCT.ID=''
+
+    FN.ED.CATEG='F.ABL.H.LOAN.ED.CATEG'
+    F.ED.CATEG=''
+    REC.ED.CATEG=''
+
+    FN.ABL.ED ='F.ABL.H.ED'
+    F.ABL.ED=''
+    REC.ED=''
+
+    FN.SLAB ='F.AB.H.ED.SLAB.PARAM'
+    F.SLAB = ''
+    Y.SLAB.ID ='SYSTEM'
+    REC.SLAB = ''
+    Y.EXCIXE.AMT=''
+
+
+    FN.PD.CUS='F.PD.CUSTOMER'
+    F.PD.CUS=''
+    REC.PD.CUS=''
+
+    FN.PD='F.PD.PAYMENT.DUE'
+    F.PD=''
+    REC.PD=''
+
+    Y.COUNT='0'
+    R.ACCT.REC=''
+    ACCT.ERR=''
+    Y.BAL.ARRAY=''
+    Y.DATE.ARRAY=''
+    Y.RESULT1=''
+    Y.RESULT2=''
+
+    BALANCE.TYPE='BOOKING'
+    SYSTEM.DATE=TODAY
+    Y.MAX.AMT.ORIG = ''
+    Y.MAX.AMT.TEMP=''
+    Y.MAX.DATE.ORIG=''
+
+    Y.MAX.AMT.PRIN.ORIG = ''
+    Y.MAX.DATE.PRIN.ORIG=''
+
+    Y.MAX.AMT.LIQ.ORIG = ''
+    Y.MAX.DATE.LIQ.ORIG=''
+    Y.STAFF.LIQ.AC=''
+
+    Y.EX.WAIVE='EXCISE.WAIVE'
+    Y.EX.WAIVE.POS=''
+    CALL GET.LOC.REF("ACCOUNT",Y.EX.WAIVE,Y.EX.WAIVE.POS)
+
+    CNT=''
+
+    RETURN
+
+OPENFILE:
+    CALL OPF(FN.ACCT,F.ACCT)
+    CALL OPF(FN.ED.CATEG,F.ED.CATEG)
+    CALL OPF(FN.ABL.ED,F.ABL.ED)
+    CALL OPF(FN.SLAB,F.SLAB)
+    CALL OPF(FN.ACC,F.ACC)
+    CALL OPF(FN.PD,F.PD)
+    CALL OPF(FN.PD.CUS,F.PD.CUS)
+    RETURN
+
+PROCESS:
+
+!-----1/S---!
+!    EXECUTE "CLEAR.FILE ":FN.ABL.ED
+
+    CALL F.READ(FN.SLAB,Y.SLAB.ID,REC.SLAB,F.SLAB,ERR.SLAB)
+    IF REC.SLAB EQ "" THEN
+        ETEXT="There must be a record SYSTEM in AB.H.ED.SLAB.PARAM"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    Y.SLAB.COUNT = DCOUNT(REC.SLAB<EB.SL.PARAM.AMT.FROM>,VM)
+    CALL F.READ(FN.ED.CATEG,'SYSTEM',REC.ED.CATEG,F.ED.CATEG,ERR.ED.CATEG)
+
+    IF REC.ED.CATEG EQ "" THEN
+        ETEXT="There must be a record SYSTEM in ABL.H.ED.CATEG"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    Y.INCLUDE.CATEG=REC.ED.CATEG<EXCS.LN.INC.OTHER.CATEG>
+    Y.STAFF.CATEG=REC.ED.CATEG<EXCS.LN.INC.STAFF.CATEG>
+    Y.INCLUDE.COMPANY=REC.ED.CATEG<EXCS.LN.INCLUDE.COMP>
+    Y.ST.MN.YR=REC.ED.CATEG<EXCS.LN.START.DATE>[1,6]
+    Y.EN.MN.YR=REC.ED.CATEG<EXCS.LN.END.DATE>[1,6]
+
+    SEL.CMD="SELECT ":FN.ACC:" WITH EXCISE.WAIVE NE 'Waive' AND ( CO.CODE EQ "
+
+    IF Y.INCLUDE.COMPANY THEN
+        CNT.IN.COMP = DCOUNT(Y.INCLUDE.COMPANY,VM)
+        FOR I = 1 TO CNT.IN.COMP
+            IF I = CNT.IN.COMP THEN
+                SEL.CMD := Y.INCLUDE.COMPANY<1,I>
+            END ELSE
+                SEL.CMD := Y.INCLUDE.COMPANY<1,I>:" OR CO.CODE EQ "
+            END
+        NEXT I
+    END
+
+    SEL.CMD= SEL.CMD:" ) AND ( CATEGORY EQ "
+
+    IF Y.INCLUDE.CATEG THEN
+        CNT.EX.CATEG = DCOUNT(Y.INCLUDE.CATEG,VM)
+        FOR J = 1 TO CNT.EX.CATEG
+            IF J = CNT.EX.CATEG THEN
+                SEL.CMD := Y.INCLUDE.CATEG<1,J>
+            END ELSE
+                SEL.CMD := Y.INCLUDE.CATEG<1,J>:" OR CATEGORY EQ "
+            END
+        NEXT J
+    END
+
+    SEL.CMD= SEL.CMD:" OR CATEGORY EQ "
+
+    IF Y.STAFF.CATEG THEN
+        CNT.STFF.EX.CATEG = DCOUNT(Y.STAFF.CATEG,VM)
+        FOR K = 1 TO CNT.STFF.EX.CATEG
+            IF K = CNT.STFF.EX.CATEG THEN
+                SEL.CMD := Y.STAFF.CATEG<1,K>
+            END ELSE
+                SEL.CMD := Y.STAFF.CATEG<1,K>:" OR CATEGORY EQ "
+            END
+        NEXT K
+    END
+
+    SEL.CMD= SEL.CMD:" ) "
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',REC.NO,RET.CODE)
+    LOOP
+        REMOVE Y.AC.ID FROM SEL.LIST SETTING AC.POS
+    WHILE Y.AC.ID:AC.POS
+
+        CALL F.READ(FN.ACC,Y.AC.ID,REC.ACC,F.ACC,ERROR.ACC)
+
+!*************************CC/OD/SOD Loan Excise Duty******************************!
+        FIND REC.ACC<AC.CATEGORY> IN REC.ED.CATEG<EXCS.LN.INC.OTHER.CATEG> SETTING Y.POS1,Y.POS2,Y.POS3 THEN
+            CALL F.READ(FN.PD.CUS,REC.ACC<AC.CUSTOMER>,REC.PD.CUS,F.PD.CUS,ERR.PD.CUS)
+
+            IF REC.PD.CUS THEN
+
+                Y.TOTAL.PD=''
+                Y.TOTAL.PD = DCOUNT(REC.PD.CUS,FM)
+                Y.PD.ID=''
+                FOR L = 1 TO Y.TOTAL.PD
+                    Y.PD.ID=REC.PD.CUS<L>
+                    CALL F.READ(FN.PD,Y.PD.ID,REC.PD,F.PD,ERR.PD)
+                    IF REC.PD NE '' THEN
+
+                        BEGIN CASE
+                        CASE Y.AC.ID EQ REC.PD<PD.REPAYMENT.ACCT>
+                            IF REC.PD<PD.STATUS> NE 'NAB' THEN
+                                Y.AC.CALC.ID=Y.AC.ID
+                                GOSUB CALCULATE.PROCESS
+                                Y.MAX.AMT.PRIN.ORIG = Y.MAX.AMT.ORIG.CALC
+                                Y.MAX.DATE.PRIN.ORIG= Y.MAX.DATE.ORIG.CALC
+                                Y.MAX.AMT.ORIG = ABS(Y.MAX.AMT.ORIG.CALC)
+                                IF Y.MAX.AMT.ORIG GT 0 THEN
+                                    GOSUB RESULT.PROCESS
+                                END
+                                BREAK
+                            END
+                        CASE OTHERWISE
+                            FIND Y.AC.ID IN REC.PD<PD.ORIG.STLMNT.ACT> SETTING Y.POS1,Y.POS2,Y.POS3 THEN
+                                IF REC.PD<PD.STATUS> NE 'NAB' THEN
+                                    Y.AC.CALC.ID=Y.AC.ID
+                                    GOSUB CALCULATE.PROCESS
+                                    Y.MAX.AMT.PRIN.ORIG = Y.MAX.AMT.ORIG.CALC
+                                    Y.MAX.DATE.PRIN.ORIG= Y.MAX.DATE.ORIG.CALC
+                                    Y.MAX.AMT.ORIG = ABS(Y.MAX.AMT.ORIG.CALC)
+                                    IF Y.MAX.AMT.ORIG GT 0 THEN
+                                        GOSUB RESULT.PROCESS
+                                    END
+                                    BREAK
+                                END
+                            END
+
+                        END CASE
+
+
+                    END
+                NEXT L
+            END
+
+            ELSE
+                Y.AC.CALC.ID=Y.AC.ID
+                GOSUB CALCULATE.PROCESS
+                Y.MAX.AMT.PRIN.ORIG = Y.MAX.AMT.ORIG.CALC
+                Y.MAX.DATE.PRIN.ORIG= Y.MAX.DATE.ORIG.CALC
+                Y.MAX.AMT.ORIG = ABS(Y.MAX.AMT.ORIG.CALC)
+                IF Y.MAX.AMT.ORIG GT 0 THEN
+                    GOSUB RESULT.PROCESS
+                END
+
+            END
+
+
+        END
+!*************************STAFF Loan Excise Duty**********************************!
+        FIND REC.ACC<AC.CATEGORY> IN REC.ED.CATEG<EXCS.LN.INC.STAFF.CATEG> SETTING Y.POS1,Y.POS2,Y.POS3 THEN
+
+            BEGIN CASE
+            CASE REC.ACC<AC.INTEREST.LIQU.ACCT> NE ''
+                Y.AC.CALC.ID=Y.AC.ID
+                GOSUB CALCULATE.PROCESS
+                Y.MAX.AMT.PRIN.ORIG = Y.MAX.AMT.ORIG.CALC
+                Y.MAX.DATE.PRIN.ORIG= Y.MAX.DATE.ORIG.CALC
+                Y.AC.CALC.ID=REC.ACC<AC.INTEREST.LIQU.ACCT>
+                Y.STAFF.LIQ.AC=REC.ACC<AC.INTEREST.LIQU.ACCT>
+                GOSUB CALCULATE.PROCESS
+                Y.MAX.AMT.LIQ.ORIG = Y.MAX.AMT.ORIG.CALC
+                Y.MAX.DATE.LIQ.ORIG=Y.MAX.DATE.ORIG.CALC
+                Y.MAX.AMT.ORIG=ABS(Y.MAX.AMT.PRIN.ORIG) + ABS(Y.MAX.AMT.LIQ.ORIG)
+
+                IF Y.MAX.AMT.ORIG GT 0 THEN
+                    GOSUB RESULT.PROCESS
+                END
+
+            CASE REC.ACC<AC.INT.LIQU.ACCT> NE ''
+                Y.AC.CALC.ID=Y.AC.ID
+                GOSUB CALCULATE.PROCESS
+                Y.MAX.AMT.PRIN.ORIG = Y.MAX.AMT.ORIG.CALC
+                Y.MAX.DATE.PRIN.ORIG= Y.MAX.DATE.ORIG.CALC
+                Y.AC.CALC.ID=REC.ACC<AC.INTEREST.LIQU.ACCT>
+                Y.STAFF.LIQ.AC=REC.ACC<AC.INTEREST.LIQU.ACCT>
+                GOSUB CALCULATE.PROCESS
+                Y.MAX.AMT.LIQ.ORIG = Y.MAX.AMT.ORIG.CALC
+                Y.MAX.DATE.LIQ.ORIG=Y.MAX.DATE.ORIG.CALC
+                Y.MAX.AMT.ORIG=ABS(Y.MAX.AMT.PRIN.ORIG) + ABS(Y.MAX.AMT.LIQ.ORIG)
+                IF Y.MAX.AMT.ORIG GT 0 THEN
+                    GOSUB RESULT.PROCESS
+                END
+            CASE OTHERWISE
+                Y.AC.CALC.ID=Y.AC.ID
+                GOSUB CALCULATE.PROCESS
+                Y.MAX.AMT.PRIN.ORIG = Y.MAX.AMT.ORIG.CALC
+                Y.MAX.DATE.PRIN.ORIG= Y.MAX.DATE.ORIG.CALC
+                Y.MAX.AMT.ORIG = ABS(Y.MAX.AMT.ORIG.CALC)
+                IF Y.MAX.AMT.ORIG GT 0 THEN
+                    GOSUB RESULT.PROCESS
+                END
+            END CASE
+
+        END
+
+    REPEAT
+    RETURN
+
+CALCULATE.PROCESS:
+    Y.MAX.AMT.ORIG.CALC=''
+    Y.MAX.DATE.ORIG.CALC=''
+    Y.MAX.AMT.TEMP.SAVE=''
+    Y.GET.ACCT.FLAG=''        ;!-----2/S-----!
+    R.ACCT.AMT.REC.TEMP=''    ;!----3/S-------!
+    R.ACCT.DATE.REC.TEMP=''
+    ACCT.CNT=''     ;!----3/E-------!
+    Y.START.PERIOD = Y.ST.MN.YR
+    LOOP
+    UNTIL Y.START.PERIOD GT Y.EN.MN.YR DO
+        CALL EB.GET.ACCT.ACTIVITY(Y.AC.CALC.ID,REC.ACC,Y.START.PERIOD,BALANCE.TYPE,SYSTEM.DATE,R.ACCT.REC)
+        IF R.ACCT.REC NE '' THEN
+            Y.GET.ACCT.FLAG=1 ;!----2/S----!
+
+!------3/S------!
+            ACCT.CNT=DCOUNT(R.ACCT.REC<4>,VM)
+            FOR M=1 TO ACCT.CNT
+                IF R.ACCT.REC<4,M> LT 0 THEN
+                    R.ACCT.AMT.REC.TEMP<1,-1>=ABS(R.ACCT.REC<4,M>)
+                    R.ACCT.DATE.REC.TEMP<1,-1>=R.ACCT.REC<1,M>
+                END
+            NEXT M
+            Y.MAX.AMT.TEMP=MAXIMUM(R.ACCT.AMT.REC.TEMP)
+
+!            IF Y.MAX.AMT.TEMP GT 0 THEN
+!                Y.MAX.AMT.TEMP=""
+!            END
+!-----3/E-------!
+            IF ABS(Y.MAX.AMT.TEMP) GT ABS(Y.MAX.AMT.ORIG.CALC) THEN
+                Y.MAX.AMT.ORIG.CALC = Y.MAX.AMT.TEMP
+                LOCATE Y.MAX.AMT.ORIG.CALC IN R.ACCT.AMT.REC.TEMP<1,1> SETTING POS3 THEN
+                    Y.MAX.DATE.ORIG.CALC=Y.START.PERIOD:R.ACCT.DATE.REC.TEMP<1,POS3>
+                END
+                Y.MAX.AMT.ORIG.CALC=Y.MAX.AMT.ORIG.CALC * -1
+            END
+        END
+        R.ACCT.REC=''
+        Y.MAX.AMT.TEMP=''
+
+        IF Y.START.PERIOD[5,2] EQ 12 THEN
+            Y.START.PERIOD = Y.START.PERIOD[1,4]+1:"01"
+        END
+        ELSE
+            Y.START.PERIOD = Y.START.PERIOD[1,4]:FMT(Y.START.PERIOD[5,2]+1,"R%2")
+        END
+
+    REPEAT
+
+!----2/S------!
+    IF Y.GET.ACCT.FLAG EQ '' THEN
+        IF Y.STAFF.LIQ.AC EQ '' THEN
+            YEAR.END.BAL = REC.ACC<AC.START.YEAR.BAL>
+        END
+        ELSE
+            CALL F.READ(FN.ACC,Y.STAFF.LIQ.AC,R.LIQ.ACC,F.ACC,ERR.LIQ.ACC)
+            YEAR.END.BAL = R.LIQ.ACC<AC.START.YEAR.BAL>
+        END
+        IF YEAR.END.BAL LT 0 THEN
+            Y.MAX.AMT.ORIG.CALC = YEAR.END.BAL
+            Y.MAX.DATE.ORIG.CALC=TODAY[1,4]:"0101"
+        END
+    END
+!-----2/E------!
+    Y.START.PERIOD = ''
+
+    RETURN
+
+RESULT.PROCESS:
+
+    FOR I=1 TO Y.SLAB.COUNT
+        IF I NE Y.SLAB.COUNT THEN
+            IF Y.MAX.AMT.ORIG GE REC.SLAB<EB.SL.PARAM.AMT.FROM,I> AND Y.MAX.AMT.ORIG LE REC.SLAB<EB.SL.PARAM.AMT.TO,I> THEN
+                Y.EXCIXE.AMT =REC.SLAB<EB.SL.PARAM.EX.DUTY.AMT,I>
+            END
+        END
+        ELSE
+            IF  Y.MAX.AMT.ORIG GE REC.SLAB<EB.SL.PARAM.AMT.FROM,I> THEN
+                Y.EXCIXE.AMT =REC.SLAB<EB.SL.PARAM.EX.DUTY.AMT,I>
+            END
+        END
+    NEXT
+    IF Y.EXCIXE.AMT GT 0 THEN
+        CALL F.READ(FN.ACC,Y.AC.ID,REC.ACC,F.ACC,ERR.ACC)
+
+        REC.ED<EXCS.DUT.HIGHEST.BAL.DATE>= Y.MAX.DATE.PRIN.ORIG
+        REC.ED<EXCS.DUT.HIGHEST.BAL.LCY>= Y.MAX.AMT.PRIN.ORIG
+        REC.ED<EXCS.DUT.EX.DUTY.AMT.LCY>= Y.EXCIXE.AMT
+        REC.ED<EXCS.DUT.CO.CODE>=REC.ACC<AC.CO.CODE>
+        REC.ED<EXCS.DUT.TYPE>="DEBIT"
+        REC.ED<EXCS.DUT.LIQ.HIG.BAL.DAT> = Y.MAX.DATE.LIQ.ORIG
+        REC.ED<EXCS.DUT.LIQ.HIG.BAL.LCY> = Y.MAX.AMT.LIQ.ORIG
+        REC.ED<EXCS.DUT.INT.LIQ.AC> = Y.STAFF.LIQ.AC
+        WRITE REC.ED TO F.ABL.ED,Y.AC.ID:".":Y.EN.MN.YR
+        CNT= CNT+1
+        PRINT"PROCESS.... ":CNT
+
+    END
+    REC.ED=''
+
+    Y.MAX.AMT.PRIN.ORIG = ""
+    Y.MAX.DATE.PRIN.ORIG= ""
+    Y.MAX.AMT.LIQ.ORIG = ""
+    Y.MAX.DATE.LIQ.ORIG=""
+    Y.MAX.AMT.ORIG=""
+    Y.STAFF.LIQ.AC=""
+    RETURN
+END

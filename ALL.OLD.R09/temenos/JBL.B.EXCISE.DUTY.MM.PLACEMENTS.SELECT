@@ -1,0 +1,57 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.EXCISE.DUTY.MM.PLACEMENTS.SELECT
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine is used to make a select on all MM Placements maturing today
+*-------------------------------------------------------------------------
+* Project Name : National Bank Limited(Bangladesh)
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*  NA
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+* TODAY                     -                     Holds today's date
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+* EB.READLIST               CORE           To read a set of records from a
+*                                          file
+*
+* BATCH.BUILD.LIST          CORE           Writes the list of ids into the
+*                                          LIST file
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 11/02/2011 -                            New   - Rashmitha M
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE JBL.BP I_JBL.B.EXCISE.DUTY.MM.TAKINGS.COMMON
+    $INCLUDE GLOBUS.BP I_F.MM.MONEY.MARKET
+    $INCLUDE GLOBUS.BP I_F.DATES
+    $INCLUDE GLOBUS.BP I_BATCH.FILES
+
+    SEL.LIST=''
+    SEL.ERR=''
+    NO.OF.RECS=''
+    Y.LEN.BATCH.NAME=LEN(PROCESS.NAME)
+    Y.NEXT.WORK.DAY=R.DATES(EB.DAT.NEXT.WORKING.DAY)
+    IF PROCESS.NAME[Y.LEN.BATCH.NAME-2,3] EQ 'SOD' THEN
+        SEL.CMD='SELECT ':FN.MM.MONEY.MARKET:' WITH STATUS NE "LIQ" AND MATURITY.DATE LE ':TODAY:' AND MATURE.AT.SOD EQ "YES" AND (AUTO.ROLLOVER EQ "N" OR ROLLOVER.DATE EQ "")'
+    END
+    IF PROCESS.NAME[Y.LEN.BATCH.NAME-2,3] EQ 'EOD' THEN
+        SEL.CMD='SELECT ':FN.MM.MONEY.MARKET:' WITH STATUS NE "LIQ" AND MATURITY.DATE LT ':Y.NEXT.WORK.DAY:' AND (AUTO.ROLLOVER EQ "N" OR ROLLOVER.DATE EQ "")'
+    END
+    SEL.CMD:=' AND CATEGORY GE 21075 AND CATEGORY LE 21084 AND CURRENCY EQ ':LCCY
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,SEL.ERR)
+    CALL BATCH.BUILD.LIST('',SEL.LIST)
+    RETURN
+**************************************************************************
+END

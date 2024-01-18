@@ -1,0 +1,49 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SP.CUSNAME
+* Subroutine Description :
+*------------------------
+* This routine is use for default value CUSTOMER SHORT.NAME
+* in CUSTOMER.NAME field against CUSTOMER.NO
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20170725 - New - Md. Sarowar Mortoza
+*                  Datasoft Systems BD Ltd.
+*-------------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_F.CUSTOMER
+    $INSERT I_F.BD.H.SP.STOCK.ISSUE
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+*** </region>*-----------------------------------------------------------------------------
+***---------------------------------------------------------------
+INIT:
+    FN.CUS='F.CUSTOMER'
+    F.CUS=''
+    FN.SPSTK='F.BD.H.SP.STOCK.ISSUE'
+    F.SPSTK=''
+    Y.CUS.ID=''
+    RETURN
+***---------------------------------------------------------------
+***---------------------------------------------------------------
+OPENFILE:
+    CALL OPF(FN.CUS,F.CUS)
+    CALL OPF(FN.SPSTK,F.SPSTK)
+    RETURN
+***---------------------------------------------------------------
+***---------------------------------------------------------------
+PROCESS:
+    Y.CUS.ID=R.NEW(SP.STK.CUSTOMER.NO)
+    CALL F.READ(FN.CUS,Y.CUS.ID,R.CUS,F.CUS,Y.ERR)
+    R.NEW(SP.STK.CUSTOMER.NAME)=R.CUS<EB.CUS.SHORT.NAME>
+    RETURN
+***----------------------------------------------------------------
+END

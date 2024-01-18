@@ -1,0 +1,39 @@
+*-----------------------------------------------------------------------------
+* <Rating>99</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.ACCT.SUSP(Y.ACCT.ID)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT BP I_F.EB.BD.SUSPENSE.REGISTER
+
+    $INSERT JBL.BP/REPGEN MT.ACCT.SUSP.VARS
+
+    CALL F.READ(FN.ACCT,Y.ACCT.ID,R.ACCT,F.ACCT,ERR.CODE)
+
+    Y.AC.CAT = R.ACCT<AC.CATEGORY>
+
+    LOCATE Y.AC.CAT IN Y.INT.CATEGORY.LIST SETTING POS THEN
+
+        Y.INT.NO.BOOKING = R.ACCT<AC.INT.NO.BOOKING>
+
+        IF Y.INT.NO.BOOKING NE '' THEN
+
+            Y.CO.CODE = R.ACCT<AC.CO.CODE>
+            CALL F.READ(FN.SR,Y.ACCT.ID,R.SR,F.SR,E.SR)
+
+            Y.LEG.SUSP = R.SR<EB.BD.67.SUSPENSE.AMOUNT>
+            Y.AC.SUSP = R.ACCT<AC.ACCR.DR.SUSP>
+            Y.TOTAL = Y.LEG.SUSP + Y.AC.SUSP
+
+            Y.RETURN = Y.ACCT.ID:'|':Y.AC.CAT:'|':Y.LEG.SUSP:'|':Y.AC.SUSP:'|':Y.TOTAL:'|':Y.INT.NO.BOOKING:'|':Y.CO.CODE:'|':TODAY:'|'
+            WRITESEQ Y.RETURN APPEND TO F.FILE.DIR.ACCT ELSE NULL
+        END
+    END
+    RETURN
+END
+

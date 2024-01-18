@@ -1,0 +1,214 @@
+*-----------------------------------------------------------------------------
+* <Rating>62</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.SB.AVG.CHRG.CALC
+!------------------------------------------------------
+!Mainline routine to deduct Saving Account Half yearly charges based on
+!the Average balance of a specific Account.It reads the Local Table ABL.H.SB.YRPAR
+!-----------------------------------------------------
+!----------Modification History-------------------!
+!1) Remove the Staff account charge functionality
+!
+!---------Modification History--------------------!
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.CUSTOMER
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ABL.H.SB.YRPAR
+    $INSERT I_F.ABL.H.SB.CHRG
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB CALC.CHRG
+    RETURN
+INIT:
+    IN.DATA=''
+    OUT.DATA=''
+    ST.EN.DATE=''
+
+    FN.SB.CHR='F.ABL.H.SB.CHRG'
+    F.SB.CHR=''
+    REC.SB.CHR=''
+    Y.SB.CHR.ID=''
+
+    FN.CUS='F.CUSTOMER'
+    F.CUS=''
+    REC.CUS=''
+    Y.SECTOR=''
+
+    FN.AC="F.ACCOUNT"
+    F.AC=''
+    REC.AC=''
+    Y.AC.ID=''
+
+    FN.SB.YR='F.ABL.H.SB.YRPAR'
+    F.SB.YR=''
+    Y.SB.YR.ID=''
+    REC.SB.YR=''
+    REC.SB.YR.SYS=''
+    Y.SB.CHRG.AMT=''
+    Y.SB.VAT.AMT=''
+
+    Y.SB.SLAB.AMT=''
+    Y.SB.STAFF.CHRG.AMT= ''
+    Y.SB.OTHER.CHRG.AMT1 =''
+    Y.SB.SLAB.AMT=''
+    Y.SB.OTHER.CHRG.AMT=''
+    Y.SB.STAFF.CHRG.AMT=''
+    Y.EXCLUDE.AC.LIST=''
+
+    Y.CHRG.SLAB.COUNT=''
+    CNT=''
+    Y.BALANCE=''
+    CALL GET.LOC.REF("ACCOUNT","MAIN.CHARGE",Y.MAIN.CHG.POS)
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.CUS,F.CUS)
+    CALL OPF(FN.SB.YR,F.SB.YR)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.SB.CHR,F.SB.CHR)
+
+    RETURN
+
+CALC.CHRG:
+    EXECUTE "CLEAR.FILE ":FN.SB.CHR
+    CALL F.READ(FN.SB.YR,'SYSTEM',REC.SB.YR.SYS,F.SB.YR,ERR.SB.YR)
+    IF REC.SB.YR.SYS EQ '' THEN
+        ETEXT="There must be a record SYSTEM in ABL.H.SB.YRPAR"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    Y.CHRG.SLAB.COUNT=DCOUNT(REC.SB.YR.SYS<SY.CHRG.SLAB.FROM>,VM)
+    ST.EN.DATE=REC.SB.YR.SYS<SY.START.DATE>:REC.SB.YR.SYS<SY.END.DATE>
+    Y.SB.STAFF.CHRG.AMT=REC.SB.YR.SYS<SY.STAFF.CHRG.AMT>
+
+    SEL.CMD.SB.YR="SELECT ":FN.SB.YR:" @ID NE 'SYSTEM'"
+    CALL EB.READLIST(SEL.CMD.SB.YR,SEL.LIST.SB.YR,'',NO.OF.REC.SB.YR,ERR.SB.YR)
+    REC.SB.YR=''
+    J="1"
+
+    LOOP
+        REMOVE Y.SB.YR.ID FROM SEL.LIST.SB.YR SETTING Y.SB.YR.POS
+    WHILE Y.SB.YR.ID:Y.SB.YR.POS
+        CALL F.READ(FN.SB.YR,Y.SB.YR.ID,REC.SB.YR,F.SB.YR,ERR.SB.YR)
+        IF  NO.OF.REC.SB.YR EQ '1' OR J EQ '1' THEN
+            Y.EXCLUDE.AC.LIST = Y.EXCLUDE.AC.LIST:REC.SB.YR<SY.EXCLUDE.ACCT>
+            J=J+1
+        END ELSE
+            Y.EXCLUDE.AC.LIST = Y.EXCLUDE.AC.LIST:"ý":REC.SB.YR<SY.EXCLUDE.ACCT>
+        END
+        REC.SB.YR=''
+    REPEAT
+
+!SEL.CMD.AC="SELECT ":FN.AC:" WITH MAIN.CHARGE NE 'Waive' AND ( CO.CODE EQ "
+    SEL.CMD.AC="SELECT ":FN.AC:" WITH ( CO.CODE EQ "
+    CNT.CO = DCOUNT(REC.SB.YR.SYS<SY.INCLUDE.COMP>,VM)
+    FOR I = 1 TO CNT.CO
+        IF I = CNT.CO THEN
+            SEL.CMD.AC :=  REC.SB.YR.SYS<SY.INCLUDE.COMP,I>
+        END ELSE
+            SEL.CMD.AC :=  REC.SB.YR.SYS<SY.INCLUDE.COMP,I>:" OR CO.CODE EQ "
+        END
+    NEXT I
+
+    SEL.CMD.AC= SEL.CMD.AC:" ) AND ( CATEGORY EQ "
+    CNT.CATEG = DCOUNT(REC.SB.YR.SYS<SY.INCLUDE.CATEG>,VM)
+    FOR I = 1 TO CNT.CATEG
+        IF I = CNT.CATEG THEN
+            SEL.CMD.AC :=  REC.SB.YR.SYS<SY.INCLUDE.CATEG,I>
+        END ELSE
+            SEL.CMD.AC :=  REC.SB.YR.SYS<SY.INCLUDE.CATEG,I>:" OR CATEGORY EQ "
+        END
+    NEXT I
+
+    IF Y.EXCLUDE.AC.LIST THEN
+        SEL.CMD.AC= SEL.CMD.AC:") AND ( @ID NE "
+
+        CONVERT FM TO VM IN Y.EXCLUDE.AC.LIST
+
+        CNT.EX.ACC = DCOUNT(Y.EXCLUDE.AC.LIST,VM)
+        FOR I = 1 TO CNT.EX.ACC
+            IF I = CNT.EX.ACC THEN
+                SEL.CMD.AC := Y.EXCLUDE.AC.LIST<1,I>
+            END ELSE
+                SEL.CMD.AC := Y.EXCLUDE.AC.LIST<1,I>:" AND @ID NE "
+            END
+        NEXT I
+
+!SEL.CMD.AC= SEL.CMD.AC:") AND WORKING.BALANCE GT 0 BY @ID "
+        SEL.CMD.AC= SEL.CMD.AC:") "
+    END
+    ELSE
+!SEL.CMD.AC= SEL.CMD.AC:") AND WORKING.BALANCE GT 0 BY @ID "
+        SEL.CMD.AC= SEL.CMD.AC:") "
+    END
+
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.AC,'',NO.OF.REC.AC,ERR.AC)
+    CRT" TOTAL RECORDS SELECTED FOR SAVINGS HALF YEARLY CHRG ......":NO.OF.REC.AC
+    CRT" DO YOU WANT TO START THE PROCESSING OF SAVING HALF YEARLY CHRG Y/N"
+    INPUT USER.CHOICE
+    IF USER.CHOICE EQ 'Y' THEN
+        LOOP
+            REMOVE Y.AC.ID FROM SEL.LIST.AC SETTING AC.POS
+        WHILE Y.AC.ID:AC.POS
+            CALL F.READ(FN.AC,Y.AC.ID,REC.AC,F.AC,ERROR.AC)
+
+            IF REC.AC<AC.LOCAL.REF,Y.MAIN.CHG.POS> NE 'Waive' AND WORKING.BALANCE GT '0' THEN
+
+                IN.DATA=ST.EN.DATE:Y.AC.ID
+                Y.CUS.ID=REC.AC<AC.CUSTOMER>
+                CALL JBL.S.CALCULATE.AVG.BAL(IN.DATA,OUT.DATA)
+                Y.AC.AVG.BAL =FIELD(OUT.DATA,">",2)
+                FOR I=1 TO Y.CHRG.SLAB.COUNT
+                    IF I NE Y.CHRG.SLAB.COUNT THEN
+                        IF Y.AC.AVG.BAL GE REC.SB.YR.SYS<SY.CHRG.SLAB.FROM,I> AND Y.AC.AVG.BAL LE REC.SB.YR.SYS<SY.CHRG.SLAB.TO,I> THEN
+                            Y.BALANCE = REC.SB.YR.SYS<SY.CHRG.AMT,I>
+!---------------------------1/S-----------------------------------!
+!                        CALL DBR("CUSTOMER":FM:EB.CUS.SECTOR,Y.CUS.ID,Y.SECTOR)
+!                        IF Y.SECTOR EQ '1002' THEN
+!                            Y.BALANCE = Y.SB.STAFF.CHRG.AMT
+!                        END
+!----------------------------1/E----------------------------------!
+                            CALL F.READ(FN.SB.CHR,Y.AC.ID,REC.SB.CHR,F.SB.CHR,ERR.SB.CHR)
+                            REC.SB.CHR<SBC.BALANCE> = Y.AC.AVG.BAL
+                            REC.SB.CHR<SBC.SLAB.AMT> = Y.BALANCE
+                            REC.SB.CHR<SBC.CO.CODE> = REC.AC<AC.CO.CODE>
+                            WRITE REC.SB.CHR TO F.SB.CHR,Y.AC.ID
+                            CNT =CNT+1
+                            CRT"PROCESS......":CNT
+                        END
+                    END
+                    ELSE
+                        IF  Y.AC.AVG.BAL GE REC.SB.YR.SYS<SY.CHRG.SLAB.FROM,I> THEN
+                            Y.BALANCE = REC.SB.YR.SYS<SY.CHRG.AMT,I>
+!----------------------------1/S-----------------------------!
+!                        CALL DBR("CUSTOMER":FM:EB.CUS.SECTOR,Y.CUS.ID,Y.SECTOR)
+!                        IF Y.SECTOR EQ '1002' THEN
+!                            Y.BALANCE = Y.SB.STAFF.CHRG.AMT
+!                        END
+!---------------------------1/E------------------------------!
+                            CALL F.READ(FN.SB.CHR,Y.AC.ID,REC.SB.CHR,F.SB.CHR,ERR.SB.CHR)
+                            REC.SB.CHR<SBC.BALANCE> = Y.AC.AVG.BAL
+                            REC.SB.CHR<SBC.SLAB.AMT> = Y.BALANCE
+                            REC.SB.CHR<SBC.CO.CODE> = REC.AC<AC.CO.CODE>
+                            WRITE REC.SB.CHR TO F.SB.CHR,Y.AC.ID
+                            CNT =CNT+1
+                            CRT"PROCESS......":CNT
+                        END
+                    END
+                NEXT
+                Y.BALANCE =''
+                Y.AC.AVG.BAL=''
+                Y.AC.ID=''
+                REC.AC=''
+                REC.SB.CHR=''
+            END
+        REPEAT
+    END
+    RETURN
+END

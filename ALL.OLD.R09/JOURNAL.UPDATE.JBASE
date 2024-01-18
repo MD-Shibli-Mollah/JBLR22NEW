@@ -1,0 +1,1164 @@
+* Version 3 07/06/01  GLOBUS Release No. G14.0.04 17/12/03
+*-----------------------------------------------------------------------------
+* <Rating>-444</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JOURNAL.UPDATE (TXN.REF)
+*-----------------------------------------------------------------
+*
+* MODIFICATIONS
+* -------------
+*
+* 26/10/87 - CI8701309
+*            Do not update the journal if system operation is in
+*            batch mode.
+*
+* 27/10/87 - CI8700868
+*            Remove 'OVER-RIDES' field from journal record.
+*
+* 14/01/88 - EB8700763
+*            Remove all IDS code and replace by single call.
+*
+* 07/11/88 - Removed shared memory code.
+*
+* 22/01/91 - GB9100003
+*            Remove call to obselete routine UPD.ALTERNATE.INDICES
+*
+* 25/03/92 - HY9200744
+*            Write locking record for duration of update.
+*
+* 28/08/91 - GB9100185
+*          - Replace call to IDS with DS.HANDOFF.CONTROL performing all
+*          - validation
+*
+* 23/07/92 - GB9200696
+*            Remove company mnemonic from cache index & consequently
+*            don't load company.
+*
+*
+* 15/10/93 - GB9301289
+*            Remove IDS code and insert GIS code
+*
+* 20/04/94 - GB9400055
+*            Include company Id on journal record
+*            for Fuji today's deals reporting
+*
+* 23/08/94 - GB9400968
+*            Use display message instead of print @
+*
+* 19/01/95 - GB9500079
+*            Call DBUPDATE for I/O operations - this will handle
+*            ELSE clauses to trap for write failures.
+*
+* 12/09/96 - GB9601285
+*            Add version id to application field in journal record.
+*
+* 14/01/97 - GB9601761
+*            Add processing for transaction management and logging
+*            restructure program for txn management on or off
+*
+* 24/02/98 - GB9800002
+*            Routine BRANCH.JOURNAL.UPDATE is called for GBS
+*            This Routine will be called only if
+*            Product 'BA' is installed
+*
+* 13/05/98 - GB9800403
+*            If in CMM mode then return straight to the calling application....
+*
+* 28/08/98 - GB9801071
+*            Modify to cater for Multi-entity processing, GAC account
+*            link.  If linked to a GAC account then update journal file
+*            to GAC account if application is a GAC linked common file.
+*
+* 28/09/98 - GB9801179
+*            Don't check PGM record check insert I_GAC.FILES
+*
+* 21/10/98 - GB9801305
+*            Release F.LOCKING>JOURNAL if updating the GAC journal.
+*            It gets read with a lock but never released when
+*            updating GAC files.
+*
+* 30/10/98 - GB9801346
+*            Merging two versions of this program into 1.
+*
+! 29.01.99 - GB9801559
+!            GBS Changes FROM Byblos Bank.
+!            CALL BRANCH.JOURNAL.UPDATE twice. Once BEFORE the Transaction
+!            commit AND once after the Commit (2 phase commit on the
+!            Branch Server).
+*
+* 12/03/99 - GB9900344
+*            Re - implement abort /retry and re open file when i/o
+*            error and transaction management has been turned off
+*
+* 09/05/99 - GB9900581
+*            Put the Repo bypass code back.
+*
+* 30/06/99 - GB9900904
+*            If transaction management is enabled RELEASE all records
+*            in the cache which have been written in case there has been
+*            a readu on them. The lock will still be active after the
+*            write inside the transaction.
+*
+* 09/08/99 - GB9901080
+*            Move delete of pending record to third transaction.
+*            When universe executes the commit statement to write
+*            the files to the database they are not performed in
+*            the same order in which they are written here, thus
+*            if the session is killed abruptly eg -9 or power off
+*            during commit then we cannot rely on the pending
+*            record unless it is deleted in a separate transaction.
+*            If the kill is clean i.e -15 then the transaction will
+*            complete, or roll back  in either case EB.AUTOLOG.TIDYUP
+*            will be called and will update field2 of the pending
+*            record accordingly.
+*
+* 20/08/99  - GB9901167
+*            EXECUTION statements are prevented when used within a
+*            transaction.  Also any connectivity error was giving
+*            fatal error.  This should be avoided. While Calling
+*            BRANCH.JOURNAL.UPDATE for the second time, call with
+*            the flag set as 1 as it has to copy into the IN directory
+*
+* 26/11/99 - GB9901712
+*            A component of the DISPO system this PIF is associated with
+*            the REAL TIME Enquiry fnctionality.  The realated PIF is GB9901611
+*            and will perform the following task, From JOUNRAL.UPDATE it will
+*            call a subroutine to extract all the filenames that have been
+*            modified.
+*
+* 02/12/99 - GB9901748
+*            JOURNAL.FIELD unassigned if JNL.ID = OFF
+*
+*
+* 07/04/00 - GB0000357
+*            Don't call EB.EXTRACT.ONLINE if journalling is OFF
+*
+* 22/03/00 - GB0000531
+*            Replace BEGIN TRANSACTION syntax with TRANSTART to be
+*            compatible with jBASE.
+*
+* 20/04/00 - GB0001097
+*            CHAR to CHARX
+* 21/05/01 - GB0101420
+*            Use correct syntax in TRANSEND
+*
+* 30/01/02 - GLOBUS_BG_100000439
+*            If an ID happens to have a value marker
+*            (@vm), then it causes corruption in jbase,
+*            because there is ashift in the IDS and the
+*            FWC, FWT, FWF sync is lost. As a result,
+*            many files get corrupted.
+* 05/03/2002 - BG_100000646
+*              ...and the rest of the TRANSEND syntax issues. Hopefully.
+*
+* 30/05/03 - GLOBUS_EN_10001856
+*            Add call to the t24 Enterprise console
+*            to stop the timer for txn commit
+*
+* 12/06/03 - GLOBUS_EN_10001871
+*            If a routine is attached in EXTRACT.RTN field in
+*            EB.EXTRACT.PARAMETER call the local routine instead of
+*            EB.EXTRACT.ONLINE to extract the transactional records
+*            SAR Ref No. SAR-2003-02-20-0002
+*
+* 16/06/03 - GLOBUS_EN_10001846
+*            Don't update journal any more in G14.) don't
+*            return if the system is offline
+*            Return if running under batch as BJC handles txn managemetn
+*
+* 20/06/03 - GLOBUS_BG_100004594
+*            Bugs Fixes for the Enhancement GLOBUS_EN_10001871
+*
+* 08/07/03 - GLOBUS_CI_10010549
+*            Extract Routine is not getting call from EB.EXTRACT.PARAMETER
+*            when the transactional journal is switch OFF.
+*            Changes done to fix this.
+*
+* 05/08/03 - GLOBUS_CI_10011476
+*            To Avoid Extract Routine getting called several times for
+*            the same application.
+* 16/09/03 - GLOBUS_CI_10012332
+*            Adding an additional argument in the Local routine
+*            calling from EB.EXTRACT.PARAMETER
+*
+* 14/10/03 - BG_100005422
+*            New option INFO.JOURNAL will allow the system to write
+*            out a limited number of journal records per user. A hard
+*            coded limit of 20 is there. This is purley for debug and
+*            investigation and not a way to continue updating the
+*            JOURNAL file
+*
+* 23/10/03 - BG_100005458
+*            Remove GAC references as with OFS.PUBLISHING replacing GAC
+*            there is now no need to be writing a journal rec to
+*            F.GAC.JOURNAL
+*            Removed coding in INITIALISE and removed GAC.SUB internal
+*            subroutine.
+*
+* 25/02/04 - BG_100005970
+*            Changes related to PW.
+*
+* 11/03/04 - BG_100006373
+*            Modification to changes made under BG_100005970
+* 15/04/04 - GLOBUS_BG_100006488
+*            Allow reslience processing for OFS messages, both browser
+*            based messages and vanilla OFS. This will prevent duplicate
+*            transactions in the event of a message retry.
+*
+* 21/04/04 - GLOBUS_EN_10002238
+*            Provide Integrity check for localdevelopments to ensure
+*            that the system is not corrupted.
+*            SAR Ref.No.SAR-2003-11-21-0008
+*
+* 20/04/04 - BG_100006017
+*            JNL.ID is defaulted to "OFF"
+*
+* 18/5/2004 - CI_10019856
+*             Increased the size of the journal record length
+*             in order to accomodate records larger than 10mb
+*
+* 29/06/04 - BG_100006900
+*            Rewrite for performance and remove GAC, GBS and GIS
+*
+* 17/08/04 - BG_100007019
+*            Changed PROCESS.NAME to PW$ACTIVITY.TXN.ID - first name did not adhere to coding standards,+ already exists as a
+*            variable name in mnay other PGMS and was not a correct description of variable.
+*
+* 06/09/04 - BG_100007182
+*            No changes made to this revision. Needed to unrelate from BG_100007019 as this had copilation errors on jBase 4.1.
+*            and was therefore holding up testing of the rest of the CD, so needed to put this on a seperate CD.
+*
+* 06/10/04 - BG_100007405
+*            Stop PW processing when journal.update is envolked at beginning of transaction EG FT's when auto.id.start UNIQUE.NO
+*            field is set.
+*
+* 05/11/04 - CI_10024506
+*            Instead of Escape character use the value marker to write the debug
+*            information into the Journal.
+*
+* 12/05/05 - EN_1002495
+*            Do the PW process even if RUNNING.UNDER.BATCH is set
+*
+* 30/01/05 - EN_10002793
+*            PW Auto Screen Presentation
+*
+* 21/04/06 - BG_100011052 - PW Strategic Developments - Data mapping
+*            Moved the PW code to check for the PW.TXN.REF and set PW$ACTIVITY.TXN.ID to
+*            RECORD.READ
+*            Ref:SAR-2005-09-27-0003
+*
+* 03/07/06 - EN_10002963 SAR-2006-01-09-0004
+*            Branch Resilience build ofs record from r.newto pass back with response/request to.from browser to be replayed at branch.
+*
+* 25/08/06 - GLOBUS_EN_10003015 SAR-2006-06-28-0001
+*            Branch resilience.  Only upload applications if they appear in BR.PRAMETER OFFLN.APS.UPLD.
+*            Added check for a passive function of E when updating the SFQ.
+*
+* 28/08/06 - EN_10003058
+*            Branch resilience. If running in the head office, then export the OFS string of static apps
+*            to export directory specified in BR.PARAMETER.
+*            Ref:SAR-2006-01-09-0003
+*
+* 04/09/06 - CI_10043820
+*            BR fixes.
+*            1. Do not use allocate Unique time for generation of Ids for writing into the SFQ or static apps export.
+*            Use new routine BR.GET.SEQ.NO to generate the seq.no.
+*            2. When preparing the BR OFS string, if PGM.VERSION is NULL then set PGM.VERSION = ',' in the OFS string.
+*            Ref:TTS0652423
+*
+* 11/10/06 - GLOBUS_BG_100012212
+*            For Branch Resilience OFS strings should include the
+*            'replace message' setting to ensure that multi/sub-values
+*            are overwriiten.
+*            Renamed gosub to make it more BR related.
+*            Fixed spelling mistakes.
+*            Moved single line IF statements on to multiple lines.
+*
+* 25/10/06 - EN_10003079
+*            Initialising the PW global variable PW$ORIGINATE.PROCESS
+*
+* 06/11/06 - CI_10045287
+*            In case of GUI, check whether the user token is still valid before proceeding.
+*            Ref:HD0612197
+* 18/01/07 - CI_10046714
+*            Initialise ETEXT before checking for the token check.
+*            Ref: TTS0605341
+*
+* 06/12/06 - EN_10003145
+*            If DW is installed then go and call DW.PROCESS.TXN to check for DW extracts
+*            Ref: SAR-2006-09-19-0007
+*
+* 16/04/07 - CI_10048239
+*            In BR for Static Apps update prefix the id with "ALL" for INT and with ID.COMPANY
+*            for all other file types
+*            Ref: HD0705884
+*
+* 22/04/07 - GLOBUS_EN_10003253   (SAR-2006-09-07-0001 & SAR-2006-09-07-0003)
+*            Changes for the AA front-end.  Keep track of successful
+*            transactions to determine if a transaction needs to be
+*            rolled back or not when in bulk mode.
+*
+* 01/06/07 - GLOBUS_BG_100014016
+*            Initialise RETURN.MSG.
+*
+* 11/07/07 - BG_100014575
+*            Call to ALLOCATE.UNIQUE.TIME is moved to DW.PROCESS.TXN
+*
+* 01/08/07 - BG_100014790
+*            Perform transaction commit in COB is bulk mode is enabled
+*
+* 15/08/07 - GLOBUS_BG_100014919
+*            Mark the request as successful by calling txnSuccess
+*            rather than updating the common variable directly.
+*
+* 16/10/07 - EN_10003540
+*            T-verify Recording transactions.
+*
+* 19/10/07 - EN_10003549
+*            T-VERIFY - Capturing Before and After Images.
+*
+* 29/10/07 - EN_10003559
+*            T-VERIFY - Update the common variable and call T.SEAT with operation OFF.
+*
+* 11/11/2007 - EN_10003566(SAR-2007-06-12-0028)
+*              Check for data encryption before writing the data to the disk.
+*
+* 03/12/07  - BG_100016125
+*             Revert the changes done for T-verify (for EN_10003549,EN_10003559)
+*
+* 03/11/07  - EN_10003549
+*             (Re add)T-VERIFY - Capturing Before and After Images.
+*
+* 22/02/08  - BG_100017214 (TTS0800473)
+*             Calling PRO downs the performance. Hence it is removed
+*
+* 08/03/08  - BG_100017084
+*             (Re add)T-VERIFY - Update the common variable and call T.SEAT with operation as FINISH.
+*             Only fetching After and Before images for T-Verify are included. Getting start time
+*             and end time for T-Verify are removed from the routine.
+*
+* 03/06/08  - EN_10003700(SAR-2008-03-04-0018)
+*             jbase setting is done to store the after images at the end of the transaction.
+*             DW processing is suppressed in simulation mode.
+*
+* 26/06/08  - CI_10056327
+*             EB.EXTRACT not processing all updates
+*             REF:HD0814121
+*
+* 07/07/08  - BG_100019071
+*             Changes made to remove the call to TV.GET.IMAGES for getting Before images as it is done in I_IO.ROUTINES.
+*
+*
+* 24/10/08  -EN_10003892/EN_10003908
+*            1)Transaction Cache needs to be retained within a bulk request.
+*            2)Update OFS.UNIQUE.MSG.REF file only for first request in Bulk transaction
+*            3)Call EB.DETERMINE.FIRST.REQUEST to determine the First Request
+*            Ref:SAR-2008-08-29-0004
+*
+* 04/12/08 - BG_100021157
+*            Write cache is converted to Read cache during Bulk REquest
+*            REF:TTS0804734
+*
+* 15/12/08 - BG_100021245
+*            OFS Clearing Fatals out when run in tSS with BR installed.
+*            Ref:TTS0804785
+*
+* 12/12/08 - BG_100021153
+*            When the transactions that are to be logged exceeds 500, it fatals out since the
+*            common variable LWC is dimensioned to 500.
+*            So,take a backup of the logs in a dynamic variable after each mini transaction and
+*            at the end of OBM flush the logs from the dynamic variable to the disk.
+*
+* 09/02/09 - BG_100022011
+*            Mapping does not work when trying to map field values from AA.ARRANGEMENT.ACTIVITY to
+*            EB.EXTERNAL.USER.
+*            REF:TTS0905171
+*            PW process should be triggered only for the first request
+*
+* 16/02/09 -  CI_10060662
+*             Partial update due to bulk option set even when .NBK option is enabled
+*             Common variable cTxn_RunningInBulkMode is used to determine the Bulk mode
+*             REF:HD0905383
+*
+* 25/04/09 - EN_10004056
+*            Performance improvements for bulk transactions
+*            Perform a single WRITE at the end of the bulk transaction.
+*            Ref: SAR-2009-04-07-0003
+*
+* 16/07/09 - BG_100024534
+*            JUC to flush the records into the disk if simulation mode is set as the
+*            simulation after images are tracked in OBM based on this.Cache shouldn't be
+*            cleared if WRITE.CACHE is set as the records would be flushed into the disk
+*            from the cache by BATCH.JOB.CONTROL.
+*
+* 19/08/09 - CI_10065463
+*            The cache variables SAVE.FWC,SAVE.FWT,SAVE.FWF has to be set
+*            when processed via Cob and Online as these vairables are used to restore
+*            the cache FWC,FWT,FWF when a transaction gets aborted in a bulk request.
+*
+* 01/09/09 - BG_100025067
+*            For T-Verify, get the images from T24 Cache variables before resetting them.
+*            If GTSACTIVE, then call TV routine to check whether the updates needs to be captured or not.
+*
+* 10/02/10 - CI_10069025
+*            PW processing should be triggered only when OFS$OPERATION is PROCESS
+*            Defect Ref : 14270
+*
+* 01/07/10 - CI_10070744/CI_10070763
+*            Introducing the caching mechanism for OGM
+*            If the OFS$OGM.MAINTAIN.CACHE variable is for OGM transaction then dont flush the
+*            cache to desk, maintain it
+*
+*
+* 05/05/11 -
+*            TV should not trace transactions out of JUJ called in OFS.SOURCE OUT message routines.
+*
+* 08/07/11 - BG_100027233
+*            TV should not trace transactions out of JUJ called in OFS.SOURCE OUT message routines.
+*
+* 14/07/11 - BG_100027253 / Task - 239112
+*            R09 Back Patch
+*
+* 03/10/11 - BG_100027253 / Task 286622
+*            T-Verify will not support the capture of an enquiry and its output. However we are able to amend the records and
+*            transactions are updated to database using Fast path enquiry. Thus transactions updated to database using fast path enquiry
+*            should be captured. All the TV related routines that are caused to update the TV log should be called here  based on a condition
+*            that only when the request comes form fast path
+*
+* 23/10/12 - CI_10075965 / Task 504335
+*            Status of PW activity is not changed for LD record.
+*            Defect ref : 493467
+*--------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.SPF
+    $INSERT I_IO.EQUATE
+    $INSERT I_F.USER
+    $INSERT I_F.JOURNAL
+    $INSERT I_CMM.COMMON
+    $INSERT I_EB.EXTRACT.COMMON
+    $INSERT I_F.EB.EXTRACT.PARAMETER    ;* GLOBUS_EN_10001871 - S/E
+    $INSERT I_GTS.COMMON
+    $INSERT I_PW.COMMON
+    $INSERT I_F.COMPANY
+    $INSERT I_S.COMMON
+    $INSERT I_F.DESKTOP.PARAMETER
+    $INSERT I_BR.COMMON       ;* EN_10002963
+    $INSERT I_F.VERSION       ;* EN_10002963
+    $INSERT I_F.BR.PARAMETER  ;* GLOBUS_EN_10003015
+    $INSERT I_DW.COMMON       ;* EN_10003145
+    $INSERT I_F.FILE.CONTROL
+    $INSERT I_EB.TRANS.COMMON ;* GLOBUS_EN_10003253
+    $INSERT I_ENCRYPT.COMMON
+    $INSERT I_TV.COMMON
+    $INSERT Util
+    $INSERT I_IO.EQUATE.ADDITIONAL
+    $INSERT I_TV.TRANS.COMMON
+
+    COMMON /JOURNAL.UPDATE/ JNL.ID      ;* Rotating journal id for debug mode
+
+*----------------------------------------------------------------
+    GOSUB INITIALISE
+    IF PW.INSTALLED THEN      ;*Process workflow operational
+        GOSUB PW.PROCESS      ;*Update PW.ACTIVITY if necessary
+    END
+    IF (RUNNING.UNDER.BATCH AND NOT(BULK.MODE)) OR CMM$PARENT.ID THEN ;* Should be no JU call in the COB and do not commit txn if under the control
+        RETURN      ;* Of the composite module manager - return immediately.
+    END
+
+    GOSUB CHECK.TOKEN         ;* check the token to make sure that its still valid
+
+    IF OFS$ACTIVE.MSG.REF THEN          ;* Store unique reference
+        GOSUB HANDLE.MSG.REF
+    END
+
+    GOSUB PRE.COMMIT.PROCESSING         ;* Do the Pre Commit Processing and get the BEFORE images when TV is installed.
+
+    GOSUB COMMIT.UPDATES      ;* Actually write the data and commit the transaction
+
+    GOSUB TRACE.UPDATES       ;* Get the AFTER images when TV is installed and do the POST commit processing.
+
+    IF tvMode THEN
+* Check if Journal update is being called for the current transaction,
+* i.e, check if the current transaction is in the transaction cache,
+* If the LOCKING file created already, need to delete that one after commit
+        IF tvMode MATCHES 'CTFR':VM:'CT' AND ID.NEW AND OFS$BROWSER THEN
+            CALL TV.GET.CORE.UPDATES("DELETE.FIELD.DETAILS",'')
+        END
+
+        CALL TV.TRANS.RECORD.SUCCESS    ;* Call to update the common variable
+        tv.R.OLD=''
+        MATBUILD tv.R.OLD FROM R.OLD    ;* common used for getting the R.OLD (used in TV.GET.TRANSACTION.DETAILS)
+
+    END
+
+    IF tvMode MATCHES 'CTFR':VM:'CT' AND OFS$SOURCE.ID EQ 'FASTPATH' THEN       ;* When request comes from fastpath
+        CALL TV.GET.CORE.UPDATES("FASTPATH.RECORD.UPDATES",'')        ;* Call TV routines to update TV log file
+    END
+
+    GOSUB RESET.COMMON        ;* Reset common variables ready for the next transaction
+
+    IF (GTSACTIVE) THEN
+* Check if the transaction is coming from Phantom by calling TV.CHECK.INTERFACE
+        IF tvMode THEN
+            CALL TV.CHECK.INTERFACE('FINISH')
+        END
+    END ELSE
+* Switch off SEAT as the transaction has ended.
+
+        IF tvMode AND C$EB.PHANTOM.ID THEN
+* Ideally for a phantom it should not have come here, this could be a explicit call to JUJ from a routine attached in OFS.SOURCE
+* TV need not capture this message.
+            RETURN
+        END
+
+        SEAT.ID = APPLICATION:PGM.VERSION
+        SEAT.ID<2> = V$FUNCTION
+        SEAT.ID<3> = ID.NEW
+        CALL T.SEAT('FINISH',SEAT.ID)   ;* Call T.SEAT with FINISH 'option' for DESKTOP.
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+
+    BULK.MODE = ""  ;* Variable to determine the Bulk mode
+    IF NOT(RUNNING.UNDER.BATCH) THEN
+        CALL DISPLAY.MESSAGE(UPDATING.FILES,2)    ;* Message - only for desktop
+    END ELSE
+        BULK.MODE = cTxn_RunningInBulkMode        ;*  OFS.BULK.CHECK sets this cTxn variable in OBM
+    END
+    R.JOURNAL = ''  ;* Initialise - used in EB.EXTRACT or when in Debug mode
+
+    LOCATE 'PW' IN R.COMPANY(EB.COM.APPLICATIONS)<1,1> SETTING PW.INSTALLED ELSE
+        PW.INSTALLED = 0
+    END
+
+    SENSITIVITY = 1 ;* GLOBUS_EN_10002238 - S/E
+
+    DW.FILE.DETAILS = ''      ;* EN_10003145
+    SET.COLLECT = 0 ;* to switch between assign / extract from SYSTEM(1039)
+    DW$EXTRACT.MODE = 1       ;* We will be using it assign the SYSTEM(1039)
+
+    EXT.JNL.ID = '' ;* Initialise - used as key for EB.EXTRACT
+
+    CACHE.SIZE = R.SPF.SYSTEM<SPF.CACHE.SIZE>     ;* get the cache size settings from SPF, may be set in I_IO.EQUATE
+    CACHE.NEARLY.FULL.TOLERANCE = 50    ;* Hard coded for now
+
+    FIRST.REQUEST = ''        ;* Variable to store first Request
+    CALL EB.DETERMINE.FIRST.REQUEST(FIRST.REQUEST)          ;*  Determine if Request is a first Request
+    LAST.REQUEST = ''         ;* flag to indicate whether the current request is last request or not
+    CALL EB.DETERMINE.LAST.REQUEST(LAST.REQUEST)  ;* determine the current request is last request
+
+    OGM.CACHE.TXN = 0         ;* OGM transaction dont maintain the cache, flush it immediately.
+
+    IF OFS$GLOBMAN.ACTIVE AND OFS$OGM.MAINTAIN.CACHE THEN   ;* when OGM transaction maintain the cache
+        OGM.CACHE.TXN = 1     ;* ignore the flush into the disk
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+
+PRE.COMMIT.PROCESSING:
+*---------------------
+* Do the Pre Commit processing and get the Before images from T24.
+
+    GOSUB CHECK.BR.UPDATES
+* DW processing should not happen in simulation mode
+    BEGIN CASE
+    CASE OFS$SIMULATION.MODE AND cTxn_FirstRequest          ;* If am in simulation am interested in the after images
+        ASSIGN 7 TO SYSTEM(1039)        ;* Tell system to store images
+    CASE OFS$SIMULATION.MODE AND NOT(cTxn_FirstRequest)     ;* In simulation mode and SYSTEM(1039) already has been set to store after images
+    CASE OTHERWISE
+        GOSUB DW.PROCESSING
+    END CASE
+    RETURN
+*-----------------------------------------------------------------------------------------------------------------------------------
+TRACE.UPDATES:
+*-------------
+* Do the post commit processing and get the After images from T24.
+
+* Get the AFTER images for TVerify.
+    IF tvMode THEN
+        tvCacheSize = DCOUNT(FWT,@FM)
+        Operation = 'AFTER'
+        CALL TV.GET.IMAGES(Operation,tvCacheSize)
+    END
+
+    IF NOT(OFS$SIMULATION.MODE) THEN    ;* DW processing should not happen in simulation mode
+        GOSUB DW.PROCESSING   ;* EN_10003145
+    END
+    IF C$R.EB.EXP THEN        ;* Data extract setup
+        GOSUB BUILD.JOURNAL.RECORD      ;* Construct old style journal record for the extract routine
+        GOSUB EB.EXTRACT.SUB  ;* Send data to extract routine - if required
+    END
+
+    IF R.SPF.SYSTEM<SPF.INFO.JOURNAL> = 'Y' THEN  ;* Running in debug mode
+        GOSUB BUILD.JOURNAL.RECORD      ;* Construct old style journal record for the extract routine
+        GOSUB WRITE.JOURNAL.RECORD      ;* Store after images in journal for debugging
+    END
+
+    GOSUB UPDATE.REAL.TIME.FILES
+    RETURN
+
+*-----------------------------------------------------------------------------
+COMMIT.UPDATES:
+*--------------
+
+* Write/Delete the records from the cache to the database
+
+* Flush the records into the disk if simulation mode is set as the
+* simulation after images are tracked in OBM based on this.
+
+    IF NOT(RUNNING.UNDER.BATCH) OR OFS$SIMULATION.MODE THEN ;* Write/Delete operations would have already happened.Write into the disk if simulation mode is set
+
+        RETURN.MSG = ''       ;* Initialise.                                ;* GLOBUS_BG_100014016
+
+        CALL EB.TRANS('START',RETURN.MSG)         ;* Start a transaction
+        IF RETURN.MSG THEN    ;* Error on start
+            TEXT = RETURN.MSG
+            CALL FATAL.ERROR('JOURNAL.UPDATE')
+        END
+*
+        CACHE.COUNT = DCOUNT(FWT,@FM)   ;* Number of records in the cache
+        IF LAST.REQUEST AND NOT(OGM.CACHE.TXN) THEN         ;* if it is a last request in bulk transaction , OGM txn maintaining cache
+            GOSUB PERFORM.WRITES
+        END ELSE
+*
+** Check here to see if we are close to filling up the cache with writes/deletes/locks. If we are
+** then we should flush the writes and deletes to the transaction mgmt cache to avoid the FWC etc
+** getting exceeded
+** Initially this condition will be detected by counting the number of W/L types in the cache and
+** if this is within 50 of the limit then the flush will take place.
+** The flush is performed by performing the writes and remove the W/L indicator
+** and then copying this away to the save version
+** A more sopihisticated mechanism can be designed if necessary, such as flushing only thos
+** files that are written once etc
+*
+            GOSUB CHECK.FOR.NEARLY.FULL.CACHE
+            IF CACHE.NEARLY.FULL THEN   ;* if cache nearly full
+                GOSUB PERFORM.WRITES    ;* flush the writes and deletes
+            END
+*
+        END
+
+        CALL EB.TRANS('END',RETURN.MSG) ;* End transaction
+        IF RETURN.MSG THEN    ;* Error on commit
+            TEXT = RETURN.MSG
+            CALL FATAL.ERROR('JOURNAL.UPDATE')
+        END
+
+    END
+
+*  Update the saved FWT cache for both online and cob processing as these cache variables are used when
+*  a transaction is aborted in a bulk request
+
+    IF NOT(LAST.REQUEST) OR OGM.CACHE.TXN THEN    ;* if not the last request in a bulk request, OGM txn maintaining cache
+        SAVE.FWT = FWT        ;* backup the file name ID index
+        MAT SAVE.FWC = MAT FWC          ;* backup the Operartion Cache
+        MAT SAVE.FWF = MAT FWF          ;* backup the FWF
+    END
+
+    IF OFS$OPERATION = "PROCESS" THEN
+        CALL txnSuccess       ;* GLOBUS_EN_10003253, GLOBUS_BG_100014919
+    END
+
+    CALL DISPLAY.MESSAGE(COMPLETE,1)    ;* Only for desktop
+
+    RETURN
+*-----------------------------------------------------------------------------
+CHECK.FOR.NEARLY.FULL.CACHE:
+*
+*  check whether we have really reached the end of the cache array
+* if so count the no of W/L cache and check whether we are really FULL.
+*
+
+    CACHE.NEARLY.FULL = ''
+    WRITE.TOTAL = 0
+    FOR CIDX = 1 TO CACHE.COUNT
+        IF FWF(CIDX)[1,1] = "W" OR FWF(CIDX)[2,1] = "L" THEN          ;* if either Write or Lock then
+            WRITE.TOTAL += 1  ;* increment the WRITE count
+        END
+    NEXT CIDX
+    IF (CACHE.SIZE - WRITE.TOTAL) < CACHE.NEARLY.FULL.TOLERANCE THEN  ;* if the difference exceeds the tolerance level
+        CACHE.NEARLY.FULL = 1 ;* flag that we are really full
+    END
+*
+    RETURN
+*
+*-----------------------------------------------------------------------------
+PERFORM.WRITES:
+*
+** Perform a flush of the current cache
+*
+    FOR CIDX = 1 TO CACHE.COUNT         ;* For every record in the cache
+        IF FWF(CIDX)[1,1]='W' THEN      ;* Should I write it
+            FILE.DETAILS = FWT<CIDX>    ;* Name and ID from cache
+            FL = FILE.DETAILS[" ",1,1]  ;* File name
+            ID = FILE.DETAILS[" ",2,1]  ;* ID
+            RC = FWC(CIDX)    ;* Record to write
+            CALL OPF(FL,F.FL) ;* Get file variable
+            IF RC = 'DELETE' THEN
+                DELETE F.FL, ID ON ERROR          ;* Delete it
+                    TEXT = 'Cannot delete ':ID:' from ':FL  ;* Delete error
+                    CALL FATAL.ERROR('JOURNAL.UPDATE')
+                END
+            END ELSE
+	    CRT 'RECORD':RC
+	    CRT 'PATH':F.FL
+                GOSUB ENCRYPT.FIELDS    ;* check data encryption
+                WRITE RC TO F.FL, ID ON ERROR
+                    TEXT = 'Cannot write ':ID:' to ':FL     ;* Write error
+		    CRT 'TEXT':TEXT
+                    CALL FATAL.ERROR('JOURNAL.UPDATE')
+		    CRT 'UPDATE SUCCESS'
+                END
+            END
+            IF NOT(LAST.REQUEST) OR OGM.CACHE.TXN THEN      ;* Remove the Write, Lock and New flags and convert this to appear like READ cache, OGM txn maintaining cache
+                FWF(CIDX) = "    "      ;* remember this has to have four spaces
+            END
+        END
+    NEXT CIDX
+*
+    RETURN
+*
+*-------------------------------------------------------------------------------------
+BUILD.JOURNAL.RECORD:
+* Construct the old style journal record for either debugging or extracting after image
+* data from:
+
+    IF R.JOURNAL = '' THEN    ;* Only if we haven't done this already
+        JNL.ID +=1  ;* From common
+        IF JNL.ID GT 20 THEN  ;* Greater than max
+            JNL.ID = 1        ;* reset to beginning
+        END
+        W.FWT = ''  ;* Copy of file write table
+        W.FWC = ''  ;* To be populated by records
+        X = 0
+        LOOP REMOVE FL FROM FWT SETTING REMOVE$ WHILE FL:REMOVE$
+            X +=1   ;* Next entry in cache
+            W.FWT := FL:' ':FWF(X):@VM  ;* CI_10024506 -S/E ;* File ID Write
+            W.FWC := FWC(X): ESC        ;* After images
+        REPEAT
+
+        CONVERT FM TO CHARX(28) IN W.FWC          ;* Delimit fields by (28)
+
+        R.JOURNAL<JNL.FWT> = W.FWT      ;* File read/write table
+        R.JOURNAL<JNL.FWC> = W.FWC      ;* Record  images
+        R.JOURNAL<JNL.TXN.REF> = TXN.REF
+        R.JOURNAL<JNL.APPLICATION> = APPLICATION : PGM.VERSION        ;* GB9601285
+        R.JOURNAL<JNL.FUNCTION> = V$FUNCTION
+        R.JOURNAL<JNL.TIME> = TIME()
+        R.JOURNAL<JNL.DEPT> = R.USER<EB.USE.DEPARTMENT.CODE>
+        R.JOURNAL<JNL.OPERATOR> = OPERATOR
+        R.JOURNAL<JNL.RECORD.LEN> = ''
+        R.JOURNAL<JNL.COMPANY> = ID.COMPANY
+
+        JOU.REC.LEN = LEN(R.JOURNAL)
+        R.JOURNAL<JNL.RECORD.LEN> = JOU.REC.LEN + LEN(JOU.REC.LEN)
+
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+WRITE.JOURNAL.RECORD:
+* When running in debug - update F.JOURNAL with the record cache
+
+    WRITE R.JOURNAL TO F.JOURNAL, JNL.ID
+
+    RETURN
+*-----------------------------------------------------------------------------
+EB.EXTRACT.SUB:
+*
+    EXT.JNL.ID = Util.CreateUniqueId()  ;*Get the unique id for EB.EXTRACT
+    EXT.JNL.REC = R.JOURNAL   ;* GLOBUS_CI_10010549 - S/E
+    IF C$R.EB.EXP<EB.EXP.EXTRACT.RTN><1,1> THEN   ;* GLOBUS_BG_100004594 - S/E
+        CHECK.LIST = ''       ;* GLOBUS_CI_10012332 - S/E
+        E.FWT = EXT.JNL.REC<1>          ;* GLOBUS_CI_10010549 - S/E
+        LOOP
+            REMOVE FILE.NAME FROM E.FWT SETTING FPOS
+        WHILE FILE.NAME:FPOS
+            ID.REC = FIELD( FILE.NAME, ' ', 2)    ;* Record @ID
+            FILE.NAME=FIELD(FILE.NAME,' ',1)      ;* ie. FBNK.MM.MONEY.MARKET$NAU
+            FILE.SUFFIX = FIELD(FILE.NAME,'$',2)  ;* ie. $NAU
+            FILE.NAME = FIELD(FILE.NAME,'$',1)    ;* ie. FBNK.MM.MONEY.MARKET
+            FILE.NAME = FIELD(FILE.NAME,'.',2,99) ;* ie. MM.MONEY.MARKET
+            IF FILE.NAME THEN
+                LOCATE FILE.NAME IN C$R.EB.EXP<EB.EXP.FILE.NAME,1> SETTING RPOS THEN
+                    LOCATE FILE.NAME IN CHECK.LIST<1,1> SETTING NOTHING ELSE    ;* GLOBUS_CI_10012332 - S/E
+                        ROUTINE = C$R.EB.EXP<EB.EXP.EXTRACT.RTN,RPOS>[2,99]
+                        IF ROUTINE THEN ;* GLOBUS_CI_10010549 - S
+                            CALL @ROUTINE(EXT.JNL.ID,EXT.JNL.REC,FILE.NAME)     ;* GLOBUS_CI_10012332 S/E
+                        END   ;* GLOBUS_CI_10010549 - E
+                        CHECK.LIST<1,-1> = FILE.NAME        ;* GLOBUS_CI_10012332 - S
+                    END       ;* GLOBUS_CI_10012332 - E
+                END
+            END
+        REPEAT
+    END ELSE
+        IF JNL.ID NE 'OFF' THEN
+            CALL EB.EXTRACT.ONLINE(EXT.JNL.ID,R.JOURNAL)    ;* Update EB.EXTRACT record
+        END
+    END   ;* GLOBUS_EN_10001871 - E
+*
+    RETURN
+*-----------------------------------------------------------------------------
+PW.PROCESS:
+*In case the incoming record is a record already input through a process
+*then ensure that even if not coming through an enquiry drilldown the process
+*variables are reloaded
+
+    IF NOT(FIRST.REQUEST) THEN          ;* Pw process should be triggered only for the first request
+        RETURN
+    END
+    IF OFS$BROWSER AND (OFS$OPERATION EQ 'VALIDATE') THEN    ;* PW Processing should be triggered only for Process requesst from Browser
+        RETURN                                               ;* Returns for validation request.
+    END
+    IF ID.NEW THEN  ;* BG_00007405 Only do when called at end of transaction - not beg like FT's
+        IF PW$ACTIVITY.TXN.ID THEN      ;* BG_100007019
+            PW$ORIGINATE.PROCESS = ''
+            CALL PW.UPDATE.ACTIVITY
+            IF NOT(PW$FOLLOW.ON.ACT) THEN
+                PW$ACTIVITY.TXN.ID = '' ;* EN_10002793 S/E       ;* BG_100007019
+            END
+        END
+    END   ;* BG_100007405
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+HANDLE.MSG.REF:
+* If there is an active message id write this out to the table as
+* part of the transaction. This lets us work out if an OFS message has been processed
+* before, and if so we reject the transaction in OFS.REQUEST.MANAGER
+*
+    FN.OFS.UNIQUE.MSG.REF="F.OFS.UNIQUE.MSG.REF"
+    MY.RESPONSE = ID.NEW : '/' : OFS$ACTIVE.MSG.REF : '/1,DUPLICATE.TRAP:1:1=TRUE'
+
+    IF FIRST.REQUEST THEN     ;* Write OFS message only for first request in Bulk Transaction
+        CALL F.WRITE(FN.OFS.UNIQUE.MSG.REF, OFS$ACTIVE.MSG.REF, MY.RESPONSE)
+    END
+*
+* Add this message to the stack. This allows us to clear up the retry messages without
+* having to have a phantom. Basically only keep 10 message and then delete them
+*
+    OFS$MSG.REF.STACK<-1> = OFS$ACTIVE.MSG.REF
+*
+* Only keep ten messages per session. Should be enough to prevent duplicates without creating
+* massive numbers of records on the table
+*
+    IF OFS$MSG.REF.STACK<11> THEN
+        IF FIRST.REQUEST  THEN          ;*Delete message only for first request in Bulk mode
+            CALL F.DELETE(FN.OFS.UNIQUE.MSG.REF, OFS$MSG.REF.STACK<1>)
+            DEL OFS$MSG.REF.STACK<1>    ;* pop from the stack
+        END
+    END
+    OFS$ACTIVE.MSG.REF = ''
+
+    RETURN
+
+*
+*-----------------------------------------------------------------------------
+*
+BR.OFFLINE.OFFLN.APS.UPLD:
+*** <region name= BR.OFFLINE.OFFLN.APS.UPLD>
+* EN_10002963
+*
+    IF (R.SPF.SYSTEM<SPF.BRANCH.ID> AND BR$STATUS = 'OFFLINE') OR (BR$BRANCH.ID) THEN     ;* If I came from a branch or I am a branch
+* Check whether we need to upload this application request to the main server     ;* GLOBUS_EN_10003015 S
+        IF APPLICATION = '' THEN        ;*possible during CLEARING
+            RETURN  ;*just get out
+        END
+        LOCATE APPLICATION IN BR$R.BR.PARAMETER<BR.PAR.OFFLN.APS.UPLD,1> SETTING ALLOWED THEN
+            IF BR.REQUEST.STRING = '' THEN
+                GOSUB BR.BUILD.OFS.RECORD         ;* GLOBUS_BG_100012212 S
+            END
+
+            MY.SIGN.ON.NAME = R.USER<EB.USE.SIGN.ON.NAME>
+            MY.PASSWORD = '<*PASSWORD*>'
+            GOSUB ADD.REPLACE.MSG.FLAG  ;* GLOBUS_BG_100012212 E
+
+            OFS$BR.REQUEST.STRING = BR.REQUEST.STRING
+
+* The sfq will only be written to if I am a branch and I am offline and will only be here if a offline application allowed as
+* set up in BR.PARAMETER
+            IF R.SPF.SYSTEM<SPF.BRANCH.ID> THEN   ;* only write to sfq if I am a branch and I am anything other than the below functions
+                IF V$FUNCTION # 'S' OR V$FUNCTION # 'L' OR V$FUNCTION # 'E' OR V$FUNCTION # 'P' THEN          ;* GLOBUS_EN_10003015
+                    FN.SFQ = 'F.SFQ'
+                    F.SFQ = ''
+                    CALL OPF(FN.SFQ, F.SFQ)
+                    R.SFQ<1> = OFS$BR.REQUEST.STRING
+                    IF TXN.SEQ.NO = '' THEN
+                        GOSUB GET.BR.SEQ.NO
+                    END
+                    CALL F.WRITE(FN.SFQ,TXN.SEQ.NO,R.SFQ)
+                END
+            END
+        END
+    END   ;* GLOBUS_EN_10003015 E
+    RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+BR.BUILD.OFS.RECORD:* GLOBUS_BG_100012212
+*** <region name= BR.BUILD.OFS.RECORD>
+    APP.NAME = APPLICATION
+    OFS.FUNCT = V$FUNCTION
+    PROCESS = 'BR.PROCESS'
+    SAVE.PGM.VERSION = PGM.VERSION
+    IF PGM.VERSION = '' THEN
+        PGM.VERSION = ','
+    END
+    OFS.VERSION = APPLICATION:PGM.VERSION         ;* OFS.build.record does not add app.name to the ofs string so I have to pass it as part of the version!!
+    GTS.MODE =  1
+    NO.OF.AUTH = R.VERSION(EB.VER.NO.OF.AUTH)
+    TRANS.ID = ID.NEW
+    MATBUILD RECORD FROM R.NEW
+
+    CALL OFS.BUILD.RECORD(APP.NAME,OFS.FUNCT,PROCESS,OFS.VERSION,GTS.MODE,NO.OF.AUTH,TRANS.ID,RECORD,BR.REQUEST.STRING)
+
+    PGM.VERSION = SAVE.PGM.VERSION
+    RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+RESET.COMMON:
+* Reset common variables
+
+* Don't clear the cache if WRITE.CACHE is set as the records would be flushed
+* into the disk by BATCH.JOB.CONTROL.Clear it for simulation as it has been flushed
+* here already.
+
+    JOURNAL.BYPASS = ''       ;* In case an application has set this
+    CACHE.OFF = ''  ;* Enquiries don't populate the cache of F.READ
+    IF LAST.REQUEST AND NOT(OGM.CACHE.TXN) THEN   ;* if it is a last request in bulk transaction, OGM txn maintaining cache
+        IF NOT(WRITE.CACHE) OR OFS$SIMULATION.MODE THEN     ;* don't clear the cache if WRITE.CACHE is set.Clear it for simulation
+            CALL CLEAR.CACHE  ;* Clear the FWT cache
+        END
+    END
+
+    MY.KEY =APPLICATION:PGM.VERSION:' ':V$FUNCTION          ;* And finally the call to the TEC to stop the txn timer
+    MY.TYPE='TXN.RESPONSE'
+    MY.DETAIL = ID.NEW
+    CALL TEC.STOP.TIMER(MY.KEY, MY.TYPE, MY.DETAIL)
+    CALL LOG.WRITE("","","",1)          ;* to save the logs to the backup
+    RETURN
+*-----------------------------------------------------------------------------
+UPDATE.REAL.TIME.FILES:
+*
+* Update real time files
+
+    LOCATE "REALTIMEENQUIRY" IN C$DESKTOP.PARAMETER<DP.ATTRIBUTES,1> SETTING POS THEN
+        CALL S.REALTIME.UPDATE.FILES    ;* GB9901712
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+BR.STATIC.APPS:
+*** <region name= BR.STATIC.APPS>
+* Export STATIC application updates
+*
+    IF R.SPF.SYSTEM<SPF.BRANCH.ID> = '' THEN      ;* if BR is installed and its the head office
+        IF APPLICATION = '' THEN        ;*possible during CLEARING
+            RETURN  ;*just get out
+        END
+        LOCATE APPLICATION IN BR$R.BR.PARAMETER<BR.PAR.STATIC.APPS,1> SETTING STATIC.POS ELSE       ;* check whether our application is specifed as static apps
+            RETURN  ;* else return
+        END
+        IF NOT(BR$FN.EXP.STA.APP) THEN  ;* if the static apps export file.name already loaded in memory
+            GOSUB CHECK.DIR.EXISTS      ;* else check and load it now
+        END
+
+        GOSUB BR.BUILD.OFS.RECORD       ;* build the OFS string    ;* GLOBUS_BG_100012212 S
+
+        MY.SIGN.ON.NAME = ''
+        MY.PASSWORD = ''
+
+        GOSUB ADD.REPLACE.MSG.FLAG      ;* GLOBUS_BG_100012212 E
+
+        GOSUB GET.BR.SEQ.NO   ;* get the BR seq no
+        GOSUB GET.FILE.CONTROL.REC      ;* get the file control record
+        IF R.FILE.CONTROL<EB.FILE.CONTROL.CLASS> NE 'INT' THEN        ;* if file classification is not INT
+            STAT.UPD.ID.PREFIX = ID.COMPANY       ;* then prefix is COMPANY code
+        END ELSE
+            STAT.UPD.ID.PREFIX = 'ALL'  ;* for INT type files prefix is 'ALL'
+        END
+        STAT.TXN.SEQ.NO = STAT.UPD.ID.PREFIX:'.':TXN.SEQ.NO ;* add approriate prefix
+        CALL F.WRITE(BR$FN.EXP.STA.APP,STAT.TXN.SEQ.NO,BR.REQUEST.STRING)       ;* write the built OFS sting in the export directory
+    END
+    RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+CHECK.DIR.EXISTS:
+*** <region name= CHECK DIR EXISTS>
+    PATH = BR$R.BR.PARAMETER<BR.PAR.EXP.STA.APP.LOC>:'/':'BR.STA.APP.':TODAY    ;* path for export
+    CALL BR.CREATE.PATH('CHECK.PATH',PATH)        ;* check whether the path is fine
+    IF ETEXT THEN   ;* incase the directory is not available
+        ETEXT = ''
+        CALL BR.CREATE.PATH('CREATE.PATH',PATH)   ;* create it
+        IF ETEXT THEN
+            TEXT = ETEXT
+            CALL FATAL.ERROR("JOURNAL.UPDATE.JBASE")        ;* GLOBUS_BG_100012212
+        END
+    END
+    BR$FN.EXP.STA.APP = PATH  ;*  if the dir exists
+    GOSUB OPEN.THE.EXPORT.PATH          ;* try to open it and set the file variable
+    RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+OPEN.THE.EXPORT.PATH:
+*** <region name= OPEN.THE.EXPORT.PATH>
+
+    OPEN '',BR$FN.EXP.STA.APP TO BR$F.EXP.STA.APP ELSE      ;* open the diretory path and set the file variable
+        TEXT = 'Cannot open the Static Apps export path -':FM:BR$FN.EXP.STA.APP
+        CALL FATAL.ERROR("JOURNAL.UPDATE.JBASE")  ;* GLOBUS_BG_100012212
+    END
+
+    RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+CHECK.BR.UPDATES:
+**** <region name= CHECK.BR.UPDATES>
+    IF BR$INSTALLED THEN
+        BR.REQUEST.STRING = ''          ;* initialise
+        R.SFQ = ''  ;* initialise
+        TXN.SEQ.NO = ''       ;* BR.SEQ.NO for SPF or static apps export
+        GOSUB BR.STATIC.APPS  ;* check whether we need to export static app data
+        GOSUB BR.OFFLINE.OFFLN.APS.UPLD ;* check whether we need to write the sfq or poulate OFS$BR.REQUEST.STRING
+    END
+    RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+GET.BR.SEQ.NO:
+***<region name = GET.BR.SEQ.NO>
+
+    BR.TXN.NO.ID = 'BR.TXN.NO'          ;* key to F.LOCKING for the static apps export seq
+    R.BR.TXN.NO = ''          ;* initialise
+    RETRY = ''      ;* initialise
+    NEW.TXN.SEQ.NO = ''       ;* initialise
+    CALL F.READU('F.LOCKING', BR.TXN.NO.ID,R.BR.TXN.NO,F.LOCKING, YERR,RETRY)   ;* lock and read the rec from F.LOCKING
+    TXN.SEQ.NO = R.BR.TXN.NO<1>         ;* the latest in F.LOCKING
+    IF TXN.SEQ.NO = '' THEN   ;* if its the first time
+        TXN.SEQ.NO = '000000000000000000000000000000000'    ;* set it from start
+    END
+    CALL BR.GET.SEQ.NO(TXN.SEQ.NO, NEW.TXN.SEQ.NO)          ;* to get the seq no of the transactions
+    R.BR.TXN.NO<1> = NEW.TXN.SEQ.NO     ;* new one populated
+    CALL F.WRITE('F.LOCKING', BR.TXN.NO.ID,R.BR.TXN.NO)     ;* write the latest to F.LOCKING
+    TXN.SEQ.NO = NEW.TXN.SEQ.NO         ;* set it to the new one generated
+    RETURN
+*** </region>
+*----------------------------------------------------------------------------
+ADD.REPLACE.MSG.FLAG:         * GLOBUS_BG_100012212 S
+*** <region name= ADD.REPLACE.MSG.FLAG>
+*
+* Add the 'replace message' setting to the user information component of the OFS message.
+* First need to add any missing sub-component markers.
+* The 'replace message' is at the end of the string in position 6.
+    APP.NAME = FIELD(BR.REQUEST.STRING, ',', 1,1)
+    VER.FUNCT = FIELD(BR.REQUEST.STRING, ',', 2,1)
+    USER.DETS = FIELD(BR.REQUEST.STRING,',', 3,1)
+    APP.ID = FIELD(BR.REQUEST.STRING, ',', 4,1)
+    REST.OF.MSG = FIELD(BR.REQUEST.STRING, ',', 5,999)
+
+    Y.COMP = FIELD(USER.DETS, '/', 3,1) ;* just to add in the user name and a password tag
+    USER.DETS = MY.SIGN.ON.NAME:'/':MY.PASSWORD:'/':Y.COMP
+
+    REPLACE.MSG = ''
+    SUB.COUNT = COUNT( USER.DETS, '/' )
+
+    IF SUB.COUNT LT 5 THEN
+        REPLACE.MSG = '/1'
+        SUBS.TO.ADD = 4 - SUB.COUNT
+        FOR SUB.NUMBER = 1 TO SUBS.TO.ADD
+            USER.DETS := '/'
+        NEXT SUB.NUMBER
+    END
+
+    USER.DETS := REPLACE.MSG
+
+    BR.REQUEST.STRING = APP.NAME:',':VER.FUNCT:',':USER.DETS:',':APP.ID:',':REST.OF.MSG
+
+    RETURN          ;* GLOBUS_BG_100012212 E
+***
+*** </region>
+*-----------------------------------------------------------------------------
+*** <region name= CHECK.TOKEN>                                                  ; * GLOBUS_BG_100006990 S
+*** <desc>Ensure that the users token is still valid</desc>
+CHECK.TOKEN:
+
+    IF INDEX(TTYPE,"GUI",1) THEN        ;* if in Desktop
+        ETEXT = ''  ;* initialise it
+        CALL EB.TOKEN.CHECK   ;* check whether token is still active
+        IF ETEXT THEN         ;* if invalid token
+            MY.MSG = 'You have signed on from another session.'       ;* specify  an error msg
+            CALL TXT(MY.MSG)
+            TEXT = MY.MSG
+            CALL REM          ;* Display it
+            CALL SIGN.OFF     ;* sign off
+        END
+    END
+
+    RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+
+***<region name = DW.PROCESSING>
+DW.PROCESSING:
+***
+* Data Warehousing. Extraction from OLTP database. On every record commit
+* we pass on the details on the files updated to check whether we are
+* interested in the file update.
+*
+    IF DW$INSTALLED THEN      ;* if DW module is installed
+        IF SET.COLLECT = 0 THEN
+            ASSIGN DW$EXTRACT.MODE TO SYSTEM(1039)
+            SET.COLLECT = 1
+        END ELSE
+            DW.FILE.DETAILS = SYSTEM(1039)        ;* details of all the files updated
+            WRK.FILE.ID = APPLICATION:'-':ID.NEW  ;* wrk file id
+            CALL EB.TRANS('START',RETURN.MSG)     ;* Start a transaction
+            CALL DW.PROCESS.TXN(WRK.FILE.ID,DW.FILE.DETAILS,RETURN.VAR)         ;* extract
+            CALL EB.TRANS('END',RETURN.MSG)       ;* End transaction
+            SET.COLLECT = 0
+        END
+    END
+
+    RETURN
+*** </region>
+*----------------------------------------------------------------------------
+
+***<region = GET.FILE.CONTROL.REC>
+GET.FILE.CONTROL.REC:
+***
+
+* Para to get the file.control record of the APPLICATION
+*
+    R.FILE.CONTROL = ''       ;*file.control record
+    APP.NAME = APPLICATION    ;*  application name, better safe to save in a new variable
+    ER = ''         ;* err var,initialise
+    CALL CACHE.READ('F.FILE.CONTROL',APP.NAME,R.FILE.CONTROL,ER)      ;* get the file.control record
+
+    RETURN
+*** </region>
+*----------------------------------------------------------- -----------------
+***<region = ENCRYPT.FIELDS>
+ENCRYPT.FIELDS:
+***
+* if eb encryption param is setup then check whether the current file name is
+* one of the encrypted applications, if then call the encrypt routine and
+* pass on the record for encrypting the desired fields before writing it to disk.
+*
+    IF ENC$R.EB.ENC.PARAM THEN          ;* if encryption param set-up
+        YNAME.REALLY = FIELD(FL,".",2,99)         ;* Name without the F. prefix
+        Y.FILE.NAME = FIELD(YNAME.REALLY,"$",1)
+        LOCATE Y.FILE.NAME IN ENC$ENCRYPT.APPL<1,1> SETTING APPL.POS THEN       ;* if file name specified
+            ENCRYPT.RTN.NAME = ENC$ENCRYPT.RTN    ;* the encrypt routine name
+            R.RECORD = LOWER(RC)        ;* lower the record for EB.API
+            ARGUMENTS = FL:FM:ID:FM:R.RECORD      ;* File name, ID and lower'ed Record
+            CALL EB.CALL.API(ENCRYPT.RTN.NAME, ARGUMENTS)   ;* call the encryption routine
+            R.RECORD =  ARGUMENTS<3>    ;* returned record after encryption
+            RC = RAISE(R.RECORD)        ;* raise the record
+        END
+    END
+    RETURN
+*** </region>
+*----------------------------------------------------------- -----------------
+END

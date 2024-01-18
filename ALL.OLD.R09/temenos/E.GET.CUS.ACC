@@ -1,0 +1,32 @@
+*-----------------------------------------------------------------------------
+* <Rating>190</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE E.GET.CUS.ACC(ID.LIST)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CUSTOMER.ACCOUNT
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    CLEARSELECT
+    LOCATE 'CUSTOMER.NO' IN D.FIELDS<1> SETTING POS ELSE POS = ''
+    CUS.NO= D.RANGE.AND.VALUE<1,POS>
+    FN.CUSTOMER.ACCOUNT = 'F.CUSTOMER.ACCOUNT'
+    F.CUSTOMER.ACCOUNT = ''
+    CALL OPF(FN.CUSTOMER.ACCOUNT,F.CUSTOMER.ACCOUNT)
+    ID.LIST=''
+    READ R.ID.LIST FROM F.CUSTOMER.ACCOUNT,CUS.NO ELSE R.ID.LIST=''
+    IF R.ID.LIST THEN
+        FN.ACCOUNT='F.ACCOUNT'
+        F.ACCOUNT=''
+        CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+        FOR I=1  TO DCOUNT(R.ID.LIST,@FM)
+            Y.AC.ID = FIELD(R.ID.LIST,@FM,I)
+            CALL F.READ(FN.ACCOUNT,Y.AC.ID,R.ACCOUNT,F.ACCOUNT,Y.ACCT.ERR)
+            Y.CATEG = R.ACCOUNT<AC.CATEGORY>
+            Y.CATEG.LIST = "1001":@FM:"1002":@FM:"1003":@FM:"6009":@FM:"1936":@FM:"1922"
+            LOCATE Y.CATEG IN Y.CATEG.LIST SETTING POS1 THEN
+                ID.LIST<-1>=Y.AC.ID:'*'
+            END
+        NEXT I
+    END
+    RETURN

@@ -1,0 +1,630 @@
+*-----------------------------------------------------------------------------
+* <Rating>3124</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE NOFILE.GL.STMT.LAYOUT.AFFAIRS(Y.ARR)
+*-------------------------------------------------------------------------
+* Report is used for particular branches dayend cash position.
+* Report of Statement of Layout of affairs
+*
+*@author        manjunath.s@sepit.net
+*-------------------------------------------------------------------------
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_F.DATES
+    $INSERT ../GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT ../GLOBUS.BP I_F.ACCOUNT
+    $INSERT ../GLOBUS.BP I_F.RE.STAT.REP.LINE
+    $INSERT ../GLOBUS.BP I_F.RE.STAT.LINE.CONT
+    $INSERT ../GLOBUS.BP I_F.CONSOLIDATE.ASST.LIAB
+    $INSERT ../GLOBUS.BP I_F.CONSOLIDATE.PRFT.LOSS
+    $INSERT BP I_F.GL.REPORT.PARAMETER
+*-------------------------------------------------------------------------
+* Main controlling section:
+*-------------------------------------------------------------------------
+    GOSUB INITIALISATION
+    GOSUB MAIN.PROCESS
+
+    RETURN
+
+*-------------------------------------------------------------------------
+* Subroutine Section:
+* File Opening and Variable set up
+
+INITIALISATION:
+
+*-------------------------------------------------------------------------
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT = ""
+    R.ACCOUNT = ""
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    FN.STAT.LINE = "F.RE.STAT.REP.LINE"
+    F.STAT.LINE = ""
+    R.STAT.LINE = ''
+    CALL OPF(FN.STAT.LINE, F.STAT.LINE)
+
+    FN.STAT.LINE.CONT = "F.RE.STAT.LINE.CONT"
+    F.STAT.LINE.CONT = ""
+    R.STAT.LINE.CONT = ''
+    CALL OPF(FN.STAT.LINE.CONT, F.STAT.LINE.CONT)
+
+    FN.GL.REPORT = "F.GL.REPORT.PARAMETER"
+    F.GL.REPORT = ""
+    R.GL.REPORT = ""
+    R.GL.REPORT2 = ""
+    CALL OPF(FN.GL.REPORT,F.GL.REPORT)
+
+    FN.CAL = "F.CONSOLIDATE.ASST.LIAB"
+    F.CAL = ""
+    R.CAL = ""
+    CALL OPF(FN.CAL,F.CAL)
+
+    FN.CPL = "F.CONSOLIDATE.PRFT.LOSS"
+    F.CPL = ""
+    R.CPL = ""
+    CALL OPF(FN.CPL,F.CPL)
+
+    RETURN
+
+*-------------------------------------------------------------------------
+* Main Subroutine processing:
+*
+MAIN.PROCESS:
+*
+*-------------------------------------------------------------------------
+*
+    Y.COMPANY = ID.COMPANY
+    Y.FLAG = '0'
+    Y.FINAL.COUNT = '1'
+    Y.GL.JBPL = 'JBPL.4000':@VM:'JBPL.7999'
+    Y.GL.LIST = 'JBGL.4800':@VM:'JBGL.4900':@VM:'JBGL.5000'
+    Y.TT.DEPOSIT = 'JBGL.0300':@VM:'JBGL.0325':@VM:'JBGL.0330':@VM:'JBGL.1000':@VM:'JBGL.1195'
+    Y.GL.TT.LIST = 'JBGL.5850':@VM:'JBGL.4300':@VM:'JBGL.4200':@VM:'JBGL.4150':@VM:'JBGL.1533':@VM:'JBGL.1700':@VM:'JBGL.1450':@VM:'JBGL.1195':@VM:'JBGL.1000':@VM:'JBGL.6500':@VM:'JBGL.6100'
+    Y.TOT.INCOME = 'JBPL.0020':@VM:'JBPL.0021':@VM:'JBPL.0022':@VM:'JBPL.0025':@VM:'JBPL.0030':@VM:'JBPL.0035':@VM:'JBPL.0036':@VM:'JBPL.0040':@VM:'JBPL.0045':@VM:'JBPL.0050':@VM:'JBPL.0055':@VM:'JBPL.0060':@VM:'JBPL.0065':@VM:'JBPL.0070':@VM:'JBPL.0075':@VM:'JBPL.0080':@VM:'JBPL.0085':@VM:'JBPL.0090':@VM:'JBPL.0095':@VM:'JBPL.0100':@VM:'JBPL.0105':@VM:'JBPL.0110':@VM:'JBPL.0115':@VM:'JBPL.0116':@VM:'JBPL.0117':@VM:'JBPL.0120':@VM:'JBPL.0125':@VM:'JBPL.0130':@VM:'JBPL.0135':@VM:'JBPL.0140':@VM:'JBPL.0145':@VM:'JBPL.0150':@VM:'JBPL.0155':@VM:'JBPL.0210':@VM:'JBPL.0215':@VM:'JBPL.0220':@VM:'JBPL.0225':@VM:'JBPL.0230':@VM:'JBPL.0235':@VM:'JBPL.0240':@VM:'JBPL.0245':@VM:'JBPL.0310':@VM:'JBPL.0315':@VM:'JBPL.0320':@VM:'JBPL.0360':@VM:'JBPL.0365':@VM:'JBPL.0415':@VM:'JBPL.0420':@VM:'JBPL.0425':@VM:'JBPL.0430':@VM:'JBPL.0435':@VM:'JBPL.0460':@VM:'JBPL.0465':@VM:'JBPL.0470':@VM:'JBPL.0475':@VM:'JBPL.0480':@VM:'JBPL.0510':@VM:'JBPL.0515':@VM:'JBPL.0520':@VM:'JBPL.0615':@VM:'JBPL.0620':@VM:'JBPL.0625':@VM:'JBPL.0630':@VM:'JBPL.0635':@VM:'JBPL.0640':@VM:'JBPL.0645':@VM:'JBPL.0650':@VM:'JBPL.0655':@VM:'JBPL.0660':@VM:'JBPL.0661':@VM:'JBPL.0665':@VM:'JBPL.0670':@VM:'JBPL.0675':@VM:'JBPL.0680':@VM:'JBPL.0685':@VM:'JBPL.0690':@VM:'JBPL.0691':@VM:'JBPL.0695':@VM:'JBPL.0700':@VM:'JBPL.0705':@VM:'JBPL.0710':@VM:'JBPL.0715':@VM:'JBPL.0720':@VM:'JBPL.0760':@VM:'JBPL.0765':@VM:'JBPL.0770':@VM:'JBPL.0775':@VM:'JBPL.0780':@VM:'JBPL.0785':@VM:'JBPL.0790':@VM:'JBPL.0795':@VM:'JBPL.0865':@VM:'JBPL.0870':@VM:'JBPL.0890':@VM:'JBPL.0910':@VM:'JBPL.0915':@VM:'JBPL.0920':@VM:'JBPL.0925':@VM:'JBPL.0930':@VM:'JBPL.0935':@VM:'JBPL.0960':@VM:'JBPL.0965':@VM:'JBPL.0970':@VM:'JBPL.0975':@VM:'JBPL.0980':@VM:'JBPL.0985':@VM:'JBPL.0990':@VM:'JBPL.0995':@VM:'JBPL.0996':@VM:'JBPL.1000':@VM:'JBPL.1005':@VM:'JBPL.1010':@VM:'JBPL.1015':@VM:'JBPL.1020':@VM:'JBPL.1025':@VM:'JBPL.1030':@VM:'JBPL.1031':@VM:'JBPL.1032':@VM:'JBPL.1033':@VM:'JBPL.1035':@VM:'JBPL.1040':@VM:'JBPL.1060':@VM:'JBPL.1105':@VM:'JBPL.1106':@VM:'JBPL.1107':@VM:'JBPL.1108':@VM:'JBPL.1109':@VM:'JBPL.1110':@VM:'JBPL.1111':@VM:'JBPL.1112':@VM:'JBPL.1113':@VM:'JBPL.1114':@VM:'JBPL.1115':@VM:'JBPL.1116':@VM:'JBPL.1117':@VM:'JBPL.1118':@VM:'JBPL.1119':@VM:'JBPL.1120':@VM:'JBPL.1121':@VM:'JBPL.1122':@VM:'JBPL.1123':@VM:'JBPL.1124':@VM:'JBPL.1125':@VM:'JBPL.1126':@VM:'JBPL.1127':@VM:'JBPL.1128':@VM:'JBPL.1129':@VM:'JBPL.1130':@VM:'JBPL.1131':@VM:'JBPL.1132':@VM:'JBPL.1133':@VM:'JBPL.1134':@VM:'JBPL.1135':@VM:'JBPL.1136':@VM:'JBPL.1137':@VM:'JBPL.1138':@VM:'JBPL.1139':@VM:'JBPL.1140':@VM:'JBPL.1141':@VM:'JBPL.1142':@VM:'JBPL.1205':@VM:'JBPL.1210':@VM:'JBPL.1215'
+    Y.TOT.EXPENDITURE = 'JBPL.4020':@VM:'JBPL.4025':@VM:'JBPL.4030':@VM:'JBPL.4035':@VM:'JBPL.4040':@VM:'JBPL.4045':@VM:'JBPL.4046':@VM:'JBPL.4047':@VM:'JBPL.4048':@VM:'JBPL.4050':@VM:'JBPL.4055':@VM:'JBPL.4060':@VM:'JBPL.4065':@VM:'JBPL.4070':@VM:'JBPL.4075':@VM:'JBPL.4080':@VM:'JBPL.4085':@VM:'JBPL.4090':@VM:'JBPL.4095':@VM:'JBPL.4100':@VM:'JBPL.4105':@VM:'JBPL.4110':@VM:'JBPL.4115':@VM:'JBPL.4120':@VM:'JBPL.4125':@VM:'JBPL.4130':@VM:'JBPL.4135':@VM:'JBPL.4140':@VM:'JBPL.4141':@VM:'JBPL.4142':@VM:'JBPL.4143':@VM:'JBPL.4145':@VM:'JBPL.4210':@VM:'JBPL.4215':@VM:'JBPL.4220':@VM:'JBPL.4225':@VM:'JBPL.4230':@VM:'JBPL.4235':@VM:'JBPL.4240':@VM:'JBPL.4245':@VM:'JBPL.4310':@VM:'JBPL.4315':@VM:'JBPL.4320':@VM:'JBPL.4325':@VM:'JBPL.4330':@VM:'JBPL.4335':@VM:'JBPL.4340':@VM:'JBPL.4410':@VM:'JBPL.4415':@VM:'JBPL.4420':@VM:'JBPL.4515':@VM:'JBPL.4520':@VM:'JBPL.4525':@VM:'JBPL.4530':@VM:'JBPL.4535':@VM:'JBPL.4560':@VM:'JBPL.4565':@VM:'JBPL.4570':@VM:'JBPL.4575':@VM:'JBPL.4580':@VM:'JBPL.4585':@VM:'JBPL.4590':@VM:'JBPL.4595':@VM:'JBPL.4600':@VM:'JBPL.4605':@VM:'JBPL.4610':@VM:'JBPL.4615':@VM:'JBPL.4620':@VM:'JBPL.4625':@VM:'JBPL.4630':@VM:'JBPL.4635':@VM:'JBPL.4640':@VM:'JBPL.4710':@VM:'JBPL.4715':@VM:'JBPL.4720':@VM:'JBPL.4760':@VM:'JBPL.4765':@VM:'JBPL.4770':@VM:'JBPL.4775':@VM:'JBPL.4780':@VM:'JBPL.4815':@VM:'JBPL.4820':@VM:'JBPL.4825':@VM:'JBPL.4830':@VM:'JBPL.4835':@VM:'JBPL.4840':@VM:'JBPL.4910':@VM:'JBPL.4915':@VM:'JBPL.4920':@VM:'JBPL.4925':@VM:'JBPL.4930':@VM:'JBPL.4935':@VM:'JBPL.4960':@VM:'JBPL.4965':@VM:'JBPL.4970':@VM:'JBPL.5015':@VM:'JBPL.5020':@VM:'JBPL.5060':@VM:'JBPL.5065':@VM:'JBPL.5070':@VM:'JBPL.5075':@VM:'JBPL.5080':@VM:'JBPL.5115':@VM:'JBPL.5120':@VM:'JBPL.5160':@VM:'JBPL.5165':@VM:'JBPL.5170':@VM:'JBPL.5175':@VM:'JBPL.5180':@VM:'JBPL.5185':@VM:'JBPL.5190':@VM:'JBPL.5202':@VM:'JBPL.5203':@VM:'JBPL.5204':@VM:'JBPL.5205':@VM:'JBPL.5217':@VM:'JBPL.5218':@VM:'JBPL.5219':@VM:'JBPL.5220':@VM:'JBPL.5242':@VM:'JBPL.5243':@VM:'JBPL.5244':@VM:'JBPL.5245':@VM:'JBPL.5246':@VM:'JBPL.5260':@VM:'JBPL.5265':@VM:'JBPL.5270':@VM:'JBPL.5275':@VM:'JBPL.5280':@VM:'JBPL.5285':@VM:'JBPL.5290':@VM:'JBPL.5295':@VM:'JBPL.5300':@VM:'JBPL.5305':@VM:'JBPL.5415':@VM:'JBPL.5420':@VM:'JBPL.5425':@VM:'JBPL.5430':@VM:'JBPL.5435':@VM:'JBPL.5460':@VM:'JBPL.5465':@VM:'JBPL.5515':@VM:'JBPL.5520':@VM:'JBPL.5560':@VM:'JBPL.5565':@VM:'JBPL.5615':@VM:'JBPL.5620':@VM:'JBPL.5660':@VM:'JBPL.5665':@VM:'JBPL.5715':@VM:'JBPL.5720':@VM:'JBPL.5725':@VM:'JBPL.5730':@VM:'JBPL.5735':@VM:'JBPL.5740':@VM:'JBPL.5760':@VM:'JBPL.5765':@VM:'JBPL.5770':@VM:'JBPL.5775':@VM:'JBPL.5780':@VM:'JBPL.5785':@VM:'JBPL.5790':@VM:'JBPL.5815':@VM:'JBPL.5820':@VM:'JBPL.5825':@VM:'JBPL.5830':@VM:'JBPL.5860':@VM:'JBPL.5865':@VM:'JBPL.5870':@VM:'JBPL.5875':@VM:'JBPL.5880':@VM:'JBPL.5885':@VM:'JBPL.5910':@VM:'JBPL.5915':@VM:'JBPL.5940':@VM:'JBPL.5945':@VM:'JBPL.5950':@VM:'JBPL.5965':@VM:'JBPL.5970':@VM:'JBPL.5975':@VM:'JBPL.5980':@VM:'JBPL.6010':@VM:'JBPL.6015':@VM:'JBPL.6040':@VM:'JBPL.6045':@VM:'JBPL.6050':@VM:'JBPL.6055':@VM:'JBPL.6060':@VM:'JBPL.6065':@VM:'JBPL.6070':@VM:'JBPL.6075':@VM:'JBPL.6080':@VM:'JBPL.6110':@VM:'JBPL.6115':@VM:'JBPL.6120':@VM:'JBPL.6125':@VM:'JBPL.6130':@VM:'JBPL.6135':@VM:'JBPL.6140':@VM:'JBPL.6145':@VM:'JBPL.6150':@VM:'JBPL.6155':@VM:'JBPL.6160':@VM:'JBPL.6165':@VM:'JBPL.6170':@VM:'JBPL.6175':@VM:'JBPL.6180':@VM:'JBPL.6185':@VM:'JBPL.6190':@VM:'JBPL.6195':@VM:'JBPL.6200':@VM:'JBPL.6205':@VM:'JBPL.6210':@VM:'JBPL.6215':@VM:'JBPL.6220':@VM:'JBPL.6221':@VM:'JBPL.6255':@VM:'JBPL.6256':@VM:'JBPL.6257':@VM:'JBPL.6258':@VM:'JBPL.6259':@VM:'JBPL.6260':@VM:'JBPL.6261':@VM:'JBPL.6262':@VM:'JBPL.6263':@VM:'JBPL.6264':@VM:'JBPL.6265':@VM:'JBPL.6266':@VM:'JBPL.6267':@VM:'JBPL.6268':@VM:'JBPL.6269':@VM:'JBPL.6270':@VM:'JBPL.6271':@VM:'JBPL.6272':@VM:'JBPL.6273':@VM:'JBPL.6274':@VM:'JBPL.6275':@VM:'JBPL.6276':@VM:'JBPL.6277':@VM:'JBPL.6278':@VM:'JBPL.6315':@VM:'JBPL.6320':@VM:'JBPL.6325':@VM:'JBPL.6330':@VM:'JBPL.6335':@VM:'JBPL.6340':@VM:'JBPL.6345':@VM:'JBPL.6350':@VM:'JBPL.6410':@VM:'JBPL.6415':@VM:'JBPL.6510':@VM:'JBPL.6520':@VM:'JBPL.6530':@VM:'JBPL.6540'
+
+    SEL.CMD = "SELECT ":FN.GL.REPORT
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORDS,RET.CODE)
+    TRAN.ID = 'SOALA'
+    CALL F.READ(FN.GL.REPORT,TRAN.ID,R.GL.REPORT,F.GL.REPORT,Y.ERR)
+    Y.COUNT = DCOUNT(R.GL.REPORT<GL.ENQ.REP.GL.CODE>,VM)
+    FOR Y.GL = 1 TO Y.COUNT
+        Y.GL.CODE = TRIM(FIELD(R.GL.REPORT<GL.ENQ.REP.GL.CODE>,@VM,Y.GL,1))
+        Y.LEGACY.ID = TRIM(FIELD(R.GL.REPORT<GL.ENQ.REP.LEGACY.ID>,@VM,Y.GL,1))
+        Y.GL.TYPE = TRIM(FIELD(R.GL.REPORT<GL.ENQ.REP.GL.TYPE>,@VM,Y.GL,1))
+        Y.GL.DESCR = TRIM(FIELD(R.GL.REPORT<GL.ENQ.REP.DESCRIP>,@VM,Y.GL,1))
+        Y.GL.ACCUMULATOR = TRIM(FIELD(R.GL.REPORT<GL.ENQ.REP.ACCUMULATOR>,@VM,Y.GL,1))
+        Y.GL.ACCUMULATOR = Y.GL.ACCUMULATOR[1,1]
+
+*Validation for to fetching values from the file based on the condition
+        GOSUB DATA.VALIDATION
+
+    NEXT Y.GL
+
+    RETURN
+*Main Gosub return
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+
+*Validation condition of gosub's starts from here........
+*-------------------------------------------------------------------------
+*Validation for to fetching values from the file
+DATA.VALIDATION:
+
+*----------------------
+*Consolidation of GL total is getting here based on some of GL code data.
+
+    IF Y.GL.CODE MATCHES Y.GL.TT.LIST THEN
+
+*Based on GL Code, Id is assigning to the variable to fetch the data from the file
+        GOSUB DATA.VAL1
+
+        SEL.CMD2 = "SELECT ":FN.GL.REPORT
+        CALL EB.READLIST(SEL.CMD2,SEL.LIST2,"",NO.OF.RECORDS2,RET.CODE2)
+        TRAN.ID2 = Y.TR
+        CALL F.READ(FN.GL.REPORT,TRAN.ID2,R.GL.REPORT2,F.GL.REPORT,Y.ERR2)
+        Y.COUNT2 = DCOUNT(R.GL.REPORT2<GL.ENQ.REP.GL.CODE>,VM)
+        FOR Y.GL2 = 1 TO Y.COUNT2
+
+*Record is fetching one by one
+            GOSUB DATA.VAL2
+
+
+        NEXT Y.GL2
+
+    END ELSE
+*Matches end else condition
+
+*To get the Consolidate total of Income and Expense
+        IF Y.GL.CODE MATCHES Y.GL.JBPL THEN
+
+*Income data
+            IF Y.GL.CODE EQ 'JBPL.4000' THEN
+                LOOP
+                    REMOVE Y.GL.CODE2 FROM Y.TOT.INCOME SETTING POS1
+                WHILE Y.GL.CODE2:POS1
+                    Y.GL.COMPANY = Y.GL.CODE2:".":Y.COMPANY
+                    CALL F.READ(FN.STAT.LINE.CONT,Y.GL.COMPANY,R.STAT.LINE.CONT,F.STAT.LINE.CONT,Y.ERR)
+                    Y.CNT.KEY = DCOUNT(R.STAT.LINE.CONT<RE.SLC.PRFT.CONSOL.KEY>,VM)
+                    FOR Y.M1 = 1 TO Y.CNT.KEY
+                        Y.CONSOL.KEY = FIELD(R.STAT.LINE.CONT<RE.SLC.PRFT.CONSOL.KEY>,@VM,Y.M1,1)
+                        CALL F.READ(FN.CPL,Y.CONSOL.KEY,R.CPL,F.CPL,Y.ERR)
+                        Y.CPL.CCY = R.CPL<RE.PTL.CURRENCY>
+                        Y.BAL.CNT = DCOUNT(R.CPL<RE.PTL.BALANCE>,VM)
+                        IF Y.BAL.CNT GE '1' THEN
+                            FOR Y.M2 = 1 TO Y.BAL.CNT
+                                IF Y.CPL.CCY = LCCY THEN
+                                    Y.BAL = TRIM(FIELD(R.CPL<RE.PTL.BALANCE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CPL<RE.PTL.DEBIT.MOVEMENT>,@VM,Y.M2,1)) + TRIM(FIELD(R.CPL<RE.PTL.CREDIT.MOVEMENT>,@VM,Y.M2,1)) + TRIM(FIELD(R.CPL<RE.PTL.BALANCE.YTD>,@VM,Y.M2,1))
+                                END ELSE
+                                    Y.BAL = TRIM(FIELD(R.CPL<RE.PTL.CCY.BALANCE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CPL<RE.PTL.CCY.DEBIT.MVE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CPL<RE.PTL.CCY.CREDT.MVE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CPL<RE.PTL.CCY.BALANCE.YTD>,@VM,Y.M2,1))
+                                END
+                                Y.BALANCE += Y.BAL
+                                Y.BAL = ''
+                            NEXT Y.M2
+                        END ELSE
+                            IF Y.CPL.CCY = LCCY THEN
+                                Y.BAL = TRIM(R.CPL<RE.PTL.BALANCE>) + TRIM(R.CPL<RE.PTL.DEBIT.MOVEMENT>) + TRIM(R.CPL<RE.PTL.CREDIT.MOVEMENT>) + TRIM(R.CPL<RE.PTL.BALANCE.YTD>)
+                            END ELSE
+                                Y.BAL = TRIM(R.CPL<RE.PTL.CCY.BALANCE>) + TRIM(R.CPL<RE.PTL.CCY.DEBIT.MVE>) + TRIM(R.CPL<RE.PTL.CCY.CREDT.MVE>) + TRIM(R.CPL<RE.PTL.CCY.BALANCE.YTD>)
+                            END
+                            Y.BALANCE += Y.BAL
+                            Y.BAL = ''
+                        END
+                    NEXT Y.M1
+                REPEAT
+            END
+
+* Expense data
+            IF Y.GL.CODE EQ 'JBPL.7999' THEN
+                LOOP
+                    REMOVE Y.GL.CODE2 FROM Y.TOT.EXPENDITURE SETTING POS1
+                WHILE Y.GL.CODE2:POS1
+                    Y.GL.COMPANY = Y.GL.CODE2:".":Y.COMPANY
+                    CALL F.READ(FN.STAT.LINE.CONT,Y.GL.COMPANY,R.STAT.LINE.CONT,F.STAT.LINE.CONT,Y.ERR)
+                    Y.CNT.KEY = DCOUNT(R.STAT.LINE.CONT<RE.SLC.PRFT.CONSOL.KEY>,VM)
+                    FOR Y.M1 = 1 TO Y.CNT.KEY
+                        Y.CONSOL.KEY = FIELD(R.STAT.LINE.CONT<RE.SLC.PRFT.CONSOL.KEY>,@VM,Y.M1,1)
+                        CALL F.READ(FN.CPL,Y.CONSOL.KEY,R.CPL,F.CPL,Y.ERR)
+                        Y.CPL.CCY = R.CPL<RE.PTL.CURRENCY>
+                        Y.BAL.CNT = DCOUNT(R.CPL<RE.PTL.BALANCE>,VM)
+                        IF Y.BAL.CNT GE '1' THEN
+                            FOR Y.M2 = 1 TO Y.BAL.CNT
+                                IF Y.CPL.CCY = LCCY THEN
+                                    Y.BAL = TRIM(FIELD(R.CPL<RE.PTL.BALANCE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CPL<RE.PTL.DEBIT.MOVEMENT>,@VM,Y.M2,1)) + TRIM(FIELD(R.CPL<RE.PTL.CREDIT.MOVEMENT>,@VM,Y.M2,1)) + TRIM(FIELD(R.CPL<RE.PTL.BALANCE.YTD>,@VM,Y.M2,1))
+                                END ELSE
+                                    Y.BAL = TRIM(FIELD(R.CPL<RE.PTL.CCY.BALANCE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CPL<RE.PTL.CCY.DEBIT.MVE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CPL<RE.PTL.CCY.CREDT.MVE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CPL<RE.PTL.CCY.BALANCE.YTD>,@VM,Y.M2,1))
+                                END
+                                Y.BALANCE += Y.BAL
+                                Y.BAL = ''
+                            NEXT Y.M2
+                        END ELSE
+                            IF Y.CPL.CCY = LCCY THEN
+                                Y.BAL = TRIM(R.CPL<RE.PTL.BALANCE>) + TRIM(R.CPL<RE.PTL.DEBIT.MOVEMENT>) + TRIM(R.CPL<RE.PTL.CREDIT.MOVEMENT>) + TRIM(R.CPL<RE.PTL.BALANCE.YTD>)
+                            END ELSE
+                                Y.BAL = TRIM(R.CPL<RE.PTL.CCY.BALANCE>) + TRIM(R.CPL<RE.PTL.CCY.DEBIT.MVE>) + TRIM(R.CPL<RE.PTL.CCY.CREDT.MVE>) + TRIM(R.CPL<RE.PTL.CCY.BALANCE.YTD>)
+                            END
+                            Y.BALANCE += Y.BAL
+                            Y.BAL = ''
+                        END
+                    NEXT Y.M1
+                REPEAT
+            END
+
+        END ELSE
+
+            Y.GL.COMPANY = Y.GL.CODE:".":Y.COMPANY
+            CALL F.READ(FN.STAT.LINE.CONT,Y.GL.COMPANY,R.STAT.LINE.CONT,F.STAT.LINE.CONT,Y.ERR)
+            Y.CNT.KEY = DCOUNT(R.STAT.LINE.CONT<RE.SLC.ASST.CONSOL.KEY>,VM)
+            FOR Y.M1 = 1 TO Y.CNT.KEY
+
+*To taking multivalue data from the file RE.STAT.LINE.CONT
+                GOSUB DATA.VAL3
+
+            NEXT Y.M1
+
+        END
+
+    END
+*Matches end condition
+*----------------------
+
+    Y.TT.BAL += Y.BALANCE
+    Y.GL.VAL = FIELDS(Y.GL.CODE,".",1)
+
+    IF Y.FLAG = '1' THEN
+        Y.FINAL.COUNT = Y.FINAL.COUNT + 1
+        Y.FLAG = '0'
+    END
+
+
+*To assigning the value to data variable based on the condition
+    GOSUB DATA.VAL4
+
+    RETURN
+
+*Data Validation Return
+
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+*Case for Assinging the Id for the Record
+DATA.VAL1:
+
+    BEGIN CASE
+
+    CASE Y.GL.CODE EQ 'JBGL.6100'
+        Y.TR = 'SUSPN'
+
+    CASE Y.GL.CODE EQ 'JBGL.6500'
+        Y.TR = 'SUNAS'
+
+    CASE Y.GL.CODE EQ 'JBGL.1000'
+        Y.TR = 'SUNDP'
+
+    CASE Y.GL.CODE EQ 'JBGL.1195'
+        Y.TR = 'DIFCR'
+
+    CASE Y.GL.CODE EQ 'JBGL.1450'
+        Y.TR = 'PFLAD'
+
+    CASE Y.GL.CODE EQ 'JBGL.1700'
+        Y.TR = 'PFLIB'
+
+    CASE Y.GL.CODE EQ 'JBGL.1533'
+        Y.TR = 'PFEXP'
+
+    CASE Y.GL.CODE EQ 'JBGL.4150'
+        Y.TR = 'BBFCA'
+
+    CASE Y.GL.CODE EQ 'JBGL.4200'
+        Y.TR = 'BWOBA'
+
+    CASE Y.GL.CODE EQ 'JBGL.4300'
+        Y.TR = 'BWFBA'
+
+    CASE Y.GL.CODE EQ 'JBGL.5850'
+        Y.TR = 'ACREV'
+
+    END CASE
+
+    RETURN
+
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+*Record is fetching one by one
+DATA.VAL2:
+
+    Y.GL.CODE2 = TRIM(FIELD(R.GL.REPORT2<GL.ENQ.REP.GL.CODE>,@VM,Y.GL2,1))
+    Y.LEGACY.ID2 = TRIM(FIELD(R.GL.REPORT2<GL.ENQ.REP.LEGACY.ID>,@VM,Y.GL2,1))
+    Y.GL.TYPE2 = TRIM(FIELD(R.GL.REPORT2<GL.ENQ.REP.GL.TYPE>,@VM,Y.GL2,1))
+    Y.GL.DESCR2 = TRIM(FIELD(R.GL.REPORT2<GL.ENQ.REP.DESCRIP>,@VM,Y.GL2,1))
+    Y.GL.ACCUMULATOR2 = TRIM(FIELD(R.GL.REPORT2<GL.ENQ.REP.ACCUMULATOR>,@VM,Y.GL2,1))
+    Y.GL.ACCUMULATOR2 = Y.GL.ACCUMULATOR2[1,1]
+
+    IF Y.GL.CODE2 EQ 'JBGL.0330' OR ...
+    Y.GL.CODE2 EQ 'JBGL.6615' OR ...
+    Y.GL.CODE2 EQ 'JBGL.6610' OR ...
+    Y.GL.CODE2 EQ 'JBGL.4190' OR ...
+    Y.GL.CODE2 EQ 'JBGL.4260' OR ...
+    Y.GL.CODE2 EQ 'JBGL.4185' OR ...
+    Y.GL.CODE2 EQ 'JBGL.4180' OR ...
+    Y.GL.CODE2 EQ 'JBGL.4100' OR ...
+    Y.GL.CODE2 EQ 'JBGL.4195' OR ...
+    Y.GL.CODE2 EQ 'JBGL.4235' OR ...
+    Y.GL.CODE2 EQ 'JBGL.5501' THEN
+
+*Condition checking whether particular Gl code have to take value from under category
+* of the accounts working balance
+        GOSUB DATA.VAL2.1
+
+    END ELSE
+
+*Else condition is satisfied then take value from CAL file
+        GOSUB DATA.VAL2.2
+
+
+    END
+
+    RETURN
+
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+*From Fetching data from Account file of working balance
+DATA.VAL2.1:
+
+    CALL F.READ(FN.STAT.LINE,Y.GL.CODE,R.STAT.LINE,F.STAT.LINE,Y.ERR)
+    Y.CNT  =  DCOUNT(R.STAT.LINE<RE.SRL.ASSET1>,VM)
+    FOR Y.LL = 1 TO Y.CNT
+        Y.FLAG = "0"
+        Y.TEMP = ""
+        Y.SEL = FIELD(R.STAT.LINE<RE.SRL.ASSET1>,@VM,Y.LL,1)
+        Y.CNT2  =  DCOUNT(Y.CATEGORY,VM)
+        FOR Y.LL2 = 1 TO Y.CNT2
+            Y.TEMP = FIELD(Y.CATEGORY,@FM,Y.LL2,1)
+            IF Y.TEMP = Y.SEL THEN
+                Y.FLAG = "1"
+            END
+        NEXT Y.LL2
+        IF Y.FLAG = "0" THEN
+            Y.CATEGORY<-1> = Y.SEL
+        END
+    NEXT Y.LL
+    Y.CNT3 = DCOUNT(Y.CATEGORY,FM)
+    FOR Y.CT = 1 TO Y.CNT3
+        Y.CATEGORY = FIELD(Y.CATEGORY,@FM,Y.CT,1)
+        SEL.CMD2 = "SELECT ":FN.ACCOUNT:" WITH CATEGORY EQ ":Y.CATEGORY:" AND CO.CODE EQ ":Y.COMPANY
+        CALL EB.READLIST(SEL.CMD2,SEL.LIST2,"",NO.OF.RECORDS2,RET.CODE2)
+        LOOP
+            REMOVE TRN.ID FROM SEL.LIST2 SETTING TXN.POS
+        WHILE TRN.ID:TXN.POS
+            CALL F.READ(FN.ACCOUNT,TRN.ID,R.ACCOUNT,F.ACCOUNT,Y.ERR)
+
+            IF Y.GL.TYPE EQ 'D' THEN
+                Y.BAL = R.ACCOUNT<AC.WORKING.BALANCE>
+            END
+            Y.BALANCE += Y.BAL
+            Y.BAL = ''
+
+        REPEAT
+    NEXT Y.CT
+
+    RETURN
+
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+*Take the value from CAL File
+DATA.VAL2.2:
+
+    Y.GL.COMPANY = Y.GL.CODE2:".":Y.COMPANY
+    CALL F.READ(FN.STAT.LINE.CONT,Y.GL.COMPANY,R.STAT.LINE.CONT,F.STAT.LINE.CONT,Y.ERR)
+    Y.CNT.KEY = DCOUNT(R.STAT.LINE.CONT<RE.SLC.ASST.CONSOL.KEY>,VM)
+    FOR Y.M1 = 1 TO Y.CNT.KEY
+        Y.CONSOL.KEY = FIELD(R.STAT.LINE.CONT<RE.SLC.ASST.CONSOL.KEY>,@VM,Y.M1,1)
+        Y.ASST.TYPE = FIELD(R.STAT.LINE.CONT<RE.SLC.ASSET.TYPE>,@VM,Y.M1,1)
+        Y.CNT.TYP = DCOUNT(Y.ASST.TYPE,SM)
+        IF Y.CNT.TYP GT '1' THEN
+            FOR Y.MN1 = 1 TO Y.CNT.TYP
+                Y.ASSET.TYPE = TRIM(FIELD(Y.ASST.TYPE,@SM,Y.MN1,1))
+                CALL F.READ(FN.CAL,Y.CONSOL.KEY,R.CAL,F.CAL,Y.ERR)
+                Y.CAL.CCY = R.CAL<RE.ASL.CURRENCY>
+                Y.TYPE.CNT = DCOUNT(R.CAL<RE.ASL.TYPE>,VM)
+                FOR Y.M2 = 1 TO Y.TYPE.CNT
+                    Y.ASL.TYPE = TRIM(FIELD(R.CAL<RE.ASL.TYPE>,@VM,Y.M2,1))
+                    IF Y.ASSET.TYPE EQ Y.ASL.TYPE THEN
+                        IF Y.CAL.CCY = LCCY THEN
+                            Y.BAL = TRIM(FIELD(R.CAL<RE.ASL.BALANCE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CAL<RE.ASL.DEBIT.MOVEMENT>,@VM,Y.M2,1)) + TRIM(FIELD(R.CAL<RE.ASL.CREDIT.MOVEMENT>,@VM,Y.M2,1))
+                        END ELSE
+                            Y.BAL = TRIM(FIELD(R.CAL<RE.ASL.LOCAL.BALANCE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CAL<RE.ASL.LOCAL.DEBIT.MVE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CAL<RE.ASL.LOCAL.CREDT.MVE>,@VM,Y.M2,1))
+                        END
+                        Y.BALANCE += Y.BAL
+                        IF Y.GL.CODE2 EQ 'JBGL.1535' THEN
+                            Y.TT.LIS = Y.BALANCE
+                        END
+                        Y.BAL = ''
+                    END
+                NEXT Y.M2
+            NEXT Y.MN1
+        END ELSE
+            Y.ASSET.TYPE = TRIM(FIELD(R.STAT.LINE.CONT<RE.SLC.ASSET.TYPE>,@VM,Y.M1,1))
+            CALL F.READ(FN.CAL,Y.CONSOL.KEY,R.CAL,F.CAL,Y.ERR)
+            Y.CAL.CCY = R.CAL<RE.ASL.CURRENCY>
+            Y.TYPE.CNT = DCOUNT(R.CAL<RE.ASL.TYPE>,VM)
+            FOR Y.M2 = 1 TO Y.TYPE.CNT
+                Y.ASL.TYPE = TRIM(FIELD(R.CAL<RE.ASL.TYPE>,@VM,Y.M2,1))
+                IF Y.ASSET.TYPE EQ Y.ASL.TYPE THEN
+                    IF Y.CAL.CCY = LCCY THEN
+                        Y.BAL = TRIM(FIELD(R.CAL<RE.ASL.BALANCE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CAL<RE.ASL.DEBIT.MOVEMENT>,@VM,Y.M2,1)) + TRIM(FIELD(R.CAL<RE.ASL.CREDIT.MOVEMENT>,@VM,Y.M2,1))
+                    END ELSE
+                        Y.BAL = TRIM(FIELD(R.CAL<RE.ASL.LOCAL.BALANCE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CAL<RE.ASL.LOCAL.DEBIT.MVE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CAL<RE.ASL.LOCAL.CREDT.MVE>,@VM,Y.M2,1))
+                    END
+                    Y.BALANCE += Y.BAL
+                    IF Y.GL.CODE2 EQ 'JBGL.1535' THEN
+                        Y.TT.LIS = Y.BALANCE
+                    END
+                    Y.BAL = ''
+                END
+            NEXT Y.M2
+        END
+    NEXT Y.M1
+
+    RETURN
+
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+*Value will getting based on the condition
+DATA.VAL3:
+
+    Y.CONSOL.KEY = FIELD(R.STAT.LINE.CONT<RE.SLC.ASST.CONSOL.KEY>,@VM,Y.M1,1)
+    Y.ASST.TYPE = FIELD(R.STAT.LINE.CONT<RE.SLC.ASSET.TYPE>,@VM,Y.M1,1)
+    Y.CNT.TYP = DCOUNT(Y.ASST.TYPE,SM)
+    IF Y.CNT.TYP GT '1' THEN
+        FOR Y.MN1 = 1 TO Y.CNT.TYP
+            Y.ASSET.TYPE = TRIM(FIELD(Y.ASST.TYPE,@SM,Y.MN1,1))
+            CALL F.READ(FN.CAL,Y.CONSOL.KEY,R.CAL,F.CAL,Y.ERR)
+            Y.CAL.CCY = R.CAL<RE.ASL.CURRENCY>
+            Y.TYPE.CNT = DCOUNT(R.CAL<RE.ASL.TYPE>,VM)
+            FOR Y.M2 = 1 TO Y.TYPE.CNT
+                Y.ASL.TYPE = TRIM(FIELD(R.CAL<RE.ASL.TYPE>,@VM,Y.M2,1))
+                IF Y.ASSET.TYPE EQ Y.ASL.TYPE THEN
+                    IF Y.CAL.CCY = LCCY THEN
+                        Y.BAL = TRIM(FIELD(R.CAL<RE.ASL.BALANCE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CAL<RE.ASL.DEBIT.MOVEMENT>,@VM,Y.M2,1)) + TRIM(FIELD(R.CAL<RE.ASL.CREDIT.MOVEMENT>,@VM,Y.M2,1))
+                    END ELSE
+                        Y.BAL = TRIM(FIELD(R.CAL<RE.ASL.LOCAL.BALANCE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CAL<RE.ASL.LOCAL.DEBIT.MVE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CAL<RE.ASL.LOCAL.CREDT.MVE>,@VM,Y.M2,1))
+                    END
+                    Y.BALANCE += Y.BAL
+                    Y.BAL = ''
+                END
+            NEXT Y.M2
+        NEXT Y.MN1
+    END ELSE
+        Y.ASSET.TYPE = TRIM(FIELD(R.STAT.LINE.CONT<RE.SLC.ASSET.TYPE>,@VM,Y.M1,1))
+        CALL F.READ(FN.CAL,Y.CONSOL.KEY,R.CAL,F.CAL,Y.ERR)
+        Y.CAL.CCY = R.CAL<RE.ASL.CURRENCY>
+        Y.TYPE.CNT = DCOUNT(R.CAL<RE.ASL.TYPE>,VM)
+        FOR Y.M2 = 1 TO Y.TYPE.CNT
+            Y.ASL.TYPE = TRIM(FIELD(R.CAL<RE.ASL.TYPE>,@VM,Y.M2,1))
+            IF Y.ASSET.TYPE EQ Y.ASL.TYPE THEN
+                IF Y.CAL.CCY = LCCY THEN
+                    Y.BAL = TRIM(FIELD(R.CAL<RE.ASL.BALANCE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CAL<RE.ASL.DEBIT.MOVEMENT>,@VM,Y.M2,1)) + TRIM(FIELD(R.CAL<RE.ASL.CREDIT.MOVEMENT>,@VM,Y.M2,1))
+                END ELSE
+                    Y.BAL = TRIM(FIELD(R.CAL<RE.ASL.LOCAL.BALANCE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CAL<RE.ASL.LOCAL.DEBIT.MVE>,@VM,Y.M2,1)) + TRIM(FIELD(R.CAL<RE.ASL.LOCAL.CREDT.MVE>,@VM,Y.M2,1))
+                END
+                Y.BALANCE += Y.BAL
+                Y.BAL = ''
+            END
+        NEXT Y.M2
+    END
+
+    RETURN
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+*To assigning the variable of array
+DATA.VAL4:
+
+    IF Y.GL.TYPE EQ 'H' THEN
+        Y.FINAL.AC = Y.LEGACY.ID
+        Y.FINAL.NAME = TRIM(Y.GL.DESCR)
+        Y.FINAL.BAL = Y.BALANCE
+    END ELSE
+        IF Y.GL.TYPE EQ 'D' AND Y.GL.ACCUMULATOR EQ '7' THEN
+            Y.FINAL.AC = Y.LEGACY.ID
+            Y.FINAL.NAME = TRIM(Y.GL.DESCR)
+            Y.FINAL.BAL = Y.BALANCE
+            Y.TTT.BAL += Y.TT.BAL       ;*To take the main total
+            IF Y.GL.CODE MATCHES Y.TT.DEPOSIT THEN
+                Y.TT.DPST += Y.TT.BAL
+            END
+            Y.TT.BAL = ''
+        END ELSE
+            IF Y.GL.TYPE EQ 'T' THEN
+                IF Y.GL.ACCUMULATOR EQ '9' THEN
+                    IF Y.GL.VAL NE 'JBPL' THEN
+                        Y.FINAL.AC = Y.LEGACY.ID
+                        Y.FINAL.NAME = TRIM(Y.GL.DESCR)
+                        Y.FINAL.BAL = Y.TTT.BAL
+                        Y.TTT.BAL = ''
+                        Y.FLAG = '1'
+                    END ELSE
+                        IF Y.GL.CODE EQ 'JBPL.4000' OR Y.GL.CODE EQ 'JBPL.7999' THEN
+                            Y.FINAL.AC = Y.LEGACY.ID
+                            Y.FINAL.NAME = TRIM(Y.GL.DESCR)
+                            Y.FINAL.BAL = Y.TT.BAL
+                            Y.TTT.BAL += Y.TT.BAL ;*To take the main total
+                            Y.TT.BAL = ''
+                        END ELSE
+                            Y.FINAL.AC = Y.LEGACY.ID
+                            Y.FINAL.NAME = TRIM(Y.GL.DESCR)
+                            Y.FINAL.BAL = Y.BALANCE
+                        END
+                    END
+                END ELSE
+                    IF Y.GL.CODE = 'JBGL.5500' THEN
+                        Y.FINAL.AC = Y.LEGACY.ID
+                        Y.FINAL.NAME = TRIM(Y.GL.DESCR)
+                        Y.FINAL.BAL = Y.LA.TT
+                        Y.TT.ADV = Y.LA.TT
+                        Y.LA.TT = ''
+                    END ELSE
+                        IF Y.GL.CODE EQ 'JBGL.1200' THEN
+                            Y.FINAL.AC = Y.LEGACY.ID
+                            Y.FINAL.NAME = TRIM(Y.GL.DESCR)
+                            Y.FINAL.BAL = Y.DPBP.BAL
+                        END ELSE
+                            Y.FINAL.AC = Y.LEGACY.ID
+                            Y.FINAL.NAME = TRIM(Y.GL.DESCR)
+                            Y.FINAL.BAL = Y.TT.BAL
+                        END
+                    END
+                    IF Y.GL.VAL NE 'JBPL' THEN
+                        Y.TTT.BAL += Y.TT.BAL     ;*To take the main total
+                        IF Y.GL.CODE MATCHES Y.GL.LIST THEN
+                            Y.LA.TT += Y.TT.BAL
+                        END
+                        IF Y.GL.CODE MATCHES Y.TT.DEPOSIT THEN
+                            Y.TT.DPST += Y.TT.BAL
+                        END
+                        IF Y.GL.CODE EQ 'JBGL.1100' THEN
+                            Y.DPBP.BAL = Y.TT.DPST + Y.TT.BAL
+                        END
+                        IF Y.GL.CODE EQ 'JBGL.1195' THEN
+                            Y.DPBP.BAL += Y.TT.BAL
+                        END
+                        Y.TT.BAL = ''
+                    END
+                END
+            END ELSE
+                Y.FINAL.AC = Y.LEGACY.ID
+                Y.FINAL.NAME = TRIM(Y.GL.DESCR)
+                Y.FINAL.BAL = Y.BALANCE
+            END
+        END
+    END
+
+*Array forming final data to display
+    IF Y.GL EQ Y.COUNT THEN
+        Y.TOTAL.DEPOSIT = Y.DPBP.BAL
+        Y.TOTAL.ADVANCE = Y.TT.ADV
+        Y.TOTAL.LINTSUS = Y.TT.LIS
+        Y.TOTAL.NETADV = (Y.TT.ADV) + (Y.TT.LIS)
+    END ELSE
+        Y.TOTAL.DEPOSIT = '0.00'
+        Y.TOTAL.ADVANCE = '0.00'
+        Y.TOTAL.LINTSUS = '0.00'
+        Y.TOTAL.NETADV = '0.00'
+    END
+
+    GOSUB FIN.ARRAY
+
+    RETURN
+
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+
+FIN.ARRAY:
+*Final array to displaying the data
+
+    IF (Y.FINAL.BAL EQ '') AND (Y.GL.TYPE EQ 'D') THEN
+        Y.FINAL.BAL = '0.00'
+    END ELSE
+        IF (Y.FINAL.BAL EQ '') AND (Y.GL.TYPE EQ 'H') THEN
+            Y.FINAL.BAL = '-'
+        END
+    END
+
+    Y.F.BL = Y.FINAL.BAL
+    IF Y.GL.TYPE EQ 'T' THEN
+        Y.F.BL = '1.00'
+    END
+
+
+    IF Y.FINAL.AC NE '' THEN
+        Y.ARR<-1> = Y.FINAL.COUNT:" * ":Y.FINAL.AC:" * ":Y.FINAL.NAME:" * ":Y.FINAL.BAL:" * ":Y.TOTAL.DEPOSIT:" * ":Y.TOTAL.ADVANCE:" * ":Y.TOTAL.LINTSUS:" * ":Y.TOTAL.NETADV
+    END
+
+*To clear the variable data
+    GOSUB VAL.CLR
+
+
+    RETURN
+
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+*To clear the variable data
+VAL.CLR:
+
+    Y.FINAL.AC = ''
+    Y.FINAL.NAME = ''
+    Y.FINAL.BAL = ''
+    Y.FINAL.TYPE = ''
+    Y.GL.CODE = ''
+    Y.LEGACY.ID = ''
+    Y.GL.TYPE = ''
+    Y.GL.DESCR = ''
+    Y.GL.ACCUMULATOR = ''
+    Y.BAL = ''
+    Y.BALANCE = ''
+    Y.F.BL = ''
+    RETURN
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+
+END

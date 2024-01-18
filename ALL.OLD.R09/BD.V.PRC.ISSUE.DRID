@@ -1,0 +1,120 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-43</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.PRC.ISSUE.DRID
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This routine is fatch record from DRAWINGS
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20/04/2012 - New - Rayhan
+*
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LETTER.OF.CREDIT
+    $INSERT I_F.LC.TYPES
+    $INSERT I_F.DRAWINGS
+    $INSERT I_F.FUNDS.TRANSFER
+
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.LETTER.OF.CREDIT = 'F.LETTER.OF.CREDIT'
+    F.LETTER.OF.CREDIT  = ''
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+    R.LETTER.OF.CREDIT  = ''
+
+
+    FN.DRAWINGS = 'F.DRAWINGS'
+    F.DRAWINGS = ''
+    CALL OPF(FN.DRAWINGS,F.DRAWINGS)
+    R.DRAWINGS = ''
+    Y.DRAWINGS.ERR = ''
+
+    FN.LC.TYPES = 'F.LC.TYPES'
+    F.LC.TYPES = ''
+    CALL OPF(FN.LC.TYPES,F.LC.TYPES)
+    R.LC.TYPES = ''
+    Y.LC.TYPES.ERR = ''
+
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+    CALL OPF(FN.FT,F.FT)
+    R.FT.REC = ''
+    Y.FT.ERR = ''
+
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+    GOSUB GET.LOC.REF.POS
+    Y.DR.NO = COMI
+    Y.LC.NO = Y.DR.NO[1,12]
+
+    CALL F.READ(FN.DRAWINGS,Y.DR.NO,R.DRAWINGS,F.DRAWINGS,Y.DRAWINGS.ERR)
+    CALL F.READ(FN.LETTER.OF.CREDIT,Y.LC.NO,R.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT,Y.LETTER.OF.CREDIT.ERR)
+
+    Y.EXP.LC.NO = R.LETTER.OF.CREDIT<TF.LC.ISS.BANK.REF>
+    Y.CONT.NO = R.LETTER.OF.CREDIT<TF.LC.LOCAL.REF,Y.LC.CONTNO.POS>
+    Y.CUST.NO = R.LETTER.OF.CREDIT<TF.LC.BENEFICIARY.CUSTNO>
+    Y.LC.TYPE = R.LETTER.OF.CREDIT<TF.LC.LC.TYPE>
+    Y.LC.CATEG = R.LETTER.OF.CREDIT<TF.LC.CATEGORY.CODE>
+    Y.DR.CURR = R.DRAWINGS<TF.DR.DRAW.CURRENCY>
+    Y.DR.AMT = R.DRAWINGS<TF.DR.DOCUMENT.AMOUNT>
+    Y.DR.CO.AMT = R.DRAWINGS<TF.DR.LOCAL.REF,Y.DR.DOCAMT.POS>
+
+    CALL F.READ(FN.LC.TYPES,Y.LC.TYPE,R.LC.TYPES,F.LC.TYPES,Y.LC.TYPES.ERR)
+    Y.LC.IMP.EXP = R.LC.TYPES<LC.TYP.IMPORT.EXPORT>
+    IF Y.LC.IMP.EXP NE 'E' THEN
+        ETEXT ="Not Export LC Type"
+        CALL STORE.END.ERROR
+    END
+    IF R.DRAWINGS<TF.DR.DRAWING.TYPE> NE 'SP' AND R.DRAWINGS<TF.DR.DRAWING.TYPE> NE 'MA' THEN
+        ETEXT ="Export Proceeds Not Realised"
+        CALL STORE.END.ERROR
+    END ELSE
+        GOSUB SET.FT.PRC.VALUE.DR
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+GET.LOC.REF.POS:
+*--------------
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","BTB.CONTRACT.NO",Y.LC.CONTNO.POS)
+    CALL GET.LOC.REF("DRAWINGS","CO.DOC.AMOUNT",Y.DR.DOCAMT.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","EXPORT.LC.NO",Y.FT.EXPLCNO.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","BTB.CONTRACT.NO",Y.FT.CONTNO.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","CUSTOMER.ID",Y.FT.EXPCUS.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","EXP.CURRENCY",Y.FT.EXPCURR.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","EXP.VALUE",Y.FT.EXPAMT.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","PRC.TYPE",Y.FT.PRCTYP.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","CO.DOC.AMOUNT",Y.FT.DOCAMT.POS)
+    RETURN
+
+SET.FT.PRC.VALUE.DR:
+*------------------
+    R.NEW(FT.LOCAL.REF)<1,Y.FT.EXPLCNO.POS> = Y.EXP.LC.NO
+    R.NEW(FT.LOCAL.REF)<1,Y.FT.CONTNO.POS> = Y.CONT.NO
+    R.NEW(FT.LOCAL.REF)<1,Y.FT.EXPCUS.POS> = Y.CUST.NO
+    R.NEW(FT.LOCAL.REF)<1,Y.FT.EXPCURR.POS> = Y.DR.CURR
+    R.NEW(FT.LOCAL.REF)<1,Y.FT.EXPAMT.POS> = Y.DR.AMT
+    R.NEW(FT.LOCAL.REF)<1,Y.FT.DOCAMT.POS> = Y.DR.CO.AMT
+
+!IF Y.LC.CATEG EQ '23106' OR Y.LC.CATEG EQ '23111' THEN
+!    R.NEW(FT.LOCAL.REF)<1,Y.FT.PRCTYP.POS> = "Deemed"
+!END ELSE
+!    R.NEW(FT.LOCAL.REF)<1,Y.FT.PRCTYP.POS> = "Direct"
+!END
+
+    RETURN

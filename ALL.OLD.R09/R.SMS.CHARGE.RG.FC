@@ -1,0 +1,76 @@
+    SUBROUTINE R.SMS.CHARGE.RG.FC(Y.RETURN)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.AC = 'F.ACCOUNT';
+    F.AC = ''
+    FN.AC.HIS = 'F.ACCOUNT$HIS';
+    F.AC.HIS = ''
+    FN.FT = 'F.FUNDS.TRANSFER';
+    F.FT = ''
+
+!LOCATE "CATEGORY" IN ENQ.SELECTION<2,1> SETTING CATEGORY.POS THEN
+!Y.CATEGORY = ENQ.SELECTION<4,CATEGORY.POS>
+!END
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.FT,F.FT)
+    RETURN
+
+PROCESS:
+
+********************************
+!select FT Record from live file
+********************************
+    SEL.CMD.FT = "SELECT ":FN.FT:" WITH CO.CODE EQ ":ID.COMPANY
+
+    CALL EB.READLIST(SEL.CMD.FT,SEL.LIST.FT,"",NO.OF.RECORD.FT,FT.RET.CODE)
+
+****************************************
+!read FT record from live
+****************************************
+    IF NO.OF.RECORD.FT NE '0' THEN
+        FOR I = 1 TO NO.OF.RECORD.FT
+            Y.FT.ID = SEL.LIST.FT<I>
+            CALL F.READ(FN.FT,Y.FT.ID,FT.REC,F.FT,Y.FT.ERR)
+
+            Y.TXN.TYPE = FT.REC<FT.TRANSACTION.TYPE>
+            Y.DEBIT.CURRENCY = FT.REC<FT.DEBIT.CURRENCY>
+
+            IF Y.TXN.TYPE EQ 'ACMS' AND Y.DEBIT.CURRENCY NE 'BDT' THEN
+
+                Y.DR.AC = FT.REC<FT.DEBIT.ACCT.NO>
+                CALL F.READ(FN.AC,Y.DR.AC,R.AC.REC,F.AC,Y.AC.ERR)
+                IF NOT(R.AC.REC) THEN
+                    CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.DR.AC,R.AC.REC,Y.AC.HIS.ERR)
+                END
+                Y.CUSTOMER = R.AC.REC<AC.CUSTOMER>
+                Y.CATEG = R.AC.REC<AC.CATEGORY>
+                Y.ALT.AC.ID = R.AC.REC<AC.ALT.ACCT.ID>
+                Y.AC.TITLE = LEFT(R.AC.REC<AC.ACCOUNT.TITLE.1>:R.AC.REC<AC.ACCOUNT.TITLE.2>,20)
+                Y.DEBIT.AMT=FT.REC<FT.DEBIT.AMOUNT>
+                Y.VAT.AMT = FT.REC<FT.LOCAL.CHARGE.AMT>
+
+                Y.RETURN<-1> = Y.CATEG:"*":Y.DR.AC:"*":Y.AC.TITLE:"*":Y.CUSTOMER:"*":Y.ALT.AC.ID:"*":Y.DEBIT.AMT:"*":Y.VAT.AMT
+
+            END
+        NEXT
+        Y.RETURN = SORT(Y.RETURN)
+    END
+    RETURN
+END

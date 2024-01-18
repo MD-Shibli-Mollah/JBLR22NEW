@@ -1,0 +1,52 @@
+******************************************************************************
+*PURPOSE: TO SET VALUE IN FIELDS BY GIVING ACCOUNT ID                        *
+*DEVELOPED BY: Shafiul Azam                                                  *
+*MODIFIED BY: NA                                                             *
+*CREATION DATE: 12 OCTOBER 2017                                              *
+*MODIFICATION DATE:NA                                                        *
+******************************************************************************
+
+    SUBROUTINE BD.V.CR.SUS.REGISTER
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT BP I_F.EB.BD.SUSPENSE.REGISTER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+******
+INIT:
+******
+    FN.ACC = 'F.ACCOUNT'
+    F.ACC = ''
+    R.ACC =''
+    ACC.ERR = ''
+    RETURN
+
+**********
+OPENFILES:
+**********
+    CALL OPF(FN.ACC,F.ACC)
+    RETURN
+
+********
+PROCESS:
+********
+    ACC.ID = ID.NEW
+    CALL F.READ(FN.ACC,ACC.ID,R.ACC,F.ACC,ACC.ERR)
+    Y.TITLE = R.ACC<AC.ACCOUNT.TITLE.1>
+    Y.CATEGORY = R.ACC<AC.CATEGORY>
+    Y.SUSPENSE.AMT = R.ACC<AC.ACCR.DR.SUSP>
+    R.NEW(EB.BD.67.TITLE) = Y.TITLE
+    R.NEW(EB.BD.67.CATEGORY) = Y.CATEGORY
+    IF R.NEW(EB.BD.67.SUSPENSE.AMOUNT) EQ '' THEN
+        R.NEW(EB.BD.67.SUSPENSE.AMOUNT) = 0
+    END
+    RETURN
+
+END

@@ -1,0 +1,81 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+****************************************************************************************
+*Purpose:This program calculates first instament due date by considering value date,   *
+*installment frequency and grace period for term,short term agri loan.                 *
+*Developed By: Md. Zahid Hasan,Datasoft Systems Bangladesh Limited                     *
+*Date:22/4/2014                                                                        *
+****************************************************************************************
+    SUBROUTINE JBL.CALC.FIRST.DUE.DATE
+ 
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.ACC = 'FBNK.ACCOUNT'
+    F.ACC = ''
+    LN.VALUE.DATE = ''
+    LN.GRACE.PERIOD = ''
+    LN.FREQ = ''
+    LN.FIRST.REPAY.DATE = ''
+    LN.TOTAL.DURATION = ''
+    Y.DATE.PART = ''
+
+    Y.VALUE.DATE.POS = ''
+    Y.GRACE.PERIOD.POS = ''
+    Y.FREQ.POS = ''
+    Y.FIRST.REPAY.DATE.POS = ''
+
+    CALL GET.LOC.REF("ACCOUNT","LOAN.START.DATE",Y.VALUE.DATE.POS)
+    CALL GET.LOC.REF("ACCOUNT","GRACE.PERIOD",Y.GRACE.PERIOD.POS)
+    CALL GET.LOC.REF("ACCOUNT","INST.FREQUENCY",Y.FREQ.POS)
+    CALL GET.LOC.REF("ACCOUNT","FIRST.INST.DATE",Y.FIRST.REPAY.DATE.POS)
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.ACC,F.ACC)
+    RETURN
+
+PROCESS:
+    LN.VALUE.DATE = R.NEW(AC.LOCAL.REF)<1,Y.VALUE.DATE.POS>
+    LN.GRACE.PERIOD = R.NEW(AC.LOCAL.REF)<1,Y.GRACE.PERIOD.POS>
+    LN.FREQ = R.NEW(AC.LOCAL.REF)<1,Y.FREQ.POS>
+
+    IF LN.FREQ EQ 'M' THEN
+        LN.FREQ = 1
+    END
+    ELSE
+        IF LN.FREQ EQ 'Q' THEN
+            LN.FREQ = 3
+        END
+        ELSE
+            IF LN.FREQ EQ 'H' THEN
+                LN.FREQ = 6
+            END
+            ELSE
+                LN.FREQ = 12
+            END
+        END
+    END
+
+    Y.COMI.OLD = COMI
+    LN.TOTAL.DURATION = Y.COMI.OLD + LN.FREQ
+    IF LN.TOTAL.DURATION LE 9 THEN
+        LN.TOTAL.DURATION = "0":LN.TOTAL.DURATION
+    END
+
+    Y.DATE.PART = LN.VALUE.DATE[7,2]
+    COMI = LN.VALUE.DATE:'M':LN.TOTAL.DURATION:Y.DATE.PART
+    CALL CFQ
+    R.NEW(AC.LOCAL.REF)<1,Y.FIRST.REPAY.DATE.POS> =  COMI[1,8]
+    COMI = Y.COMI.OLD
+    RETURN
+END

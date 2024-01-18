@@ -1,0 +1,180 @@
+*-----------------------------------------------------------------------------
+* <Rating>199</Rating>
+*-----------------------------------------------------------------------------
+***********************************************************************************************************************
+*Objective: This subroutine read parameters(application wise) from EB.SMS.TEMPLATE.DEFINE and build SMS string based  *
+*on SMS TEXT and SMS VARIABLE defined on EB.SMS.TEMPLATE.Then write that SMS in SMS.OUT folder. This message       *
+*will be send to SMS TARGET on SMS EVENT defined on EB.SMS.TEMPLATE.DEFINE.                                           *
+*Developer: Md. Imran Hasan                                                                                           *
+*Release Date: 07-FEB-2018                                                                                            * *                                                                    *
+***********************************************************************************************************************
+    SUBROUTINE JBL.SMS.URM
+!PROGRAM JBL.SMS.URM
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.SMS.TEMPLATE.DEFINE
+    $INSERT GLOBUS.BP I_F.USER
+    $INSERT BP I_F.USER.MGT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*--------
+INIT:
+*--------
+    FN.SMS = 'F.EB.SMS.TEMPLATE.DEFINE'
+    F.SMS = ''
+    FN.UM = 'F.EB.USER.MGT'
+    F.UM = ''
+
+    FN.U='F.USER'
+    F.U=''
+
+    Y.PRIORITY = 3
+    Y.SIGN.ON.NAME = ''
+    Y.AMEND.TEXT = ''
+    Y.UM.ID = ''
+    R.UM = ''
+    Y.UM.ERR = ''
+
+    SMS.BUILD = ''
+    SMS.DIR = 'OTP.OUT'
+    DR.CR.IND = ''
+    Y.EVENT.FLAG = 0
+
+    RETURN
+
+*----------
+OPENFILES:
+*----------
+    CALL OPF(FN.SMS,F.SMS)
+    CALL OPF(FN.UM,F.UM)
+    CALL OPF(FN.U,F.U)
+
+    Y.USER.ID=ID.NEW
+
+    CALL F.READ(FN.U,Y.USER.ID,R.USER,F.U,ERROR.USER)
+    CALL F.READ(FN.SMS,APPLICATION,R.SMS,F.SMS,ERR.SMS)
+
+
+    RETURN
+
+*----------
+PROCESS:
+*----------
+
+    Y.BANK.ID=RIGHT(LEFT(Y.USER.ID,8),6)
+    IF R.USER NE '' THEN
+        SEL.CMD="SELECT ":FN.UM:" WITH USER.ID EQ ":Y.USER.ID
+    END
+    ELSE
+        SEL.CMD="SELECT ":FN.UM:" WITH EMP.BANK.ID EQ ":Y.BANK.ID
+    END
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORDS,RET.CODE)
+    REMOVE Y.UM.ID FROM SEL.LIST SETTING POS
+    CALL F.READ(FN.UM,Y.UM.ID,R.UM,F.UM,Y.UM.ERR)
+
+    Y.REQUEST.FOR = R.UM<EB.USE61.REQUEST.FOR>
+    Y.CELL.NO = R.UM<EB.USE61.MOBILE.NO>
+    Y.SIGN.ON.NAME = R.NEW(EB.USE.SIGN.ON.NAME)
+
+    IF Y.CELL.NO THEN
+        IF R.SMS THEN
+            SMS.COUNT = DCOUNT(R.SMS<EB.SMS7.SMS.EVENT>,@VM)
+
+            FOR J=1 TO SMS.COUNT
+                IF Y.EVENT.FLAG EQ 0 THEN
+                    Y.EVENT.ID = FIELD(R.SMS<EB.SMS7.SMS.EVENT>,@VM,J)
+                    IF Y.EVENT.ID EQ Y.REQUEST.FOR THEN
+                        GOSUB BUILD.MSG
+                        Y.EVENT.FLAG = 1
+                    END
+                END
+            NEXT
+            Y.TIME = EREPLACE(OCONV(TIME(), "MT"),":","-")
+            SMS.BUILD.FINAL = Y.USER.ID:"-":Y.TIME:"|":Y.CELL.NO:"|":SMS.BUILD:"|":"1":"|":Y.PRIORITY
+
+            IF SMS.BUILD THEN
+                IF V$FUNCTION EQ 'A' THEN
+                    SMS.FILE = SMS.DIR:'/':Y.CELL.NO:'-':Y.UM.ID:'-':J:V$FUNCTION:'-':Y.TIME:'.csv'
+                    OPENSEQ SMS.FILE TO SMS.FILE.POINT ELSE
+                        CRT 'OPEN FAILED'
+                    END
+                    WRITESEQ SMS.BUILD.FINAL TO SMS.FILE.POINT ELSE
+                        CRT 'WRITE FAILED'
+                    END
+                    CLOSESEQ SMS.FILE.POINT
+                END
+            END
+        END
+    END
+
+    SMS.BUILD = ''
+
+    RETURN
+
+*----------
+BUILD.MSG:
+*----------
+
+    SMS.TXT.NO = DCOUNT(R.SMS<EB.SMS7.SMS.TEXT,J>,@SM)
+    FOR I=1 TO SMS.TXT.NO
+        SMS.TXT = FIELD(R.SMS<EB.SMS7.SMS.TEXT,J>,@SM,I)
+        SMS.FLD = FIELD(R.SMS<EB.SMS7.SMS.VARIABLE,J>,@SM,I)
+        IF SMS.FLD EQ '' THEN
+            SMS.BUILD:= SMS.TXT:' '
+        END
+        ELSE
+            IF SMS.FLD EQ "SIGN.ON.NAME" THEN
+                SMS.BUILD:= SMS.TXT:' ':Y.SIGN.ON.NAME:' '
+            END
+            IF SMS.FLD EQ "PASSWORD" OR SMS.FLD EQ "USER.RESET" THEN
+                SMS.BUILD:= SMS.TXT:' ':OCONV(R.UM<EB.USE61.USER.PASSWORD>, "MCXA")
+            END
+            IF SMS.FLD EQ "RESERVED.1" THEN
+                SMS.BUILD:= SMS.TXT
+                GOSUB AMEDN.TEXT
+                SMS.BUILD:= ' ':Y.AMEND.TEXT:' '
+            END
+        END
+    NEXT
+    RETURN
+
+*-----------
+AMEDN.TEXT:
+*-----------
+
+    Y.AMEND.TEXT = ''
+    IF R.NEW(EB.USE.USER.NAME) NE R.USER<EB.USE.USER.NAME> THEN
+        Y.AMEND.TEXT<-1>= 'user name'
+    END
+
+    CALL MULTI.GET.LOC.REF("USER","MOBILE.NUMBER",Y.MOBILE.POS)
+    IF R.NEW(EB.USE.LOCAL.REF)<1,Y.MOBILE.POS,1> NE R.USER<EB.USE.LOCAL.REF,Y.MOBILE.POS> THEN
+        Y.AMEND.TEXT<-1>= 'cell no'
+    END
+    CALL MULTI.GET.LOC.REF("USER","EMAIL",Y.EMAIL.POS)
+    IF R.NEW(EB.USE.LOCAL.REF)<1,Y.EMAIL.POS,1> NE R.USER<EB.USE.LOCAL.REF,Y.EMAIL.POS> THEN
+        Y.AMEND.TEXT<-1>= 'email address'
+    END
+    IF R.NEW(EB.USE.OTH.BOOK.ACCESS) NE R.USER<EB.USE.OTH.BOOK.ACCESS> THEN
+        Y.AMEND.TEXT<-1>= 'OIBTA permission'
+    END
+    IF R.NEW(EB.USE.OVERRIDE.CLASS) NE R.USER<EB.USE.OVERRIDE.CLASS> THEN
+        Y.AMEND.TEXT<-1>= 'DISPO permission'
+    END
+    IF R.NEW(EB.USE.INIT.APPLICATION) NE R.USER<EB.USE.INIT.APPLICATION> THEN
+        Y.AMEND.TEXT<-1>= 'big file upload permission'
+    END
+
+    CONVERT @FM TO "," IN Y.AMEND.TEXT
+
+    IF Y.AMEND.TEXT EQ '' THEN
+        Y.AMEND.TEXT = 'user Id'
+    END
+
+    RETURN
+
+END

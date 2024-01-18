@@ -1,0 +1,114 @@
+*-----------------------------------------------------------------------------
+* Developed by:robiul islam
+*This rutine use show narrative account statement
+*update 10-8-2016
+*-----------------------------------------------------------------------------
+    SUBROUTINE TRANS.NARRTIVE
+! PROGRAM TRANS.NARRTIVE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.TELLER
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+!DEBUG
+    FN.FT = "F.FUNDS.TRANSFER"
+    F.FT = ""
+    FN.FT.HIS = "F.FUNDS.TRANSFER$HIS"
+    F.FT.HIS = ""
+    FN.TT = "F.TELLER"
+    F.TT = ""
+    FN.TT.HIS = "F.TELLER$HIS"
+    F.TT.HIS = ""
+    Y.TRANS.REF = O.DATA
+    Y.REF =FIELD(Y.TRANS.REF,"*",1)
+    Y.ACCOUNT=FIELD(Y.TRANS.REF,"*",2)
+    Y.NARRATIVE=FIELD(Y.TRANS.REF,"*",3)
+    Y.TRANS.TYPE=SUBSTRINGS(Y.REF,1,2)
+
+
+    Y.REC.ID = ''
+    R.CC.REC = ''
+    CC.ERR = ''
+    Y.AMOUNT = ''
+
+    REC.AC.FWD=""
+    REC.STMT=""
+
+    RETURN
+
+
+OPENFILES:
+
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.TT.HIS,F.TT.HIS)
+
+    RETURN
+
+PROCESS:
+!DEBUG
+    IF Y.TRANS.TYPE EQ 'FT'  THEN
+!DEBUG
+        IF Y.REF MATCHES "...\..."  THEN
+            Y.REF =FIELD(Y.TRANS.REF,"\",1)
+
+        END
+
+        CALL F.READ(FN.FT,Y.REF,R.FT.REC,F.FT,Y.ERR)
+        IF R.FT.REC EQ "" THEN
+            CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.REF,R.FT.REC,Y.ERR)
+        END
+
+        CALL GET.LOC.REF('FUNDS.TRANSFER','FT.CR.DETAILS',Y.CR.DETAILS.POS)
+        CALL GET.LOC.REF('FUNDS.TRANSFER','FT.DR.DETAILS',Y.DR.DETAILS.POS)
+
+        Y.CR.PAYMENT.DET = R.FT.REC<FT.CREDIT.THEIR.REF>
+        Y.FT.CR.DETAILS  = R.FT.REC<FT.LOCAL.REF,Y.CR.DETAILS.POS>
+        Y.DR.PAYMENT.DET = R.FT.REC<FT.DEBIT.THEIR.REF>
+        Y.FT.DR.DETAILS = R.FT.REC<FT.LOCAL.REF,Y.DR.DETAILS.POS>
+        O.DATA =''
+        IF R.FT.REC<FT.CREDIT.ACCT.NO> EQ Y.ACCOUNT THEN
+            O.DATA = Y.CR.PAYMENT.DET : Y.FT.CR.DETAILS
+
+
+            END ELSE IF R.FT.REC<FT.DEBIT.ACCT.NO> EQ Y.ACCOUNT THEN
+
+                O.DATA = Y.DR.PAYMENT.DET : Y.FT.DR.DETAILS
+
+            END
+            END ELSE IF Y.TRANS.TYPE EQ 'TT'  THEN
+                IF Y.NARRATIVE EQ "" THEN
+                    IF Y.REF MATCHES "...\..."  THEN
+                        Y.REF =FIELD(Y.TRANS.REF,"\",1)
+
+                    END
+                    CALL F.READ(FN.TT,Y.REF,R.TT.REC,F.TT,Y.ERR)
+                    IF R.TT.REC EQ "" THEN
+                        CALL EB.READ.HISTORY.REC(F.TT.HIS,Y.REF,R.TT.REC,Y.ERR)
+                    END
+
+                    Y.NARRATIVE=R.TT.REC<TT.TE.NARRATIVE.2>
+                    O.DATA=SUBSTRINGS(Y.NARRATIVE,1,40)
+                END ELSE
+
+                    O.DATA=Y.NARRATIVE
+                END
+
+            END ELSE
+                O.DATA=Y.NARRATIVE
+            END
+
+
+            RETURN
+
+
+        END

@@ -1,0 +1,17 @@
+
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.CAP.TT.ID
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.TELLER
+
+
+    TT.CUR.ID="CURRENT.ID"
+    TT.CUR.ID.POS=""
+    CALL GET.LOC.REF("TELLER",TT.CUR.ID,TT.CUR.ID.POS)
+    R.NEW(TT.TE.LOCAL.REF)<1,TT.CUR.ID.POS> = R.NEW(TT.TE.TELLER.ID.2)
+
+    RETURN
+END

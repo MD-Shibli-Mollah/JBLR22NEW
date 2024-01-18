@@ -1,0 +1,29 @@
+* Description:
+* ===========
+* Common insert file I_TV.TRANS.COMMON, created for T.VERIFY
+* Contains the common varibles, needs to be used in T.VERIFY supported routines.
+*
+*===================================================================================
+COMMON/T.VERIFY.TRANS/tvFieldCheck,
+tvSplFieldCheck,
+tv.R.OLD,
+tvNextDate,
+tvServiceResultFlag,        ;* to check result for service transactions
+TV.RESERVED.3,
+TV.RESERVED.4,
+TV.RESERVED.5,
+TV.RESERVED.6,
+TV.RESERVED.7,
+TV.RESERVED.8,
+TV.RESERVED.9,
+TV.RESERVED.10,
+TV.RESERVED.11,
+TV.RESERVED.12,
+TV.RESERVED.13,
+TV.RESERVED.14,
+TV.RESERVED.15,
+TV.RESERVED.16,
+TV.RESERVED.17,
+TV.RESERVED.18,
+TV.RESERVED.19,
+TV.RESERVED.20

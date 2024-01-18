@@ -1,0 +1,52 @@
+**************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>-10</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.UPD.AZ.MAT.AMT.FOR.NOM.SELECT
+**************************************************************************
+* Subroutine Description:
+*-----------------------
+* This Select routine is used to build the list of ID's and will return them to
+* the main routine
+*-------------------------------------------------------------------------
+* Parameter Description: Not Applicable
+*--------- -----------
+* NA
+*-------------------------------------------------------------------------
+* Common Variable Description
+*------  ------- -----------
+*
+* Variable name:           Insert file:          Description:
+* TODAY                    I_COMMON              Will hold Today's date
+*-------------------------------------------------------------------------
+* Called Subroutines:
+*------ ------------
+* Routine Name:            Local/Core:     Description:
+* BATCH.BUILD.LIST         CORE            will return the ID's to the main routine
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 04/03/2011 -                             New   - Rashmitha M
+*                                                  Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE JBL.BP I_JBL.B.UPD.AZ.MAT.AMT.FOR.NOM.COMMON
+    $INCLUDE JBL.BP I_F.EB.JBL.AZ.MAT.LIST
+
+    GOSUB PROCESS
+    RETURN
+*--------------------------------------------------------------------------
+PROCESS:
+*---------
+    NO.OF.RECS=''
+    SEL.ERR=''
+*
+    Y.TODAY=TODAY
+    READ R.EB.JBL.AZ.MAT.LIST FROM F.EB.JBL.AZ.MAT.LIST,Y.TODAY THEN
+        CALL BATCH.BUILD.LIST('',R.EB.JBL.AZ.MAT.LIST)
+    END
+
+    RETURN
+*------------------------------------------------------------------------------
+END

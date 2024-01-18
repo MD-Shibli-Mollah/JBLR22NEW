@@ -1,0 +1,78 @@
+**************************
+* DEV: MONWAR HOSSAIN
+* LIVE DATE: 21-09-2016
+****************
+!PROGRAM JBL.RPT.TP
+    SUBROUTINE JBL.RPT.TP(Y.LIST)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT BP I_F.EB.JBL.DCC.TP
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+
+INIT:
+
+    FN.TP='FBNK.EB.JBL.DCC.TP'
+    F.TP=''
+
+    LOCATE "ACCOUNT" IN ENQ.SELECTION<2,1> SETTING AC.POS THEN
+        Y.AC.ID= ENQ.SELECTION<4,AC.POS>
+    END
+    RETURN
+
+OPENFILE:
+    CALL OPF (FN.TP,F.TP)
+    RETURN
+
+PROCESS:
+
+    CALL F.READ(FN.TP,Y.AC.ID,R.AC,F.TP,ERR)
+
+    Y.DEP.PART = R.AC<EB.JBL52.DEP.PARTICULARS>
+    Y.NO.TXN.MON = R.AC<EB.JBL52.NO.TXN.MON>
+    Y.MAX.TXN.AMT = R.AC<EB.JBL52.MAX.TXN.AMT>
+    Y.TOT.AMT = R.AC<EB.JBL52.DEP.TOT.AMT>
+    Y.WITH.PARTICULAR = R.AC<EB.JBL52.WITH.PARTICULAR>
+    Y.WITH.NO.TXN.MON = R.AC<EB.JBL52.WITH.NO.TXN.MON>
+    Y.WITH.MAX.TXN.AMT = R.AC<EB.JBL52.WITH.MAX.TXN.AM>
+    Y.WITH.TOT.AMT = R.AC<EB.JBL52.WITH.TOT.AMT>
+
+    IF Y.DEP.PART NE '' AND Y.NO.TXN.MON NE '' AND Y.MAX.TXN.AMT NE '' THEN
+
+        Y.LIST<-1> = '----------------Deposit Particulars--------------------'
+        Y.DEP.TOT.AMT=''
+        Y.NO.TXN.T = DCOUNT(Y.NO.TXN.MON,@VM)
+        FOR I = 1 TO Y.NO.TXN.T
+            Y.DEP = Y.DEP.PART<1,I>
+            Y.NO.TXN = Y.NO.TXN.MON<1,I>
+            Y.MAX.TXN = Y.MAX.TXN.AMT<1,I>
+            Y.DEP.TOT = Y.TOT.AMT<1,I>
+            Y.DEP.TOT.AMT = Y.DEP.TOT+Y.DEP.TOT.AMT
+            Y.TOT = Y.DEP.TOT.AMT
+            Y.LIST<-1> = Y.DEP:'*':Y.NO.TXN:'*':Y.MAX.TXN:'*':Y.DEP.TOT
+        NEXT I
+
+        Y.LIST<-1> = "":'*':"Total Deposit : ":'*':"":'*':Y.TOT
+
+        Y.LIST<-1> = '---------------Withdrawal Particulars---------------'
+        Y.WITH.TOT.AM=''
+        Y.WITH.NO.TXN = DCOUNT(Y.WITH.NO.TXN.MON,@VM)
+        FOR J = 1 TO Y.WITH.NO.TXN
+            Y.WITH.PART = Y.WITH.PARTICULAR<1,J>
+            Y.WITH.NO = Y.WITH.NO.TXN.MON<1,J>
+            Y.WITH.MAX.TXN =Y.WITH.MAX.TXN.AMT <1,J>
+            Y.WITH.TOT=Y.WITH.TOT.AMT <1,J>
+            Y.WITH.TOT.AM=Y.WITH.TOT+Y.WITH.TOT.AM
+            Y.TOT1=Y.WITH.TOT.AM
+            Y.LIST<-1> = Y.WITH.PART:'*':Y.WITH.NO:'*':Y.WITH.MAX.TXN:'*':Y.WITH.TOT
+        NEXT J
+        Y.LIST<-1> = "":'*':"Total Withdraw : ":'*':"":'*':Y.TOT1
+    END
+    ELSE
+        Y.LIST<-1>="":'*':"No TP Entry in this Account....... ":'*':""
+        Y.LIST<-1>="":'*':"Please Entry TP in this Account....... ":'*':""
+    END
+END

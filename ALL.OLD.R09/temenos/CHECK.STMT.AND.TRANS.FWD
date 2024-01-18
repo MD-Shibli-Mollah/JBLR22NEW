@@ -1,0 +1,164 @@
+*-----------------------------------------------------------------------------
+* <Rating>438</Rating>
+*-----------------------------------------------------------------------------
+      SUBROUTINE CHECK.STMT.AND.TRANS.FWD
+$INSERT I_COMMON
+$INSERT I_EQUATE
+$INSERT I_F.COMPANY
+      SAVE.COMPANY = ID.COMPANY
+      GOSUB INITIALISE
+      GOSUB POPULATE.COMPANY.ID
+      GOSUB MAIN.PROCESS
+      ID.COMPANY = SAVE.COMPANY
+      RETURN
+***********
+INITIALISE:
+***********\
+      FN.TRANS.FWD = 'F.TRANS.FWD'
+      F.TRANS.FWD = ''
+      CALL OPF(FN.TRANS.FWD,F.TRANS.FWD)
+      FN.SL = '&SAVEDLISTS&'
+      F.SL = ''
+      OPEN FN.SL TO F.SL ELSE
+         TEXT = 'Unable to Open SAVEDLISTS'
+         CALL REM
+         RETURN
+      END
+      CURR.COMP.MNEM = R.COMPANY(EB.COM.MNEMONIC)
+      PREV.MNEM = CURR.COMP.MNEM
+      COMP.MNEM = '' ; COMP.IDS = '' ; PT = '.'
+      WRITE.ARR = ''
+      WRITE.ARR1 = ''
+      SL.ID = CURR.COMP.MNEM:PT:'MISSING.STMT'
+      RETURN
+********************
+POPULATE.COMPANY.ID:
+********************
+      FN.COMPANY = 'F.COMPANY'
+      F.COMPANY = ''
+      CALL OPF(FN.COMPANY,F.COMPANY)
+      SEL.COMPANY = 'SELECT ':FN.COMPANY
+      CALL EB.READLIST(SEL.COMPANY,COMPANY.IDS,'',NO.OF.COMPS,'')
+      LOOP
+         REMOVE COMPANY.ID FROM COMPANY.IDS SETTING NEXT.COMP.ID
+      WHILE COMPANY.ID : NEXT.COMP.ID DO
+         READ R.COMP FROM F.COMPANY,COMPANY.ID THEN
+            IF COMP.IDS THEN
+               TOTAL.LINES = DCOUNT(COMP.IDS,@FM)
+               NEXT.LINE = TOTAL.LINES + 1
+               COMP.IDS<NEXT.LINE> = COMPANY.ID
+               COMP.MNEM<NEXT.LINE> = R.COMP<EB.COM.MNEMONIC>
+            END ELSE
+               COMP.IDS<1> = COMPANY.ID
+               COMP.MNEM<1> = R.COMP<EB.COM.MNEMONIC>
+            END
+         END ELSE
+            PRINT "Company record Missing : ":COMPANY.ID
+         END
+      REPEAT
+      RETURN
+***************
+OPEN.STMT.FILE:
+***************
+      FN.STMT.ENTRY = 'F.STMT.ENTRY'
+      F.STMT.ENTRY = ''
+      CALL OPF(FN.STMT.ENTRY,F.STMT.ENTRY)
+      RETURN
+*************
+MAIN.PROCESS:
+*************
+      SEL.CMD = 'SELECT ':FN.TRANS.FWD
+      PRINT "Selecting TRANS FWD"
+      CALL EB.READLIST(SEL.CMD,TRANS.FWD.IDS,'',NO.OF.IDS,'')
+      PRINT "No of records Selected : ":NO.OF.IDS
+      LOOP
+         REMOVE TRANS.FWD.ID FROM TRANS.FWD.IDS SETTING NEXT.ID
+      WHILE TRANS.FWD.ID : NEXT.ID DO
+         READ R.TRANS.FWD FROM F.TRANS.FWD,TRANS.FWD.ID THEN
+            NO.OF.STMT.IDS = DCOUNT(R.TRANS.FWD,@FM)
+            FOR STMT.COUNT = 1 TO NO.OF.STMT.IDS
+               STMT.ID = FIELD(R.TRANS.FWD<STMT.COUNT>,'\',1)
+               MNE = FIELD(R.TRANS.FWD<STMT.COUNT>,'\',2)
+               IF PREV.MNEM NE MNE THEN
+                  TOTAL.MNEMS = DCOUNT(COMP.MNEM,@FM)
+                  FOR MNEM.COUNT = 1 TO TOTAL.MNEMS
+                     IF MNE = COMP.MNEM<MNEM.COUNT> THEN
+                        LOAD.COMPANY.ID = COMP.IDS<MNEM.COUNT>
+                        CALL LOAD.COMPANY(LOAD.COMPANY.ID)
+                        PREV.MNEM = MNE
+                        MNEM.COUNT = TOTAL.MNEMS
+                     END
+                  NEXT MNEM.COUNT
+               END
+               GOSUB OPEN.STMT.FILE
+               READ R.STMT FROM F.STMT.ENTRY,STMT.ID ELSE
+                  WRITE.LINE = STMT.ID:'-':TRANS.FWD.ID
+                  WRITE.LINE1 = R.TRANS.FWD<STMT.COUNT>:'-':TRANS.FWD.ID
+                  IF WRITE.ARR THEN
+                     WRITE.ARR := @FM :WRITE.LINE
+                     WRITE.ARR1 := @FM :WRITE.LINE1
+                  END ELSE
+                     WRITE.ARR = WRITE.LINE
+                     WRITE.ARR1 = WRITE.LINE1
+                  END
+               END
+            NEXT STMT.COUNT
+         END ELSE
+            PRINT "Missing TRANS FWD record : ":TRANS.FWD.ID:" from ":FN.TRANS.FWD
+         END
+      REPEAT
+      IF NOT(WRITE.ARR) THEN WRITE.ARR = 'No Mismatch between STMT.ENTRY and ':FN.TRANS.FWD
+      IF WRITE.ARR THEN
+         WRITE WRITE.ARR TO F.SL,SL.ID
+         IF WRITE.ARR1 THEN
+            GOSUB DELETE.REC
+         END
+      END
+      RETURN
+DELETE.REC:
+      MNE = FIELD(SL.ID,'.',1)
+      FOR MNEM.COUNT = 1 TO TOTAL.MNEMS
+         IF MNE = COMP.MNEM<MNEM.COUNT> THEN
+            LOAD.COMPANY.ID = COMP.IDS<MNEM.COUNT>
+            IF ID.COMPANY NE LOAD.COMPANY.ID THEN
+               CALL LOAD.COMPANY(LOAD.COMPANY.ID)
+            END
+            GOSUB OPEN.FILES1
+            MNEM.COUNT = TOTAL.MNEMS
+         END
+      NEXT MNEM.COUNT
+      IF MNE AND TOTAL.MNEMS EQ '' THEN
+            GOSUB OPEN.FILES1
+      END
+      RETURN
+OPEN.FILES1:
+      COMO.KEY = MNE : ".TRANS.FWD.DELETED.ITEMS"
+      EXECUTE 'COMO ON ':COMO.KEY
+      FN.TRANS.FWD = 'F.TRANS.FWD'
+      FV.TRANS.FWD = ''
+      CALL OPF(FN.TRANS.FWD,FV.TRANS.FWD)
+      I = 1
+      IN.REC.ID = WRITE.ARR1<I,1>
+      LOOP
+      UNTIL IN.REC.ID EQ ''
+         STMT.ID = FIELD(IN.REC.ID,'-',1)
+         TRANS.FWD.ID = FIELD(IN.REC.ID,'-',2)
+         R.TRANS.FWD = ''
+         READ R.TRANS.FWD FROM F.TRANS.FWD,TRANS.FWD.ID THEN
+            LOCATE STMT.ID IN R.TRANS.FWD<1> SETTING POS THEN
+               DEL R.TRANS.FWD<POS>
+               PRINT "DELETING FROM ":FN.TRANS.FWD:' ':STMT.ID:' ':TRANS.FWD.ID
+               IF R.TRANS.FWD EQ '' THEN
+                  DELETE FV.TRANS.FWD,TRANS.FWD.ID
+               END ELSE
+                  WRITE R.TRANS.FWD TO F.TRANS.FWD,TRANS.FWD.ID
+               END
+            END
+         END
+         I = I + 1
+         IN.REC.ID = ''
+         IN.REC.ID = WRITE.ARR1<I,1>
+      REPEAT
+      EXECUTE 'COMO OFF'
+      RETURN
+   END

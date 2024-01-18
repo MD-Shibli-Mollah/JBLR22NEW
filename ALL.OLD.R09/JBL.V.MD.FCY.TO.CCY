@@ -1,0 +1,66 @@
+*-----------------------------------------------------------------------------
+* <Rating>-41</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.MD.FCY.TO.CCY
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.MD.DEAL
+    $INSERT GLOBUS.BP I_F.CURRENCY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB GET.LOC.MULTI.REF
+    GOSUB PROCESS
+
+    RETURN
+
+*------
+INIT:
+*------
+    FN.MD = 'F.MD.DEAL'
+    F.MD = ''
+    FN.CURR = 'F.CURRENCY'
+    F.CURR = ''
+    RETURN
+
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.MD,F.MD)
+    CALL OPF(FN.CURR,F.CURR)
+    RETURN
+
+*-----------------
+GET.LOC.MULTI.REF:
+*-----------------
+    Y.APPLICATION       = "MD.DEAL"
+    FIELD.NAME          = "CONV.INV.AMT":VM:"CONV.RATE"
+    FIELD.POS           = ""
+    CALL MULTI.GET.LOC.REF(Y.APPLICATION,FIELD.NAME,FIELD.POS)
+    Y.CONV.INV.AMT.POS  = FIELD.POS<1,1>
+    Y.CONV.RATE.POS = FIELD.POS<1,2>
+    RETURN
+
+*---------
+PROCESS:
+*---------
+    Y.MD.ID = ID.NEW
+    CALL F.READ(FN.MD,Y.MD.ID,REC.MD,F.MD,Y.MD.ERR)
+    Y.MD.CURR = REC.MD<MD.DEA.CURRENCY>
+
+!IF Y.MD.CURR NE 'BDT' AND R.NEW(MD.DEA.INV.STATUS) EQ 'EXECUTE' THEN
+    IF Y.MD.CURR NE 'BDT' THEN
+        Y.MD.CUR.MKT = REC.MD<MD.DEA.CCY.MARKET>
+        CALL F.READ(FN.CURR,Y.MD.CURR,REC.CURR,F.CURR,Y.CURR.ERR)
+        Y.CURR.CUR.MKT  = REC.CURR<EB.CUR.CURRENCY.MARKET>
+        CONVERT VM TO FM IN Y.CURR.CUR.MKT
+        LOCATE Y.MD.CUR.MKT IN Y.CURR.CUR.MKT SETTING Y.MKT.POS THEN
+            R.NEW(MD.DEA.LOCAL.REF)<1,Y.CONV.INV.AMT.POS> = REC.MD<MD.DEA.INV.AMOUNT> * REC.CURR<EB.CUR.MID.REVAL.RATE,Y.MKT.POS>
+            R.NEW(MD.DEA.LOCAL.REF)<1,Y.CONV.RATE.POS> = REC.CURR<EB.CUR.MID.REVAL.RATE,Y.MKT.POS>
+        END
+    END ELSE
+        R.NEW(MD.DEA.LOCAL.REF)<1,Y.CONV.INV.AMT.POS> = ''
+        R.NEW(MD.DEA.LOCAL.REF)<1,Y.CONV.RATE.POS> = ''
+    END
+    RETURN

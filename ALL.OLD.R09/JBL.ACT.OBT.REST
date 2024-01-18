@@ -1,0 +1,57 @@
+*-----------------------------------------------------------------------------
+* DEVELOPED BY:ROBIUL ISLAM
+* DATE:20210325
+* REASON:OIBT STOP ACCOUNT.CLOSURE MENU
+* REQUEST:CORE CELL
+*-----------------------------------------------------------------------------
+
+
+
+    SUBROUTINE JBL.ACT.OBT.REST
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CLOSURE
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+
+    RETURN
+
+*--------
+INIT:
+*--------
+    FN.ACCT = 'FBNK.ACCOUNT'
+    F.ACCT = ''
+    FN.ACCT.CLS = 'FBNK.ACCOUNT.CLOSURE'
+    F.ACCT.CLS = ''
+    Y.COMPANY.ID = ID.COMPANY
+
+    RETURN
+
+*-----------
+OPENFILE:
+*-----------
+    CALL OPF(FN.ACCT.CLS,F.ACCT.CLS)
+    CALL OPF(FN.ACCT,F.ACCT)
+
+    RETURN
+
+*---------
+PROCESS:
+*---------
+
+    Y.CR.ACC.NO = R.NEW(AC.ACL.SETTLEMENT.ACCT)
+    CALL F.READ(FN.ACCT,Y.CR.ACC.NO,REC.CR.ACC,F.ACCT,Y.CR.ACC.ERR)
+    Y.CR.CO.CODE = REC.CR.ACC<AC.CO.CODE>
+    Y.CR.CAT = REC.CR.ACC<AC.CATEGORY>
+    IF Y.COMPANY.ID  NE Y.CR.CO.CODE THEN
+        ETEXT = "Inter branch Transaction is not allowed"
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+
+END
+

@@ -1,0 +1,31 @@
+*-----------------------------------------------------------------------------
+* <Rating>-3</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.BANNED.COMM.ITEM.CODE.FIELDS
+*-----------------------------------------------------------------------------
+* Description:
+*--------------
+* This file is used to hold the fields of BD.BANNED.COMM.ITEM.CODE
+*-----------------------------------------------------------------------------
+* Modification History :
+*-----------------------
+* 27/1/2011 New - Sabari.G
+*                 Thesys Technologies
+*-----------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_DataTypes
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("ID", T24_String)         ;* Define Table id
+    ID.N = '5'
+*-----------------------------------------------------------------------------
+    CALL Table.addFieldDefinition('DESCRIPTION','35','A','')  ;* Field is used to hold the Banned Commodity Description
+    CALL Table.addReservedField('XX.RESERVED.03')
+    CALL Table.addReservedField('XX.RESERVED.02')
+    CALL Table.addReservedField('XX.RESERVED.01')
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

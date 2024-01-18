@@ -1,0 +1,71 @@
+   ! PROGRAM JBL.SIMPLE.LOAN.AUTH.WL
+ SUBROUTINE JBL.SIMPLE.LOAN.AUTH.WL(Y.DATA)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CLASS
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+*-----
+    FN.ACCOUNT.AUTH = 'F.ACCOUNT$NAU';                  F.ACCOUNT.AUTH = ' '
+    FN.AC.CLS='F.ACCOUNT.CLASS'
+    F.AC.CLS=''
+    RETURN
+*----------
+OPENFILES:
+*-----------
+    CALL OPF(FN.ACCOUNT.AUTH,F.ACCOUNT.AUTH)
+    CALL OPF(FN.AC.CLS,F.AC.CLS)
+    CALL F.READ(FN.AC.CLS,"U-SIMPLE",REC.SIMPLE,F.AC.CLS,CLS.ERR)
+
+
+    Y.CATEGORY.LIST =REC.SIMPLE<3>
+
+    RETURN
+
+PROCESS:
+
+    SEL.CMD = "SELECT ":FN.ACCOUNT.AUTH:" WITH CO.CODE EQ ":ID.COMPANY
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+    LOOP
+        REMOVE  Y.AC.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.AC.ID:Y.POS
+
+        CALL F.READ(FN.ACCOUNT.AUTH, Y.AC.ID , R.AC, F.ACCOUNT.AUTH , Y.ERR)
+        IF R.AC THEN
+
+            Y.CAT=R.AC<AC.CATEGORY>
+
+            Y.CUR.NO=R.AC<AC.CURR.NO>
+
+            LOCATE Y.CAT IN Y.CATEGORY.LIST<1,1> SETTING Y.CAT.POS THEN
+                IF Y.CAT EQ 1903 THEN
+                    Y.CUSTOMER=R.AC<AC.CUSTOMER>
+                    Y.CAT=R.AC<AC.CATEGORY>
+                    Y.CURR=R.AC<AC.CURRENCY>
+                    Y.REC.ST=R.AC<AC.RECORD.STATUS>
+                    Y.INP=R.AC<AC.INPUTTER>
+                    Y.DATA<-1>=Y.CUSTOMER:"*":Y.AC.ID:"*":Y.CAT:"*":Y.CURR:"*":Y.REC.ST:"*":Y.INP
+                END ELSE
+
+                    IF Y.CUR.NO NE "1" THEN
+                        Y.CUSTOMER=R.AC<AC.CUSTOMER>
+                        Y.CAT=R.AC<AC.CATEGORY>
+                        Y.CURR=R.AC<AC.CURRENCY>
+                        Y.REC.ST=R.AC<AC.RECORD.STATUS>
+                        Y.INP=R.AC<AC.INPUTTER>
+                        Y.DATA<-1>=Y.CUSTOMER:"*":Y.AC.ID:"*":Y.CAT:"*":Y.CURR:"*":Y.REC.ST:"*":Y.INP
+                    END
+                END
+            END
+        END
+
+    REPEAT
+
+    RETURN

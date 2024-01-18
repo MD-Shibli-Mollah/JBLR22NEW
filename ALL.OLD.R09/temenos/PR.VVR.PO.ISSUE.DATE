@@ -1,0 +1,20 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VVR.PO.ISSUE.DATE
+
+!Issue date validation for today and next working date only
+!Version - FUNDS.TRANSFER,PR.PO.ISSUE
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.DATES
+    $INSERT I_F.FUNDS.TRANSFER
+    Y.VAL.DATE=COMI
+    Y.DATE= R.DATES(EB.DAT.NEXT.WORKING.DAY)
+    IF Y.VAL.DATE LT TODAY OR Y.VAL.DATE GT Y.DATE THEN
+        E="Value Date Can only be Today or Next Working date"
+        CALL ERR
+    END
+    RETURN
+END

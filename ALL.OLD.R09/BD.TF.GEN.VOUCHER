@@ -1,0 +1,385 @@
+*-----------------------------------------------------------------------------
+* <Rating>1675</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.TF.GEN.VOUCHER
+!PROGRAM BD.TF.GEN.VOUCHER
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.COMPANY
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.CATEGORY
+    $INSERT I_F.HOLD.CONTROL
+    $INSERT I_RC.COMMON
+    $INSERT I_F.PRINTER.ID
+    $INSERT I_F.SPOOL.BATCH.OUTPUT
+    $INSERT I_F.LETTER.OF.CREDIT
+    $INSERT I_F.LD.LOANS.AND.DEPOSITS
+    $INSERT I_F.MD.DEAL
+    $INSERT I_F.LC.TYPES
+    $INSERT I_F.TRANSACTION
+
+    GOSUB INIT
+    GOSUB PROCESS.VOUCHER
+    GOSUB GEN.HOLD.DELETE.VOU
+    RETURN
+
+*---------------------------------------------------
+INIT:
+*****
+
+!Y.TRANS.ID = "LCTF1213524226"
+
+    FN.LC = 'F.LETTER.OF.CREDIT'
+    FN.LC.NAU = 'F.LETTER.OF.CREDIT$NAU'
+    F.LC = ''
+    R.LC.REC = ''
+    Y.LC.ERR = ''
+    CALL OPF(FN.LC,F.LC)
+    CALL OPF(FN.LC.NAU,F.LC)
+
+    FN.LCTYPES = 'F.LC.TYPES'
+    F.LCTYPES = ''
+    R.LCTYPES.REC = ''
+    Y.LCTYPES.ERR = ''
+    CALL OPF(FN.LCTYPES,F.LCTYPES)
+
+    FN.ENT.HOLD = 'F.ENTRY.HOLD.OLD'
+    F.ENT.HOLD = ''
+    R.ENT.HOLD.REC = ''
+    Y.ENT.HOLD.ERR = ''
+    CALL OPF(FN.ENT.HOLD,F.ENT.HOLD)
+
+    FN.COM = 'F.COMPANY'
+    F.COM = ''
+    R.COM.REC = ''
+    Y.COM.ERR = ''
+    CALL OPF(FN.COM,F.COM)
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    R.AC.REC = ''
+    Y.AC.ERR = ''
+    CALL OPF(FN.AC,F.AC)
+
+    FN.CATEG = 'F.CATEGORY'
+    F.CATEG = ''
+    R.CATEG.REC = ''
+    R.APP.CATEG.REC = ''
+    Y.CATEG.ERR = ''
+    Y.APP.CATEG.ERR = ''
+    CALL OPF(FN.CATEG,F.CATEG)
+
+    FN.HC = 'F.HOLD.CONTROL'
+    F.HC = ''
+    R.HC.REC = ''
+    Y.RC.ERR = ''
+    CALL OPF(FN.HC,F.HC)
+
+    FN.LD = 'F.LD.LOANS.AND.DEPOSITS'
+    FN.LD.NAU = 'F.LD.LOANS.AND.DEPOSITS$NAU'
+    F.LD = ''
+    R.LD.REC = ''
+    Y.LD.ERR = ''
+    CALL OPF(FN.LD,F.LD)
+    CALL OPF(FN.LD.NAU,F.LD)
+
+    FN.MD = 'F.MD.DEAL'
+    FN.MD.NAU = 'F.MD.DEAL$NAU'
+    F.MD = ''
+    R.MD.REC = ''
+    Y.MD.ERR = ''
+    CALL OPF(FN.MD,F.MD)
+    CALL OPF(FN.MD.NAU,F.MD)
+
+    FN.TRAN = 'F.TRANSACTION'
+    F.TRAN = ''
+    R.TRAN.REC = ''
+    Y.TRAN.ERR = ''
+    CALL OPF(FN.TRAN,F.TRAN)
+
+    PRT.ID = ''
+
+    Y.LC.ID = ''
+    Y.TRANS.ID = ''
+    BEGIN CASE
+    CASE APPLICATION EQ 'LETTER.OF.CREDIT' OR APPLICATION EQ 'DRAWINGS'
+        Y.TRANS.ID = 'LC' : ID.NEW
+        Y.LC.ID = ID.NEW[1,12]
+        CALL F.READ(FN.LC,Y.LC.ID,R.LC.REC,F.LC,Y.LC.ERR)
+        IF R.LC.REC THEN
+            Y.LCTYPES = R.LC.REC<TF.LC.LC.TYPE>
+            Y.LC.CATEGORY = R.LC.REC<TF.LC.CATEGORY.CODE>
+        END ELSE
+            CALL F.READ(FN.LC.NAU,Y.LC.ID,R.LC.REC,F.LC,Y.LC.ERR)
+            Y.LCTYPES = R.LC.REC<TF.LC.LC.TYPE>
+            Y.LC.CATEGORY = R.LC.REC<TF.LC.CATEGORY.CODE>
+        END
+        CALL F.READ(FN.LCTYPES,Y.LCTYPES,R.LCTYPES.REC,F.LCTYPES,Y.LCTYPES.ERR)
+        Y.EXPORT.IMPORT = R.LCTYPES.REC<LC.TYP.IMPORT.EXPORT>
+        CALL F.READ(FN.CATEG,Y.LC.CATEGORY,R.APP.CATEG.REC,F.CATEG,Y.APP.CATEG.ERR)
+    CASE APPLICATION EQ 'LD.LOANS.AND.DEPOSITS'
+        Y.TRANS.ID = 'LD' : ID.NEW
+        Y.LD.ID = ID.NEW
+        CALL F.READ(FN.LD,Y.LD.ID,R.LD.REC,F.LD,Y.LD.ERR)
+        IF R.LD.REC THEN
+            Y.LD.CATEGORY = R.LD.REC<LD.CATEGORY>
+        END ELSE
+            CALL F.READ(FN.LD.NAU,Y.LD.ID,R.LD.REC,F.LD,Y.LD.ERR)
+            Y.LD.CATEGORY = R.LD.REC<LD.CATEGORY>
+        END
+        CALL F.READ(FN.CATEG,Y.LD.CATEGORY,R.APP.CATEG.REC,F.CATEG,Y.APP.CATEG.ERR)
+    CASE APPLICATION EQ 'MD.DEAL'
+        Y.TRANS.ID = 'MD' : ID.NEW
+        Y.MD.ID = ID.NEW
+        CALL F.READ(FN.MD,Y.MD.ID,R.MD.REC,F.MD,Y.MD.ERR)
+        IF R.MD.REC THEN
+            Y.MD.CATEGORY = R.MD.REC<MD.DEA.CATEGORY>
+        END ELSE
+            CALL F.READ(FN.MD.NAU,Y.MD.ID,R.MD.REC,F.MD,Y.MD.ERR)
+            Y.MD.CATEGORY = R.MD.REC<MD.DEA.CATEGORY>
+        END
+        CALL F.READ(FN.CATEG,Y.MD.CATEGORY,R.APP.CATEG.REC,F.CATEG,Y.APP.CATEG.ERR)
+    CASE APPLICATION EQ 'TELLER'
+        Y.TRANS.ID = 'TT' : ID.NEW
+    CASE APPLICATION EQ 'FUNDS.TRANSFER'
+        Y.TRANS.ID = 'FT' : ID.NEW
+    CASE APPLICATION EQ 'ACCOUNT.CLOSURE'
+        Y.TRANS.ID = 'ACCOUNT.CLOSURE' : ID.NEW
+    END CASE
+
+    RETURN
+
+*--------------------------------------------------------------
+PROCESS.VOUCHER:
+****************
+    CALL F.READ(FN.COM,ID.COMPANY,R.COM.REC,F.COM,Y.COM.ERR)
+    CALL F.READ(FN.ENT.HOLD,Y.TRANS.ID,R.ENT.HOLD.REC,F.ENT.HOLD,Y.ENT.HOLD.ERR)
+    Y.TOT.ENT = DCOUNT(R.ENT.HOLD.REC,@FM)
+
+    PRT.ID = 'JBL.TF.VOUCHER'
+    CALL PRINTER.ON(PRT.ID,0)
+    PRINT"                  JANATA BANK LIMITED"
+    PRINT"                  ":R.COM.REC<EB.COM.COMPANY.NAME>
+    PRINT"                  ":R.COM.REC<EB.COM.NAME.ADDRESS>
+    PRINT"                   Date: ":TODAY
+    PRINT
+    PRINT"Transaction ID:  ":ID.NEW
+
+    FOR I = 1 TO Y.TOT.ENT-1
+        Y.TRAN.REC = R.ENT.HOLD.REC<I>
+        Y.ACCOUNT.NO = FIELD(Y.TRAN.REC,@VM,1,1)
+        Y.TRANS.CODE = FIELD(R.ENT.HOLD.REC<I>,@VM,4,1)
+        Y.PL.CATEGORY = FIELD(R.ENT.HOLD.REC<I>,@VM,7,1)
+        Y.AMOUNT.LCY = FIELD(R.ENT.HOLD.REC<I>,@VM,3,1)
+        Y.VALUE.DATE = FIELD(R.ENT.HOLD.REC<I>,@VM,11,1)
+        Y.CURRENCY = FIELD(R.ENT.HOLD.REC<I>,@VM,12,1)
+        Y.AMOUNT.FCY = FIELD(R.ENT.HOLD.REC<I>,@VM,13,1)
+        Y.CRF.TYPE = FIELD(R.ENT.HOLD.REC<I>,@VM,36,1)
+        Y.CRF.TRANS.CODE = FIELD(R.ENT.HOLD.REC<I>,@VM,37,1)
+
+        CALL F.READ(FN.TRAN,Y.TRANS.CODE,R.TRAN.REC,F.TRAN,Y.TRAN.ERR)
+        Y.TRAN.REF = R.TRAN.REC<AC.TRA.NARRATIVE>
+        BEGIN CASE
+        CASE Y.ACCOUNT.NO NE '' AND LEN(Y.ACCOUNT.NO) LE "16"
+            CALL F.READ(FN.AC,Y.ACCOUNT.NO,R.AC.REC,F.AC,Y.AC.ERR)
+            IF Y.AMOUNT.LCY LT 0 THEN
+                Y.GL.VOUTYPE = "Dr. "
+            END ELSE
+                Y.GL.VOUTYPE = "Cr. "
+            END
+            GOSUB GEN.GL.VOUCHER
+        CASE Y.PL.CATEGORY NE '' AND Y.CRF.TRANS.CODE NE 'ACC'
+            CALL F.READ(FN.CATEG,Y.PL.CATEGORY,R.CATEG.REC,F.CATEG,Y.CATEG.ERR)
+            IF Y.AMOUNT.LCY LT 0 THEN
+                Y.GL.VOUTYPE = "Dr. "
+            END ELSE
+                Y.GL.VOUTYPE = "Cr. "
+            END
+            Y.CRF.TRANS.REF = "Accrued Interest"
+            GOSUB GEN.PL.VOUCHER
+        CASE Y.CRF.TYPE EQ '51001' AND Y.CRF.TRANS.CODE EQ 'CAP'
+            Y.PL.CATEGORY = '51001'
+            Y.GL.VOUTYPE = "Cr. "
+            CALL F.READ(FN.CATEG,Y.PL.CATEGORY,R.CATEG.REC,F.CATEG,Y.CATEG.ERR)
+            Y.CRF.TRANS.REF = "Capitalized Interest"
+            GOSUB GEN.CAP.INT.VOUCHER
+        CASE Y.CRF.TYPE EQ 'ISSUE' AND Y.CRF.TRANS.CODE EQ 'NEW'
+            Y.VOUTYPE.DR = "Dr. "
+            Y.VOUTYPE.CR = "Cr. "
+            Y.CONT.AC.DR = "Customer Liability LC"
+            Y.CONT.AC.CR = "Banker Liability LC"
+            Y.CRF.TRANS.REF = "Issue"
+            GOSUB GEN.CONT.DR.VOUCHER
+            GOSUB GEN.CONT.CR.VOUCHER
+        CASE Y.CRF.TYPE EQ 'ISSUE' AND Y.CRF.TRANS.CODE EQ 'LIQ'
+            Y.VOUTYPE.DR = "Dr. "
+            Y.VOUTYPE.CR = "Cr. "
+            Y.CONT.AC.DR = "Banker Liability LC"
+            Y.CONT.AC.CR = "Customer Liability LC"
+            Y.CRF.TRANS.REF = "Reversed"
+            GOSUB GEN.CONT.DR.VOUCHER
+            GOSUB GEN.CONT.CR.VOUCHER
+        CASE Y.CRF.TYPE EQ 'COLL' AND Y.CRF.TRANS.CODE EQ 'NEW'
+            Y.VOUTYPE.DR = "Dr. "
+            Y.VOUTYPE.CR = "Cr. "
+            IF Y.EXPORT.IMPORT EQ 'I' THEN
+                Y.CONT.AC.DR = "Customer Liability IFDBC"
+                Y.CONT.AC.CR = "Banker Liability IFDBC"
+                Y.CRF.TRANS.REF = "Issue"
+                GOSUB GEN.CONT.DR.VOUCHER
+                GOSUB GEN.CONT.CR.VOUCHER
+            END ELSE
+                IF Y.LC.CATEGORY EQ '23105' OR Y.LC.CATEGORY EQ '23110' THEN
+                    Y.CONT.AC.DR = "Customer Liability FDBC"
+                    Y.CONT.AC.CR = "Banker Liability FDBC"
+                    Y.CRF.TRANS.REF = "Issue"
+                    GOSUB GEN.CONT.DR.VOUCHER
+                    GOSUB GEN.CONT.CR.VOUCHER
+                END
+                IF Y.LC.CATEGORY EQ '23106' OR Y.LC.CATEGORY EQ '23111' THEN
+                    Y.CONT.AC.DR = "Customer Liability LDBC"
+                    Y.CONT.AC.CR = "Banker Liability LDBC"
+                    Y.CRF.TRANS.REF = "Issue"
+                    GOSUB GEN.CONT.DR.VOUCHER
+                    GOSUB GEN.CONT.CR.VOUCHER
+                END
+                IF Y.LC.CATEGORY EQ '23107' OR Y.LC.CATEGORY EQ '23112' THEN
+                    Y.CONT.AC.DR = "Customer Liability FDBC GMT"
+                    Y.CONT.AC.CR = "Banker Liability FDBC GMT"
+                    Y.CRF.TRANS.REF = "Issue"
+                    GOSUB GEN.CONT.DR.VOUCHER
+                    GOSUB GEN.CONT.CR.VOUCHER
+                END
+            END
+        CASE Y.CRF.TYPE EQ 'COLL' AND Y.CRF.TRANS.CODE EQ 'LIQ'
+            Y.VOUTYPE.DR = "Dr. "
+            Y.VOUTYPE.CR = "Cr. "
+            IF Y.EXPORT.IMPORT EQ 'I' THEN
+                Y.CONT.AC.DR = "Banker Liability IFDBC"
+                Y.CONT.AC.CR = "Customer Liability IFDBC"
+                Y.CRF.TRANS.REF = "Reversed"
+                GOSUB GEN.CONT.DR.VOUCHER
+                GOSUB GEN.CONT.CR.VOUCHER
+            END ELSE
+                IF Y.LC.CATEGORY EQ '23105' OR Y.LC.CATEGORY EQ '23110' THEN
+                    Y.CONT.AC.DR = "Banker Liability FDBC"
+                    Y.CONT.AC.CR = "Customer Liability FDBC"
+                    Y.CRF.TRANS.REF = "Reversed"
+                    GOSUB GEN.CONT.DR.VOUCHER
+                    GOSUB GEN.CONT.CR.VOUCHER
+                END
+                IF Y.LC.CATEGORY EQ '23106' OR Y.LC.CATEGORY EQ '23111' THEN
+                    Y.CONT.AC.DR = "Banker Liability LDBC"
+                    Y.CONT.AC.CR = "Customer Liability LDBC"
+                    Y.CRF.TRANS.REF = "Reversed"
+                    GOSUB GEN.CONT.DR.VOUCHER
+                    GOSUB GEN.CONT.CR.VOUCHER
+                END
+                IF Y.LC.CATEGORY EQ '23107' OR Y.LC.CATEGORY EQ '23112' THEN
+                    Y.CONT.AC.DR = "Banker Liability FDBC GMT"
+                    Y.CONT.AC.CR = "Customer Liability FDBC GMT"
+                    Y.CRF.TRANS.REF = "Reversed"
+                    GOSUB GEN.CONT.DR.VOUCHER
+                    GOSUB GEN.CONT.CR.VOUCHER
+                END
+            END
+        CASE Y.CRF.TYPE EQ 'CONTDB' AND Y.CRF.TRANS.CODE EQ 'LNW'
+            Y.VOUTYPE.DR = "Dr. "
+            Y.VOUTYPE.CR = "Cr. "
+            Y.CONT.AC.DR = "Customer Liability LG"
+            Y.CONT.AC.CR = "Banker Liability LG"
+            Y.CRF.TRANS.REF = "Issue"
+            GOSUB GEN.CONT.DR.VOUCHER
+            GOSUB GEN.CONT.CR.VOUCHER
+        CASE Y.CRF.TYPE EQ 'CONTDB' AND Y.CRF.TRANS.CODE EQ 'MAT'
+            Y.VOUTYPE.DR = "Dr. "
+            Y.VOUTYPE.CR = "Cr. "
+            Y.CONT.AC.DR = "Banker Liability LG"
+            Y.CONT.AC.CR = "Customer Liability LG"
+            Y.CRF.TRANS.REF = "Reversed"
+            GOSUB GEN.CONT.DR.VOUCHER
+            GOSUB GEN.CONT.CR.VOUCHER
+        CASE Y.CRF.TYPE EQ 'LIVEDB' AND Y.CRF.TRANS.CODE EQ 'CNW'
+            Y.VOUTYPE.DR = "Dr. "
+            Y.CONT.AC.DR = ID.NEW
+            Y.CRF.TRANS.REF = "Issue"
+            GOSUB GEN.CONT.DR.VOUCHER
+        CASE Y.CRF.TYPE EQ 'LIVEDB' AND Y.CRF.TRANS.CODE EQ 'MAT'
+            Y.VOUTYPE.CR = "Cr. "
+            Y.CONT.AC.CR = ID.NEW
+            Y.CRF.TRANS.REF = "Reversed"
+            GOSUB GEN.CONT.CR.VOUCHER
+        END CASE
+
+        Y.TRAN.REC = ''
+        Y.ACCOUNT.NO = ''
+        Y.TRANS.CODE = ''
+        Y.TRAN.REF = ''
+        Y.PL.CATEGORY = ''
+        Y.AMOUNT.LCY = ''
+        Y.VALUE.DATE = ''
+        Y.CURRENCY = ''
+        Y.AMOUNT.FCY = ''
+        Y.CRF.TYPE = ''
+        Y.CRF.TRANS.CODE = ''
+        Y.CRF.TRANS.REF = ''
+    NEXT I
+
+    PRINT
+    PRINT
+    PRINT
+    PRINT"______________                                                         _______________"
+    PRINT"Officer                                                                        Manager"
+    PRINT
+    PRINT
+    PRINT"__________________________________________________________________________________________________"
+
+    CALL PRINTER.CLOSE(PRT.ID,'',0)
+    Y.TEMP.HOLD.ID = ''
+    Y.TEMP.HOLD.ID = C$LAST.HOLD.ID
+    CALL F.READ(FN.HC,Y.TEMP.HOLD.ID,R.HC.REC,F.HC,Y.HC.ERR)
+    R.HC.REC<HCF.RESERVED3> = ID.NEW
+    WRITE R.HC.REC TO F.HC,Y.TEMP.HOLD.ID
+    CALL PRINTER.OFF
+
+    RETURN
+
+*----------------------------------------------------------
+GEN.GL.VOUCHER:
+****************
+    PRINT Y.GL.VOUTYPE :SPACE(2):FMT(Y.ACCOUNT.NO,"25L"):SPACE(3):FMT(R.AC.REC<AC.ACCOUNT.TITLE.1>,"35L"):SPACE(3):FMT(Y.TRAN.REF,"35L"):SPACE(3):FMT(ABS(Y.AMOUNT.LCY),"15L2"):SPACE(3):FMT(ABS(Y.AMOUNT.FCY),"15L2")
+    RETURN
+
+*----------------------------------------------------------
+GEN.PL.VOUCHER:
+****************
+    PRINT Y.GL.VOUTYPE :SPACE(2):FMT(Y.PL.CATEGORY,"25L"):SPACE(3):FMT(R.CATEG.REC<EB.CAT.DESCRIPTION>,"35L"):SPACE(3):FMT(Y.TRAN.REF,"35L"):SPACE(3):FMT(ABS(Y.AMOUNT.LCY),"15L2"):SPACE(3):FMT(ABS(Y.AMOUNT.FCY),"15L2")
+    RETURN
+
+*----------------------------------------------------------
+GEN.CAP.INT.VOUCHER:
+*******************
+    PRINT Y.GL.VOUTYPE :SPACE(2):FMT(Y.PL.CATEGORY,"25L"):SPACE(3):FMT(R.CATEG.REC<EB.CAT.DESCRIPTION>,"35L"):SPACE(3):FMT(Y.CRF.TRANS.REF,"35L"):SPACE(3):FMT(ABS(Y.AMOUNT.LCY),"15L2"):SPACE(3):FMT(ABS(Y.AMOUNT.FCY),"15L2")
+    RETURN
+
+*----------------------------------------------------------
+GEN.CONT.CR.VOUCHER:
+*******************
+    PRINT Y.VOUTYPE.CR :SPACE(2):FMT(Y.CONT.AC.CR,"25L"):SPACE(3):FMT(R.APP.CATEG.REC<EB.CAT.DESCRIPTION>,"35L"):SPACE(3):FMT(Y.CRF.TRANS.REF,"35L"):SPACE(3):FMT(ABS(Y.AMOUNT.LCY),"15L2"):SPACE(3):FMT(ABS(Y.AMOUNT.FCY),"15L2")
+    RETURN
+
+*----------------------------------------------------------
+GEN.CONT.DR.VOUCHER:
+*******************
+    PRINT Y.VOUTYPE.DR :SPACE(2):FMT(Y.CONT.AC.DR,"25L"):SPACE(3):FMT(R.APP.CATEG.REC<EB.CAT.DESCRIPTION>,"35L"):SPACE(3):FMT(Y.CRF.TRANS.REF,"35L"):SPACE(3):FMT(ABS(Y.AMOUNT.LCY),"15L2"):SPACE(3):FMT(ABS(Y.AMOUNT.FCY),"15L2")
+    RETURN
+
+*-------------------------------------------
+GEN.HOLD.DELETE.VOU:
+********************
+    CALL F.DELETE(FN.ENT.HOLD,Y.TRANS.ID)
+    RETURN
+
+*------------------------------------------------------------------------
+END

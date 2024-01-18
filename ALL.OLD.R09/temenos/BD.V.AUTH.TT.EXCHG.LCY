@@ -1,0 +1,42 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.AUTH.TT.EXCHG.LCY
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.TELLER
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+******
+INIT:
+******
+
+    FN.TELLER = 'FBNK.TELLER'
+    F.TELLER = ''
+    RETURN
+
+***********
+OPENFILES:
+***********
+
+    CALL OPF(FN.TELLER,F.TELLER)
+    CALL GET.LOC.REF('TELLER','FCY.AMOUNT',Y.FCY.AMOUNT.POS)
+
+    RETURN
+
+***********
+PROCESS:
+***********
+    Y.EXCHANGE.RATE = COMI
+
+    CALL F.READ(FN.TELLER,Y.TT.ID,R.TELLER,F.TELLER,Y.ERR)
+
+    Y.FCY.CCY.AMT = R.NEW(TT.TE.LOCAL.REF)<1,Y.FCY.AMOUNT.POS>
+    Y.FCY.AMT.LEN = LEN(Y.FCY.CCY.AMT)
+    Y.FCY.AMT.FINAL = SUBSTRINGS(Y.FCY.CCY.AMT,4,Y.FCY.AMT.LEN)
+    R.NEW(TT.TE.AMOUNT.LOCAL.1) = DROUND((Y.FCY.AMT.FINAL * Y.EXCHANGE.RATE),2)
+    RETURN
+END

@@ -1,0 +1,34 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ACI.UPD.BF.MEND.LOAD
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT JBL.BP I_F.ABL.H.AC.VIOLATION
+    $INSERT GLOBUS.BP I_F.GROUP.CREDIT.INT
+    $INSERT GLOBUS.BP I_F.GROUP.DATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT JBL.BP I_ACI.UPD.BF.MEND.COMMON
+
+    FN.ABL.VIOL='F.ABL.H.AC.VIOLATION'
+    F.ABL.VIOL=''
+
+    FN.GCI='F.GROUP.CREDIT.INT'
+    F.GCI =''
+
+    FN.GR.DATE='F.GROUP.DATE'
+    F.GR.DATE = ''
+
+    FN.AC='F.ACCOUNT'
+    F.AC=''
+
+    CALL OPF(FN.ABL.VIOL,F.ABL.VIOL)
+    CALL OPF(FN.GCI,F.GCI)
+    CALL OPF(FN.GR.DATE,F.GR.DATE)
+    CALL OPF(FN.AC,F.AC)
+
+    RETURN
+
+END

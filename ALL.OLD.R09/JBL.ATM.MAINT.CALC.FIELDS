@@ -1,0 +1,60 @@
+*-----------------------------------------------------------------------------
+* <Rating>-7</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.ATM.MAINT.CALC.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine
+*
+* @author mortoza@datasoft-bd.com
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* Modification History :
+*
+* 19/10/07 - EN_10003543
+*            New Template changes
+*
+* 14/11/07 - BG_100015736
+*            Exclude routines that are not released
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("ATM.MAINT.ID", T24_String)         ;* Define Table id
+*-----------------------------------------------------------------------------
+    CALL Table.addOptionsField("CLOSE.TYPE","HALF_YEARLY","","")
+    CALL Table.addFieldDefinition("TRANSACTION.TYPE","10.4","A","")
+    CALL Field.setCheckFile('FT.TXN.TYPE.CONDITION')
+    CALL Table.addFieldDefinition("XX<INCLUDE.CATEGORY","5.1.","","")
+    CALL Field.setCheckFile('CATEGORY')
+!CALL Table.addField("XX-VEN.ACCT", T24_Account, "", "")
+    CALL Table.addFieldDefinition("XX-VEN.ACCT","16.5","A","")
+    CALL Table.addFieldDefinition("XX-VEN.CHARGE.AMT","12.3.","AMT","")
+    CALL Table.addFieldDefinition("XX-CHARGE.TYPE","20..C","A","")
+    CALL Field.setCheckFile('FT.CHARGE.TYPE')
+    CALL Table.addFieldDefinition("XX-BRANCH.CHARGE.AMT","12","AMT","")
+    CALL Table.addFieldDefinition("XX-FT.COMM.TYPE","20..C","A","")
+    CALL Field.setCheckFile('FT.COMMISSION.TYPE')
+    CALL Table.addFieldDefinition("XX-FT.COMM.AMT","12","AMT","")
+    CALL Table.addFieldDefinition("XX>VAT.PERCENT","2","AMT","")
+    CALL Table.addFieldDefinition("XX.INCLUDE.COMP","9..C","A","")
+    CALL Field.setCheckFile('COMPANY')
+    CALL Table.addField("ATTRIBUTE1", T24_String, "", "")
+    CALL Table.addField("ATTRIBUTE2", T24_String, "", "")
+
+    CALL Table.addOverrideField
+
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

@@ -1,0 +1,90 @@
+*-----------------------------------------------------------------------------
+* <Rating>-31</Rating>
+*-----------------------------------------------------------------------------
+!  PROGRAM BD.SP.SETTLEMENT
+    SUBROUTINE BD.SP.SETTLEMENT(Y.RETURN)
+
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20171226- New - DEVELOPEMENT TEAM
+*                  JBL
+*-------------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+
+    $INSERT I_F.BD.H.SP.STOCK.ISSUE
+
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT SP.BP I_F.BD.H.SP.STK.PARAM
+
+
+    FN.ACCT = 'FBNK.ACCOUNT'
+    F.ACCT = ''
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+*** </region>*-----------------------------------------------------------------------------
+***---------------------------------------------------------------
+INIT:
+
+    FN.SP.ISSUE='F.BD.H.SP.STOCK.ISSUE'
+    F.SP.ISSUE=''
+    FN.SP.PARAM='F.BD.H.SP.STK.PARAM'
+    F.SP.PARAM=''
+
+    LOCATE "TYPE" IN ENQ.SELECTION<2,1> SETTING TYPE.POS THEN
+        Y.TYPE = ENQ.SELECTION<4,TYPE.POS>
+    END
+    Y.STATUS="ISSUED TO CUSTOMER"
+    T.TOTAL=0
+    Y.COMPANY=RIGHT(ID.COMPANY,4)
+    RETURN
+***---------------------------------------------------------------
+***---------------------------------------------------------------
+OPENFILE:
+
+    CALL OPF(FN.SP.ISSUE,F.SP.ISSUE)
+    CALL OPF(FN.ACCT,F.ACCT)
+    CALL OPF(FN.SP.PARAM,F.SP.PARAM)
+
+    RETURN
+***---------------------------------------------------------------
+***---------------------------------------------------------------
+PROCESS:
+    CALL F.READ(FN.SP.PARAM,"SYSTEM",R.SP.PARAM,F.SP.PARAM,Y.PR.ERR)
+    Y.PR.SALES.CATEG=R.SP.PARAM<SP.PRM.SALES.CATEGORY>
+
+    SEL.CMD="SELECT ":FN.SP.ISSUE:" WITH STATUS EQ 'SALES COMPLETE'"
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,ERR1)
+    LOOP
+        REMOVE Y.ISSUE.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ISSUE.ID:POS
+
+        CALL F.READ(FN.SP.ISSUE,Y.ISSUE.ID,R.SP.ISSUE,F.SP.ISSUE,Y.SP.ER)
+        Y.ISSUE.DATE=R.SP.ISSUE<SP.STK.ISSUE.DATE>
+        Y.COMP=R.SP.ISSUE<SP.STK.DIS.BR.CODE>
+        IF Y.COMP EQ ID.COMPANY THEN
+            Y.SP.ID=Y.ISSUE.ID
+            Y.FACE.VALUE=R.SP.ISSUE<SP.STK.FACE.VALUE>
+            Y.TR.REF=R.SP.ISSUE<SP.STK.TRAN.REFRENCE1>
+            Y.TOTAL=Y.TOTAL+Y.FACE.VALUE
+            Y.CO.CODE=R.SP.ISSUE<SP.STK.CO.CODE>
+            Y.RETURN<-1> = Y.SP.ID:"*":Y.TR.REF:"*":Y.FACE.VALUE:"*":Y.CO.CODE
+
+        END
+    REPEAT
+
+    Y.RETURN<-1> = "TOTAL":"*":" ":"*":Y.TOTAL
+    Y.AC.SD=Y.PR.SALES.CATEG:Y.COMPANY
+    CALL F.READ(FN.ACCT,Y.AC.SD,R.AC.REC,F.ACCT,Y.AC.ER)
+    Y.BALANCE=R.AC.REC<AC.WORKING.BALANCE>
+    Y.ACCT.TITLE = R.AC.REC<AC.ACCOUNT.TITLE.1>
+    Y.RETURN<-1> = Y.ACCT.TITLE:"*":Y.AC.SD:"*":Y.BALANCE:"*":Y.CO.CODE
+    CRT Y.RETURN
+    RETURN

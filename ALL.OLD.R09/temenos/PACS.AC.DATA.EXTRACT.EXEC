@@ -1,0 +1,1076 @@
+*-----------------------------------------------------------------------------
+* <Rating>7850</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM PACS.AC.DATA.EXTRACT.EXEC
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.EB.CONTRACT.BALANCES
+    $INSERT GLOBUS.BP I_F.ACCT.ACTIVITY
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.DATES
+    $INSERT GLOBUS.BP I_F.CONSOLIDATE.ASST.LIAB
+    $INSERT GLOBUS.BP I_F.EB.SYSTEM.SUMMARY
+    $INSERT GLOBUS.BP I_F.EB.JOURNAL.SUMMARY
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.SPF
+    $INSERT GLOBUS.BP I_RC.COMMON
+    $INSERT ITD.BP I_F.PACS.AC.DATA.EXTRACT
+    $INSERT GLOBUS.BP I_F.ACCOUNT.PARAMETER
+    $INSERT GLOBUS.BP I_TSA.COMMON
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT GLOBUS.BP I_EB.TRANS.COMMON
+    $INSERT JBC.h
+
+    GOSUB INITIALISE
+    GOSUB OPEN.FILES
+    GOSUB GET.OPTION
+
+    STOP
+
+***********
+GET.OPTION:
+***********
+
+    BEGIN CASE
+
+    CASE R.PACS<AC.TOOL.ACCOUNT.NUMBER> NE ''
+        ACCOUNT.LIST.TO.PROCESS = R.PACS<AC.TOOL.ACCOUNT.NUMBER>
+        CONVERT @VM TO @FM IN ACCOUNT.LIST.TO.PROCESS
+        IF ACCOUNT.LIST.TO.PROCESS THEN
+            GOSUB PROCESS.MULTIPLE.ACCOUNTS
+        END
+
+    CASE R.PACS<AC.TOOL.LIST.FILE.PATH> NE '' AND R.PACS<AC.TOOL.FILE.NAME>
+        F.FOLDER = ''
+        FILE.REC = ''
+        FN.FOLDER = R.PACS<AC.TOOL.LIST.FILE.PATH>
+        CALL OPF(FN.FOLDER, F.FOLDER)
+        FILE.REC = R.PACS<AC.TOOL.FILE.NAME>
+        READ R.AC.LIST FROM F.FOLDER, FILE.REC ELSE R.AC.LIST  = ''
+        ACCOUNT.LIST.TO.PROCESS = R.AC.LIST
+        IF ACCOUNT.LIST.TO.PROCESS THEN
+            GOSUB PROCESS.MULTIPLE.ACCOUNTS
+        END
+
+    END CASE
+
+    RETURN
+
+**************************
+PROCESS.MULTIPLE.ACCOUNTS:
+**************************
+
+    ACCOUNT.LIST = ACCOUNT.LIST.TO.PROCESS
+    MUL.POS = ''
+    MUL.CNT = DCOUNT(ACCOUNT.LIST.TO.PROCESS, @FM)
+
+    FOR MUL.POS = 1 TO MUL.CNT
+
+        AC.ID = ACCOUNT.LIST.TO.PROCESS<MUL.POS>
+
+        R.PACS<AC.TOOL.EXECUTION.STATUS> = 'Processing account ':AC.ID
+        WRITE R.PACS TO F.PACS, PACS.ID
+        IF MUL.POS = 2 THEN
+            EXTRACTED = 1
+        END
+
+        IF R.PACS<AC.TOOL.WORKING.BAL.CHK> = 'YES' AND EXTRACTED NE '1' THEN
+            WORK.BAL.CHECK = 1
+            GOSUB VALIDATE.ENTRY.HOLD
+        END
+        GOSUB EXTRACT.DETAILS
+    NEXT MUL.POS
+
+
+    WRITE CONSOLIDATE.DETS TO F.BP,'CONSOLIDATED.RECORD.':TODAY
+
+    R.PACS<AC.TOOL.EXECUTION.STATUS> = ''         ;* reset for next run - implies completed
+    WRITE R.PACS TO F.PACS, PACS.ID
+
+    CRT 'BASIC DETAILS EXTRACTION COMPLETED - EXTRACTS AVAILABLE IN':F.BP
+
+    RETURN
+
+****************
+EXTRACT.DETAILS:
+****************
+
+    CONSOL.DETS = ''
+    GOSUB SPF.DETS
+    GOSUB GET.AP.DETS
+    GOSUB GET.DATE.RECORD
+    GOSUB GET.INTERCO.DETS
+    GOSUB GET.COMPANY.DETS
+
+    IF EXTRACTED NE 1 THEN
+        WRITE.PARAM = 1
+        GOSUB WRITE.OUT.RECORD
+    END
+
+    GOSUB ACC.EXTRACT
+    GOSUB ECB.EXTRACT
+    GOSUB AS.EXTRACT
+    GOSUB GET.TODAY.ENT
+    GOSUB AA.EXTRACT
+    GOSUB ASP.EXTRACT
+    GOSUB SP.EXTRACT
+
+    IF WORK.BAL.CHECK EQ 1 THEN
+        GOSUB ENTRY.HOLD.BAL.EXTRACT
+    END
+
+    IF FWD.ENT.CHK = 1 THEN
+        GOSUB GET.AEF.DETS
+    END
+
+    IF DATE.EXP.CHK = 1 THEN
+        GOSUB DATE.EXPOSURE.REC
+    END
+
+    IF R.PACS<AC.TOOL.GL.EXTRACT.REQ> = 'YES' THEN
+        GOSUB EXTRACT.ESS.LISTINGS
+    END
+
+    CONSOLIDATE.DETS<-1> = AC.ID:'#':CONSOL.DETS:'#':R.DATES(EB.DAT.TODAY):'#':R.DATES(EB.DAT.LAST.WORKING.DAY)
+    GOSUB WRITE.OUT.RECORD
+
+    RETURN
+
+***********
+OPEN.FILES:
+***********
+
+    ARRAY = ''
+    FN.PACS = "F.PACS.AC.DATA.EXTRACT"
+    F.PACS = ""
+    CALL OPF(FN.PACS,F.PACS)
+
+    R.PACS = ''
+    CALL F.READU(FN.PACS, PACS.ID, R.PACS, F.PACS, YERR, '')
+
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+    CALL OPF(FN.AC,F.AC)
+
+    FN.ECB = "F.EB.CONTRACT.BALANCES"
+    F.ECB = ""
+    CALL OPF(FN.ECB,F.ECB)
+
+    FN.AP = "F.ACCOUNT.PARAMETER"
+    F.AP = ""
+    CALL OPF(FN.AP,F.AP)
+
+    R.ACC.PARAM = ''
+    CALL CACHE.READ("F.ACCOUNT.PARAMETER", "SYSTEM", R.ACC.PARAM, ER)
+    USE.ACCT.ENT.TODAY = 0
+    IF R.ACC.PARAM<AC.PAR.ENT.TODAY.UPDATE>[1,1] NE "N" THEN
+        USE.ACCT.ENT.TODAY = 1
+    END
+
+    FN.AET = "F.ACCT.ENT.TODAY"
+    F.AET = ""
+    CALL OPF(FN.AET,F.AET)
+
+    FN.AEF = "F.ACCT.ENT.FWD"
+    F.AEF = ""
+    CALL OPF(FN.AEF,F.AEF)
+
+    FN.SP = "F.STMT.PRINTED"
+    F.SP = ""
+    CALL OPF(FN.SP,F.SP)
+
+    FN.FWD.SP = "F.FWD.STMT1.PRINTED"
+    F.FWD.SP = ""
+    CALL OPF(FN.FWD.SP, F.FWD.SP)
+
+    FN.DER = "F.DATE.EXPOSURE"
+    F.DER = ""
+    CALL OPF(FN.DER,F.DER)
+
+    OPEN '','&HOLD&' TO F.HLD ELSE
+        PRINT 'UNABLE TO OPEN &HOLD&'
+        RETURN
+    END
+
+    FN.ASP = "F.ACCT.STMT.PRINT"
+    F.ASP = ""
+    CALL OPF(FN.ASP,F.ASP)
+
+    FN.SE = "F.STMT.ENTRY"
+    F.SE = ""
+    CALL OPF(FN.SE,F.SE)
+
+    FN.AS = "F.ACCOUNT.STATEMENT"
+    F.AS = ""
+    CALL OPF(FN.AS,F.AS)
+
+    FN.AA = "F.ACCT.ACTIVITY"
+    F.AA = ""
+    CALL OPF(FN.AA,F.AA)
+
+    FN.SPF = "F.SPF"
+    F.SPF = ""
+    CALL OPF(FN.SPF,F.SPF)
+
+    C$RPT.IN.HOLD.ID = ''
+
+    FN.ESS = "F.EB.SYSTEM.SUMMARY"
+    F.ESS = ""
+    CALL OPF(FN.ESS,F.ESS)
+
+    FN.EJS = "F.EB.JOURNAL.SUMMARY"
+    F.EJS = ""
+    CALL OPF(FN.EJS, F.EJS)
+
+    FN.ENTRY.HOLD = 'F.ENTRY.HOLD'
+    FV.ENTRY.HOLD = ''
+    CALL OPF(FN.ENTRY.HOLD,FV.ENTRY.HOLD)
+
+    FN.FT='F.FUNDS.TRANSFER$NAU'; FV.FT=''
+    CALL OPF(FN.FT,FV.FT)
+
+    FN.TT='F.TELLER$NAU': FM :'N'; FV.TT=''
+    CALL OPF(FN.TT,FV.TT)
+
+    FN.LC='F.LETTER.OF.CREDIT$NAU':FM:'N'; FV.LC=''
+    CALL OPF(FN.LC,FV.LC)
+
+    FN.DC='F.DATA.CAPTURE$NAU':FM:'N'; FV.DC=''
+    CALL OPF(FN.DC,FV.DC)
+
+    FN.ACR = 'F.AC.CHARGE.REQUEST$NAU':FM:'N'; FV.ACR = ''
+    CALL OPF(FN.ACR,FV.ACR)
+
+    FN.ACL  = 'F.ACCOUNT.CLOSURE$NAU'; FV.ACL = ''
+    CALL OPF(FN.ACL,FV.ACL)
+
+    FN.MM = 'F.MM.MONEY.MARKET$NAU':FM:'N' ; FV.MM = ''
+    CALL OPF(FN.MM,FV.MM)
+
+    FN.LD = 'F.LD.LOANS.AND.DEPOSITS$NAU':FM:'N'; FV.LD = ''
+    CALL OPF(FN.LD,FV.LD)
+
+    FN.PD = 'F.PD.PAYMENT.DUE$NAU':FM:'N'; FV.PD = ''
+    CALL OPF(FN.PD,FV.PD)
+
+    ACCOUNT.LIST.TO.PROCESS = ''
+
+    DATE.ID = R.DATES(EB.DAT.LAST.WORKING.DAY)
+
+    FN.BP = R.PACS<AC.TOOL.LOG.FILE.PATH>
+    F.BP = ''
+    CALL OPF(FN.BP,F.BP)
+
+    IF R.PACS<AC.TOOL.CLEAR.LOG.FILES> THEN
+        GOSUB FLUSH.OUT.OLD.RECS
+    END
+
+    AC.ASSET.TYPES = 'CREDIT':@FM:'DEBIT':@FM:'OFFCR':@FM:'OFFDB':@FM:'OFFSUSP':@FM:'SUSPENS':@FM:'NILOPEN'
+
+    AC.ID = ''
+    WRITE.PARAM =''
+    SAVE.PATH = ''
+    EXTRACTED = ''
+    CONSOLIDATE.DETS = ''
+    CONSOLIDATE.DETS = 'ACCOUNT.NUMBER#OPEN.ACTUAL#OPEN.CLEARED#ONLINE.ACTUAL#ONLINE.CLEARED#WORKING.BAL#HVT.FLAG#ARRANGEMENT.ID#ECB.OPEN.BAL#ECB.ONLINE.BAL#CONSOL.KEY#OPEN.ASSET.TYPE#TOTAL.ENT.TODAY#ENT.TODAY.ONLY#AA.VAL.DAY.BAL#AA.BK.DATE.BAL#SP.BAL#TOTAL.ENT.FWD#TODAY.DATE#LAST.WORKING.DATE'
+
+    IF R.PACS<AC.TOOL.ENTRY.START.DATE> THEN
+        START.DATE = R.PACS<AC.TOOL.ENTRY.START.DATE>
+    END ELSE
+        START.DATE = ''
+    END
+
+    IF R.PACS<AC.TOOL.GL.START.DATE> THEN
+        GL.START.DATE = R.PACS<AC.TOOL.GL.START.DATE>
+    END
+    ELSE
+        GL.START.DATE = ''
+    END
+
+    IF R.PACS<AC.TOOL.GL.BRANCH.REQ> THEN
+        GL.BRANCH.LIST = R.PACS<AC.TOOL.GL.BRANCH.REQ>
+        CONVERT @VM TO @FM IN GL.BRANCH.LIST
+    END
+
+    IF R.PACS<AC.TOOL.FWD.ENT.DETS.REQD> = 'YES' THEN
+        FWD.ENT.CHK = 1
+    END
+
+    IF R.PACS<AC.TOOL.DATE.EXPO.REQD> = 'YES' THEN
+        DATE.EXP.CHK = 1
+    END
+
+    RETURN
+
+*****************
+GET.COMPANY.DETS:
+*****************
+
+    R.SPF = ''
+    IF EXTRACTED = 1 THEN
+        RETURN
+    END
+    ELSE
+        APPL.ID.LIST = 'COMPANY'
+        PGM.TYPE = 'H'
+        REC.ID1 = IN.COMP
+        GOSUB T24.OUTPUT.EXTRACTION
+    END
+    RETURN
+
+****************
+GET.DATE.RECORD:
+****************
+
+    R.SPF = ''
+    IF EXTRACTED = 1 THEN
+        RETURN
+    END
+    ELSE
+        APPL.ID.LIST = 'DATES'
+        PGM.TYPE = 'H'
+        REC.ID1 = IN.COMP
+        GOSUB T24.OUTPUT.EXTRACTION
+    END
+    RETURN
+
+*********
+SPF.DETS:
+*********
+
+    R.SPF = ''
+    IF EXTRACTED = 1 THEN
+        RETURN
+    END
+    ELSE
+        READ R.SPF FROM F.SPF,'SYSTEM' ELSE R.SPF = ""
+        IF R.SPF THEN
+            REL = R.SPF<SPF.CURRENT.RELEASE>
+            CLIENT.REL = RIGHT(REL,2)
+        END
+        APPL.ID.LIST = 'SPF'
+        PGM.TYPE = 'U'
+        REC.ID1 = 'SYSTEM'
+        GOSUB T24.OUTPUT.EXTRACTION
+    END
+    RETURN
+
+********************
+VALIDATE.ENTRY.HOLD:
+********************
+
+    ENT.HOLD.ACC = ''; ENT.HOLD.AMT = ''; ENT.HOLD.ARRAY = ''
+
+    SEL.CMD1 = "SELECT ":FN.ENTRY.HOLD
+    NO.OF.RECS = ""; HOLD.POS = ""; SEL.LIST1 = ""
+    CALL EB.READLIST(SEL.CMD1,SEL.LIST1,"",NO.OF.RECS,RET.CODES)
+
+    LOOP
+        REMOVE ENT.HOLD.ID FROM SEL.LIST1 SETTING HOLD.POS
+    WHILE ENT.HOLD.ID:HOLD.POS
+        R.ENT.HOLD = ""
+        READ R.ENT.HOLD FROM FV.ENTRY.HOLD, ENT.HOLD.ID ELSE R.ENT.HOLD = ""
+        FMC = DCOUNT(R.ENT.HOLD, @FM)
+        FOR K = 1 TO FMC-1
+            ACC.NUM = R.ENT.HOLD<K, AC.STE.ACCOUNT.NUMBER>
+            IF NUM(ACC.NUM) THEN
+                LOCATE ACC.NUM IN ACCOUNT.LIST<1> SETTING ACPOS THEN  ;* only for accounts given for extraction
+                    PROCESS.DATE = R.ENT.HOLD<K, AC.STE.PROCESSING.DATE>
+                    IF PROCESS.DATE LE TODAY THEN
+                        ENT.AMT = 0
+                        IF ACC.NUM THEN
+                            IF R.ENT.HOLD<K,AC.STE.CURRENCY> NE LCCY THEN
+                                ENT.AMT = R.ENT.HOLD<K, AC.STE.AMOUNT.FCY>
+                            END ELSE
+                                ENT.AMT = R.ENT.HOLD<K, AC.STE.AMOUNT.LCY>
+                            END
+                        END
+                        EXP.DATE = R.ENT.HOLD<K, AC.STE.EXPOSURE.DATE>
+                        REV.MARK = R.ENT.HOLD<K, AC.STE.REVERSAL.MARKER>
+                        IF REV.MARK EQ 'R' AND EXP.DATE GT R.ENT.HOLD<K, AC.STE.BOOKING.DATE> AND ENT.AMT LT 0 THEN
+                            ENT.AMT = 0
+                        END
+                        IF ENT.AMT THEN
+                            LOCATE ACC.NUM IN ENT.HOLD.ACC<1> SETTING ENT.POS THEN
+                                ENT.HOLD.AMT<ENT.POS> += ENT.AMT
+                            END ELSE
+                                ENT.HOLD.ACC<-1> = ACC.NUM
+                                ENT.HOLD.AMT<-1> = ENT.AMT
+                            END
+                        END
+                    END
+                END
+            END
+        NEXT K
+
+        BEGIN CASE
+
+        CASE ENT.HOLD.ID[1,2] EQ 'FT'
+            FV.FILE = FV.FT
+            TXN.ID = ENT.HOLD.ID[3,99]
+
+        CASE ENT.HOLD.ID[1,2] EQ 'TT'
+            FV.FILE = FV.TT
+            TXN.ID = ENT.HOLD.ID[3,99]
+
+        CASE ENT.HOLD.ID[1,2] EQ 'DC'
+            FV.FILE = FV.DC
+            TXN.ID = ENT.HOLD.ID[3,99]
+
+        CASE ENT.HOLD.ID[1,2] EQ 'MM'
+            FV.FILE = FV.MM
+            TXN.ID = ENT.HOLD.ID[3,99]
+
+        CASE ENT.HOLD.ID[1,2] EQ 'TF'
+            FV.FILE = FV.LC
+            TXN.ID = ENT.HOLD.ID[3,99]
+
+        CASE ENT.HOLD.ID[1,2] EQ 'LD'
+            FV.FILE = FV.LD
+            TXN.ID = ENT.HOLD.ID[3,99]
+
+        CASE ENT.HOLD.ID[1,5] EQ 'ACCHG'
+            FV.FILE = FV.ACR
+            TXN.ID = ENT.HOLD.ID[3,99]
+
+        CASE ENT.HOLD.ID[1,7] EQ 'ACCOUNT'
+            FV.FILE = FV.ACL
+            TXN.ID = ENT.HOLD.ID[16,99]
+
+        CASE ENT.HOLD.ID[1,2] EQ 'PD'
+            FV.FILE = FV.PD
+            TXN.ID = ENT.HOLD.ID[3,99]
+
+
+        CASE OTHERWISE
+
+            CONTINUE
+
+        END CASE
+
+        IF R.ENT.HOLD THEN
+            READ R.TXN FROM FV.FILE, TXN.ID ELSE
+                ENT.HOLD.ARRAY<-1> =  'ENTRY.HOLD ID = ':ENT.HOLD.ID
+                ENT.HOLD.ARRAY<-1> =  R.ENT.HOLD
+                ENT.HOLD.ARRAY<-1> =  '****************************************************'
+            END
+        END
+
+    REPEAT
+
+    IF ENT.HOLD.ARRAY THEN
+        WRITE ENT.HOLD.ARRAY TO F.BP,'PROBLEM_ENT_HOLD_':TODAY
+    END
+
+    RETURN
+
+************
+ACC.EXTRACT:
+************
+
+    R.AC = ''
+    READ R.AC FROM F.AC, AC.ID ELSE R.AC = ''
+
+    IF R.AC THEN
+        CONSOL.DETS = R.AC<AC.OPEN.ACTUAL.BAL>:'#':R.AC<AC.OPEN.CLEARED.BAL>:'#':R.AC<AC.ONLINE.ACTUAL.BAL>:'#':R.AC<AC.ONLINE.CLEARED.BAL>:'#':R.AC<AC.WORKING.BALANCE>:'#':R.AC<141>:'#':R.AC<AC.ARRANGEMENT.ID>:'#'
+        APPL.ID.LIST = 'ACCOUNT'
+        REC.ID1 = AC.ID
+        PGM.TYPE = 'H'
+        GOSUB T24.OUTPUT.EXTRACTION
+    END
+
+    RETURN
+
+************
+ECB.EXTRACT:
+************
+
+    R.ECB = ''; ECB.DETS= ''; I = ''
+    READ R.ECB FROM F.ECB, AC.ID ELSE R.ECB = ""
+    IF R.ECB THEN
+        ECB.OPEN.BAL = 0; ECB.ONL.BAL = 0
+        OPEN.TYPE = R.ECB<ECB.OPEN.ASSET.TYPE>
+        CHECK.ASSET.TYPES = AC.ASSET.TYPES
+        LOCATE OPEN.TYPE IN AC.ASSET.TYPES<1> SETTING ASSETPOS ELSE
+            CHECK.ASSET.TYPES = AC.ASSET.TYPES:@FM:OPEN.TYPE
+        END
+        IF R.ECB<ECB.TYPE.SYSDATE> THEN
+            CNT = DCOUNT(R.ECB<ECB.TYPE.SYSDATE>, @VM)
+            FOR I = 1 TO CNT
+                TYP = R.ECB<ECB.TYPE.SYSDATE, I>
+                TYP.DATE = FIELD(TYP, '-', 2)
+                TYP = FIELD(TYP, '-', 1)
+                IF TYP AND NOT(NUM(TYP[1,5])) AND TYP[2] NE 'BL' AND TYP[1,4] NE 'CONT' THEN        ;* Ignore accruals and BL types
+                    LOCATE TYP IN CHECK.ASSET.TYPES<1> SETTING ECB.POS THEN     ;* skip AA and TDGL types
+                        IF TYP.DATE EQ '' OR TYP.DATE LT TODAY THEN   ;* Balance till yesterday
+                            ECB.OPEN.BAL = ECB.OPEN.BAL + R.ECB<ECB.OPEN.BALANCE, I> + R.ECB<ECB.CREDIT.MVMT, I> + R.ECB<ECB.DEBIT.MVMT, I>
+                            ECB.ONL.BAL = ECB.ONL.BAL + R.ECB<ECB.OPEN.BALANCE, I> + R.ECB<ECB.CREDIT.MVMT, I> + R.ECB<ECB.DEBIT.MVMT, I>
+                        END ELSE
+                            ECB.ONL.BAL = ECB.ONL.BAL + R.ECB<ECB.OPEN.BALANCE, I> + R.ECB<ECB.CREDIT.MVMT, I> + R.ECB<ECB.DEBIT.MVMT, I>
+                        END
+                    END
+                END
+            NEXT I
+        END
+        CONSOL.DETS:= ECB.OPEN.BAL:'#':ECB.ONL.BAL:'#':R.ECB<ECB.CONSOL.KEY>:'#':OPEN.TYPE:'#'
+
+        APPL.ID.LIST = 'EB.CONTRACT.BALANCES'
+        REC.ID1 = AC.ID
+        PGM.TYPE = 'L'
+        GOSUB T24.OUTPUT.EXTRACTION
+    END
+
+    RETURN
+
+***********
+AS.EXTRACT:
+***********
+
+    R.AS = ''
+    READ R.AS FROM F.AS, AC.ID ELSE R.AS = ""
+    IF R.AS THEN
+        APPL.ID.LIST = 'ACCOUNT.STATEMENT'
+        PGM.TYPE = 'H'
+        REC.ID1 = AC.ID
+        GOSUB T24.OUTPUT.EXTRACTION
+    END
+
+    RETURN
+
+***********
+AA.EXTRACT:
+***********
+
+    MNTHS = ''; MNTH.CNT = ''; J = ''; AA.DETS = '' ; REQ.AA.CONSOL = ''; WRITE.AA.CNT = 0; AA.REC.CNT = ''
+    LAST.BK.BAL = 0; LAST.VAL.BAL = 0
+    CURRENT.DATE = RIGHT(DATE.ID, 2)
+    MNTHS = R.ECB<ECB.ACTIVITY.MONTHS>
+    CONVERT @VM TO @FM IN MNTHS
+    MNTH.CNT = DCOUNT(MNTHS, @FM)
+    AA.DETS = 'ACCT.ACTIVITY.ID#VAL.DAY.NO#TURNOVER.CREDIT#TURNOVER.DEBIT#VAL.DATE.BAL#BK.DAY.NO#BK.CREDIT.MVMT#BK.DEBIT.MVMT#BK.BALANCE'
+
+    FOR J = 1 TO MNTH.CNT
+        AA.ID = ''; R.AA = ''; CNT.BK.DAY.NO = ''; Z = ''; CNT.DAY.NO = ''; K = ''; AA.ID = AC.ID:"-":MNTHS<J>
+        READ R.AA FROM F.AA, AA.ID ELSE R.AA = ''
+        AA.VAL.DAYS = R.AA<IC.ACT.DAY.NO>; CONVERT @VM TO @FM IN AA.VAL.DAYS
+        AA.BK.DAYS = R.AA<IC.ACT.BK.DAY.NO>; CONVERT @VM TO @FM IN AA.BK.DAYS
+        IF R.AA THEN
+            FOR AA.CNT = 1 TO 31
+                AA.VAL.DETS = ''
+                AA.BK.DETS = ''
+                IF AA.CNT LE 9 THEN
+                    AA.CNT = '0':AA.CNT
+                END
+                LOCATE AA.CNT IN AA.VAL.DAYS<1> SETTING K THEN
+                    AA.VAL.DETS<AA.CNT> = AA.ID:'#':R.AA<IC.ACT.DAY.NO,K>:'#':R.AA<IC.ACT.TURNOVER.CREDIT,K>:'#':R.AA<IC.ACT.TURNOVER.DEBIT,K>:'#':R.AA<IC.ACT.BALANCE,K>
+                    LAST.VAL.BAL = R.AA<IC.ACT.BALANCE,K>
+                END ELSE
+                    AA.VAL.DETS<AA.CNT> = AA.ID:'#':R.NULL:'#':R.NULL:'#':R.NULL:'#':R.NULL
+                END
+
+                LOCATE AA.CNT IN AA.BK.DAYS<1> SETTING AA.POS THEN
+                    AA.BK.DETS<AA.CNT> = R.AA<IC.ACT.BK.DAY.NO,AA.POS>:'#':R.AA<IC.ACT.BK.CREDIT.MVMT,AA.POS>:'#':R.AA<IC.ACT.BK.DEBIT.MVMT,AA.POS>:'#':R.AA<IC.ACT.BK.BALANCE,AA.POS>
+                    LAST.BK.BAL = R.AA<IC.ACT.BK.BALANCE,AA.POS>
+                END ELSE
+                    AA.BK.DETS<AA.CNT> = R.NULL:'#':R.NULL:'#':R.NULL:'#':R.NULL
+                END
+
+                IF FIELD(AA.VAL.DETS<AA.CNT>,'#',2) NE '' OR FIELD(AA.BK.DETS<AA.CNT>,'#',1) NE '' THEN
+                    AA.DETS<-1> = AA.VAL.DETS<AA.CNT> :'#': AA.BK.DETS<AA.CNT>
+                    WRITE.AA.CNT = WRITE.AA.CNT+1
+                    IF WRITE.AA.CNT = 50000 THEN
+                        GOSUB WRITE.AA.RECS
+                    END
+                END
+            NEXT AA.CNT
+        END
+    NEXT J
+
+    LAST.VAL.BAL = LAST.VAL.BAL - TOTAL.ENT.TODAY.AMT + TODAY.AMT     ;* to compare with Online actual BAL
+    LAST.BK.BAL = LAST.BK.BAL - TOTAL.ENT.TODAY.AMT + TODAY.AMT       ;* to compare with Online actual BAL
+    CONSOL.DETS := LAST.VAL.BAL:'#':LAST.BK.BAL:'#'
+    GOSUB WRITE.AA.RECS
+    APPL.ID.LIST = 'ACCT.ACTIVITY'
+    REC.ID1 = AA.ID
+    PGM.TYPE = 'L'
+    GOSUB T24.OUTPUT.EXTRACTION
+
+    RETURN
+
+**************
+WRITE.AA.RECS:
+**************
+
+    AA.REC.CNT = AA.REC.CNT+1
+    WRITE AA.DETS TO F.BP, AC.ID:'_ACCT_ACTIVITY_LISTINGS_':AA.REC.CNT:'_':TODAY
+    AA.DETS = ''; WRITE.AA.CNT = 0
+
+    RETURN
+
+***********
+SP.EXTRACT:
+***********
+
+    SP.BAL = 0; ENT.CNT = 0; WRITE.CNT = 0
+    STMT.DATES = FIELDS(R.ASP,"/",1,1)
+    STMT.BALS = FIELDS(R.ASP,"/",2,1)
+    NEXT.DATE.NO = DCOUNT(STMT.DATES,@FM)
+    LAST.ASP.REC = R.ASP<NEXT.DATE.NO>
+    WRITE.FLAG = "ENTRY_LISTINGS"
+
+    ST.POS = 1
+    SP.BAL = STMT.BALS<1> + 0 ;* Archive amount
+    IF START.DATE THEN
+        LOCATE START.DATE IN STMT.DATES<1> BY "AR" SETTING ASP.POS ELSE NULL
+        ST.POS = ASP.POS
+        IF ST.POS GT NEXT.DATE.NO THEN ST.POS = NEXT.DATE.NO
+        SP.BAL = STMT.BALS<ST.POS> + 0
+    END
+
+    ENT.DETS = 'ENT.ID#TRANS.REF#ACCOUNT.NUMBER#CURRENCY#TRANSACTION.CODE#BOOKING.DATE#VALUE.DATE#PROCESSING.DATE#EXPOSURE.DATE#REVERSAL.MARKER#SUSPENSE.CATEGORY#AMOUNT.LCY#AMOUNT.FCY#CONSOL.KEY#CRF.TYPE#COMPANY.CODE#SYSTEM.ID#DATE.TIME#AUTHORISER'
+    FOR I = ST.POS TO NEXT.DATE.NO
+        R.SP = ''; R.FWD.SP = ''; X = '';
+        SP.ID = AC.ID:"-":STMT.DATES<I>
+        READ R.SP FROM F.SP, SP.ID ELSE R.SP = ''
+        CNT.STMT = DCOUNT(R.SP,@FM)
+        READ R.FWD.SP FROM F.FWD.SP, SP.ID ELSE R.FWD.SP = ''
+        IF R.FWD.SP THEN
+            R.SP<-1> = R.FWD.SP
+        END
+        FOR X = 1 TO CNT.STMT
+            STMT.ID = ''; R.SE = ''; STMT.ID = R.SP<X>
+            READ R.SE FROM F.SE,STMT.ID ELSE R.SE = ''
+            IF R.SE THEN
+                ENT.DETS<-1> = STMT.ID:'#':R.SE<AC.STE.TRANS.REFERENCE>:'#':R.SE<AC.STE.ACCOUNT.NUMBER>:'#':R.SE<AC.STE.CURRENCY>:'#':R.SE<AC.STE.TRANSACTION.CODE>:'#':R.SE<AC.STE.BOOKING.DATE>:'#':R.SE<AC.STE.VALUE.DATE>:'#':R.SE<AC.STE.PROCESSING.DATE>:'#':R.SE<AC.STE.EXPOSURE.DATE>:'#':R.SE<AC.STE.REVERSAL.MARKER>:'#':R.SE<AC.STE.SUSPENSE.CATEGORY>:'#':R.SE<AC.STE.AMOUNT.LCY>:'#':R.SE<AC.STE.AMOUNT.FCY>:'#':R.SE<AC.STE.CONSOL.KEY>:'#':R.SE<AC.STE.CRF.TYPE>:'#':R.SE<AC.STE.COMPANY.CODE>:'#':R.SE<AC.STE.SYSTEM.ID>:'#':R.SE<AC.STE.DATE.TIME>:'#':R.SE<AC.STE.AUTHORISER>
+
+                ENT.CNT = ENT.CNT+1
+                IF ENT.CNT = 50000 THEN
+                    GOSUB WRITE.ENTRIES
+                END
+                IF NOT(R.SE<AC.STE.SUSPENSE.CATEGORY>) OR (R.SE<AC.STE.SUSPENSE.CATEGORY> AND R.SE<AC.STE.PROCESSING.DATE> LE R.DATES(EB.DAT.PERIOD.END)) THEN
+                    IF R.SE<AC.STE.CURRENCY> NE LCCY THEN
+                        SP.BAL += R.SE<AC.STE.AMOUNT.FCY>
+                    END ELSE
+                        SP.BAL += R.SE<AC.STE.AMOUNT.LCY>
+                    END
+                END
+            END
+        NEXT X
+        CRT ''
+    NEXT I
+
+    IF ENT.DETS THEN GOSUB WRITE.ENTRIES
+    CONSOL.DETS:= SP.BAL:'#'
+
+    RETURN
+
+**************
+WRITE.ENTRIES:
+**************
+
+    WRITE.CNT = WRITE.CNT+1
+    WRITE ENT.DETS TO F.BP, AC.ID:'_':WRITE.FLAG:'_':WRITE.CNT:'_':TODAY
+    ENT.DETS = ''; ENT.CNT = ''
+
+    RETURN
+
+**************
+GET.TODAY.ENT:
+**************
+
+    R.NULL = ''; TODAY.AMT = 0; TOTAL.ENT.TODAY.AMT = 0
+    IF USE.ACCT.ENT.TODAY EQ 1 THEN
+        R.AET = ''
+        READ R.AET FROM F.AET, AC.ID ELSE R.AET = ''
+        CNT.STMT = DCOUNT(R.AET, @FM)
+        FOR X = 1 TO CNT.STMT
+            STMT.ID = R.AET<X>
+            READ R.SE FROM F.SE, STMT.ID ELSE R.SE = ''
+            IF R.SE<AC.STE.CURRENCY> NE LCCY THEN
+                ENT.AMT = R.SE<AC.STE.AMOUNT.FCY>
+            END ELSE
+                ENT.AMT = R.SE<AC.STE.AMOUNT.LCY>
+            END
+            TOTAL.ENT.TODAY.AMT += ENT.AMT
+            IF NOT(R.SE<AC.STE.SUSPENSE.CATEGORY>) OR (R.SE<AC.STE.SUSPENSE.CATEGORY> AND R.SE<AC.STE.PROCESSING.DATE> LE R.DATES(EB.DAT.PERIOD.END)) THEN
+                TODAY.AMT += ENT.AMT
+            END
+        NEXT X
+    END ELSE
+        R.ASP = ''; ASP.DATES = ''
+        READ R.ASP FROM F.ASP, AC.ID ELSE R.ASP = ''
+        ASP.DATES = FIELDS(R.ASP, '/', 1, 1)
+        NEXT.DATE.NO = DCOUNT(ASP.DATES, @FM)
+        LOCATE TODAY IN ASP.DATES<1> BY "AR" SETTING APOS ELSE NULL
+        FOR I = 1 TO NEXT.DATE.NO
+            SP.ID = AC.ID:"-":ASP.DATES<I>
+            R.SP = ''
+            READ R.SP FROM F.SP, SP.ID ELSE R.SP = ''
+            CNT.STMT = DCOUNT(R.SP,@FM)
+            FOR X = 1 TO CNT.STMT
+                STMT.ID = R.SP<X>
+                READ R.SE FROM F.SE, STMT.ID ELSE R.SE = ''
+                PROC.DATE = R.SE<AC.STE.PROCESSING.DATE>
+                IF NOT(PROC.DATE) THEN PROC.DATE = R.SE<AC.STE.BOOKING.DATE>
+                IF PROC.DATE GE TODAY THEN        ;* Only entries Booked today or with Gt processing date
+                    IF R.SE<AC.STE.CURRENCY> NE LCCY THEN
+                        ENT.AMT = R.SE<AC.STE.AMOUNT.FCY>
+                    END ELSE
+                        ENT.AMT = R.SE<AC.STE.AMOUNT.LCY>
+                    END
+                    TOTAL.ENT.TODAY.AMT += ENT.AMT
+                    IF NOT(R.SE<AC.STE.SUSPENSE.CATEGORY>) OR (R.SE<AC.STE.SUSPENSE.CATEGORY> AND R.SE<AC.STE.PROCESSING.DATE> LE R.DATES(EB.DAT.PERIOD.END)) THEN
+                        TODAY.AMT += ENT.AMT
+                    END
+                END
+            NEXT X
+        NEXT I
+    END
+    CONSOL.DETS:= TOTAL.ENT.TODAY.AMT:'#':TODAY.AMT:'#'
+
+    RETURN
+
+************
+ASP.EXTRACT:
+************
+
+    R.ASP = ''
+    READ R.ASP FROM F.ASP, AC.ID ELSE R.ASP = ''
+    IF R.ASP THEN
+        APPL.ID.LIST = 'ACCT.STMT.PRINT'
+        REC.ID1 = AC.ID
+        PGM.TYPE = 'T'
+        GOSUB T24.OUTPUT.EXTRACTION
+    END
+
+    RETURN
+
+*****************
+GET.INTERCO.DETS:
+*****************
+
+    IF EXTRACTED = 1 THEN
+        RETURN
+    END
+    ELSE
+        APPL.ID.LIST = 'INTERCO.PARAMETER'
+        REC.ID1 = 'SYSTEM'
+        PGM.TYPE = 'H'
+        GOSUB T24.OUTPUT.EXTRACTION
+    END
+
+    RETURN
+
+************
+GET.AP.DETS:
+************
+
+    IF EXTRACTED = 1 THEN
+        RETURN
+    END
+    ELSE
+        AP.ID = 'SYSTEM' ; R.AP = ""
+        READ R.AP FROM F.AP, AP.ID ELSE R.AP = ""
+        IF R.AP THEN
+            APPL.ID.LIST = 'ACCOUNT.PARAMETER'
+            REC.ID1 = 'SYSTEM'
+            PGM.TYPE = 'H'
+            GOSUB T24.OUTPUT.EXTRACTION
+        END
+    END
+    RETURN
+
+*********************
+EXTRACT.ESS.LISTINGS:
+*********************
+
+    REQ.DATE = ''; J = ''; I = ''; GL.BRANCH.BASED.EXTRACT = ''; REQ.ESS.ARR.ID = ''
+
+    IF EXTRACTED = 1 THEN
+        RETURN
+    END
+    ELSE
+        ESS = 'ID#AL.CCY.MKT#AL.CCY#AL.CCY.BAL.AMT#AL.LCL.BAL#AL.CCY.POSN#AL.LCL.POS#AL.CCY.EXCEP#AL.LCY.EXCEP#AL.TOTAL.LCY#PL.TOTAL.LCY#EXCEPT.AMT.LCY'
+        EJS = '@ID|NON.CONT.APP|NC.DEBIT.TOT|NC.CREDIT.TOT|NON.CONT.TOT|NON.CONT.BALANCE'
+        SEL.CMD = 'SSELECT ':FN.ESS
+        CALL EB.READLIST(SEL.CMD, SEL.LIST, "", NO.OF.REC, SEL.ERR)
+
+        IF GL.START.DATE OR GL.BRANCH.LIST THEN
+            REQ.ESS.ID.CNT = DCOUNT(SEL.LIST, @FM)
+            FOR K = 1 TO REQ.ESS.ID.CNT
+                CHECKING.ID = SEL.LIST<K>
+                CHECK.ESS.COMPANY = FIELD(CHECKING.ID,'-',1)
+                CHECK.ESS.DATE = FIELD(CHECKING.ID,'-',2)
+                IF GL.START.DATE THEN
+                    IF CHECK.ESS.DATE LT GL.START.DATE THEN
+                        CONTINUE
+                    END
+                END
+                IF GL.BRANCH.LIST THEN
+                    LOCATE CHECK.ESS.COMPANY IN GL.BRANCH.LIST<1> SETTING CHECK.ESS.COMP.POS ELSE
+                        CONTINUE
+                    END
+                END
+                REQ.ESS.ARR.ID<-1> = CHECKING.ID
+            NEXT K
+        END ELSE
+            REQ.ESS.ARR.ID = SEL.LIST
+        END
+
+        ESS.CNT = DCOUNT(REQ.ESS.ARR.ID, @FM)
+        FOR K = ESS.CNT TO 1 STEP -1
+            ESS.ID = REQ.ESS.ARR.ID<K>
+            READ R.REC FROM F.ESS, ESS.ID ELSE
+                CRT "Missing record ":ESS.ID:"in " : FN.ESS
+                R.REC = ""
+            END
+            NO.OF.VAL = '' ; R.NULL = ''
+            NO.OF.VAL = DCOUNT(R.REC<EB.SYSUM.AL.CCY.MKT>,@VM)
+            FOR J = 1 TO NO.OF.VAL
+                IF J EQ 1 THEN
+                    ESS<-1> = ESS.ID :'#':R.REC<EB.SYSUM.AL.CCY.MKT,J>:'#':R.REC<EB.SYSUM.AL.CCY,J>:'#':R.REC<EB.SYSUM.AL.CCY.BAL.AMT,J>:'#':R.REC<EB.SYSUM.AL.LCL.BAL,J>:'#':R.REC<EB.SYSUM.AL.CCY.POSN,J>:'#':R.REC<EB.SYSUM.AL.LCL.POS,J>:'#':R.REC<EB.SYSUM.AL.CCY.EXCEP,J>:'#':R.REC<EB.SYSUM.AL.LCY.EXCEP,J>:'#':R.REC<EB.SYSUM.AL.TOTAL.LCY>:'#':R.REC<EB.SYSUM.PL.TOTAL.LCY>:'#':R.REC<EB.SYSUM.EXCEPT.AMT.LCY> ;
+                END ELSE
+                    ESS<-1> = ESS.ID :'#':R.REC<EB.SYSUM.AL.CCY.MKT,J>:'#':R.REC<EB.SYSUM.AL.CCY,J>:'#':R.REC<EB.SYSUM.AL.CCY.BAL.AMT,J>:'#':R.REC<EB.SYSUM.AL.LCL.BAL,J>:'#':R.REC<EB.SYSUM.AL.CCY.POSN,J>:'#':R.REC<EB.SYSUM.AL.LCL.POS,J>:'#':R.REC<EB.SYSUM.AL.CCY.EXCEP,J>:'#':R.REC<EB.SYSUM.AL.LCY.EXCEP,J>:'#':R.NULL:'#':R.NULL:'#':R.NULL
+                END
+            NEXT J
+
+            READ R.REC FROM F.EJS, ESS.ID ELSE
+                CRT "Missing record ":ESS.ID:"in " : FN.EJS
+                R.REC = ""
+            END
+            NO.OF.VAL = '' ; R.NULL = ''
+            NO.OF.VAL = DCOUNT(R.REC<EB.JS.NON.CONT.APP>,@VM)
+            FOR J = 1 TO NO.OF.VAL
+                IF J EQ 1 THEN
+                    EJS<-1> = ESS.ID :'|':R.REC<EB.JS.NON.CONT.APP,J>:'|':R.REC<EB.JS.NC.DEBIT.TOT,J>:'|':R.REC<EB.JS.NC.CREDIT.TOT,J>:'|':R.REC<EB.JS.NON.CONT.TOT,J>:'|':R.REC<EB.JS.NON.CONT.BALANCE> ;
+                END ELSE
+                    EJS<-1> = ESS.ID :'|':R.REC<EB.JS.NON.CONT.APP,J>:'|':R.REC<EB.JS.NC.DEBIT.TOT,J>:'|':R.REC<EB.JS.NC.CREDIT.TOT,J>:'|':R.REC<EB.JS.NON.CONT.TOT,J>:'|':R.NULL ;
+                END
+            NEXT J
+
+        NEXT K
+        WRITE ESS TO F.BP, 'ESS_LISTINGS_':TODAY
+        WRITE EJS TO F.BP, 'EJS_LISTINGS_':TODAY
+    END
+
+    RETURN
+
+***********************
+ENTRY.HOLD.BAL.EXTRACT:
+***********************
+
+    ENT.HLD.AMT = 0
+    LOCATE AC.ID IN ENT.HOLD.ACC<1> SETTING HLD.POS THEN
+        ENT.HLD.AMT = ENT.HOLD.AMT<HLD.POS>
+    END
+    CONSOL.DETS := ENT.HLD.AMT
+
+    RETURN
+
+**********************
+T24.OUTPUT.EXTRACTION:
+**********************
+
+    APPLICATION = APPL.ID.LIST
+    SAVE.PGM.TYPE = PGM.TYPE
+    REC.ID = REC.ID1
+    V$FUNCTION = 'GET.PARAM'
+    CALL EB.EXECUTE.APPLICATION(APPLICATION)
+
+    CALL MATRIX.UPDATE
+    LOOP
+        V$FUNCTION = 'P'      ;* Set it to NULL
+        REMOVE INPUT.BUFFER FROM REC.ID SETTING ID.ERR      ;* Record ID
+    WHILE INPUT.BUFFER:ID.ERR
+
+        CALL RECORDID.INPUT
+
+        IF E THEN
+            ETEXT = E
+            RETURN
+        END
+
+        HUSH ON ; CALL RECORD.READ ; HUSH OFF
+
+        CALL MATRIX.ALTER
+
+        GOSUB PRINT.RECORD
+    REPEAT
+
+    RETURN
+
+
+*************
+PRINT.RECORD:
+*************
+
+    IF ETEXT THEN
+        RETURN
+    END
+
+    CALL PRINTER.ON('P.FUNCTION',0)
+    PRINT
+    PRINT "==============================================="
+    PRINT APPLICATION
+    PRINT "==============================================="
+    CALL PRINTER.OFF
+
+    IF PGM.TYPE[1,1] EQ 'T' THEN
+        CALL TABLE.DISPLAY
+    END ELSE
+        CALL FIELD.DISPLAY
+    END
+
+    RETURN
+
+*****************
+WRITE.OUT.RECORD:
+*****************
+
+    HLD.ID = C$RPT.IN.HOLD.ID<1>        ;* HOLD ID Generated
+
+    CALL PRINTER.CLOSE('P.FUNCTION',0,OPERATOR)
+
+    IF TRIM(HLD.ID) = '' THEN
+        RETURN      ;* Nothing to do
+    END
+
+    READ R.HOLD FROM F.HLD,HLD.ID ELSE
+        RETURN      ;* Nothing to do
+    END
+
+    ARRAY<-1> = ' '
+    ARRAY<-1> = ' ========================================================================'
+    ARRAY<-1> = ' '
+    LOOP
+        REMOVE CONT FROM R.HOLD SETTING CONT.POS
+    WHILE CONT:CONT.POS DO
+        BEGIN CASE
+        CASE INDEX(CONT,CHARX(12),1)    ;* line feed
+            IF CONT[1,1] NE CHARX(12) THEN
+                ARRAY<-1> = CONT[1,INDEX(CONT,CHARX(12),1)-1]
+            END
+        CASE INDEX(CONT,'Page',1)
+        CASE TRIM(CONT[1,4]) = 'Area'
+        CASE TRIM(CONT[1,2]) = 'To'
+        CASE 1
+            ARRAY<-1> = CONT
+        END CASE
+
+    REPEAT
+
+    DELETE F.HLD, HLD.ID
+
+    IF ARRAY THEN
+        GOSUB FLUSH.RECORD
+    END
+
+    RETURN
+
+*************
+FLUSH.RECORD:
+*************
+
+    IF WRITE.PARAM =1 THEN
+        ID.WRITE = 'PARAMETER_FILES_FULL_VIEW_':TODAY
+        WRITE.PARAM = 0
+    END ELSE
+        ID.WRITE = AC.ID:'.DETAILS.WITH.FULL.VIEWS.':TODAY
+    END
+    WRITE ARRAY TO F.BP, ID.WRITE
+    ARRAY = ''
+
+    RETURN
+
+*************
+GET.AEF.DETS:
+*************
+
+    ENT.AMT = 0; ENT.CNT = 0; WRITE.CNT = 0
+    WRITE.FLAG = "FWD_ENTRY_LISTINGS"
+    ENT.DETS = 'ENT.ID#TRANS.REF#ACCOUNT.NUMBER#CURRENCY#TRANSACTION.CODE#BOOKING.DATE#VALUE.DATE#CYCLE.FORWARD#AMOUNT.LCY#AMOUNT.FCY#CONSOL.KEY#CRF.TYPE#COMPANY#SYSTEM.ID#DATE.TIME#AUTHORISER'
+    R.AEF = ''; TOTAL.ENT.FWD.AMT = 0
+    READ R.AEF FROM F.AEF, AC.ID ELSE R.AEF = ''
+    CNT.AEF = DCOUNT(R.AEF, @FM)
+    FOR X = 1 TO CNT.AEF
+        STMT.ID = R.AEF<X>
+        READ R.SE FROM F.SE, STMT.ID ELSE R.SE = ''
+        IF R.SE<AC.STE.CURRENCY> NE LCCY THEN
+            ENT.AMT = R.SE<AC.STE.AMOUNT.FCY>
+        END ELSE
+            ENT.AMT = R.SE<AC.STE.AMOUNT.LCY>
+        END
+        ENT.DETS<-1> = STMT.ID:'#':R.SE<AC.STE.TRANS.REFERENCE>:'#':R.SE<AC.STE.ACCOUNT.NUMBER>:'#':R.SE<AC.STE.CURRENCY>:'#':R.SE<AC.STE.TRANSACTION.CODE>:'#':R.SE<AC.STE.BOOKING.DATE>:'#':R.SE<AC.STE.VALUE.DATE>:'#':R.SE<AC.STE.CYCLE.FORWARD>:'#':R.SE<AC.STE.AMOUNT.LCY>:'#':R.SE<AC.STE.AMOUNT.FCY>:'#':R.SE<AC.STE.CONSOL.KEY>:'#':R.SE<AC.STE.CRF.TYPE>:'#':R.SE<AC.STE.COMPANY.CODE>:'#':R.SE<AC.STE.SYSTEM.ID>:'#':R.SE<AC.STE.DATE.TIME>:'#':R.SE<AC.STE.AUTHORISER>
+        ENT.CNT = ENT.CNT + 1
+        IF ENT.CNT = 50000 THEN
+            GOSUB WRITE.ENTRIES
+        END
+        TOTAL.ENT.FWD.AMT += ENT.AMT
+    NEXT X
+    IF ENT.DETS THEN GOSUB WRITE.ENTRIES
+    CONSOL.DETS := TOTAL.ENT.FWD.AMT:'#'
+
+    RETURN
+
+******************
+DATE.EXPOSURE.REC:
+******************
+
+    EXPOSE.DATES = ''; MNTH.CNT = ''; J = ''; DATE.EXPOSURE.RECORD = '';
+    ENT.CNT = 0; WRITE.CNT = 0
+    WRITE.FLAG = "DATE_EXPOSURE_LIST"
+    EXPOSE.DATES = R.ECB<ECB.EXPOSURE.DATES>
+    CONVERT @VM TO @FM IN EXPOSE.DATES
+    EXPSE.CNT = DCOUNT(EXPOSE.DATES, @FM)
+    ENT.DETS = 'ENT.ID#TRANS.REF#ACCOUNT.NUMBER#CURRENCY#TRANSACTION.CODE#BOOKING.DATE#VALUE.DATE#PROCESSING.DATE#EXPOSURE.DATE#REVERSAL.MARKER#SUSPENSE.CATEGORY#AMOUNT.LCY#AMOUNT.FCY#CONSOL.KEY#CRF.TYPE#COMPANY.CODE#SYSTEM.ID#DATE.TIME#AUTHORISER'
+
+    FOR J = 1 TO EXPSE.CNT
+        DER.ID = ''; R.DER = ''; K = ''; DER.ID = AC.ID:"-":EXPOSE.DATES<J>
+        READ R.DER FROM F.DER, DER.ID ELSE R.DER = ''
+        IF R.DER THEN
+            DER.CNT = DCOUNT(R.DER, @FM)
+            FOR I = 1 TO DER.CNT
+                STMT.ID = R.DER<I>
+                READ R.SE FROM F.SE, STMT.ID ELSE R.SE = ''
+                ENT.DETS<-1> = STMT.ID:'#':R.SE<AC.STE.TRANS.REFERENCE>:'#':R.SE<AC.STE.ACCOUNT.NUMBER>:'#':R.SE<AC.STE.CURRENCY>:'#':R.SE<AC.STE.TRANSACTION.CODE>:'#':R.SE<AC.STE.BOOKING.DATE>:'#':R.SE<AC.STE.VALUE.DATE>:'#':R.SE<AC.STE.PROCESSING.DATE>:'#':R.SE<AC.STE.EXPOSURE.DATE>:'#':R.SE<AC.STE.REVERSAL.MARKER>:'#':R.SE<AC.STE.SUSPENSE.CATEGORY>:'#':R.SE<AC.STE.AMOUNT.LCY>:'#':R.SE<AC.STE.AMOUNT.FCY>:'#':R.SE<AC.STE.CONSOL.KEY>:'#':R.SE<AC.STE.CRF.TYPE>:'#':R.SE<AC.STE.COMPANY.CODE>:'#':R.SE<AC.STE.SYSTEM.ID>:'#':R.SE<AC.STE.DATE.TIME>:'#':R.SE<AC.STE.AUTHORISER>
+                ENT.CNT = ENT.CNT+1
+                IF ENT.CNT = 50000 THEN
+                    GOSUB WRITE.ENTRIES
+                END
+            NEXT I
+        END
+    NEXT J
+    IF ENT.DETS THEN GOSUB WRITE.ENTRIES
+
+    RETURN
+
+*******************
+FLUSH.OUT.OLD.RECS:
+*******************
+
+    CLEARFILE F.BP
+
+    RETURN
+
+***********
+INITIALISE:
+***********
+
+    CRT @SENTENCE
+    INIT.SENTENCE = TRIM(@SENTENCE["-",1,1])
+    IN.DATA = INIT.SENTENCE[" ",2,1]
+    IN.USER = FIELD(IN.DATA, "*", 2)
+    IN.COMP = FIELD(IN.DATA, "*", 3)
+    PACS.ID = FIELD(IN.DATA, "*", 1)
+    PHNO = 1        ;* Tell OVERLAY.EX we're a phantom
+    R.SPF.SYSTEM<SPF.CACHE.EXPIRY> = "" ;* No cache expiry for service
+    CALL OVERLAY.EX
+    CALL LOAD.COMPANY(IN.COMP)
+    CALL S.BATCH.SIGN.ON('', IN.USER)
+    ARRAY = ''
+    MAT R.VERSION = ''
+
+    RETURN
+
+END

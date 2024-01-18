@@ -1,0 +1,99 @@
+* <Rating>-63</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.UPD.AZ.MAT.AMT.FOR.NOM(Y.ID)
+*-----------------------------------------------------------------------------
+*
+* NAME: JBL.B.UPD.AZ.MAT.AMT.FOR.NOM
+*
+* PROGRAMMER: Leelavathi R/ Rashmitha M
+*
+* DESCRIPTION:The Purpose of this Routine is to update the table EB.BD.EXCISE.DUTY with AZ.MAT.AMT for nominated accts
+*
+* TECHNICAL DESCRIPTION:
+*
+* Incoming Parameter(s): Y.ID - holds AZ ID * AZ MAT DATE* NOM ACT
+* Outgoing Parameter(s):None
+* CHANGE REQUEST / DEVELOPMENT REF:
+* CALLED BY:
+* CALLS:
+* CHANGE HISTORY:
+*-----------------------------------------------------------------------------
+*
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.AZ.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.AZ.SCHEDULES.HIST
+    $INCLUDE JBL.BP I_JBL.B.UPD.AZ.MAT.AMT.FOR.NOM.COMMON
+    $INCLUDE JBL.BP I_F.EB.BD.EXCISE.DUTY
+    $INCLUDE JBL.BP I_F.EB.JBL.AZ.MAT.LIST
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+*----------------------------------------------------------------------------
+INIT:
+*****
+! Initialise
+    R.AZ.ACCOUNT=''
+    AZ.ACCOUNT.ERR=''
+    R.AZ.SCHEDULES.HIST=''
+    AZ.SCHEDULES.HIST.ERR=''
+    MAT.DATE.POS=''
+
+    RETURN
+*----------------------------------------------------------------------------
+PROCESS:
+*------
+! Process
+    Y.AZ.ID=FIELD(Y.ID,'*',1,1)
+    Y.MAT.DATE=FIELD(Y.ID,'*',2,1)
+    Y.NOM.ID=FIELD(Y.ID,'*',3,1)
+    GOSUB GET.AZ.FIN.MAT.AMT
+
+    RETURN
+*---------------------------------------------------------------------------
+GET.AZ.FIN.MAT.AMT:
+*------------------
+! Get AZ final maturity amount
+    CALL F.READ(FN.AZ.ACCOUNT,Y.AZ.ID,R.AZ.ACCOUNT,F.AZ.ACCOUNT,AZ.ACCOUNT.ERR)
+    IF NOT(R.AZ.ACCOUNT) THEN
+        Y.AZ.SCHEDULES.HIST.ID=Y.AZ.ID:'-':Y.MAT.DATE:'-1'
+        CALL F.READ(FN.AZ.SCHEDULES.HIST,Y.AZ.SCHEDULES.HIST.ID,R.AZ.SCHEDULES.HIST,F.AZ.SCHEDULES.HIST,AZ.SCHEDULES.HIST.ERR)
+        IF NOT(R.AZ.SCHEDULES.HIST) THEN
+            RETURN
+        END
+        Y.DATE= R.AZ.SCHEDULES.HIST<AZ.HIS.DATE>
+        CONVERT VM TO FM IN Y.DATE
+        LOCATE Y.MAT.DATE IN Y.DATE SETTING MAT.DATE.POS THEN
+            Y.AZ.MAT.AMT=R.AZ.SCHEDULES.HIST<AZ.HIS.TOT.REPAY.AMT,MAT.DATE.POS>
+        END ELSE
+            RETURN
+        END
+        GOSUB READ.EB.BD.EXCISE.DUTY
+        IF NOT(R.EB.BD.EXCISE.DUTY) THEN
+            RETURN
+        END
+        R.EB.BD.EXCISE.DUTY<EB.BD.46.AZ.MAT.AMT,DCOUNT(R.EB.BD.EXCISE.DUTY<EB.BD.46.AZ.MAT.AMT>,VM)+1>=Y.AZ.MAT.AMT
+        R.EB.BD.EXCISE.DUTY<EB.BD.46.AZ.MAT.DATE,DCOUNT(R.EB.BD.EXCISE.DUTY<EB.BD.46.AZ.MAT.DATE>,VM)+1>=Y.MAT.DATE
+        GOSUB WRITE.EB.BD.EXCISE.DUTY
+    END
+
+    RETURN
+*-------------------------------------------------------------------------
+READ.EB.BD.EXCISE.DUTY:
+***********************
+! Read EB.BD.EXCISE.DUTY
+    Y.EB.BD.EXCISE.DUTY.ID=Y.NOM.ID:'-':(TODAY[1,4])
+    CALL F.READ(FN.EB.BD.EXCISE.DUTY,Y.EB.BD.EXCISE.DUTY.ID,R.EB.BD.EXCISE.DUTY,F.EB.BD.EXCISE.DUTY,EB.BD.EXCISE.DUTY.ERR)
+
+    RETURN
+*-------------------------------------------------------------------------
+WRITE.EB.BD.EXCISE.DUTY:
+************************
+! Update EB.BD.EXCISE.DUTY
+    CALL F.WRITE(FN.EB.BD.EXCISE.DUTY,Y.EB.BD.EXCISE.DUTY.ID,R.EB.BD.EXCISE.DUTY)
+
+    RETURN
+*---------------------------------------------------------------------------
+END

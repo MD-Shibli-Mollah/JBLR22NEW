@@ -1,0 +1,176 @@
+*-----------------------------------------------------------------------------
+* <Rating>2012</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PACS.ACTIVITY.CORR
+*-------------------------------------------------------------------------------
+* Routine to correction ACCT.ACTIVITY
+*
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCT.ACTIVITY
+    $INSERT GLOBUS.BP I_F.EB.CONTRACT.BALANCES
+
+    EXECUTE "COMO ON PACS.ACTIVITY.CORR"
+
+    GOSUB INITIALISE
+
+*SEL.CMD = 'GET.LIST AC.COR'
+*CALL EB.READLIST(SEL.CMD, SEL.LIST,' ',NOR,YERR)
+ * READ SEL.LIST FROM FN.SL,'AC.COR' ELSE
+        SEL.LIST="0100003244088#-7200#20160604#20160604#0#-7200#"
+   * END
+
+    LOOP
+        REMOVE TEMP.ID FROM SEL.LIST SETTING POS
+
+    WHILE TEMP.ID:POS
+        ACC.NO= ""; DIFF= ""; BK.DATE =""; VAL.DATE =""
+        ACC.NO = FIELD(TEMP.ID,"#", 1)  ;*Extract the ACCOUNT NUMBER
+        DIFF = FIELD(TEMP.ID,"#", 2)    ;*Extract the Difference Amount
+        BK.DATE = FIELD(TEMP.ID,"#", 3) ;*Extract the BOOKING DATE
+        VAL.DATE = FIELD(TEMP.ID,"#", 4)          ;*Extract the VALUE DATE
+        TO.CR=FIELD(TEMP.ID,"#", 5)     ;*Turn Over Credit difference amount
+        TO.DR=FIELD(TEMP.ID,"#", 6)     ;*Turn Over Debit difference amount
+
+        GOSUB PROCESS
+
+    REPEAT
+
+    EXECUTE "COMO OFF PACS.ACTIVITY.CORR"
+
+    RETURN
+
+*-------------------------------------------------------------------------------
+INITIALISE:
+
+
+    FN.ACCT.ACTIVITY = 'F.ACCT.ACTIVITY'
+    F.ACCT.ACTIVITY = ''
+    CALL OPF(FN.ACCT.ACTIVITY,F.ACCT.ACTIVITY)
+
+    FN.ECB = 'F.EB.CONTRACT.BALANCES'
+    F.ECB = ''
+    CALL OPF(FN.ECB,F.ECB)
+
+    F.SL = '&SAVEDLISTS&'; FN.SL = ''
+    OPEN F.SL TO FN.SL ELSE
+        CRT 'Unable to open ':F.SL
+        STOP
+    END
+
+    RETURN
+
+PROCESS:
+    CRT 'Processing Account ':ACC.NO
+    AC.ID=ACC.NO
+    B.DATE=BK.DATE
+    V.DATE=VAL.DATE
+    V.DAY.NO=V.DATE[7,2]
+    V.DAY.NO=FMT(V.DAY.NO,"2'0'R")
+    B.DAY.NO=B.DATE[7,2]
+    B.DAY.NO=FMT(B.DAY.NO,"2'0'R")
+    AMT=DIFF
+    YRMTH=B.DATE[1,6]
+
+    R.ACCT.ACCT=""; CNT=""; POS=""
+    READU R.ECB FROM F.ECB,AC.ID ELSE R.ECB=""
+    R.ACCT.ACCT = R.ECB<ECB.ACTIVITY.MONTHS>
+    R.ACCT.ACCT = RAISE(R.ACCT.ACCT)
+    CNT=DCOUNT(R.ACCT.ACCT,@FM)
+    LOCATE YRMTH IN R.ACCT.ACCT<1> BY "AR" SETTING POS ELSE NULL
+
+    FOR X=POS TO CNT
+        ACTIV.ID=AC.ID:"-":R.ACCT.ACCT<X>
+        R.ACCT.ACTIV=""; V.CNT=""; B.CNT=""
+        READU R.ACCT.ACTIV FROM F.ACCT.ACTIVITY,ACTIV.ID ELSE R.ACCT.ACTIV=""
+        IF R.ACCT.ACTIV THEN
+            V.CNT = DCOUNT(R.ACCT.ACTIV<IC.ACT.DAY.NO>,@VM)
+            B.CNT = DCOUNT(R.ACCT.ACTIV<IC.ACT.BK.DAY.NO>,@VM)
+            IF V.DATE EQ '' THEN GOTO BK.PROCESS
+            IF VAL.DATE THEN  ;*To process value dated balance
+                FOR J=1 TO V.CNT
+                    IF R.ACCT.ACCT<X> GE V.DATE[1,6] THEN   ;* Correction starts from the problematic date
+                        IF R.ACCT.ACCT<X> EQ V.DATE[1,6] THEN
+                            IF AMT AND (R.ACCT.ACTIV<IC.ACT.DAY.NO,J> GE V.DAY.NO ) THEN
+                                R.ACCT.ACTIV<IC.ACT.BALANCE,J> += AMT
+                                CRT 'Balance updated with difference amount :':AMT
+                            END
+                            IF R.ACCT.ACTIV<IC.ACT.DAY.NO,J> EQ V.DAY.NO THEN
+                                BEGIN CASE
+                                CASE TO.CR OR TO.DR
+                                    IF TO.CR THEN
+                                        R.ACCT.ACTIV<IC.ACT.TURNOVER.CREDIT,J> += TO.CR
+                                        CRT 'TURNOVER.CREDIT updated with difference amount :':TO.CR
+                                    END
+                                    IF TO.DR THEN
+                                        R.ACCT.ACTIV<IC.ACT.TURNOVER.DEBIT,J> += TO.DR
+                                        CRT 'TURNOVER.DEBIT updated with difference amount :':TO.DR
+                                    END
+                                CASE 1
+
+                                    IF AMT GT 0 THEN
+                                        R.ACCT.ACTIV<IC.ACT.TURNOVER.CREDIT,J> += AMT
+                                        CRT 'TURNOVER.CREDIT updated with difference amount :':TO.CR
+                                    END ELSE
+                                        R.ACCT.ACTIV<IC.ACT.TURNOVER.DEBIT,J> += AMT
+                                        CRT 'TURNOVER.CREDIT updated with difference amount :':TO.CR
+                                    END
+
+                                END CASE
+                            END
+                        END ELSE
+                            IF AMT THEN
+                                R.ACCT.ACTIV<IC.ACT.BALANCE,J> += AMT
+                                CRT 'BALANCE updated with difference amount :':AMT
+                            END
+                        END
+                    END
+                NEXT J        ;* Update value date balances
+            END
+
+BK.PROCESS:
+            IF BK.DATE THEN ;*Process for BOOKING dated balance
+                FOR K=1 TO B.CNT
+                    IF R.ACCT.ACCT<X> EQ YRMTH THEN
+                        IF AMT AND (R.ACCT.ACTIV<IC.ACT.BK.DAY.NO,K> GE B.DAY.NO) THEN
+                            R.ACCT.ACTIV<IC.ACT.BK.BALANCE,K> += AMT
+                        END
+                        IF R.ACCT.ACTIV<IC.ACT.BK.DAY.NO,K> EQ B.DAY.NO THEN
+
+
+                            BEGIN CASE
+                            CASE TO.CR OR TO.DR
+                                IF TO.CR THEN
+                                    R.ACCT.ACTIV<IC.ACT.BK.CREDIT.MVMT,K> += TO.CR
+                                    CRT 'CREDIT.MVMT updated with difference amount ':TO.CR
+                                END
+                                IF TO.DR THEN
+                                    R.ACCT.ACTIV<IC.ACT.BK.DEBIT.MVMT,K> += TO.DR
+                                    CRT 'DEBIT.MVMT updated with difference amount ':TO.DR
+                                END
+                            CASE 1
+
+                                IF AMT GT 0 THEN
+                                    R.ACCT.ACTIV<IC.ACT.BK.CREDIT.MVMT,K> += AMT
+                                END ELSE
+                                    R.ACCT.ACTIV<IC.ACT.BK.DEBIT.MVMT,K> += AMT
+                                END
+
+                            END CASE
+
+                        END
+                    END ELSE
+                        IF AMT THEN
+                            R.ACCT.ACTIV<IC.ACT.BK.BALANCE,K> += AMT
+                            CRT 'BK.BALANCE updated with difference amount ':AMT
+                        END
+                    END
+                NEXT K        ;* Update booking date balances
+            END
+            WRITE R.ACCT.ACTIV TO F.ACCT.ACTIVITY,ACTIV.ID
+        END
+        RELEASE F.ACCT.ACTIVITY,ACTIV.ID
+    NEXT X
+    RELEASE F.ECB,AC.ID
+    RETURN
+END 

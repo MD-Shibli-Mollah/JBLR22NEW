@@ -1,0 +1,184 @@
+*-----------------------------------------------------------------------------
+* <Rating>2573</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JABL.ENTRY.HOLD.CHECK
+
+*********************************************************************************
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.STMT.ENTRY
+
+   
+    EXECUTE "COMO ON ENTRY.HOLD.CHECK"
+    GOSUB INITIALISE
+    GOSUB MAINPARA
+    GOSUB CHECK.ACCOUNT.BAL
+    EXECUTE "COMO OFF ENTRY.HOLD.CHECK"
+    PRINT 'COMO saved as *** ENTRY.HOLD.CHECK'
+    SLEEP 2
+    RETURN
+
+INITIALISE:
+***********
+    PRINT 'INITIALISE SUB'
+    FN.ACCOUNT = 'F.ACCOUNT'
+    FV.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT,FV.ACCOUNT)
+
+    FN.ENTRY.HOLD = 'F.ENTRY.HOLD'
+    FV.ENTRY.HOLD = ''
+    CALL OPF(FN.ENTRY.HOLD,FV.ENTRY.HOLD)
+
+    FN.PACS.CHK.WBAL = 'F.PACS.CHK.WBAL'
+    FV.PACS.CHK.WBAL =''
+    CALL OPF(FN.PACS.CHK.WBAL,FV.PACS.CHK.WBAL)
+
+     OPEN '','&SAVEDLISTS&' TO SAVEDLISTS ELSE
+         PRINT 'CANNOT OPEN &SAVEDLISTS&'
+     END
+
+    PROB.ACC = ""
+
+    EXECUTE "CLEAR.FILE ":FN.PACS.CHK.WBAL
+    PRINT FN.PACS.CHK.WBAL:' file cleared/refreshed'
+
+    RETURN
+
+MAINPARA:
+**********
+    PRINT 'MAINPARA SUB'
+    SEL.CMD1 = "SELECT ":FN.ENTRY.HOLD
+    NO.OF.RECS=""
+    CALL EB.READLIST(SEL.CMD1,SEL.LIST1,"",NO.OF.RECS,RET.CODES)
+    FOR J=1 TO NO.OF.RECS
+        PRINT 'NO OF ENTRY.HOLD RECS ':NO.OF.RECS
+	   ENT.HOLD.ID = SEL.LIST1<J>
+        R.ENT.HOLD=""
+        READ R.ENT.HOLD FROM FV.ENTRY.HOLD,ENT.HOLD.ID ELSE R.ENT.HOLD=""
+        IF R.ENT.HOLD  THEN
+            FMC=DCOUNT(R.ENT.HOLD,FM)
+            IF R.ENT.HOLD<FMC,1> EQ "NONE" THEN GOTO SKIP.WRITE1
+            FOR K = 1 TO FMC
+                ACC.NUM = '' ; ENT.AMT = ''
+                ACC.NUM=R.ENT.HOLD<K,AC.STE.ACCOUNT.NUMBER>
+                IF ACC.NUM THEN
+                    IF (R.ENT.HOLD<K,AC.STE.AMOUNT.FCY> NE '') AND (R.ENT.HOLD<K,AC.STE.AMOUNT.FCY> LT 0) THEN
+                        ENT.AMT  = R.ENT.HOLD<K,AC.STE.AMOUNT.FCY>
+                    END ELSE
+                        ENT.AMT = R.ENT.HOLD<K,AC.STE.AMOUNT.LCY>
+                    END
+
+                END
+
+                IF ENT.AMT GT "0" THEN
+                    ENT.AMT = "0"
+                END
+
+                PACS.CHK.REC = ''; PACS.ID = ACC.NUM ; PACS.ERR = ''; AMOUNT=''
+                READ PACS.CHK.REC FROM FV.PACS.CHK.WBAL,PACS.ID ELSE PACS.CHK.REC=""
+
+                IF NOT(PACS.CHK.REC) THEN
+                    IF ENT.AMT EQ "0" THEN GOTO SKIP.WRITE
+                    AMOUNT = ENT.AMT
+                    PACS.CHK.REC<1> = AMOUNT
+                END ELSE
+                    IF ENT.AMT EQ "0" THEN GOTO SKIP.WRITE
+                    AMOUNT = PACS.CHK.REC<1>
+                    AMOUNT = AMOUNT + ENT.AMT
+                    PACS.CHK.REC<1> = AMOUNT
+                END
+                IF PACS.CHK.REC THEN
+			    PRINT 'PACS.CHK.WBAL ':PACS.CHK.REC
+                    WRITE PACS.CHK.REC TO FV.PACS.CHK.WBAL,PACS.ID
+                END
+SKIP.WRITE:
+            NEXT K
+        END
+SKIP.WRITE1:
+    NEXT J
+    RETURN
+
+CHECK.ACCOUNT.BAL:
+	PRINT 'CHECK.ACCOUNT.BAL SUB'
+    TEMP = ""
+    SEL.CMD = "SELECT ":FN.ACCOUNT:" WITH @ID EQ 0100004975957"
+* select Account & SAVE.LIST as PROB.ACCOUNT.IDS inorder to validate all accounts
+*    SEL.CMD = "GET.LIST PROB.ACCOUNT.IDS"
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.REC,RET.CODE)
+    CNT = DCOUNT(SEL.LIST, @FM)
+	PRINT 'PROB.ACCOUNT.IDS ':SEL.LIST
+	PRINT 'PROB.ACCOUNT.IDS COUNT':CNT
+
+    FOR X = 1 TO CNT
+        ACCOUNT.ID = SEL.LIST<X>
+        R.ACCOUNT=""
+
+
+        READ R.ACCOUNT FROM FV.ACCOUNT,ACCOUNT.ID ELSE
+            R.ACCOUNT=""
+            GOTO PROGRAM.END
+        END
+        CLEARED.BAL = R.ACCOUNT<AC.ONLINE.CLEARED.BAL>
+        WORKING.BAL = R.ACCOUNT<AC.WORKING.BALANCE>
+        CUST = '' ; LIM.RE = ''
+        CUST = R.ACCOUNT<AC.CUSTOMER>
+        LIM.RE = R.ACCOUNT<AC.LIMIT.REF>
+        IF CLEARED.BAL ="" THEN CLEARED.BAL="0"
+        IF WORKING.BAL ="" THEN WORKING.BAL="0"
+        IF CLEARED.BAL EQ "0" THEN  DIFF=WORKING.BAL
+
+        IF CLEARED.BAL NE "0" THEN
+
+            DIFF = WORKING.BAL - CLEARED.BAL
+        END
+
+	
+        PACS.CHK.REC=""
+        TOT=""
+        IF DIFF="" THEN DIFF ="0"
+        READ PACS.CHK.REC FROM FV.PACS.CHK.WBAL, ACCOUNT.ID ELSE PACS.CHK.REC="0"
+
+
+        IF LIM.RE EQ 'NOSTRO' OR CUST EQ '' THEN
+
+            IF  WORKING.BAL NE CLEARED.BAL  THEN
+	        PACS.CHK.REC = "0"
+                PRINT "Problematic Account  balance : ":ACCOUNT.ID:": CLEARED.BALANCE:":CLEARED.BAL:": WORKING.BAL:":WORKING.BAL:": DIFF BAL:":DIFF:": ENTRY.HOLD :":PACS.CHK.REC
+                TEMP<-1> = ACCOUNT.ID:'#':CLEARED.BAL:'#':WORKING.BAL:'#':DIFF:'#':PACS.CHK.REC
+		GOTO PROGRAM.END
+            END ELSE
+                GOTO PROGRAM.END
+            END
+        END
+
+        IF (PACS.CHK.REC EQ "0") AND  (WORKING.BAL EQ CLEARED.BAL) THEN GOTO PROGRAM.END
+
+        IF (PACS.CHK.REC NE "0") THEN
+            IF (DIFF NE PACS.CHK.REC) THEN
+                PRINT "Problematic Account, ENTRY.HOLD and DIFF is not matching: ":ACCOUNT.ID:": CLEARED.BALANCE:":CLEARED.BAL:": WORKING.BAL:":WORKING.BAL:":DIFF BAL:":DIFF:": ENTRY.HOLD :":PACS.CHK.REC
+                TEMP<-1> = ACCOUNT.ID:'#':CLEARED.BAL:'#':WORKING.BAL:'#':DIFF:'#':PACS.CHK.REC
+            END
+        END
+
+        IF (PACS.CHK.REC EQ "0" ) AND (WORKING.BAL NE CLEARED.BAL)  THEN
+            PRINT "Problematic Account  balance : ":ACCOUNT.ID:" CLEARED.BALANCE:":CLEARED.BAL:" WORKING.BAL:":WORKING.BAL:"DIFF BAL:":DIFF:" ENTRY.HOLD :":PACS.CHK.REC
+            TEMP<-1> = ACCOUNT.ID:'#':CLEARED.BAL:'#':WORKING.BAL:'#':DIFF:'#':PACS.CHK.REC
+        END
+
+PROGRAM.END:
+
+    NEXT X
+
+    IF NOT(TEMP) THEN
+        PRINT "No problematic Accounts"
+    END
+PRINT 'TEMP ':TEMP
+    IF TEMP THEN
+         WRITE TEMP TO SAVEDLISTS,"ACCT.COR"
+    END
+    
+    RETURN
+
+END

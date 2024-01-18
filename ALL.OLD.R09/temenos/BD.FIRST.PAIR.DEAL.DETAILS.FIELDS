@@ -1,0 +1,86 @@
+*-----------------------------------------------------------------------------
+* <Rating>-10</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.FIRST.PAIR.DEAL.DETAILS.FIELDS
+*-----------------------------------------------------------------------------
+* Live template for the capture details for First Deal, Pair Deal, FT Trans.
+*
+* Author - manjunath.s@sepit.net
+*-----------------------------------------------------------------------------
+* Modification History :
+*
+* 21/08/13 - EN_10003543
+*            New Template changes
+*-----------------------------------------------------------------------------
+*** <desc>Inserts and control logic</desc>
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_DataTypes
+*-----------------------------------------------------------------------------
+*    CALL Table.defineId("TABLE.NAME.ID", T24_String)        ;* Define Table id
+    ID.F = "ID"; ID.N ="35"; ID.T ="A"
+
+*-----------------------------------------------------------------------------
+    fieldName = "FIRST.DEAL.REF"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+
+    fieldName = "FIRST.DEAL.DATE"
+    fieldLength = "12"
+    fieldType = "DATE"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+
+    fieldName = "FIRST.CURR.NO"
+    fieldLength = "19"
+    fieldType = ""
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+
+    fieldName = "FIRST.DEALER.NO"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+
+    fieldName = "PAIR.DEAL.REF"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+
+    fieldName = "PAIR.DEAL.DATE"
+    fieldLength = "12"
+    fieldType = "DATE"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+
+    fieldName = "PAIR.CURR.NO"
+    fieldLength = "19"
+    fieldType = ""
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+
+    fieldName = "FT.TRANS.REF"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+
+    fieldName = "FT.TRANS.DATE"
+    fieldLength = "12"
+    fieldType = "DATE"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+
+    fieldName = "FP.DEAL.COMPLEATED"
+    fieldLength = "3"
+    fieldType = "":FM:"YES_NO"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

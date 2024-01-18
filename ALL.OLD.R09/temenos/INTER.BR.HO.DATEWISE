@@ -1,0 +1,265 @@
+*---------`--------------------------------------------------------------------
+* <Rating>1452</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE INTER.BR.HO.DATEWISE(Y.RETURN)
+!    PROGRAM INTER.BR.HO.DATEWISE
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.STMT.ENTRY
+    $INSERT I_F.TELLER
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.COMPANY
+    $INSERT I_F.MNEMONIC.COMPANY
+    $INSERT I_F.INTERCO.PARAMETER
+    $INSERT I_F.ACCOUNT
+    $INSERT I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.AC.ENT = "F.ACCT.ENT.TODAY"
+    F.AC.ENT = ""
+
+    FN.STMT.XREF = "F.STMT.ENTRY.DETAIL.XREF"
+    F.STMT.XREF = ""
+    FN.STMT.DET = "F.STMT.ENTRY.DETAIL"
+    F.STMT.DET = ""
+    FN.STMT.ENT = "F.STMT.ENTRY"
+    F.STMT.ENT = ""
+
+!   FN.TT = "FLD1.TELLER"
+!   F.TT = ""
+!   FN.FT = "FLD1.FUNDS.TRANSFER"
+!   F.FT = ""
+
+!    FN.ACC='F.ACCOUNT'
+!    F.ACC=''
+
+    Y.ENTRY.COUNT = ""
+    Y.XREF.ID.COUNT = ""
+    Y.XREF.ID = ""
+    Y.TRANS.REF = ""
+    DBT.COM.CODE = ""
+    CRDT.COM.CODE = ""
+    BANK.ACCOUNT = ""
+    CUS.ACCT.NO = ""
+    Y.CO.MNEMONIC = ""
+    Y.REC.STATUS = ""
+    Y.BANK.CO.CODE = ""
+    Y.ISSUE.BR.CODE=""
+    Y.ISSUE.BR.MNEM = ""
+    Y.ORIGIN.ACCOUNT = ""
+    Y.DES.ACCOUNT = ""
+    Y.ORIGIN.AC.CO=''
+    Y.DES.AC.CO=''
+    Y.ORIGIN.AC.TITLE=''
+    Y.DES.AC.TITLE=''
+    REC.AC=''
+
+    Y.FIN.COM=''
+    Y.FROM.DATE=ENQ.SELECTION<4,1>
+    Y.TODATE=ENQ.SELECTION<4,2>
+    Y.TRANS.DATE=''
+    RETURN
+
+TRANS.FILES:
+
+    FN.ACC='F':Y.FIN.COM:'.ACCOUNT'
+    F.ACC=''
+
+    FN.ACC.HIS='F':Y.FIN.COM:'.ACCOUNT$HIS'
+    F.ACC.HIS=''
+
+
+    FN.TT='F':Y.FIN.COM:'.TELLER'
+    F.TT=''
+
+    FN.TT.HIS='F':Y.FIN.COM:'.TELLER$HIS'
+    F.TT.HIS=''
+
+    FN.FT='F':Y.FIN.COM:'.FUNDS.TRANSFER'
+    F.FT=''
+
+    FN.FT.HIS='F':Y.FIN.COM:'.FUNDS.TRANSFER$HIS'
+    F.FT.HIS =''
+
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.TT.HIS,F.TT.HIS)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    CALL OPF(FN.ACC,F.ACC)
+    CALL OPF(FN.ACC.HIS,F.ACC.HIS)
+
+    RETURN
+
+OPENFILES:
+
+!    CALL OPF(FN.AC.ENT,F.AC.ENT)
+    CALL OPF(FN.STMT.XREF,F.STMT.XREF)
+    CALL OPF(FN.STMT.DET,F.STMT.DET)
+    CALL OPF(FN.STMT.ENT,F.STMT.ENT)
+!    CALL OPF(FN.TT,F.TT)
+!    CALL OPF(FN.FT,F.FT)
+!    CALL OPF(FN.ACC,F.ACC)
+
+    RETURN
+
+PROCESS:
+
+    IF R.INTERCO.PARAMETER<ST.ICP.INTERCOMP.CO> EQ ID.COMPANY THEN
+!        SEL.CMD = "SELECT ":FN.AC.ENT:" WITH @ID MATCHES '3A...' AND @ID MATCHES '...12800...' AND CO.CODE EQ ":ID.COMPANY
+        SEL.CMD = "SELECT FBNK.ACCOUNT WITH CATEGORY EQ 12800 AND CURRENCY EQ ":LCCY:" AND CO.CODE EQ ":ID.COMPANY
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+!        DEBUG
+        LOOP
+            REMOVE Y.ID FROM SEL.LIST SETTING POS
+        WHILE Y.ID:POS
+
+!           CALL F.READ(FN.AC.ENT,Y.ID,R.REC,F.AC.ENT,Y.ERR)
+!           Y.ENTRY.COUNT = DCOUNT(R.REC,@FM)
+!           FOR I = 1 TO Y.ENTRY.COUNT
+
+            Y.AC.STMT.LIST=''
+            Y.AC.OPEN.BAL=''
+            Y.AC.ER=''
+            Y.AC.ENTRY = ''
+            CALL EB.ACCT.ENTRY.LIST(Y.ID,Y.FROM.DATE,Y.TODATE,Y.AC.STMT.LIST,Y.AC.OPEN.BAL,Y.AC.ER)
+
+            IF Y.AC.STMT.LIST THEN
+                CALL DBR("COMPANY":FM:EB.COM.FINANCIAL.MNE,"BD001":RIGHT(Y.ID,4),Y.FIN.COM)
+                GOSUB TRANS.FILES
+
+                LOOP
+                    REMOVE Y.AC.ENTRY FROM Y.AC.STMT.LIST SETTING AC.POS.1
+                WHILE Y.AC.ENTRY:AC.POS.1
+
+!SEL.STMT.XREF = "SELECT ":FN.STMT.XREF:" WITH @ID MATCHES '":Y.AC.ENTRY:"...'"
+!CALL EB.READLIST(SEL.STMT.XREF,SEL.STMT.LIST,"",NO.OF.STMT.RECORD,RET.CODE)
+!LOOP
+!REMOVE Y.ENTRY.NO FROM SEL.STMT.LIST SETTING POS.1
+!WHILE Y.ENTRY.NO:POS.1
+!CALL F.READ(FN.STMT.XREF,Y.ENTRY.NO,R.STMT.XREF.REC,F.STMT.XREF,Y.ERR)
+!Y.XREF.ID.COUNT = DCOUNT(R.STMT.XREF.REC,@FM)
+!FOR J = 1 TO Y.XREF.ID.COUNT
+!Y.XREF.ID = R.STMT.XREF.REC<J>
+!CALL F.READ(FN.STMT.DET,Y.XREF.ID,R.STMT.REC,F.STMT.DET,Y.ERR)
+                    CALL F.READ(FN.STMT.ENT,Y.AC.ENTRY,R.STMT.REC,F.STMT.ENT,Y.ERR)
+                    IF R.STMT.REC<AC.STE.TRANS.REFERENCE> MATCHES "...\..."  AND ( R.STMT.REC<AC.STE.SYSTEM.ID> EQ 'TT' OR R.STMT.REC<AC.STE.SYSTEM.ID> EQ 'FT') THEN
+                        Y.TRANS.REF = FIELD(R.STMT.REC<AC.STE.TRANS.REFERENCE>,"\",1)
+                        Y.ISSUE.BR.MNEM = FIELD(R.STMT.REC<AC.STE.TRANS.REFERENCE>,"\",2)
+                        CALL DBR("MNEMONIC.COMPANY":FM:AC.MCO.COMPANY,Y.ISSUE.BR.MNEM,Y.ISSUE.BR.CODE)
+                        Y.REC.STATUS = R.STMT.REC<AC.STE.RECORD.STATUS>
+                        Y.TRANS.DATE =R.STMT.REC<AC.STE.BOOKING.DATE>
+                        IF Y.TRANS.REF MATCHES "TT..." AND Y.REC.STATUS EQ "" THEN
+                            CALL F.READ(FN.TT,Y.TRANS.REF,R.TT.REC,F.TT,Y.ERR)
+
+                            IF R.TT.REC EQ '' THEN
+                                CALL F.READ(FN.TT.HIS,Y.TRANS.REF:";1",R.TT.REC,F.TT.HIS,Y.ERR)
+                            END
+
+                            BANK.ACCOUNT = R.TT.REC<TT.TE.ACCOUNT.2>
+                            Y.BANK.CO.CODE = "BD001":RIGHT(BANK.ACCOUNT,4)
+                            Y.AMOUNT = R.TT.REC<TT.TE.AMOUNT.LOCAL.1>
+                            IF Y.AMOUNT EQ "" THEN
+                                Y.AMOUNT = R.TT.REC<TT.TE.AMOUNT.LOCAL.2>
+                            END
+                            IF Y.BANK.CO.CODE EQ Y.ISSUE.BR.CODE THEN
+                                Y.ORIGIN.ACCOUNT = R.TT.REC<TT.TE.ACCOUNT.2>
+                                Y.DES.ACCOUNT = R.TT.REC<TT.TE.ACCOUNT.1>
+                            END ELSE
+                                Y.ORIGIN.ACCOUNT = R.TT.REC<TT.TE.ACCOUNT.1>
+                                Y.DES.ACCOUNT = R.TT.REC<TT.TE.ACCOUNT.2>
+                            END
+
+                        END ELSE
+                            IF Y.TRANS.REF MATCHES "FT..." AND Y.REC.STATUS EQ "" THEN
+                                CALL F.READ(FN.FT,Y.TRANS.REF,R.FT.REC,F.FT,Y.ERR)
+
+                                IF R.FT.REC EQ '' THEN
+                                    CALL F.READ(FN.FT.HIS,Y.TRANS.REF:";1",R.FT.REC,F.FT.HIS,Y.ERR)
+                                END
+                                DBT.COM.CODE = R.FT.REC<FT.DEBIT.COMP.CODE>
+                                CRDT.COM.CODE = R.FT.REC<FT.CREDIT.COMP.CODE>
+                                IF DBT.COM.CODE EQ Y.ISSUE.BR.CODE THEN
+                                    Y.ORIGIN.ACCOUNT = R.FT.REC<FT.DEBIT.ACCT.NO>
+                                    Y.DES.ACCOUNT = R.FT.REC<FT.CREDIT.ACCT.NO>
+                                    Y.AMOUNT = R.FT.REC<FT.DEBIT.AMOUNT>
+                                    IF Y.AMOUNT EQ "" THEN
+                                        Y.AMOUNT = R.FT.REC<FT.CREDIT.AMOUNT>
+                                    END
+                                END ELSE
+                                    IF CRDT.COM.CODE EQ Y.ISSUE.BR.CODE THEN
+                                        Y.ORIGIN.ACCOUNT = R.FT.REC<FT.CREDIT.ACCT.NO>
+                                        Y.DES.ACCOUNT = R.FT.REC<FT.DEBIT.ACCT.NO>
+                                        Y.AMOUNT = R.FT.REC<FT.CREDIT.AMOUNT>
+                                        IF Y.AMOUNT EQ "" THEN
+                                            Y.AMOUNT = R.FT.REC<FT.DEBIT.AMOUNT>
+                                        END
+                                    END
+                                END
+                            END
+                        END
+                        IF Y.REC.STATUS EQ "" THEN
+!TRANS.MODE = FIELD(Y.ENTRY.NO,"!",5,1)
+                            TRANS.MODE =R.STMT.REC<AC.STE.SYSTEM.ID>
+!                            TRANS.TYPE = FIELD(Y.ENTRY.NO,"!",3,1)
+                            IF R.STMT.REC<AC.STE.AMOUNT.LCY>  LT 0 THEN
+                                TRANS.TYPE="DR"
+                            END
+                            ELSE
+                                TRANS.TYPE="CR"
+                            END
+!                            Y.CURRENCY = FIELD(Y.ENTRY.NO,"!",4,1)
+                            Y.CURRENCY = R.STMT.REC<AC.STE.CURRENCY>
+!Y.RETURN<-1> = Y.ISSUE.BR.CODE:"*":CUS.ACCT.NO:"*":BANK.ACCOUNT:"*":TRANS.MODE:"*":TRANS.TYPE:"*":Y.CURRENCY:"*":Y.AMOUNT:"*":Y.TRANS.REF
+                            CALL F.READ(FN.ACC,Y.ORIGIN.ACCOUNT,REC.AC,F.ACC,ERR.AC)
+                            IF REC.AC EQ '' THEN
+                                CALL EB.READ.HISTORY.REC(F.ACC.HIS,Y.ORIGIN.ACCOUNT,REC.AC,YERROR)
+                            END
+                            Y.ORIGIN.AC.CO=REC.AC<AC.CO.CODE>
+                            Y.ORIGIN.AC.TITLE=REC.AC<AC.SHORT.TITLE>
+                            REC.AC=''
+                            CALL F.READ(FN.ACC,Y.DES.ACCOUNT,REC.AC,F.ACC,ERR.AC)
+                            IF REC.AC EQ '' THEN
+                                CALL EB.READ.HISTORY.REC(F.ACC.HIS,Y.DES.ACCOUNT,REC.AC,YERROR)
+                            END
+                            Y.DES.AC.CO=REC.AC<AC.CO.CODE>
+                            Y.DES.AC.TITLE=REC.AC<AC.SHORT.TITLE>
+                            REC.AC=''
+                            Y.RETURN<-1> = Y.ORIGIN.ACCOUNT:"*":Y.DES.ACCOUNT:"*":TRANS.TYPE:"*":Y.CURRENCY:"*":Y.AMOUNT:"*":Y.TRANS.REF:"*":Y.ORIGIN.AC.CO:"*":Y.DES.AC.CO:"*":Y.ORIGIN.AC.TITLE:"*":Y.DES.AC.TITLE:"*":Y.TRANS.DATE
+                        END
+                        Y.ORIGIN.ACCOUNT = ""
+                        Y.DES.ACCOUNT = ""
+                        BANK.ACCOUNT = ""
+                        DEST.BR.CODE = ""
+                        Y.TRANS.REF = ""
+                        TRANS.MODE = ""
+                        TRANS.TYPE = ""
+                        Y.CURRENCY = ""
+                        Y.AMOUNT = ""
+                        Y.CO.MNEMONIC = ""
+                        Y.REC.STATUS = ""
+                        DBT.COM.CODE = ""
+                        CRDT.COM.CODE = ""
+                        Y.ISSUE.BR.CODE=""
+                        Y.ISSUE.BR.MNEM = ""
+                        Y.ORIGIN.AC.CO=''
+                        Y.DES.AC.CO=''
+                        Y.ORIGIN.AC.TITLE=''
+                        Y.DES.AC.TITLE=''
+
+                    END
+!NEXT
+!REPEAT
+                REPEAT
+            END
+! NEXT
+        REPEAT
+    END
+    RETURN
+END

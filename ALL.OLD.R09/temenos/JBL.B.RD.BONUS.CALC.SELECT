@@ -1,0 +1,108 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>8</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.RD.BONUS.CALC.SELECT
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine will form the list of ID's and will passes them to the Record rouitne
+*-------------------------------------------------------------------------
+*Parameter Description: Not Applicable
+*--------- -----------
+*
+*-------------------------------------------------------------------------
+*Common Variable Description:- Not Applicable
+*------  ------- -----------
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:            Description:
+*BATCH.BUILD.LIST           Core             It's a core Globus subroutine that actually
+*                                              writes the list of ids on to the LIST file.
+*                                              It takes in 2 parameters, the name of the
+*                                              LIST file and the variable that holds the ids
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 10/02/2011 -                            New   - Leelavathi R
+*                                                 Thesys Technologies
+**************************************************************************
+*
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.AZ.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.DATES
+    $INCLUDE JBL.BP I_F.EB.RD.BONUS
+    $INCLUDE JBL.BP I_JBL.B.RD.BONUS.CALC.COMMON
+*
+    GOSUB INIT
+    GOSUB PROCESS
+*
+    RETURN
+*-------------------------------------------------------------------------
+INIT:
+*----
+    Y.SEL.CMD = ''
+    Y.SEL.LIST=''
+    Y.NO.OF.REC=''
+    Y.RET.CODE=''
+    Y.AC.ID=''
+    Y.AC.POS=''
+    Y.POST.RST=''
+    Y.LIST=''
+    Y.NEXT.WRK=''
+*
+    RETURN
+*---------------------------------------------------------------------------
+PROCESS:
+*-------
+** Select AZ.ACCOUNT with maturity date as today and Local currency
+
+    Y.LAST.WRK = R.DATES(EB.DAT.LAST.WORKING.DAY)
+
+    Y.SEL.CMD ='SELECT ':FN.AZ.ACCOUNT:' WITH MATURITY.DATE GT ':Y.LAST.WRK:' AND MATURITY.DATE LE ':TODAY:' AND CURRENCY EQ ':LCCY
+    Y.SEL.CMD :=' AND MATURITY.INSTR NE AUTOMATIC ROLLOVER'
+    CALL EB.READLIST(Y.SEL.CMD,Y.SEL.LIST,' ',Y.NO.OF.REC,Y.RET.CODE)
+    GOSUB INITIAL.PROCESS
+    CALL BATCH.BUILD.LIST('',Y.LIST)
+*
+    RETURN
+*-------------------------------------------------------------------------
+INITIAL.PROCESS:
+*--------------
+    IF Y.SEL.LIST THEN
+        LOOP
+            REMOVE Y.AC.ID FROM Y.SEL.LIST SETTING Y.AC.POS
+        WHILE Y.AC.ID:Y.AC.POS
+            R.ACCT='' ; Y.ERR.AC='' ;
+            CALL F.READ(FN.ACCOUNT,Y.AC.ID,R.ACCT,F.ACCOUNT,Y.ERR.AC)
+            IF R.ACCT THEN
+                Y.POST.RST = R.ACCT<AC.POSTING.RESTRICT>
+                Y.AC.CAT = R.ACCT<AC.CATEGORY>
+                Y.AC.RDCUR = R.ACCT<AC.CURRENCY>
+                IF Y.AC.CAT GE '6601' AND Y.AC.CAT LE '6604' AND Y.POST.RST NE '2' THEN
+                    GOSUB PROCESS.IDS
+                END
+            END
+        REPEAT
+    END
+    RETURN
+*---------------------------------------------------------------------------------
+*
+PROCESS.IDS:
+*----------
+    IF Y.LIST THEN
+        Y.LIST:=FM:Y.AC.ID
+    END ELSE
+        Y.LIST=Y.AC.ID
+    END
+*
+    RETURN
+*
+*-------------------------------------------------------------------------
+END
+*-------------------------------------------------------------------------

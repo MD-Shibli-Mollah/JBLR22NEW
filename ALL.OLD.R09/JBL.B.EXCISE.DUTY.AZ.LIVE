@@ -1,0 +1,49 @@
+**************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>-10</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.EXCISE.DUTY.AZ.LIVE(Y.AC.ID)
+**************************************************************************
+* Subroutine Description:
+*-----------------------
+* The Purpose of this Routine is to detect Excise Duty on all the deposit accounts.
+*-------------------------------------------------------------------------
+* Parameter Description
+*--------- -----------
+* Y.AC.ID : Incoming parameter will hold the AZ.ACCOUNT ID.
+*-------------------------------------------------------------------------
+* Common Variable Description
+*------  ------- -----------
+*
+* Variable name:    Insert file:          Description:
+* TODAY            I_COMMON              Will hold Today's date
+*-------------------------------------------------------------------------
+* Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+* JBL.AZ.AC.COB.PROCESS     LOCAL           Used to detect excise duty
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 01/03/2011 -                            New   - Rashmitha M
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE JBL.BP I_JBL.B.EXCISE.DUTY.AZ.LIVE.COMMON
+    $INCLUDE JBL.BP I_F.EB.BD.EXCISE.DUTY.PARAM
+    $INCLUDE JBL.BP I_F.BD.EXCISE.DUTY.SLAB
+    $INCLUDE JBL.BP I_F.EB.BD.EXCISE.DUTY
+
+    GOSUB PROCESS
+
+    RETURN
+*--------------------------------------------------------------------------
+PROCESS:
+*------
+    Y.APPLICATION = 'AZ'
+    CALL JBL.AZ.AC.COB.PROCESS(R.EB.BD.EXCISE.DUTY.SLAB,R.EB.BD.EXCISE.DUTY.PARAM,Y.APPLICATION,Y.AC.ID)
+
+    RETURN
+*------------------------------------------------------------------------------
+END

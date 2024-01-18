@@ -1,0 +1,238 @@
+*-----------------------------------------------------------------------------
+* <Rating>262</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.PARTICULARS.IN.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine YOURAPPLICATION.FIELDS
+*
+* @author : manjunath.s@sepit.net
+*
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* Modification History :
+*
+* 01/09/2013 - EN_10003543
+*            New Template changes
+*
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+*    CALL Table.defineId("TABLE.NAME.ID", T24_String)        ;* Define Table id
+    ID.F = "ID"; ID.N ="12"; ID.T ="D"
+
+*-----------------------------------------------------------------------------
+*
+    fieldName = "I.CRR.SURPLUS"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "A.CRR.SURPLUS"
+    fieldLength = "19"
+    fieldType = "AMT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "I.CRR.DECREASE"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "A.CRR.DECREASE"
+    fieldLength = "19"
+    fieldType = "AMT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "I.ST.DIFFER"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "A.ST.DIFFER"
+    fieldLength = "19"
+    fieldType = "AMT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "I.HIGH.CLEARING"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "A.HIGH.CLEARING"
+    fieldLength = "19"
+    fieldType = "AMT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "I.REGULAR.CLEARING"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "A.REGULAR.CLEARING"
+    fieldLength = "19"
+    fieldType = "AMT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "I.TT.KLN.OTHER"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "A.TT.KLN.OTHER"
+    fieldLength = "19"
+    fieldType = "AMT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "I.CASH.DEPOSIT"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "A.CASH.DEPOSIT"
+    fieldLength = "19"
+    fieldType = "AMT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "I.OUTSIDE.DHAKA"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "A.OUTSIDE.DHAKA"
+    fieldLength = "19"
+    fieldType = "AMT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "I.FDR.MATURED"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "A.FDR.MATURED"
+    fieldLength = "19"
+    fieldType = "AMT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "I.BGTB.MATUR.BB"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "A.BGTB.MATUR.BB"
+    fieldLength = "19"
+    fieldType = "AMT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "I.BGTB.MATUR.IB"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "A.BGTB.MATUR.IB"
+    fieldLength = "19"
+    fieldType = "AMT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "I.BB.BILL.MATUR"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "A.BB.BILL.MATUR"
+    fieldLength = "19"
+    fieldType = "AMT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "I.FX.DOLR.SALE"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "A.FX.DOLR.SALE"
+    fieldLength = "19"
+    fieldType = "AMT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "I.ALS.FROM.BB"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "A.ALS.FROM.BB"
+    fieldLength = "19"
+    fieldType = "AMT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "I.CHEQUE.DEPOSIT"
+    fieldLength = "19"
+    fieldType = "A"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+    fieldName = "A.CHEQUE.DEPOSIT"
+    fieldLength = "19"
+    fieldType = "AMT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+*
+    fieldName = "SUB.TOTAL"
+    fieldLength = "19"
+    fieldType = "AMT":FM:"":FM:"NOINPUT"
+    nbr = ""
+    CALL Table.addFieldDefinition(fieldName, fieldLength, fieldType, nbr)
+*
+*
+    CALL Table.addLocalReferenceField('XX.LOCAL.REF')       ;* Local Ref Field Provision
+*
+*******TO POPULTATE RESERVE FIELDS******************************************************************
+*
+    CALL Table.addField("RESERVED.5", T24_String, Field_NoInput,"")
+    CALL Table.addField("RESERVED.4", T24_String, Field_NoInput,"")
+    CALL Table.addField("RESERVED.3", T24_String, Field_NoInput,"")
+    CALL Table.addField("RESERVED.2", T24_String, Field_NoInput,"")
+    CALL Table.addField("RESERVED.1", T24_String, Field_NoInput,"")
+*
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

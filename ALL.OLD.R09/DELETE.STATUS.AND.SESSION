@@ -1,0 +1,296 @@
+*-----------------------------------------------------------------------------
+* <Rating>40</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM DELETE.STATUS.AND.SESSION
+
+***********************************************************************
+**
+** This Program will check TSA.STATUS and T24.SESSIONS and delete the records which are not active
+** and report the Following
+
+** 1. Currently Running Sessions/ Services
+** 2. Number of records deleted
+**
+!! Written and Distributed by Temenos PACS
+***********************************************************************
+
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.TSA.STATUS
+    $INCLUDE GLOBUS.BP JBC.h
+    $INSERT GLOBUS.BP I_F.T24.SESSION
+
+    SYS.DATE = OCONV(DATE(),"D-")       ;* machine date
+    SYS.DATE= SYS.DATE[7,4]:SYS.DATE[1,2]:SYS.DATE[4,2]     ;* machine date in format like 20080129
+    timenow = TIME()
+    TIME.IN = OCONV(timenow,'MTS')
+    CONVERT ':' TO '.' IN TIME.IN
+
+    EXECUTE "COMO ON DELETE_":SYS.DATE:"_":TIME.IN
+
+    GOSUB INITIALISE
+    GOSUB OPEN.FILES
+    GOSUB PROCESS
+
+
+
+INITIALISE:
+
+    F.TSA.STATUS = ''
+    F.T24.SESSION = ''
+    TSA.ID = ''
+    Y.T24.ID = ''
+    SEL.CMD = ''
+    NO.OF.REC = ''
+    SEL.LIST = ''
+    DEL.CNT = 0
+    ACTIVE.PID = 0
+    Y.SERVICES = ''
+    RETURN
+
+OPEN.FILES:
+    CALL OPF('F.TSA.STATUS',F.TSA.STATUS)
+    CALL OPF('F.T24.SESSION',F.T24.SESSION)
+    RETURN
+
+PROCESS:
+    PRINT "***************************************************************************"
+    PRINT "*                         ENTER THE OPTION                                *"
+    PRINT "*                         Type O For Deleting Online                      *"
+    PRINT "*                         Type S For Deleting Services/Agents             *"
+    PRINT "*                         Type A For Deleting All                         *"
+    PRINT "*                         Type Q to Quit                                  *"
+    PRINT "****************************************************************************"
+    INPUT OPT.VAL
+    PRINT ""
+    PRINT ""
+    PRINT  "@@@@@@@@@@@@@@@  CHECK COMO DELETE_":SYS.DATE:"_":TIME.IN:" FOR MORE INFO   @@@@@@@@@ "
+    PRINT ""
+    PRINT ""
+    BEGIN CASE
+    CASE OPT.VAL EQ 'O'
+        GOSUB DELETE.ONLINE
+    CASE OPT.VAL EQ 'S'
+        GOSUB DELETE.AGENTS
+    CASE OPT.VAL EQ 'A'
+        GOSUB DELETE.ALL
+    CASE OPT.VAL EQ 'Q' OR OPT.VAL EQ 'q'
+        GOSUB STOP.PROG
+    CASE 1
+        PRINT "                         ENTER A VALID OPTION"
+    END CASE
+    RETURN
+
+
+DELETE.ONLINE:
+
+******This part will delete the records pertaining to Online sessions (OLTP)
+
+    PRINT "Do you Want to delete TSA.STATUS and T24.SESSION Pertaining to Online?"
+    PRINT "Type Y to Continue or N to Exit"
+    INPUT OPM
+    PRINT ""
+    IF OPM EQ 'Y' OR OPM EQ 'y' THEN
+
+        GOSUB CHECK.ONLINE    ;* We go and check the sessions that are originally active
+
+
+        SEL.CMD = 'SELECT F.T24.SESSION WITH AGENT.NUMBER LIKE "OLTP..." OR AGENT.NUMBER EQ "" '         ;* Online sessions always start with OLTP
+
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+PRINT "SELECTED ":NO.OF.REC:" FROM T24.SESSION"
+        LOOP
+            REMOVE Y.T24.ID FROM SEL.LIST SETTING POS
+        WHILE Y.T24.ID:POS
+        PRINT "T24.ID ":Y.T24.ID
+            READ R.T24.SESSION FROM F.T24.SESSION,Y.T24.ID THEN
+               TSA.ID = R.T24.SESSION<1>
+                READ R.TSA.STATUS FROM F.TSA.STATUS,TSA.ID THEN
+                    PORT.ID = R.TSA.STATUS<TS.TSS.PORT.ID>
+                    PRINT "PORT.ID ":PORT.ID
+                    Y.PID = R.TSA.STATUS<TS.TSS.PROCESS.ID> ;* Get the process id from the TSA.STATUS record to which this session is linked
+                    PRINT "PROCESS ID ":Y.PID
+PRINT "GETTING PID FROM PORT ":JBASEGetPidFromPort(PORT.ID)
+****Compatible with Multi Server***
+
+                    IF Y.PID NE JBASEGetPidFromPort(PORT.ID)  THEN         ;* If the process is running on the specific port then treat it as active session
+                    PRINT "Deleting record ":Y.T24.ID
+                        DELETE F.T24.SESSION,Y.T24.ID
+                        DELETE F.TSA.STATUS,TSA.ID
+                        DEL.CNT+ = 1
+                    END
+                END ELSE
+                    DELETE F.T24.SESSION,Y.T24.ID
+                END
+            END
+        REPEAT
+        PRINT "                         NO.OF SESSION AND STATUS DELETED: ":DEL.CNT
+
+        SEL.CMD = 'SELECT F.TSA.STATUS  WITH @ID LIKE "OLTP"... AND (AGENT.STATUS EQ "STOPPED" OR AGENT.STATUS EQ "")'    ;* Since there are no active sessions, We directly clear the file.
+
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+        LOOP
+            REMOVE TSA.ID FROM SEL.LIST SETTING POS
+        WHILE TSA.ID:POS
+            DELETE F.TSA.STATUS,TSA.ID
+        REPEAT
+        PRINT "                         NO.OF TSA.STATUS DELETED: ":NO.OF.REC+DEL.CNT
+        RETURN
+
+        RETURN
+
+    END ELSE
+        PRINT "QUITING"
+        GOSUB STOP.PROG
+    END
+
+
+CHECK.ONLINE:
+
+    IF OPT.VAL EQ 'O' THEN
+        MAIN.SEL = 'SELECT F.TSA.STATUS WITH @ID LIKE "OLTP"... AND AGENT.STATUS EQ "RUNNING"'        ;* To check Active Online sessions
+    END ELSE
+        MAIN.SEL = 'SELECT F.TSA.STATUS WITH @ID LIKE "1N0A"... AND AGENT.STATUS EQ "RUNNING"'        ;* To active Active Services and COB
+    END
+
+    CALL EB.READLIST(MAIN.SEL,SEL.LIST1,'',NO.OF.REC1,RET.CODE1)
+
+    ACTIVE.PID = ''
+    LOOP
+        REMOVE Y.TSA.ID FROM SEL.LIST1 SETTING POS
+    WHILE Y.TSA.ID:POS
+        READ R.TSA.STATUS FROM F.TSA.STATUS,Y.TSA.ID THEN
+            PORT.ID = R.TSA.STATUS<TS.TSS.PORT.ID>
+            Y.PID = R.TSA.STATUS<TS.TSS.PROCESS.ID>         ;* Get the process id from the TSA.STATUS record to which this session is linked
+            IF Y.PID EQ JBASEGetPidFromPort(PORT.ID) THEN   ;* If the process is running on the specific port then treat it as active session
+
+                ACTIVE.PID +=1
+                Y.SERVICES<ACTIVE.PID> = R.TSA.STATUS<TS.TSS.CURRENT.SERVICE>
+            END
+        END
+    REPEAT
+
+    IF ACTIVE.PID  GE '1' THEN
+        IF OPT.VAL EQ 'O' THEN
+            PRINT "Online Sessions are active, Press Y to Continue or Q to Quit"
+            INPUT USR.ACTION
+            IF USR.ACTION EQ 'Q' THEN
+                GOSUB STOP.PROG
+            END
+        END ELSE
+            PRINT "Below Services are Active, Press Y to Continue or Q to Quit"
+            PRINT Y.SERVICES
+            INPUT USR.ACTION
+            IF USR.ACTION EQ 'Q' THEN
+                GOSUB STOP.PROG
+            END
+        END
+
+    END
+
+    RETURN
+
+
+
+DELETE.AGENTS:
+
+    PRINT "Do you Want to delete TSA.STATUS and T24.SESSION Pertaining to COB and Services?"
+    PRINT "Type Y to Continue or N to Exit"
+    INPUT OPM
+    PRINT ""
+
+    IF OPM EQ 'Y' OR OPM EQ 'y' THEN
+        GOSUB CHECK.ONLINE
+
+
+        SEL.CMD = 'SELECT F.T24.SESSION WITH AGENT.NUMBER UNLIKE "OLTP..."'         ;*Online sessions always start with OLTP
+
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+        LOOP
+            REMOVE Y.T24.ID FROM SEL.LIST SETTING POS
+        WHILE Y.T24.ID:POS
+            READ R.T24.SESSION FROM F.T24.SESSION,Y.T24.ID THEN
+                TSA.ID = R.T24.SESSION<1>
+                READ R.TSA.STATUS FROM F.TSA.STATUS,TSA.ID THEN
+                    PORT.ID = R.TSA.STATUS<TS.TSS.PORT.ID>
+                    Y.PID = R.TSA.STATUS<TS.TSS.PROCESS.ID> ;* Get the process id from the TSA.STATUS record to which this session is linked
+
+***Compatible with Multi Server***
+
+                    IF Y.PID NE JBASEGetPidFromPort(PORT.ID) AND R.TSA.STATUS<TS.TSS.SERVER> EQ SYSTEM(52) THEN         ;* If the process is running on the specific port then treat it as active session
+                        DELETE F.T24.SESSION,Y.T24.ID
+                        DELETE F.TSA.STATUS,TSA.ID
+                        DEL.CNT+ = 1
+                    END
+                END
+            END
+        REPEAT
+        PRINT "                         NO.OF SESSION AND STATUS DELETED: ":DEL.CNT
+
+        SEL.CMD = 'SELECT F.TSA.STATUS  WITH @ID UNLIKE "OLTP"... AND AGENT.STATUS EQ STOPPED'        ;* Since there are no active sessions, We directly clear the file.
+
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+        LOOP
+            REMOVE TSA.ID FROM SEL.LIST SETTING POS
+        WHILE TSA.ID:POS
+            DELETE F.TSA.STATUS,TSA.ID
+        REPEAT
+        PRINT "                         NO.OF TSA.STATUS DELETED: ":NO.OF.REC+DEL.CNT
+
+        RETURN
+
+
+    END ELSE
+        PRINT "QUITTING"
+        GOSUB STOP.PROG
+    END
+
+    RETURN
+
+DELETE.ALL:
+    PRINT "This will clear all TSA.STATUS and T24.SESSION. Please logoff all Users/Services and Press Y to continue ?"
+    PRINT "Type Y to Continue or N to Exit"
+    INPUT OPM
+    IF OPM EQ 'Y' OR OPM EQ 'y' THEN
+
+        SEL.CMD = "SELECT F.T24.SESSION"          ;* Since Delete all will do a forceful clear and does not report any active. User has to manually check for active services
+
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+        LOOP
+            REMOVE Y.T24.ID FROM SEL.LIST SETTING POS
+        WHILE Y.T24.ID:POS
+            READ R.T24.SESSION FROM F.T24.SESSION,Y.T24.ID THEN
+                TSA.ID = R.T24.SESSION<1>
+                READ R.TSA.STATUS FROM F.TSA.STATUS,TSA.ID THEN
+                    DELETE F.TSA.STATUS,TSA.ID
+                END
+                DELETE F.T24.SESSION,Y.T24.ID
+            END
+        REPEAT
+        PRINT "                         NO.OF T24.SESSION DELETED: ":NO.OF.REC
+        SEL.CMD = 'SELECT F.TSA.STATUS'
+
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+        LOOP
+            REMOVE TSA.ID FROM SEL.LIST SETTING POS
+        WHILE TSA.ID:POS
+            DELETE F.TSA.STATUS,TSA.ID
+        REPEAT
+        PRINT "                         NO.OF TSA.STATUS DELETED: ":NO.OF.REC
+        EXECUTE "CLEAR.FILE F.OS.TOKEN"
+        EXECUTE "CLEAR.FILE F.OS.TOKEN.USE"
+    END ELSE
+        PRINT "QUITTING"
+        GOSUB STOP.PROG
+    END
+    RETURN
+
+STOP.PROG:
+    EXECUTE "COMO OFF"
+    STOP 

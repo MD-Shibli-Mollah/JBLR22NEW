@@ -1,0 +1,202 @@
+*-------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-102</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.AUT.CALC.SRCTAX.LC
+*-------------------------------------------------------------------------
+*Subroutine Description:
+*-----------------------
+* Routine is used for calculating the source tax using the percentage defined in
+* BD.TAX.COMM table and charge code.
+*-------------------------------------------------------------------------
+*Parameter Description:
+*--------- -----------
+*N/A
+*-------------------------------------------------------------------------
+*Common Variable Description:
+*------  ------- -----------
+*TODAY = Holds the T24 date for the current day
+*ID.COMPANY = Holds the loggedin company id
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:            Description:
+*MULTI.GET.LOC.REF           Core             This core routine will gives the
+*                                             position for the local reference fields
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+*    Date            Name                           Description
+*   ------         ------                           -----------
+* 31 Jan 2011   Mohammed Anies K                  Initial Creation
+*               (Thesys Technologies)
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INCLUDE GLOBUS.BP I_F.FT.COMMISSION.TYPE
+    $INCLUDE GLOBUS.BP I_F.STMT.ENTRY
+    $INCLUDE GLOBUS.BP I_F.CATEG.ENTRY
+    $INCLUDE JBL.BP I_F.BD.TAX.COMM
+
+*--------------------------------------------------------------------------------
+**********
+MAIN.PARA:
+**********
+    GOSUB INIT.PARA
+    GOSUB PROCESS.PARA
+
+    RETURN
+
+*--------------------------------------------------------------------------------
+**********
+INIT.PARA:
+**********
+* In this para of code, file variables are initialised and opened
+
+    FN.LETTER.OF.CREDIT = 'F.LETTER.OF.CREDIT'
+    F.LETTER.OF.CREDIT = ''
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+
+    FN.BD.TAX.COMM = 'F.BD.TAX.COMM'
+    F.BD.TAX.COMM = ''
+    CALL OPF(FN.BD.TAX.COMM,F.BD.TAX.COMM)
+
+    FN.FT.COMMISSION.TYPE = 'F.FT.COMMISSION.TYPE'
+    F.FT.COMMISSION.TYPE = ''
+    CALL OPF(FN.FT.COMMISSION.TYPE,F.FT.COMMISSION.TYPE)
+
+    RETURN
+*------------------------------------------------------------------------------
+*************
+PROCESS.PARA:
+*************
+*Main Processing section
+
+    GOSUB GET.LOCAL.FIELDS.POS
+    IF  R.NEW(TF.LC.LOCAL.REF)<1,LC.ST.COMM.CODE.POS> EQ '' THEN
+        RETURN
+    END
+    GOSUB GET.BD.TAX.COMM
+    Y.INT.COUNT = 1
+    Y.ST.COMM.CODE.LIST =  R.NEW(TF.LC.LOCAL.REF)<1,LC.ST.COMM.CODE.POS>
+    Y.TOTAL.COUNT = DCOUNT(Y.ST.COMM.CODE.LIST,SM)
+    LOOP
+    WHILE Y.INT.COUNT LE Y.TOTAL.COUNT
+        GOSUB RAISE.ENTRIES
+        Y.INT.COUNT +=1
+    REPEAT
+    R.NEW(TF.LC.LOCAL.REF)<1,LC.ST.COMM.CODE.POS> = ''
+    R.NEW(TF.LC.LOCAL.REF)<1,LC.ST.COMM.AMT.POS> = ''
+    RETURN
+*------------------------------------------------------------------------------
+***************
+GET.BD.TAX.COMM:
+***************
+    R.BD.TAX.COMM = ''
+    CALL F.READ(FN.BD.TAX.COMM,'LETTER.OF.CREDIT',R.BD.TAX.COMM,F.BD.TAX.COMM,BD.TAX.COMM.ERR)
+    IF R.BD.TAX.COMM THEN
+        Y.SRCTAX.ACCT = R.BD.TAX.COMM<BD.TC.SRCTAX.ACCT>
+        Y.SRCTAX.COMM.PER = R.BD.TAX.COMM<BD.TC.SRCTAX.COMM.PER>
+    END
+    RETURN
+*------------------------------------------------------------------------------
+*************
+RAISE.ENTRIES:
+*************
+    Y.ST.COMM.CODE = R.NEW(TF.LC.LOCAL.REF)<1,LC.ST.COMM.CODE.POS,Y.INT.COUNT>
+    Y.ST.COMM.AMT =  R.NEW(TF.LC.LOCAL.REF)<1,LC.ST.COMM.AMT.POS,Y.INT.COUNT>
+    Y.CALC.SRCTAX.AMT = Y.SRCTAX.COMM.PER/100*Y.ST.COMM.AMT
+    GOSUB GET.PL.CATEGORY
+    FINAL.ENTRY.REC = ''
+    GOSUB GET.STMT.DETAILS
+    GOSUB GET.CATEG.DETAILS
+
+    Y.STMT.NO.TEMP = R.NEW(TF.LC.STMT.ENTRY.NO)
+    CALL EB.ACCOUNTING('LCM','SAO',FINAL.ENTRY.REC,'')
+    R.NEW(TF.LC.STMT.ENTRY.NO)= Y.STMT.NO.TEMP:VM:R.NEW(TF.LC.STMT.ENTRY.NO)
+    RETURN
+
+*------------------------------------------------------------------------------
+***************
+GET.PL.CATEGORY:
+***************
+    R.FT.COMMISSION.TYPE = ''
+    FT.COMMISSION.TYPE.ERR = ''
+    CALL F.READ(FN.FT.COMMISSION.TYPE,Y.ST.COMM.CODE,R.FT.COMMISSION.TYPE,F.FT.COMMISSION.TYPE,FT.COMMISSION.TYPE.ERR)
+    IF R.FT.COMMISSION.TYPE THEN
+        Y.PL.CATEGORY = R.FT.COMMISSION.TYPE<FT4.CATEGORY.ACCOUNT>
+    END
+
+    RETURN
+*------------------------------------------------------------------------------
+****************
+GET.STMT.DETAILS:
+****************
+    STMT.ENTRY.REC = ''
+    STMT.ENTRY.REC<AC.STE.ACCOUNT.NUMBER>    = Y.SRCTAX.ACCT
+    STMT.ENTRY.REC<AC.STE.AMOUNT.LCY>        = Y.CALC.SRCTAX.AMT
+    STMT.ENTRY.REC<AC.STE.TRANSACTION.CODE> =  545
+    STMT.ENTRY.REC<AC.STE.CUSTOMER.ID>       = R.NEW(TF.LC.APPLICANT.CUSTNO)
+    STMT.ENTRY.REC<AC.STE.ACCOUNT.OFFICER>   = R.NEW(TF.LC.ACCOUNT.OFFICER)
+    STMT.ENTRY.REC<AC.STE.PRODUCT.CATEGORY>  = R.NEW(TF.LC.CATEGORY.CODE)
+    STMT.ENTRY.REC<AC.STE.VALUE.DATE>        = TODAY
+    STMT.ENTRY.REC<AC.STE.CURRENCY>          = LCCY
+    STMT.ENTRY.REC<AC.STE.POSITION.TYPE>     = R.NEW(TF.LC.POSITION.TYPE)
+    STMT.ENTRY.REC<AC.STE.OUR.REFERENCE>     = ID.NEW
+    STMT.ENTRY.REC<AC.STE.CURRENCY.MARKET>   = R.NEW(TF.LC.CURRENCY.MARKET)
+    STMT.ENTRY.REC<AC.STE.DEPARTMENT.CODE>   = R.NEW(TF.LC.DEPT.CODE)
+    STMT.ENTRY.REC<AC.STE.TRANS.REFERENCE>   = ID.NEW
+    STMT.ENTRY.REC<AC.STE.SYSTEM.ID>         = 'LCM'
+    STMT.ENTRY.REC<AC.STE.BOOKING.DATE>      = TODAY
+    STMT.ENTRY.REC<AC.STE.COMPANY.CODE>      = ID.COMPANY
+    IF FINAL.ENTRY.REC THEN
+        FINAL.ENTRY.REC := FM:LOWER(STMT.ENTRY.REC)
+    END ELSE
+        FINAL.ENTRY.REC = LOWER(STMT.ENTRY.REC)
+    END
+    RETURN
+*------------------------------------------------------------------------------
+*****************
+GET.CATEG.DETAILS:
+*****************
+    CATEG.ENTRY.REC = ''
+    CATEG.ENTRY.REC<AC.CAT.AMOUNT.LCY>       = -1 * Y.CALC.SRCTAX.AMT
+    CATEG.ENTRY.REC<AC.CAT.TRANSACTION.CODE> = 544
+    CATEG.ENTRY.REC<AC.CAT.PL.CATEGORY>      = Y.PL.CATEGORY
+    CATEG.ENTRY.REC<AC.CAT.CUSTOMER.ID>      = R.NEW(TF.LC.APPLICANT.CUSTNO)
+    CATEG.ENTRY.REC<AC.CAT.ACCOUNT.OFFICER>  = R.NEW(TF.LC.ACCOUNT.OFFICER)
+    CATEG.ENTRY.REC<AC.CAT.PRODUCT.CATEGORY> = R.NEW(TF.LC.CATEGORY.CODE)
+    CATEG.ENTRY.REC<AC.CAT.VALUE.DATE>       = TODAY
+    CATEG.ENTRY.REC<AC.CAT.CURRENCY>         = LCCY
+    CATEG.ENTRY.REC<AC.CAT.POSITION.TYPE>    = R.NEW(TF.LC.POSITION.TYPE)
+    CATEG.ENTRY.REC<AC.CAT.OUR.REFERENCE>    = ID.NEW
+    CATEG.ENTRY.REC<AC.CAT.CURRENCY.MARKET>  = R.NEW(TF.LC.CURRENCY.MARKET)
+    CATEG.ENTRY.REC<AC.CAT.DEPARTMENT.CODE>  = R.NEW(TF.LC.DEPT.CODE)
+    CATEG.ENTRY.REC<AC.CAT.TRANS.REFERENCE>  = ID.NEW
+    CATEG.ENTRY.REC<AC.CAT.SYSTEM.ID>        = 'LCM'
+    CATEG.ENTRY.REC<AC.CAT.BOOKING.DATE>     = TODAY
+    CATEG.ENTRY.REC<AC.CAT.COMPANY.CODE>     = ID.COMPANY
+
+    IF FINAL.ENTRY.REC THEN
+        FINAL.ENTRY.REC := FM: LOWER(CATEG.ENTRY.REC)
+    END ELSE
+        FINAL.ENTRY.REC =  LOWER(CATEG.ENTRY.REC)
+    END
+    RETURN
+*--------------------------------------------------------------------------
+********************
+GET.LOCAL.FIELDS.POS:
+********************
+    APPL.ARRAY = 'LETTER.OF.CREDIT'
+    FLD.ARRAY = 'ST.COMM.CODE':VM:'ST.COMM.AMT'
+    FLD.POS =''
+    CALL MULTI.GET.LOC.REF(APPL.ARRAY,FLD.ARRAY,FLD.POS)
+    LC.ST.COMM.CODE.POS  = FLD.POS<1,1>
+    LC.ST.COMM.AMT.POS   = FLD.POS<1,2>
+
+    RETURN
+*--------------------------------------------------------------------------
+END

@@ -1,0 +1,132 @@
+****************************************************
+*-----------------------------------------------------------------------------
+* <Rating>1036</Rating>
+*-----------------------------------------------------------------------------
+* PROGRAM : PROGRAM TO CREATE A CSV FILE FOR CATEGORY BRANCH WISE
+* DEV BY      : MD. IMRAN HASAN
+* DEV DATE    : 2016-12-19
+* UPDATE DATE : 2016-12-19
+* REQ         : ICTD
+****************************************************
+!SUBROUTINE ICTD.BR.WISE.CATEGORY
+    PROGRAM ICTD.BR.WISE.CATEGORY
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*----
+INIT:
+*----
+    FN.ACCT = 'FBNK.ACCOUNT'
+    F.ACCT = ''
+    FN.COMP = 'F.COMPANY'
+    F.COMP = ''
+
+    Y.FILE.DIR = 'RPT.DATA.DIR'
+
+!FOR SINGLE BR
+    Y.CATEG.LIST.SINGLE = '1001':@FM:'1002':@FM:'1003':@FM:'6001':@FM:'6002':@FM:'6003':@FM:'6004':@FM:'6006':@FM:'6007':@FM:'6009':@FM:'6010':@FM:'6019'
+
+!FOR LIVE BR
+    Y.CATEG.LIST = '1001':@FM:'1002':@FM:'1003':@FM:'6001':@FM:'6002':@FM:'6003':@FM:'6004':@FM:'6006':@FM:'6007':@FM:'6009':@FM:'6010':@FM:'6019':@FM:'6602':@FM:'6603':@FM:'6604':@FM:'6605':@FM:'6606':@FM:'6608':@FM:'6621':@FM:'6016':@FM:'6017':@FM:'6623':@FM:'6624':@FM:'1922':@FM:'1923':@FM:'1924':@FM:'1925':@FM:'1926':@FM:'1927':@FM:'1928':@FM:'1929':@FM:'1930':@FM:'1931':@FM:'1932':@FM:'1933':@FM:'1934':@FM:'1935':@FM:'1936':@FM:'1937':@FM:'1938':@FM:'1939':@FM:'1940':@FM:'1941':@FM:'1942':@FM:'1943':@FM:'1944':@FM:'1945':@FM:'1946':@FM:'1901':@FM:'1902':@FM:'1904':@FM:'1906':@FM:'1908':@FM:'1613':@FM:'1642':@FM:'1644':@FM:'1684'
+
+    Y.FILE.DIR = 'RPT.DATA.DIR'
+    Y.FILE.NAME = 'PARAMETER.EXCISE.DETAILS.SINGLE.txt'
+    Y.FILE = Y.FILE.DIR :'/': Y.FILE.NAME
+
+    Y.LIVE.BR.CODE = 'BD0010012':@FM:'BD0010019':@FM:'BD0010108':@FM:'BD0010864':@FM:'BD0010343'
+
+    RETURN
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.ACCT,F.ACCT)
+    CALL OPF(FN.COMP,F.COMP)
+
+!-------Check Directory----------
+    CMD.STR = "CREATE.FILE RPT.DATA.DIR TYPE=UD"
+    CUR.DIR = "RPT.DATA.DIR"
+
+    OPEN CUR.DIR TO F.RPT.DATA.DIR
+    ELSE
+        EXECUTE CMD.STR
+        OPEN CUR.DIR TO F.RPT.DATA.DIR
+        ELSE
+            CRT CUR.DIR "OPENING FAILED"
+            RETURN
+        END
+    END
+!-------------------------------
+
+    RETURN
+*-------
+PROCESS:
+*-------
+
+!---------------------------------------------------------------
+!READ SINGLE STATUS COMPANY
+!---------------------------------------------------------------
+    Y.FLAG = 2
+    CALL GET.LOC.REF("COMPANY","BRANCH.STATUS",Y.BRANCH.STATUS.POS)
+    SEL.CMD1='SELECT ':FN.COMP
+    CALL EB.READLIST(SEL.CMD1,SEL.LIST1,'',NO.OF.REC1,RET.CODE1)
+    LOOP
+        REMOVE  Y.COMP.ID FROM SEL.LIST1 SETTING Y.POS
+    WHILE Y.COMP.ID:Y.POS
+        CALL F.READ(FN.COMP,Y.COMP.ID,R.COMP,F.COMP,ERR.CODE.COMP)
+        Y.BRANCH.STATUS = R.COMP<EB.COM.LOCAL.REF,Y.BRANCH.STATUS.POS>
+        IF Y.BRANCH.STATUS EQ 'SINGLE' THEN
+            IF Y.FLAG EQ 2 THEN
+                COMPANY.LIST :=   Y.COMP.ID
+                Y.FLAG = 3
+            END
+            ELSE
+                COMPANY.LIST := @FM : Y.COMP.ID
+            END
+        END
+    REPEAT
+    CRT "TOAL SINGLE BRANCH : " : DCOUNT(COMPANY.LIST,@FM)
+
+!---------------------------------------------------------------
+
+    FOR I=1 TO DCOUNT(COMPANY.LIST,@FM)
+        COMP.ID =  FIELD(COMPANY.LIST,@FM,I)
+        LOCATE COMP.ID IN Y.LIVE.BR.CODE SETTING BR.POS THEN
+            FOR J=1 TO DCOUNT(Y.CATEG.LIST,@FM)
+                Y.CAT.ID = FIELD(Y.CATEG.LIST,@FM,J)
+                SEL.CMD='SELECT ':FN.ACCT:' WITH CO.CODE EQ ':COMP.ID:' AND CATEGORY EQ ': Y.CAT.ID
+                CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+                IF DCOUNT(SEL.LIST,@FM) GT 0 THEN
+                    Y.REC<-1> = COMP.ID:',':Y.CAT.ID:',':'NO'
+                END
+                SEL.LIST = ''
+            NEXT
+        END
+        ELSE
+            FOR J=1 TO DCOUNT(Y.CATEG.LIST.SINGLE,@FM)
+                Y.CAT.ID = FIELD(Y.CATEG.LIST.SINGLE,@FM,J)
+                SEL.CMD='SELECT ':FN.ACCT:' WITH CO.CODE EQ ':COMP.ID:' AND CATEGORY EQ ': Y.CAT.ID
+                CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+                IF DCOUNT(SEL.LIST,@FM) GT 0 THEN
+                    Y.REC<-1> = COMP.ID:',':Y.CAT.ID:',':'NO'
+                END
+                SEL.LIST = ''
+            NEXT
+        END
+
+
+    NEXT
+
+    OPEN Y.FILE.DIR TO F.FILE.DIR ELSE NULL
+    WRITE Y.REC TO F.FILE.DIR,Y.FILE.NAME
+
+    RETURN
+END

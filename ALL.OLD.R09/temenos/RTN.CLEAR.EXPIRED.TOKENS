@@ -1,0 +1,84 @@
+*-----------------------------------------------------------------------------
+* <Rating>286</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE RTN.CLEAR.EXPIRED.TOKENS
+
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.SPF
+    $INCLUDE GLOBUS.BP I_F.USER
+
+    FN.OS.TOKEN = "F.OS.TOKEN"
+    F.OS.TOKEN = ""
+    CALL OPF(FN.OS.TOKEN,F.OS.TOKEN)
+
+    FN.OS.TOKEN.USE = "F.OS.TOKEN.USE"
+    F.OS.TOKEN.USE = ""
+    CALL OPF(FN.OS.TOKEN.USE,F.OS.TOKEN.USE)
+
+    FN.USER = "F.USER"
+    F.USER = ""
+    CALL OPF(FN.USER,F.USER)
+
+    SEL.CMD = "SELECT ":FN.OS.TOKEN
+    CALL EB.READLIST(SEL.CMD,SEL.REC,"",NO.OF.RECS,SEL.ERR)
+    LOOP
+        REMOVE TOKEN.ID FROM SEL.REC SETTING TOKEN.ID.POS
+    WHILE TOKEN.ID:TOKEN.ID.POS
+
+        READ R.OS.TOKEN FROM F.OS.TOKEN,TOKEN.ID THEN
+            TOKEN.USER = R.OS.TOKEN<1>
+            R.DESKTOP.ACTIVITY = ""
+            CALL CACHE.READ("F.ACTIVITY",TOKEN.USER,R.DESKTOP.ACTIVITY,ACTIVITY.ERROR)
+
+            IF R.DESKTOP.ACTIVITY THEN CONTINUE
+
+*            IF R.OS.TOKEN<3> EQ "" THEN CONTINUE  ;
+
+            READ USER.REC FROM F.USER,TOKEN.USER THEN
+                LAST.TIME = R.OS.TOKEN<4>
+                LAST.DATE = R.OS.TOKEN<5>
+                TIME.OUT.MODE = R.SPF.SYSTEM<SPF.TIMEOUT.MODE>
+                TIME.OUT = R.SPF.SYSTEM<SPF.AUTOLOG.TIME.MINS>
+                CUR.DATE = DATE()
+
+                IF NOT(TIME.OUT.MODE) OR NOT(TIME.OUT) THEN
+                    TIME.OUT = USER.REC<EB.USE.TIME.OUT.MINUTES>
+                END
+
+                TIME.OUT = (TIME.OUT * 60)
+                CUR.TIME = TIME()
+
+                IF LAST.DATE LT CUR.DATE OR (CUR.TIME - LAST.TIME) GE TIME.OUT THEN       ;* lock out of date
+                    DELETE F.OS.TOKEN,TOKEN.ID
+                    PRINT "TOKEN ":TOKEN.ID:" FOR USER ":TOKEN.USER:" IS EXPIRED, SO REMOVED FROM F.OS.TOKEN"
+                    GOSUB DEL.TOKEN.USE
+                END
+            END ELSE
+
+                DELETE F.OS.TOKEN,TOKEN.ID
+                PRINT "TOKEN ":TOKEN.ID:" FOR USER ":TOKEN.USER:" IS REMOVED FROM F.OS.TOKEN"
+                DELETE F.OS.TOKEN.USE,TOKEN.USER
+                PRINT TOKEN.USER:" IS REMOVED FROM F.OS.TOKEN.USE"
+            END
+
+        END
+    REPEAT
+
+    RETURN
+
+DEL.TOKEN.USE:
+
+* To remove TOKEN.USER from OS.TOKEN.USE
+    TOK.USE.ID = TOKEN.USER
+    READU R.TOK.USE FROM F.OS.TOKEN.USE, TOK.USE.ID THEN
+        LOCATE TOKEN.ID IN R.TOK.USE<1> SETTING TOKEN.IN.USE ELSE TOKEN.IN.USE = ''
+        IF TOKEN.IN.USE THEN
+            DEL R.TOK.USE<TOKEN.IN.USE>
+            DELETE F.OS.TOKEN.USE,TOK.USE.ID
+            PRINT TOKEN.USER:" WITH TOKEN ":TOKEN.ID:" IS EXPIRED, SO REMOVED FROM F.OS.TOKEN.USE"
+        END
+    END
+    RETURN
+
+END 

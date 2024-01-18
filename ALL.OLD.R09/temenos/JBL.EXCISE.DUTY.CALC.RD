@@ -1,0 +1,99 @@
+*-----------------------------------------------------------------------------
+* <Rating>180</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.EXCISE.DUTY.CALC.RD(Y.AC.ID)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCT.ACTIVITY
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT JBL.BP I_F.ABL.H.ED.CATEG
+    $INSERT JBL.BP I_F.ABL.H.ED
+    $INSERT JBL.BP I_F.AB.H.ED.SLAB.PARAM
+    $INSERT JBL.BP I_JBL.EXCISE.DUTY.CALC.RD.COMMON
+
+    GOSUB MAIN.PROCESS
+    RETURN
+
+*--------------
+MAIN.PROCESS:
+*--------------
+    REC.ACC = ''
+    REC.AZ=''
+    CALL F.READ(FN.ACC,Y.AC.ID,REC.ACC,F.ACC,ERR.ACC)
+    CALL F.READ(FN.AZ,Y.AC.ID,REC.AZ,F.AZ,ERR.AZ)
+
+    Y.CATEGO = REC.ACC<AC.CATEGORY>
+    Y.CO.CODE = REC.ACC<AC.CO.CODE>
+
+    LOCATE Y.CATEGO IN Y.INCLUDE.CATEG SETTING Y.CAT.POS THEN
+        LOCATE Y.CO.CODE IN Y.INCLUDE.COMPANY SETTING Y.COMP.POS THEN
+            IF REC.ACC<AC.LOCAL.REF,Y.EX.WAIVE.POS> NE 'Waive' AND REC.AZ EQ '' THEN
+                Y.START.PERIOD = Y.ST.MN.YR
+                LOOP
+                UNTIL Y.START.PERIOD GT Y.EN.MN.YR DO
+                    CALL EB.GET.ACCT.ACTIVITY(Y.AC.ID,REC.ACC,Y.START.PERIOD,BALANCE.TYPE,SYSTEM.DATE,R.ACCT.REC)
+                    Y.MAX.AMT.TEMP=MAXIMUM(R.ACCT.REC<4>)
+                    IF Y.MAX.AMT.TEMP GT Y.MAX.AMT.ORIG THEN
+                        Y.MAX.AMT.ORIG = Y.MAX.AMT.TEMP
+
+                        LOCATE Y.MAX.AMT.ORIG IN R.ACCT.REC<4,1> SETTING POS3 THEN
+                            Y.MAX.DATE.ORIG=Y.START.PERIOD:R.ACCT.REC<1,POS3>
+                        END
+
+                    END
+                    R.ACCT.REC=''
+                    Y.MAX.AMT.TEMP=''
+
+                    IF Y.START.PERIOD[5,2] EQ 12 THEN
+                        Y.START.PERIOD = Y.START.PERIOD[1,4]+1:"01"
+                    END
+                    ELSE
+                        Y.START.PERIOD = Y.START.PERIOD[1,4]:FMT(Y.START.PERIOD[5,2]+1,"R%2")
+                    END
+
+                REPEAT
+
+                IF Y.MAX.AMT.ORIG GT 100000 THEN
+                    GOSUB RESULT.PROCESS
+                END
+                Y.START.PERIOD = ''
+                Y.MAX.AMT.ORIG = ''
+                Y.MAX.DATE.ORIG = ''
+            END
+        END
+    END
+    RETURN
+
+*---------------
+RESULT.PROCESS:
+*---------------
+    FOR I=1 TO Y.SLAB.COUNT
+        IF I NE Y.SLAB.COUNT THEN
+            IF Y.MAX.AMT.ORIG GE REC.SLAB<EB.SL.PARAM.AMT.FROM,I> AND Y.MAX.AMT.ORIG LE REC.SLAB<EB.SL.PARAM.AMT.TO,I> THEN
+                Y.EXCIXE.AMT =REC.SLAB<EB.SL.PARAM.EX.DUTY.AMT,I>
+            END
+        END
+        ELSE
+            IF  Y.MAX.AMT.ORIG GE REC.SLAB<EB.SL.PARAM.AMT.FROM,I> THEN
+                Y.EXCIXE.AMT =REC.SLAB<EB.SL.PARAM.EX.DUTY.AMT,I>
+            END
+        END
+    NEXT
+
+    Y.WORKING.BAL = REC.ACC<AC.WORKING.BALANCE>
+
+    IF Y.EXCIXE.AMT GT 0 AND Y.WORKING.BAL GE Y.EXCIXE.AMT THEN
+
+*CALL F.READ(FN.ACC,Y.AC.ID,REC.ACC,F.ACC,ERR.ACC)
+        REC.ED<EXCS.DUT.HIGHEST.BAL.DATE>=Y.MAX.DATE.ORIG
+        REC.ED<EXCS.DUT.HIGHEST.BAL.LCY>= Y.MAX.AMT.ORIG
+        REC.ED<EXCS.DUT.EX.DUTY.AMT.LCY>= Y.EXCIXE.AMT
+        REC.ED<EXCS.DUT.CO.CODE>=REC.ACC<AC.CO.CODE>
+        REC.ED<EXCS.DUT.TYPE>="CREDIT"
+        WRITE REC.ED TO F.ABL.ED,Y.AC.ID:".":Y.EN.MN.YR
+    END
+    REC.ED=''
+    RETURN
+END

@@ -1,0 +1,134 @@
+*-----------------------------------------------------------------------------
+* <Rating>-43</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.EXCISE.DUTY.PDREPAY.LOAD
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine is used to open the files required for the cob routine
+* JBL.B.EXCISE.DUTY.PDREPAY
+*-------------------------------------------------------------------------
+* Project Name : Janata Bank
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*  NA
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+* NA
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+* OPF                       CORE            Opens the file
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 03/05/2011 - New   - Chethana.H.N
+*                      Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE JBL.BP I_JBL.B.EXCISE.DUTY.PDREPAY.COMMON
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE GLOBUS.BP I_F.LMM.ACCOUNT.BALANCES
+    $INCLUDE GLOBUS.BP I_F.PD.PAYMENT.DUE
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE JBL.BP I_F.BD.EXCISE.DUTY.SLAB
+    $INCLUDE JBL.BP I_F.EB.BD.EXCISE.DUTY.PARAM
+    $INCLUDE GLOBUS.BP I_F.FT.COMMISSION.TYPE
+    $INCLUDE GLOBUS.BP I_F.STMT.ENTRY
+*
+
+    GOSUB INIT
+    GOSUB OPEN
+    GOSUB PROCESS
+*
+    RETURN
+*
+**************************************************************************
+INIT:
+*****
+! Initialise variables
+    FN.EB.BD.EXCISE.DUTY.PD = 'F.EB.BD.EXCISE.DUTY.PD'
+    F.EB.BD.EXCISE.DUTY.PD =''
+    R.EB.BD.EXCISE.DUTY.PD =''
+    Y.ERR.PD = ''
+*
+    FN.PD.REPAYMENT = 'F.PD.REPAYMENT'
+    F.PD.REPAYMENT = ''
+    R.PD.REPAYMENT=''
+    Y.ERR.REP=''
+*
+    FN.PD.PAYMENT.DUE='F.PD.PAYMENT.DUE'
+    F.PD.PAYMENT.DUE=''
+    R.PD.PAYMENT.DUE=''
+    Y.ERR.PD=''
+*
+    FN.LD.LOANS.AND.DEPOSITS = 'F.LD.LOANS.AND.DEPOSITS'
+    F.LD.LOANS.AND.DEPOSITS = ''
+    R.LD.LOANS.AND.DEPOSITS = ''
+    Y.LD.ERR = ''
+*
+    FN.STMT.ENTRY='F.STMT.ENTRY'
+    F.STMT.ENTRY=''
+    R.STMT.ENTRY=''
+    Y.ERR.SE=''
+*
+    FN.ACCOUNT='F.ACCOUNT'
+    F.ACCOUNT=''
+    R.ACCT.REC=''
+    Y.ERR.AC=''
+*
+    FN.EB.BD.EXCISE.DUTY.SLAB='F.EB.BD.EXCISE.DUTY.SLAB'
+    F.EB.BD.EXCISE.DUTY.SLAB=''
+    R.EB.BD.EXCISE.DUTY.SLAB=''
+    Y.ERR.EBS=''
+*
+    FN.EB.BD.EXCISE.DUTY.PARAM='F.EB.BD.EXCISE.DUTY.PARAM'
+    F.EB.BD.EXCISE.DUTY.PARAM=''
+    R.EB.BD.EXCISE.DUTY.PARAM=''
+    Y.ERR.EBP=''
+*
+    FN.FT.COMMISSION.TYPE='F.FT.COMMISSION.TYPE'
+    F.FT.COMMISSION.TYPE=''
+    R.FT.COMMISSION.TYPE=''
+    Y.ERR.FT=''
+*
+    Y.COMM.TYPE=''
+    RETURN
+**************************************************************************
+OPEN:
+********
+! Open Files
+    CALL OPF(FN.EB.BD.EXCISE.DUTY.PD,F.EB.BD.EXCISE.DUTY.PD)
+    CALL OPF(FN.PD.REPAYMENT,F.PD.REPAYMENT)
+    CALL OPF(FN.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE)
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    CALL OPF(FN.EB.BD.EXCISE.DUTY.SLAB,F.EB.BD.EXCISE.DUTY.SLAB)
+    CALL OPF(FN.EB.BD.EXCISE.DUTY.PARAM,F.EB.BD.EXCISE.DUTY.PARAM)
+    CALL OPF(FN.FT.COMMISSION.TYPE,F.FT.COMMISSION.TYPE)
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+    RETURN
+
+**************************************************************************
+PROCESS:
+*------
+    GOSUB READ.EB.BD.EXCISE.DUTY.SLAB
+*
+    RETURN
+***************************************************************************
+READ.EB.BD.EXCISE.DUTY.SLAB:
+*****************************
+! Read EB.BD.EXCISE.DUTY.SLAB
+    Y.SLAB.ID='SYSTEM'
+    R.EB.BD.EXCISE.DUTY.SLAB = '' ; Y.ERR.EBS = ''
+    CALL F.READ(FN.EB.BD.EXCISE.DUTY.SLAB,Y.SLAB.ID,R.EB.BD.EXCISE.DUTY.SLAB,F.EB.BD.EXCISE.DUTY.SLAB,Y.ERR.EBS)
+    IF NOT(R.EB.BD.EXCISE.DUTY.SLAB) THEN
+        RETURN
+    END
+*
+    RETURN
+END

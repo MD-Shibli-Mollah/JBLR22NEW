@@ -1,0 +1,68 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.S.IMP.MARGIN.CAL.RTN
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LETTER.OF.CREDIT
+    $INSERT I_F.LC.TYPES
+    $INSERT I_F.CURRENCY
+    $INSERT I_F.CURRENCY.MARKET
+    $INSERT I_GTS.COMMON
+
+!IF OFS.VAL.ONLY THEN RETURN
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+INIT:
+*****
+    FN.LC = 'F.LETTER.OF.CREDIT'
+    F.LC = ''
+    R.LC.REC = ''
+    Y.LC.ERR = ''
+    CALL OPF(FN.LC,F.LC)
+
+    FN.CUR = 'F.CURRENCY'
+    F.CUR = ''
+    R.CUR.REC = ''
+    Y.CUR.ERR = ''
+    CALL OPF(FN.CUR,F.CUR)
+
+    Y.LC.CURRENCY = ''
+    Y.LC.AMOUNT = ''
+    Y.CCY.MARKET = ''
+    Y.LC.CCY.MKT = ''
+    Y.EXCHANGE.RATE = ''
+    Y.PROV.PERC = ''
+    Y.PROV.AMT = ''
+    Y.PROV.AMT.LCY = ''
+    CALL GET.LOC.REF('LETTER.OF.CREDIT','LC.MARGIN.RATE',Y.LC.MARGRATE.POS)
+    RETURN
+
+PROCESS:
+*******
+    Y.PROV.PERC = COMI
+    IF R.NEW(TF.LC.PROVISION)[1,1] EQ 'Y' THEN
+        Y.LC.CURRENCY = R.NEW(TF.LC.LC.CURRENCY)
+        Y.LC.AMOUNT = R.NEW(TF.LC.LC.AMOUNT)
+        IF Y.LC.CURRENCY NE LCCY THEN
+            CALL F.READ(FN.CUR,Y.LC.CURRENCY,R.CUR.REC,F.CUR,Y.CUR.ERR)
+            Y.CCY.MARKET = R.CUR.REC<EB.CUR.CURRENCY.MARKET>
+            Y.LC.CCY.MKT = R.NEW(TF.LC.CURRENCY.MARKET)
+            FINDSTR Y.LC.CCY.MKT IN Y.CCY.MARKET SETTING POS,POS1 THEN
+                Y.EXCHANGE.RATE = R.CUR.REC<EB.CUR.MID.REVAL.RATE,POS1>
+            END
+        END ELSE
+            Y.EXCHANGE.RATE = 1
+        END
+        Y.PROV.AMT = (Y.LC.AMOUNT * Y.PROV.PERC)/100
+        Y.PROV.AMT.LCY = Y.PROV.AMT * Y.EXCHANGE.RATE
+        CALL EB.ROUND.AMOUNT(LCCY,Y.PROV.AMT.LCY,'','')
+        R.NEW(TF.LC.PROVIS.AMOUNT) = Y.PROV.AMT.LCY
+        CALL REFRESH.FIELD(AF,"")
+   END
+    RETURN
+END

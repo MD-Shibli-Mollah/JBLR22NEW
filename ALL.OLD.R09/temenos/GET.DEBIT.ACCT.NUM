@@ -1,0 +1,21 @@
+****************************************************************************************
+*Developed By: Abu Huraira(Datasoft Systems)                                           *
+*Purpose: to form outward settlement account                                           *
+*Date:2016/01/12                                                                       *
+****************************************************************************************
+    SUBROUTINE GET.DEBIT.ACCT.NUM
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT JBL.BP I_F.BD.RTGS.PARAM
+
+    FN.RTG.PARM = "F.EB.BD.RTGS.PARAM"
+    F.RTG.PARM = ""
+
+    CALL OPF(FN.RTG.PARM,F.RTG.PARM)
+
+    CALL F.READ(FN.RTG.PARM,'SYSTEM',R.RTGS.PARM,F.RTG.PARM,Y.RTGS.ERR)
+    R.NEW(FT.DEBIT.ACCT.NO) = 'BDT':R.RTGS.PARM<EB.BD.29.OW.SETT.CATEG>:'0001':RIGHT(ID.COMPANY,4)
+    RETURN
+END

@@ -1,0 +1,281 @@
+!SUBROUTINE MBL.LOAN.LISTING(Y.DATA)
+    PROGRAM MBL.LOAN.LISTING
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.LIMIT
+    $INSERT GLOBUS.BP I_F.PD.PAYMENT.DUE
+    $INSERT GLOBUS.BP I_F.ACCOUNT.DEBIT.INT
+    $INSERT GLOBUS.BP I_F.LD.SCHEDULE.DEFINE
+    $INSERT GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_F.LIMIT.REFERENCE
+    $INSERT GLOBUS.BP I_F.LN.ASSET.CLASS
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+*------
+INIT:
+*-----
+
+    FN.ACCOUNT = 'FBNK.ACCOUNT'
+    F.ACCOUNT = ' '
+
+    FN.CUSTOMER = 'FBNK.CUSTOMER'
+    F.CUSTOMER = ' '
+
+    FN.LD = 'FBNK.LD.LOANS.AND.DEPOSITS'
+    F.LD = ' '
+
+    FN.LIMIT = 'FBNK.LIMIT'
+    F.LIMIT = ' '
+
+    FN.ACC.DR.INT = 'FBNK.ACCOUNT.DEBIT.INT'
+    F.ACC.DR.INT = ' '
+
+    FN.PD = 'FBNK.PD.PAYMENT.DUE'
+    F.PD = ' '
+
+    FN.ASSET.CLASS = 'F.LN.ASSET.CLASS'
+    F.ASSET.CLASS = ' '
+
+    FN.LD.SCHLD.DEFINE = 'FBNK.LD.SCHEDULE.DEFINE'
+    F.LD.SCHLD.DEFINE = ' '
+
+    FN.LR = 'FBNK.LIMIT.REFERENCE'
+    F.LR = ' '
+
+
+!Y.CATEGORY = ENQ.SELECTION<4,1>
+!Y.PRODUCT = ENQ.SELECTION<4,2>
+    Y.CATEGORY = '1936'
+    Y.PRODUCT = '1174'
+    RETURN
+*----------
+OPENFILES:
+*-----------
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    CALL OPF(FN.LIMIT,F.LIMIT)
+    CALL OPF(FN.LD,F.LD)
+    CALL OPF(FN.CUSTOMER,F.CUSTOMER)
+    CALL OPF(FN.PD,F.PD)
+    CALL OPF(FN.ASSET.CLASS,F.ASSET.CLASS)
+    CALL OPF(FN.ACC.DR.INT,F.ACC.DR.INT)
+    CALL OPF(FN.LD.SCHLD.DEFINE,F.LD.SCHLD.DEFINE)
+    CALL OPF(FN.LR,F.LR)
+    CALL GET.LOC.REF("ACCOUNT","LIMIT.PROD",Y.AC.LIMIT.PROD.LOC)
+    CALL GET.LOC.REF("PD.PAYMENT.DUE","LIMIT.PROD",Y.PD.LIMIT.PROD.LOC)
+
+    RETURN
+*---------
+PROCESS:
+*---------
+    DEBUG
+    CALL F.READ(FN.LR,Y.PRODUCT,R.LR,F.LR,Y.ERR.LR)
+    Y.PROD.DES = R.LR<LI.REF.DESCRIPTION>
+    IF Y.CATEGORY LE 21000 THEN
+        SEL.CMD = "SELECT ":FN.ACCOUNT :" WITH  CATEGORY EQ ":Y.CATEGORY:" AND CO.CODE EQ ":ID.COMPANY
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+        IF SEL.LIST THEN
+            LOOP
+                REMOVE Y.ACCT.ID FROM SEL.LIST SETTING POS
+            WHILE  Y.ACCT.ID:POS
+                CALL F.READ(FN.ACCOUNT, Y.ACCT.ID , R.ACCOUNT, F.ACCOUNT , Y.ERR)
+                IF R.ACCOUNT<AC.LOCAL.REF,Y.AC.LIMIT.PROD.LOC> EQ Y.PRODUCT THEN
+                    Y.STATUS = ' '
+                    Y.APL.SCH = 'N/A'
+                    Y.SCH.AMT = ''
+                    Y.LEGACY.ID = R.ACCOUNT<AC.ALT.ACCT.ID>
+                    Y.ACC.NO = Y.ACCT.ID
+                    Y.NAME = R.ACCOUNT<AC.SHORT.TITLE>
+                    Y.CUS.NO = R.ACCOUNT<AC.CUSTOMER>
+                    Y.LIMIT.REF = R.ACCOUNT<AC.LIMIT.REF>
+                    Y.BALANCE = R.ACCOUNT<AC.WORKING.BALANCE>
+                    Y.LIMIT.ID = Y.CUS.NO:'.000':Y.LIMIT.REF
+                    Y.ACCR.AMT =  R.ACCOUNT<AC.ACCR.DR.AMOUNT>
+
+                    GOSUB GET.LIMIT.DATA
+                    GOSUB GET.STATUS
+                    GOSUB GET.DR.INT
+                    Y.DATA<-1>  = Y.ACC.NO:'*':Y.LEGACY.ID:'*':Y.CUS.NO:'*':Y.PROD.DES:'*':Y.APL.SCH:'*':Y.SCH.AMT:'*':Y.NAME:'*':Y.DR.INT:'*':Y.LIMIT.AMNT:'*':Y.EXP.DATE:'*':Y.SAN.DATE:'*':Y.BALANCE:'*':Y.ACCR.AMT:'*':ID.COMPANY:'*':Y.STATUS
+                END
+            REPEAT
+        END
+    END
+    ELSE
+        SEL.CMD = "SELECT ":FN.LD :" WITH  CATEGORY EQ ":Y.CATEGORY:" AND CO.CODE EQ ":ID.COMPANY:" AND LIMIT.PROD EQ ":Y.PRODUCT
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+        IF SEL.LIST THEN
+            LOOP
+                REMOVE Y.LD.ID FROM SEL.LIST SETTING POS
+            WHILE  Y.LD.ID:POS
+                CALL F.READ(FN.LD, Y.LD.ID , R.LD, F.LD , Y.ERR.LD)
+                Y.STATUS = ' '
+                Y.APL.SCH = ' '
+                Y.LEGACY.ID = R.LD<LD.LOCAL.REF,9>
+                Y.ACC.NO = Y.LD.ID
+
+                Y.CUS.NO = R.LD<1>
+                CALL F.READ(FN.CUSTOMER, Y.CUS.NO, R.CUS, F.CUSTOMER, Y.ERR.CUS)
+                IF R.CUS THEN
+                    Y.NAME = R.CUS<EB.CUS.NAME.1>
+                END
+                Y.DR.INT = R.LD<LD.INTEREST.RATE>
+                Y.LIMIT.REF = R.LD<LD.LIMIT.REFERENCE>
+                Y.LD.BALANCE = R.LD<LD.AMOUNT>
+                Y.LIMIT.ID = Y.CUS.NO:'.000':Y.LIMIT.REF
+                Y.ACCR.AMT =  ' '
+                Y.PD.ID = 'PD':Y.ACC.NO
+                GOSUB GET.LIMIT.DATA
+                GOSUB APPL.SCHLD
+                GOSUB PD.BAL.STATUS
+                Y.DATA<-1> = Y.ACC.NO:'*':Y.LEGACY.ID:'*':Y.CUS.NO:'*':Y.PROD.DES:'*':Y.APL.SCH:'*':Y.SCH.AMT:'*':Y.NAME:'*':Y.DR.INT:'*':Y.LIMIT.AMNT:'*':Y.EXP.DATE:'*':Y.SAN.DATE:'*':Y.BALANCE:'*':Y.ACCR.AMT:'*':ID.COMPANY:'*':Y.STATUS
+            REPEAT
+        END
+
+        SEL.CMD = "SELECT ":FN.PD :" WITH  CATEGORY EQ ":Y.CATEGORY:" AND CO.CODE EQ ":ID.COMPANY
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+        IF SEL.LIST THEN
+            LOOP
+                REMOVE Y.PD.ID FROM SEL.LIST SETTING POS
+            WHILE  Y.PD.ID:POS
+                CALL F.READ(FN.PD, Y.PD.ID , R.PD, F.PD , Y.ERR.PD)
+                IF R.PD<PD.LOCAL.REF,Y.PD.LIMIT.PROD.LOC> EQ Y.PRODUCT THEN
+                    Y.STATUS = ' '
+                    Y.APL.SCH = ' '
+                    Y.ACC.NO = Y.PD.ID
+
+                    Y.CUS.NO = R.PD<1>
+                    Y.LEGACY.ID = R.PD<PD.LOCAL.REF,18>
+                    CALL F.READ(FN.CUSTOMER, Y.CUS.NO, R.CUS, F.CUSTOMER, Y.ERR.CUS)
+                    IF R.CUS THEN
+                        Y.NAME = R.CUS<EB.CUS.NAME.1>
+                    END
+                    Y.DR.INT = R.PD<PD.PENALTY.RATE>+R.PD<PD.PENALTY.SPREAD>
+                    Y.LIMIT.REF = R.PD<PD.LIMIT.REFERENCE>
+                    Y.BALANCE = R.PD<PD.TOTAL.OVERDUE.AMT>
+                    Y.LIMIT.ID = Y.CUS.NO:'.000':Y.LIMIT.REF
+                    Y.ACCR.AMT =  ' '
+                    Y.APL.SCH = ' '
+                    Y.SCH.AMT = ' '
+                    GOSUB GET.LIMIT.DATA
+                    Y.STATUS.ID = R.PD<PD.LOCAL.REF,13>
+                    IF Y.STATUS.ID THEN
+                        CALL F.READ(FN.ASSET.CLASS,Y.STATUS.ID,R.ASST.CLS,F.ASSET.CLASS,Y.ERR.ASST.CLS)
+                        Y.STATUS = R.ASST.CLS<1>
+                    END
+                    ELSE
+                        Y.STATUS = ' '
+                    END
+                    Y.DATA<-1> = Y.ACC.NO:'*':Y.LEGACY.ID:'*':Y.CUS.NO:'*':Y.PROD.DES:'*':Y.APL.SCH:'*':Y.SCH.AMT:'*':Y.NAME:'*':Y.DR.INT:'*':Y.LIMIT.AMNT:'*':Y.EXP.DATE:'*':Y.SAN.DATE:'*':Y.BALANCE:'*':Y.ACCR.AMT:'*':ID.COMPANY:'*':Y.STATUS
+                END
+            REPEAT
+        END
+    END
+    RETURN
+*---------------
+GET.LIMIT.DATA:
+*---------------
+
+    CALL F.READ(FN.LIMIT, Y.LIMIT.ID, R.LIMIT, F.LIMIT , Y.ERR.LIMIT)
+    IF R.LIMIT THEN
+        Y.LIMIT.AMNT = R.LIMIT<LI.INTERNAL.AMOUNT>
+        Y.SAN.DATE = R.LIMIT<LI.APPROVAL.DATE>
+        Y.EXP.DATE = R.LIMIT<LI.EXPIRY.DATE>
+    END
+    ELSE
+        Y.LIMIT.AMNT = ''
+        Y.SAN.DATE = ''
+        Y.EXP.DATE = ''
+    END
+    RETURN
+*---------------
+GET.STATUS:
+*---------------
+    DEBUG
+    SEL.CMD.PD = "SELECT ":FN.PD :" WITH REPAYMENT.ACCT  EQ ":Y.ACC.NO
+    CALL EB.READLIST(SEL.CMD.PD,SEL.LIST.PD,'',NO.OF.REC.PD,RET.CODE.PD)
+    IF SEL.LIST.PD THEN
+        LOOP
+            REMOVE Y.PD.ID FROM SEL.LIST.PD SETTING POS.PD
+        WHILE  Y.PD.ID:POS.PD
+            CALL F.READ(FN.PD, Y.PD.ID, R.PD, F.PD , Y.ERR.PD)
+            IF R.PD THEN
+                Y.STATUS.ID = R.PD<PD.LOCAL.REF,13>
+                IF Y.STATUS.ID THEN
+                    CALL F.READ(FN.ASSET.CLASS,Y.STATUS.ID,R.ASST.CLS,F.ASSET.CLASS,Y.ERR.ASST.CLS)
+                    Y.STATUS = R.ASST.CLS<1>
+                END
+                ELSE
+                    Y.STATUS = " "
+                END
+            END
+        REPEAT
+    END
+    RETURN
+*-------------
+GET.DR.INT:
+*-------------
+    DEBUG
+    SEL.CMD.DR = "SELECT ":FN.ACC.DR.INT :" WITH @ID LIKE ":Y.ACC.NO:"..."
+    CALL EB.READLIST(SEL.CMD.DR,SEL.LIST.DR,'',NO.OF.REC.DR,RET.CODE.DR)
+    IF SEL.LIST.DR THEN
+        LOOP
+            REMOVE Y.DR.INT.ID FROM SEL.LIST.DR SETTING POS.DR
+        WHILE Y.DR.INT.ID:POS.DR
+            CALL F.READ(FN.ACC.DR.INT, Y.DR.INT.ID, R.DR.INT, F.ACC.DR.INT , Y.ERR.DR.INT)
+            IF R.DR.INT THEN
+                Y.DR.INT = R.DR.INT<IC.ADI.DR.INT.RATE>
+            END
+        REPEAT
+    END
+    RETURN
+*------------------
+APPL.SCHLD:
+*------------------
+
+    IF Y.CATEGORY GE 21000 THEN
+        CALL F.READ(FN.LD.SCHLD.DEFINE,Y.ACC.NO, R.LD.SCHLD,F.LD.SCHLD.DEFINE,Y.ERR.LD.SCHLD)
+        IF R.LD.SCHLD THEN
+            Y.SCH.TYPE = R.LD.SCHLD<LD.SD.SCH.TYPE,1>
+            Y.FREQUENCY = R.LD.SCHLD<LD.SD.FREQUENCY,1>
+            Y.SCH.AMT = R.LD.SCHLD<LD.SD.AMOUNT,1>
+            IF Y.SCH.TYPE EQ 'P' THEN
+                Y.APL.SCH  = Y.FREQUENCY
+                Y.SCH.AMT = Y.SCH.AMT
+            END
+            ELSE
+                Y.APL.SCH = ''
+                Y.SCH.AMT = ''
+            END
+        END
+    END
+    RETURN
+*---------------
+PD.BAL.STATUS:
+*---------------
+
+    CALL F.READ(FN.PD, Y.PD.ID, R.PD, F.PD , Y.ERR.PD)
+    IF R.PD THEN
+        Y.STATUS.ID = R.PD<PD.LOCAL.REF,13>
+        Y.PD.BAL = R.PD<PD.TOTAL.OVERDUE.AMT>
+        Y.BALANCE = Y.LD.BALANCE + Y.PD.BAL
+        IF Y.STATUS.ID THEN
+            CALL F.READ(FN.ASSET.CLASS,Y.STATUS.ID,R.ASST.CLS,F.ASSET.CLASS,Y.ERR.ASST.CLS)
+            Y.STATUS = R.ASST.CLS<1>
+        END
+        ELSE
+            Y.STATUS = ' '
+        END
+    END
+    ELSE
+        Y.BALANCE = Y.LD.BALANCE
+    END
+    RETURN

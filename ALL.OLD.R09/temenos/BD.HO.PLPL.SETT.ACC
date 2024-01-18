@@ -1,0 +1,21 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.HO.PLPL.SETT.ACC
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+
+
+    FN.FT = 'FBNK.FUNDS.TRANSFER'
+    F.FT = ''
+
+    CALL OPF(FN.FT,F.FT)
+
+    Y.CO.CODE = ID.COMPANY
+    Y.CO.CODE = SUBSTRINGS(Y.CO.CODE,6,9)
+    Y.SETT.ACC = "BDT140320001":Y.CO.CODE
+    R.NEW(FT.CREDIT.ACCT.NO) = Y.SETT.ACC
+
+    RETURN
+END

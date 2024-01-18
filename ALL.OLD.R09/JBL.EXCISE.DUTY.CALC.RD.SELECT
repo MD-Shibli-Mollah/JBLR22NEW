@@ -1,0 +1,26 @@
+*-----------------------------------------------------------------------------
+* <Rating>-17</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.EXCISE.DUTY.CALC.RD.SELECT
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCT.ACTIVITY
+    $INSERT JBL.BP I_F.ABL.H.ED.CATEG
+    $INSERT JBL.BP I_F.ABL.H.ED
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT JBL.BP I_F.AB.H.ED.SLAB.PARAM
+    $INSERT JBL.BP I_JBL.EXCISE.DUTY.CALC.RD.COMMON
+
+    SEL.CMD.ACCT='SELECT ':FN.ACC
+    CALL EB.READLIST(SEL.CMD.ACCT,SEL.LIST.ACCT,'',NO.OF.REC,RET.CODE)
+
+    IF DCOUNT(SEL.LIST.ACCT,@FM) GT 0 THEN
+        CALL BATCH.BUILD.LIST('',SEL.LIST.ACCT)
+    END
+    ELSE
+        CRT 'NO ACCOUNT SELECTED'
+    END
+    RETURN
+END

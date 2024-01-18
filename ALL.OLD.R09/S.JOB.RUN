@@ -1,0 +1,990 @@
+* Version n dd/mm/yy  GLOBUS Release No. G14.2.00 01/04/04
+*-----------------------------------------------------------------------------
+* <Rating>1367</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE S.JOB.RUN
+*-----------------------------------------------------------------------------
+* New version of S.BATCH.RUN but is designed to be re-runnable. The most important change
+* from the previous version is the removal of the concept of the master thread. In this
+* version no thread owns the batch process. The first thread to lock the batch record
+* updates the status variables and the first thread back from BATCH.JOB.CONTROL flags the
+* job as complete.
+*
+* BATCH.JOB.CONTROL is now invoked by every thread and IT manages the restart/re-running of
+* a job. All jobs are now multi-threaded hence EB.SORT.BATCH returns a dynamic array of job
+* names (and other details) in the order in which they must be run. This simplifies this program
+* considerably in that it no longer has to manage the batch stages - it simply runs each job
+* in turn.
+*
+* BATCH.JOB.CONTROL is also capable of running a 'non' MT job. To do this is uses a list file
+* from the pool, puts a single record in the list file and invokes the routine just like a
+* MT job - except that with only one id in the list file only one thread actually runs it - therefore
+* it runs single threaded. Note: There is still a trans start & commit wrapped around the call
+* hence the 'job' should not process thousands of records!
+* T24
+* ===
+* S.JOB.RUN has now become the sole mechanism for running background jobs - close of business
+* jobs (which used to be the old EOD), delivery, securities corporate actions etc etc. Every
+* job that conforms to the standard multi-thread model hence, is capable of horizontal scaling (ie
+* running more than one process on a server or across multiple servers), recoverablity and
+* restartability.
+*-----------------------------------------------------------------------------
+* Modifications
+* 28/11/02 - BG_100002872
+*             Only those batch jobs whose product is
+*             installed will be executed
+*
+* 1/12/02 - BG_100002910
+*           BATCH.JOB.CONTROL CHANGES
+*           The code in this routine has been changed in such a
+*           way that if it is invoked when SPF is O then it will
+*           call EB.SORT.BATCH with 'ONLINE' - which should return
+*           just the ONLINE processes.
+*
+*  26/12/02 - BG_100003080(BG_100002910)
+*                      Correction for new batch changes (BG_100002910)
+*
+* 08/01/03 - BG_100003135
+*            The check, whether the product of the job is installed
+*            is removed
+*
+* 04/02/03 - BG_100003381
+*                     Processing for same job appearing more than once
+*                     in a batch process
+*
+* 28/02/03 - BG_100003661
+*            If a particular job repeats more than once in a Batch
+*            Process, we obtain its location from the variable
+*            BATCH.NEXT.POS.After obtaining the location, BATCH.NEXT.POS
+*            should be reset to NULL.
+*
+* 10/03/03 - BG_100003752
+*                     Delete BATCH.STATUS record for the job to be run
+*
+* 21/03/03 - BG_100003858
+*            The progress status is not updated in Desktop when the EOD is
+*            run. The Batch Process status has to be provided to Desktop
+*            after each job has been run.
+*
+* GBYYDDDNNNNN   18/02/2003
+*                Modified to be invoked by the tSA (Service Agents) - part of t24.
+*                The AGENT.NUMBER is passed in I_TSA.COMMON - this is the key to
+*                the TSA.STATUS table which determines what service S.JOB.RUN should
+*                perform. If this is zero (ie undefined) then run the close of business
+*                jobs (the old EOD) as per normal - see description above.
+*
+* 11/06/03 -
+*            Rewrite the code to allow a job name to appear more than once in a
+*            batch record. Instead of locating do a for/next loop and check the
+*            job.status.
+*
+* 29/07/03  - BG_100004890
+*             Store critical error flag in BATCH.DETAILS to indicate COB
+*             must be stopped if a fatal error occurs in this job.
+*
+* 12/08/03 - BG_100004962
+*             Changes done to avoid compilation error.
+*
+* 27/11/03 - BG_100005480
+*            Run jobs that are not daily if NEXT.RUN.DATE is <= NWD and > LWD
+*            stops problem with month end dates being changed
+*            also update the status back to zero for online on completion
+*            Don't set SPF status to B either
+*
+* 09/12/03 - BG_100005787
+*            1. Previously the key (FLAG.ID) to F.BATCH.STATUS was MNEMONIC/JOB.NAME.
+*               Now the FLAG.ID is of the format PROCESS.NAME-JOB.NAME
+*            2. The Next.Run.Date of the Job is not checked before updating
+*               the LAST.RUN.DATE
+*
+* 27/01/04 - BG_100006109
+*            1. Always run DATE.CHANGE - regardless of date.
+*            2. Included the call to the routine S.PERFORM.RESET to
+*               reset the BATCH status.
+*
+* 03/03/04 - CI_10017807
+*            1. Fix done to stop the service from running for the next day.
+*               - Check the SERVICE.CONTROL in TSA.SERVICE before running every job.
+*               - If the SERVICE.CONTROL is 'STOP' then just exit.
+*            2. Fatal out if the BATCH record not found in the file.
+*            3. Incase of restart from crash change the Process/Job status from
+*               3 to 1.
+
+* 07/05/04 - CI_10019620
+*      1. When same job.name occurs more than once in a batch record we have
+*               problem in getting its position in the batch record. Changes done
+*               to handle this. Now the FLAG.ID is of the format:
+*               FLAG.ID = <PROCESS.NAME>-<JOB.NAME>-<POS OF THE JOB IN THE PROCESS>
+*               Ref :HD0401950
+*            2. Also we were updating the NEXT.RUN.DATE of month end job wrongly.
+*               The code is rearranged to handle this.
+*               Ref :HDO403909
+*
+* 27/05/04 - CI_10020180
+*               Checking whether verification job has run before the main job runs.
+*
+* 29/06/04 - BG_100006856
+*               Job dependency factor problem changes.
+*
+* 02/07/04 - CI_10021059
+*            Online Batch services were not getting properly reset.
+*            Ref: HD0408129
+*
+* 06/07/04 - BG_100006900
+*            1. Allow run ahead mechanism for jobs
+*            2. Update the batch status record (service) with the number of jobs
+*            completed so far. Used in COB.PROGRESS enquiry. Delete when service is
+*            finished.
+*            3. Update common variable JOB.PROGRESS to tell SERVICE.HEARTBEAT where we
+*            are.
+*            4. Skip jobs if the process status (passed from EB.SORT.BATCH) is 2 ie complete.
+*
+* 25/08/04 - BG_100007135
+*            If the last job in a batch record happens to be Adhoc the batch record is
+*            not updated to completed status.
+*
+* 15/09/04 - CI_10023141
+*            Changes done to force CACHE.READ to hold the cache per job
+*
+* 15/12/04 - CI_10025548
+*            Call GIT to make sure the file Cache is cleared
+*            Ref:TTS0400152
+*
+* 15/02/06 - CI_10038988
+*            In case of Activation Processing, BATCH record is not locked
+*            so do a read of it so that any batch details required are
+*            refered to
+*
+* 31/05/06 - CI_10041515
+*            For online service, do the reset in STOP.SERVICE and
+*            sleep for a minute before doing reset
+*
+* 12/07/06 - BG_100011653
+*            Changes were done to delete BATCH.STATUS record when it
+*            has the value 'processed'.
+*
+* 16/11/06 - CI_10045500
+*            Job Dependency Error does not need to fatal out and could just
+*            signal the invalid instance to the agent and it could restart.
+*            Ref:HD0607965
+*
+* 30/04/07 - CI_10049235
+*            Removed the WRITE stmt and made a call to SERVICE.CONTROL
+*
+* 22/10/07 - CI_10052063
+*            Locking record is cleared at the end of service
+*            Ref:HD0717089
+*
+* 23/11/07 - CI_10052588
+*            Monthly Job executed 1 day ahead
+*            Ref:HD0719713
+*
+* 15/03/08 - CI_10055058
+*            Added SelectAhead mechanism
+*
+* 19/09/08 - CI_10057857
+*            New job takes more time to start because of unnecessary lock on batch.
+*
+* 24/10/08 - CI_10057692
+*            Include the insert file I_RC.COMMON
+*            CSS.REF:HD0818388
+*
+* 21/11/08 - CI_10059016
+*            System takes some time to switch from one job to next job during COB.
+*
+* 29/10/08 - GLOBUS_CI_10059735
+*            Generic release of read lock on TSA.SERVICE after completion of the service.
+*            HD Ref: HD0830414
+*
+* 24/02/09 - CI_10060886
+*            Service whose name starts with COB resets COB jobs.
+*            Ref:HD0905560
+*
+* 21/01/11 - EN_10004644
+*            Put CBE generation hooks into T24
+*
+* 17/03/11 - BG_100027072
+*            JOB.PENDING events generated for jobs that don't run
+*
+* 11/11/11 - CI_10074440 - Defect:293540
+*            All the sessions running AUTO services need not lock TSA.SERVICE and
+*            call SERVICE.CONTROL routine.
+*
+* 18/05/12 - CI_10075380
+*            Avoid agents waiting for the Lock on BATCH record to update JOB.STATUS, even though the job status is updated by any other agent.
+*            Avoid unnecessary writes on BATCH record.
+*
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_S.COMMON
+    $INSERT I_BATCH.FILES
+    $INSERT I_TSA.COMMON
+    $INSERT I_F.LOCKING
+    $INSERT I_F.BATCH
+    $INSERT I_F.DATES
+    $INSERT I_F.SPF
+    $INSERT I_F.TSA.STATUS
+    $INSERT I_F.TSA.SERVICE
+    $INSERT I_F.COMPANY
+    $INSERT I_F.PGM.FILE
+    $INSERT I_STATIC.CACHE.COMMON
+    $INSERT I_RC.COMMON
+
+*-----------------------------------------------------------------------------
+
+    GOSUB INITIALISATION
+    GOSUB DETERMINE.SERVICE   ;* Decide on what to run
+
+    LOOP PROCESS.JOB = BATCH.LIST<BATCH.POS> WHILE BATCH.LIST         ;* When all jobs are done
+    CALL OCOMO("BEFORE STARTPROCESS":PROCESS.JOB:OCONV(TIME(), "MTS"))
+        JOB.PROGRESS = 5      ;* Managing batch records
+        CALL SERVICE.HEARTBEAT          ;* We're still alive
+        GOSUB CHECK.SERVICE   ;* Check the tSM still want's us to do the current service
+        GOSUB EXTRACT.JOB.DETAILS       ;* Prepare to run
+        BEGIN CASE
+        CASE ACTIVATION.FILE  ;* Online agent - don't maintain batch status stuff
+            GOSUB INITIALISE.ENVIRONMENT
+            GOSUB RUN.JOB     ;* And run it
+        CASE PROCESS.STATUS = 2         ;* Process has already been completed
+            JOB.FINISHED=1    ;* Skip this job
+        CASE OTHERWISE
+            GOSUB READ.BATCH.RECORD
+            JOB.STATUS = R.BATCH<BAT.JOB.STATUS,BPOS>       ;*get the current job status
+            BEGIN CASE
+            CASE JOB.STATUS = 1         ;*some one has started the job just run the job
+                RUN.IT = 1
+            CASE JOB.STATUS = 2         ;*job has reached the completed status
+                RUN.IT = 0
+            CASE OTHERWISE
+                GOSUB UPDATE.RUN.STATUS ;* Maintain process & job status
+            END CASE
+            IF JOB.STATUS EQ '-2' THEN  ;*Agent is in wrong instance
+                RETURN        ;*Get out to tSA
+            END
+            IF JOB.STATUS # 2 THEN      ;* 2=job has been run
+                GOSUB INITIALISE.ENVIRONMENT      ;* Prepare common for batch job
+                IF RUN.IT THEN
+                    GOSUB RUN.JOB       ;* And run it
+                    GOSUB CHECK.SERVICE ;* Check the tSM still want's us to do the current service & program abort if not
+                END
+                GOSUB READ.BATCH.RECORD
+                IF JOB.FINISHED AND R.BATCH<JOB.STATUS,BPOS> # 2 THEN ;* BJC completed the job and we need to set the status
+* Get end time for a job processed for T-Verify
+
+                    GOSUB UPDATE.END.STATUS       ;* The job is complete
+                END
+            END ELSE
+                JOB.FINISHED = 1        ;* The job has already finished
+            END
+        END CASE
+        IF NOT(JOB.FINISHED) OR BATCH.POS # 1 THEN          ;* Keep going forward to find a job to run
+            GOSUB SET.BATCH.POS         ;* Find the next job to run
+        END ELSE
+            IF JOB.FINISHED AND BATCH.POS = 1 THEN          ;* Only delete if we haven't run a job further down the list
+                DEL BATCH.LIST<1>       ;* Pop from stack
+            END
+        END
+    REPEAT
+
+    GOSUB STOP.SERVICE        ;* Now that we've finished - see if we need to stop the service completely
+CALL OCOMO("AFTER STARTPROCESS":PROCESS.JOB:OCONV(TIME(), "MTS"))
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISATION:
+* Open files
+
+    F.BATCH = ''
+    FN.BATCH = 'F.BATCH'
+    CALL OPF(FN.BATCH, F.BATCH)
+*
+    FN.PGM.FILE = 'F.PGM.FILE'
+    F.PGM.FILE = ''
+    CALL OPF(FN.PGM.FILE, F.PGM.FILE)
+*
+    FN.MNEMONIC.COMPANY = 'F.MNEMONIC.COMPANY'
+    F.MNEMONIC.COMPANY = ''
+    CALL OPF(FN.MNEMONIC.COMPANY, F.MNEMONIC.COMPANY)
+*
+    FN.COMPANY.CHECK = 'F.COMPANY.CHECK'
+    F.COMPANY.CHECK = ''
+    CALL OPF(FN.COMPANY.CHECK,F.COMPANY.CHECK)
+*
+    FN.BATCH.STATUS = 'F.BATCH.STATUS'
+    F.BATCH.STATUS = ''
+    CALL OPF(FN.BATCH.STATUS, F.BATCH.STATUS)
+*
+    FN.DATES = 'F.DATES'
+    F.DATES = ''
+    CALL OPF(FN.DATES, F.DATES)
+*
+    BATCH.POS = 1
+    JOB.FINISHED = 1
+    STAGE.LIST = "ASRDO"      ;* Order of COB stages - used for SelectAhead processing
+*
+    CALL GIT("CLEAR.THE.CACHE","","")
+*
+    R.TSA.SERVICE = ''        ;* will hold the TSA.SERVICE record
+    RETURN
+*-----------------------------------------------------------------------------
+DETERMINE.SERVICE:
+* Determine what type of service we should be running - either a COB type or
+* a background task. Check the AgentNumber and what it says on its Status
+* record. Call EB.SORT.BATCH to return a list of jobs to run.
+*
+    SERVICE.NAME = 'COB'      ;* If it stays like this we'll do a normal COB
+
+    IF AGENT.NUMBER THEN      ;* From TSA
+        READ R.TSA.STATUS FROM F.TSA.STATUS, AGENT.NUMBER ELSE
+            R.TSA.STATUS = '' ;* Odd
+        END
+        SERVICE.NAME = R.TSA.STATUS<TS.TSS.CURRENT.SERVICE> ;* What are we going to do now
+    END
+    COB.SERVICE = 1 ;*flag  for COB service
+    BEGIN CASE
+    CASE SERVICE.NAME = 'COB' ;*COB service
+    CASE SERVICE.NAME MATCHES "'COB-'2A7N"        ;*COB specific for a company
+    CASE SERVICE.NAME MATCHES "'COB-'1-3N"        ;*COB specific for a group
+    CASE OTHERWISE
+        COB.SERVICE = 0
+    END CASE
+    CALL EB.SORT.BATCH(SERVICE.NAME,BATCH.LIST)   ;* Return with list of jobs sorted into run order
+
+    RETURN
+*-----------------------------------------------------------------------------
+CHECK.SERVICE:
+* Check the current service is still required
+*
+    NEXT.SERVICE = ''
+    READ R.TSA.SERVICE FROM F.TSA.SERVICE, SERVICE.NAME THEN
+        IF R.TSA.SERVICE<TS.TSM.SERVICE.CONTROL> = 'STOP' THEN        ;* Service has been stopped
+            NEXT.SERVICE = 'STOP'       ;* So stop then
+        END
+    END ELSE
+        NEXT.SERVICE = 'STOP' ;* Can't read the service record so stop
+    END
+
+    IF NEXT.SERVICE = 'STOP' THEN
+        CALL EB.TRANS('ABORT',RMSG)     ;*Abort unfinished transactions
+        GOTO PROGRAM.ABORT
+    END
+
+    READ R.TSA.STATUS FROM F.TSA.STATUS, AGENT.NUMBER THEN  ;* Check our service hasn't changed
+        IF R.TSA.STATUS<TS.TSS.NEXT.SERVICE> THEN
+            IF R.TSA.STATUS<TS.TSS.NEXT.SERVICE> # R.TSA.STATUS<TS.TSS.CURRENT.SERVICE> THEN
+                CALL EB.TRANS('ABORT',RMSG)       ;*Abort unfinished transactions
+                GOTO PROGRAM.ABORT      ;* Back to calling program immediately (otherwise the job will be signalled as complete)
+            END
+        END
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+STOP.SERVICE:
+* The BATCH.LIST is complete see if we need to stop the service. This would typically
+* be done for the close of business services where the user has elected to start them manuallly
+* by entering START in the TSA.SERVICE record. If this is set to AUTO then the service should
+* not be stopped at the end of the list - and providing the workload profile has agents defined
+* then S.JOB.RUN will continually be invoked (with a sleep in between) looking for work. (Bit
+* like Mick McCafferty then)
+
+* If we're stopping the cob then reset the process status' at the same time. This must be done
+* in a transaction boundary as you cannot have some status set to zero and the cob still running
+* Some stuff will get run again.
+*
+    IF R.TSA.SERVICE = '' THEN          ;* If we have not gone to the CHECK.SERVICE para even once
+        READ R.TSA.SERVICE FROM F.TSA.SERVICE,SERVICE.NAME ELSE       ;* read the service record
+            R.TSA.SERVICE = ''          ;* nothing we can do much if the record isn't there ( very odd case...)
+        END
+    END
+
+    SERVICE.STATUS = R.TSA.SERVICE<TS.TSM.SERVICE.CONTROL>  ;* can be START or AUTO
+
+    CALL EB.TRANS('START',RMSG)         ;* Begin the transaction
+
+TRY.AGAIN:
+
+* While waiting in the lock on TSA.SERVICE, we can check whether the Online batch record is already
+* reset, if it is reset the purpose of this section for AUTO services is accomplished and no purpose in
+* continuing more.
+
+    IF SERVICE.STATUS = 'AUTO' THEN     ;* if it is AUTO
+        READ R.BATCH FROM F.BATCH,SERVICE.NAME THEN         ;* read the online batch record
+            IF R.BATCH<BAT.PROCESS.STATUS> = 0 THEN         ;* check if the online batch record is already reset
+                CALL EB.TRANS('ABORT',RMSG)       ;*Abort unfinished transactions
+                RETURN        ;* return here itself
+            END
+        END
+    END   ;* either that this is a regular START/STOP service or service record is already locked for a different purpose
+
+    READU R.TSA.SERVICE FROM F.TSA.SERVICE, SERVICE.NAME LOCKED       ;* if the TSA.SERVICE record is locked
+        SLEEP 1     ;* sleep for one second before trying for the lock again
+        GOTO TRY.AGAIN        ;* try to lock and read the TSA.SERVICE record
+    END THEN
+        SERVICE.STATUS = R.TSA.SERVICE<TS.TSM.SERVICE.CONTROL>
+        BEGIN CASE
+        CASE SERVICE.STATUS = 'STOP'    ;*Already stopped
+        CASE 1
+            IF COB.SERVICE THEN         ;*This is a cob
+                CALL S.PROCESS.RESET    ;* Reset the process status and job dates
+                DELETE F.LOCKING,SERVICE.NAME     ;* Delete F.LOCKING record at end of COB
+* Update Temenos Enterprise Console with COB.FINISHED event
+                GOSUB UPDATE.TEC.COB.FINISHED
+            END ELSE          ;* * BG_100006109 e
+                GOSUB ONLINE.SERVICE.RESET        ;*Reset the Batch Status
+            END
+            CALL SERVICE.CONTROL(SERVICE.NAME,'STOP','')
+        END CASE
+    END
+    RELEASE F.TSA.SERVICE, SERVICE.NAME ;* Release the lock for all SERVICE.STATUS
+
+    READU R.BATCH.STATUS FROM F.BATCH.STATUS, SERVICE.NAME ELSE NULL  ;* Must lock the status record - don't worry if it's missing
+    DELETE F.BATCH.STATUS, SERVICE.NAME ;* And delete ready for next run
+    CALL EB.TRANS('END',RMSG) ;*  End the transaction
+
+    RETURN
+*-----------------------------------------------------------------------------
+EXTRACT.JOB.DETAILS:
+* Extract the important bits to run the job
+
+    PROCESS.NAME = PROCESS.JOB["_",1,1] ;* Key to the batch record & in common
+    JOB.NAME = PROCESS.JOB["_",2,1]     ;* And the name of the job to run within it
+    RTN = PROCESS.JOB["_",3,1]          ;* Routine to call
+    JOB.DATA = PROCESS.JOB["_",4,1]     ;* Data to pass in common
+    NEW.COMPANY = PROCESS.JOB["_",5,1]  ;* See if we need to change company
+    NEXT.RUN.DATE = PROCESS.JOB["_",6,1]          ;* The date it should run
+    ACTIVATION.FILE = PROCESS.JOB["_",7,1]        ;* Need one of these if it's a permanent agent (ie not a close of business)
+    PROCESS.STAGE = PROCESS.JOB["_",8,1]          ;* Stage - used to see if we can skip ahead
+    BPOS = PROCESS.JOB["_",9,1]         ;* Multivalue index into R.BATCH
+    PROCESS.STATUS = PROCESS.JOB["_",10,1]        ;* Overall status of batch record
+    SELECT.AHEAD.STAGE = PROCESS.JOB["_",11,1]    ;* The stage after which we can initiate the select ahead mechanism
+    IF NEW.COMPANY # ID.COMPANY THEN
+        CALL LOAD.COMPANY(NEW.COMPANY)
+    END
+
+    DATES.KEY = ID.COMPANY    ;* The default is the company associated with the batch record
+    IF COB.SERVICE THEN       ;* Close of business - use it's own dates record
+        DATES.KEY = ID.COMPANY:'-COB'   ;* If we can't get this (happens first time) we'll use the companies
+    END
+CALL OCOMO("BEFORE READDATESREC":PROCESS.STATUS:' ':OCONV(TIME(), "MTS"))
+    MATREAD R.DATES FROM F.DATES, DATES.KEY ELSE
+        MATREAD R.DATES FROM F.DATES, ID.COMPANY ELSE       ;* Always load dates - jobs have been known to change this ie B.DATE.CHANGE
+            TEXT = 'Cannot read dates record from F.DATES, ': ID.COMPANY
+            CALL FATAL.ERROR('S.JOB.RUN')
+        END
+    END
+CALL OCOMO("AFTER READDATESREC":OCONV(TIME(), "MTS"))
+
+    TODAY = R.DATES(EB.DAT.TODAY)       ;* Need to set common variable in case R.DATES has changed
+    C$BATCH.START.DATE = TODAY          ;* Default for online
+CALL OCOMO("Processing ":COBSERVICE:" for ":COB.SERVICE:JOB.NAME:OCONV(TIME(), "MTS"))
+    IF COB.SERVICE THEN       ;* Close of business jobs need the start date of the batch for job times
+        READ R.LOCKING FROM F.LOCKING, SERVICE.NAME THEN    ;* Set by 1ST job in batch
+            C$BATCH.START.DATE = R.LOCKING<EB.LOK.CONTENT>  ;*  Read the BATCH.START.DATE locking record and set C$BATCH.START.DATE
+        END
+    END
+CALL OCOMO("AFTER Processing ":COBSERVICE:" for ":COB.SERVICE:JOB.NAME:' ':SERVICE.NAME:' ':OCONV(TIME(), "MTS"))
+    RUN.IT = ''     ;* We set this variable to true  if the job is scheduled to run for the day
+
+    RETURN
+*-----------------------------------------------------------------------------
+UPDATE.RUN.STATUS:
+* Maintain the job and process status in the batch record.
+*
+    CALL EB.TRANS('START',RMSG)         ;* Start transaction to update batch and batch status
+
+REC.LOCK1:
+    READU R.BATCH FROM F.BATCH, PROCESS.NAME LOCKED
+        GOSUB READ.BATCH.RECORD
+        JOB.STATUS = R.BATCH<BAT.JOB.STATUS,BPOS> ;*get the current job status
+        BEGIN CASE
+        CASE JOB.STATUS = 1   ;* already declared by some other agent
+            RUN.IT = 1
+            CALL EB.TRANS('END','')     ;* Do commit
+            RETURN
+        CASE JOB.STATUS = 2   ;* If JOB.STATUS is already made 2 by any other agent
+            CALL EB.TRANS('END','')     ;* Do commit
+            RETURN
+        CASE 1
+            SLEEP 1 ;* Sleep a second and check the status again
+            GOTO REC.LOCK1    ;* else let me try
+        END CASE
+    END ELSE        ;* Note wait for lock
+        RELEASE F.BATCH, PROCESS.NAME   ;* This would be very odd
+        TEXT = 'Cannot read batch record from F.BATCH, ': PROCESS.NAME
+        CALL FATAL.ERROR('S.JOB.RUN')
+    END
+
+*There is a 'possibility' of picking up a batch with process status
+*which had just been reset by other agent as a part of reset process.
+*Check the service to see that service is still active, if not abort
+
+    IF R.BATCH<BAT.PROCESS.STATUS> = 0 THEN
+        GOSUB CHECK.SERVICE   ;*Check that the Service is still active
+    END
+
+    IF R.BATCH<BAT.PROCESS.STATUS> = 0 OR R.BATCH<BAT.PROCESS.STATUS> = 3 THEN  ;* Ready to run or crashed and re-running
+        R.BATCH<BAT.PROCESS.STATUS> = 1 ;* Flag it so
+        IF R.BATCH<BAT.BATCH.STAGE> = "A000" THEN
+* Update Temenos Enterprise Console with COB.STARTED event
+            GOSUB UPDATE.TEC.COB.STARTED
+* Update Temenos Enterprise Console with JOB.PENDING events
+            GOSUB UPDATE.TEC.JOB.PENDING
+        END
+    END
+
+    JOB.STATUS = R.BATCH<BAT.JOB.STATUS,BPOS>     ;* It's current status
+    JOB.FREQUENCY = R.BATCH<BAT.FREQUENCY,BPOS>   ;* And the frequency (checked prior to running)
+    PROCESS.STATUS = R.BATCH<BAT.PROCESS.STATUS>  ;* Get the current process status
+
+    BEGIN CASE
+    CASE JOB.STATUS = 1       ;*job not yet finished
+        RUN.IT = 1  ;*set RUN flag
+        RELEASE F.BATCH,PROCESS.NAME    ;* Then release the lock
+        CALL EB.TRANS('END','')         ;* Do commit
+        RETURN
+    CASE JOB.STATUS = 2
+        RELEASE F.BATCH, PROCESS.NAME   ;* Then release the lock
+        CALL EB.TRANS('END','')         ;* Do commit
+        RETURN
+    CASE JOB.STATUS = 3       ;*job on hold or error
+        JOB.STATUS = 1        ;*initiate the JOB
+        R.BATCH<BAT.JOB.STATUS,BPOS> = JOB.STATUS
+        RUN.IT = 1  ;*set RUN flag
+    END CASE
+
+    IF JOB.STATUS EQ 0 AND PROCESS.STATUS NE 2 THEN         ;* If the job has not already run or process not marked finished by some thread already
+
+        BEGIN CASE
+        CASE NEXT.RUN.DATE = TODAY
+            RUN.IT = 1
+        CASE NEXT.RUN.DATE = '' AND JOB.FREQUENCY # 'A'
+            RUN.IT = 1
+        CASE JOB.NAME = 'B.DATE.CHANGE' ;* Always run DATE.CHANGE - regardless of date
+            RUN.IT = 1
+        CASE NEXT.RUN.DATE < R.DATES(EB.DAT.NEXT.WORKING.DAY) AND NEXT.RUN.DATE > R.DATES(EB.DAT.LAST.WORKING.DAY)
+            RUN.IT = 1        ;* Other frequencies
+        END CASE
+
+        IF RUN.IT THEN        ;* Only if the job is scheduled to run for the day
+            JOB.VERIFICATION = R.BATCH<BAT.VERIFICATION, BPOS>        ;*CI_10020180 -S
+            IF JOB.VERIFICATION THEN
+                LOOP
+                    REMOVE JOB.VERIFY.NAME FROM JOB.VERIFICATION SETTING APOS
+                WHILE JOB.VERIFY.NAME:APOS
+                    LOCATE JOB.VERIFY.NAME IN R.BATCH<BAT.JOB.NAME,1> SETTING CPOS ELSE CPOS = ''
+                    IF NOT(CPOS) OR R.BATCH<BAT.JOB.STATUS,CPOS> # 2 THEN
+                        BEGIN CASE
+
+                        CASE R.BATCH<BAT.BATCH.STAGE>       ;*For COB jobs record error
+                            TEXT = "Job Dependency Error-":JOB.VERIFY.NAME:", Job Name-":JOB.NAME:", Process Name-":PROCESS.NAME
+                            CALL FATAL.ERROR('S.JOB.RUN')
+                        CASE 1          ;*For Online services exit out of the service
+                            CALL OCOMO("Service Completed... Exiting")          ;*Record in the como
+
+                            JOB.STATUS = -2       ;*Indicatee that instance is wrong
+                            RELEASE F.BATCH,PROCESS.NAME    ;*Release the record
+                            CALL EB.TRANS('END','')         ;*Commit the txn
+                            RETURN      ;*Return back
+
+
+                        END CASE
+                    END
+                REPEAT
+            END     ;*CI_10020180 -E
+            FLAG.ID = PROCESS.NAME:'-':JOB.NAME:'-':BPOS    ;* Key to F.BATCH.STATUS
+
+            READU R.BATCH.STATUS FROM F.BATCH.STATUS, FLAG.ID THEN    ;* Note the lock
+                IF R.BATCH.STATUS EQ 'processed' THEN       ;* The list may have been pre-built
+                    DELETE F.BATCH.STATUS, FLAG.ID          ;* Clear the control list record to signal the start of the job
+                END ELSE
+                    WRITE R.BATCH.STATUS TO F.BATCH.STATUS, FLAG.ID   ;* Because we read it with a lock
+                END
+            END ELSE
+                RELEASE F.BATCH.STATUS, FLAG.ID   ;* We read it with a lock to delete it but it was already deleted
+            END
+            READU R.BATCH.STATUS FROM F.BATCH.STATUS, SERVICE.NAME ELSE NULL    ;* Get the batch status record for the service
+            INS FLAG.ID BEFORE R.BATCH.STATUS<3,1>          ;* Put new job on top of stack
+            DEL R.BATCH.STATUS<3,11>    ;* Only keep the last ten
+            WRITE R.BATCH.STATUS TO F.BATCH.STATUS, SERVICE.NAME      ;* Update batch status for enquiry
+
+            JOB.STATUS = 1    ;* Change to running
+            R.BATCH<BAT.JOB.STATUS,BPOS> = JOB.STATUS       ;* Put it back in the batch record
+* Update Temenos Enterprise Console with JOB.STARTED event
+            GOSUB UPDATE.TEC.JOB.STARTED
+        END
+    END
+    WRITE R.BATCH TO F.BATCH, PROCESS.NAME        ;* And release the lock
+    CALL EB.TRANS('END',RMSG) ;* Complete transaction
+
+    RETURN
+*-----------------------------------------------------------------------------
+RUN.JOB:
+* Now run the job by invoking BATCH.JOB.CONTROL
+*
+    STATIC.INDEX = 0          ;* Initialise read cache
+    RUNNING.UNDER.BATCH = 1   ;* So the job knows we're in 'background mode'
+    IF BATCH.POS = 1 THEN
+        JOB.INFO = JOB.NAME:'_':RTN:'_':ACTIVATION.FILE:'_':BPOS
+        SELECT.AHEAD.STAGE = ''
+    END ELSE
+        JOB.INFO = JOB.NAME:'_':RTN:'_':ACTIVATION.FILE:'_':BPOS:'_':SELECT.AHEAD.STAGE   ;* They can be different when dealing with a non-standard MT job
+    END
+
+    JOB.FINISHED = 1          ;* The default
+    CALL BATCH.JOB.CONTROL(JOB.INFO)    ;* And run it
+    PROCESS.JOB = PROCESS.JOB["_",1,10]:"_":"_":PROCESS.JOB["_",12,999]         ;* Drop SelectAhead - should only do this once
+    BATCH.LIST<BATCH.POS> = PROCESS.JOB ;* And put it back in the list without the SelectAhead
+    RELEASE         ;* Just in case - BJC now only does a global release every 10 contracts
+    IF JOB.INFO =  -1 OR SELECT.AHEAD.STAGE THEN  ;* The job has returned due to lock wait or we've just perfomed the select
+        JOB.FINISHED = 0      ;* It's not finished - so don't delete from the list
+    END ELSE
+        JOB.FINISHED = 1      ;* All done remove it from the list
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+READ.BATCH.RECORD:
+* Read the batch record - without a lock
+
+    READ R.BATCH FROM F.BATCH, PROCESS.NAME ELSE
+        R.BATCH = ""          ;* very odd
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+UPDATE.END.STATUS:
+* Job is finished so update the relevant fields on the batch record.
+
+    CALL EB.TRANS('START',RMSG)         ;* Begin the transaction
+
+
+REC.LOCK2:
+    READU R.BATCH FROM F.BATCH, PROCESS.NAME LOCKED
+        GOSUB READ.BATCH.RECORD
+        IF R.BATCH<BAT.JOB.STATUS,BPOS> = 2 THEN  ;* already declared by some other agent
+            CALL EB.TRANS('END','')     ;* Do commit
+            RETURN
+        END ELSE
+            SLEEP 1 ;* Sleep a second and check the status again
+            GOTO REC.LOCK2
+        END
+    END ELSE        ;* Note wait for lock
+        RELEASE F.BATCH, PROCESS.NAME   ;* This would be very odd
+        TEXT = 'Cannot read batch record from F.BATCH, ': PROCESS.NAME
+        CALL FATAL.ERROR('S.JOB.RUN')
+    END
+
+    JOB.STATUS = R.BATCH<BAT.JOB.STATUS,BPOS>     ;* It's current status
+
+
+    IF JOB.STATUS = 2 THEN    ;*  Already marked as 'completed' by some other agent
+        RELEASE F.BATCH, PROCESS.NAME   ;* Release the record
+        CALL EB.TRANS('END','')         ;* Commit the txn
+        RETURN
+    END
+
+    IF JOB.STATUS = 1 OR JOB.STATUS = 3 THEN      ;* Not set to 2 already - this is our job
+        READU R.BATCH.STATUS FROM F.BATCH.STATUS, SERVICE.NAME ELSE NULL        ;* Get the batch status record
+        R.BATCH.STATUS<2> +=1 ;* Keep a count of the number of jobs processed
+        WRITE R.BATCH.STATUS TO F.BATCH.STATUS, SERVICE.NAME          ;* Put it back
+        JOB.STATUS = 2
+        R.BATCH<BAT.LAST.RUN.DATE,BPOS> = TODAY   ;* Record when we last ran it - BG_100005787 s/e
+        R.BATCH<BAT.JOB.STATUS,BPOS> = JOB.STATUS ;* Put it back in the batch record
+* Update Temenos Enterprise Console with JOB.FINISHED event
+        GOSUB UPDATE.TEC.JOB.FINISHED
+    END
+
+    IF R.BATCH<BAT.JOB.NAME,BPOS+1> = "" THEN     ;* That was the last job
+        IF R.BATCH<BAT.PROCESS.STATUS> = 1 OR R.BATCH<BAT.PROCESS.STATUS> = 3 THEN        ;* Currently set to running
+            R.BATCH<BAT.PROCESS.STATUS> = 2       ;* Flag it complete
+        END
+    END
+
+
+    WRITE R.BATCH TO F.BATCH, PROCESS.NAME        ;* And release the lock
+
+    CALL EB.TRANS('END',RMSG) ;* And finish txn
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE.ENVIRONMENT:
+* Default common variables ready to run the job
+
+    BATCH.DETAILS<1> = ''     ;* null passed to jobs, allows response to be trapped
+    BATCH.DETAILS<2> = ''     ;* output provided by execution of the job
+    BATCH.DETAILS<3> = JOB.DATA         ;* Any data to be passed to the job
+
+    TTYPE = "EBS-BATCH"       ;* Used by fatal error to know it's in GUI batch mode
+
+    BATCH.INFO = PROCESS.NAME ;* Store name of process in common
+    BATCH.INFO<2> = RTN       ;* Routine from F.PGM.FILE
+    BATCH.INFO<3> = JOB.NAME  ;* Job that called BATCH.INFO<2> - GB9700872
+
+    IF ACTIVATION.FILE THEN   ;*This is Activation processing
+        READ R.BATCH FROM F.BATCH,PROCESS.NAME ELSE         ;*Read the record
+            R.BATCH = ''      ;*Very Strange
+        END
+    END
+    READ R.PGM.FILE FROM F.PGM.FILE, JOB.NAME THEN
+        IF INDEX(R.PGM.FILE<EB.PGM.ADDITIONAL.INFO>,'.CRITICAL',1) THEN
+            BATCH.INFO<4> = 1 ;* Flag as all errors are critical and must stop the batch
+        END ELSE
+            BATCH.INFO<4> = ''          ;* Skip contract and continue
+        END
+    END
+
+    PGM.VERSION = ''          ;* GB0003107 S
+    LEVEL.NO = 1
+    V$FUNCTION = ''
+    ID.NEW.LAST = ''
+    APPLICATION = JOB.NAME    ;* GB0003107 E
+
+    PTR.NAME = R.BATCH< BAT.PRINTER.NAME, BPOS >  ;* test for new printer for individual jobs GB0001553 S
+    IF PTR.NAME = '' THEN     ;* Use the default printer for the process if one is not specified for the individual job
+        PTR.NAME = R.BATCH<BAT.DEFAULT.PRINTER>
+    END
+    C$RPT.DEST.PRINTER = PTR.NAME       ;* Set dest ptr common var for routing rpts.
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+SET.BATCH.POS:
+*We may need to use the FOR loop as we are not going to
+*delete the batch list and we need to know how far we canloop
+*we will obviously return in between itself but just in case it is the
+*last process that is going to be helped then better of not going to
+*infinite loop
+
+    RUNNING.PROCESS = PROCESS.NAME
+    RUNNING.STAGE = PROCESS.STAGE
+    NO.OF.JOBS = DCOUNT(BATCH.LIST,FM)
+    START.SEARCH = BATCH.POS + 1        ;* Start looking from the next job
+    BATCH.POS = 1   ;* Always return with this if we can't find a job to run
+
+    FOR CURR.JOB = START.SEARCH TO NO.OF.JOBS
+        PROCESS.JOB = BATCH.LIST<CURR.JOB>        ;* Next process_job to run
+        GOSUB EXTRACT.JOB.DETAILS       ;* Pull out batch stage etc
+        BEGIN CASE
+        CASE JOB.FINISHED
+            IF PROCESS.STAGE EQ RUNNING.STAGE THEN          ;*Process the next job
+                BATCH.POS = CURR.JOB    ;*Process the next job
+            END
+            EXIT    ;*Exit as the end of stage is reached
+        CASE SELECT.AHEAD.STAGE         ;* Can select ahead
+            SELECT.STAGE = INDEX(STAGE.LIST,SELECT.AHEAD.STAGE,1)     ;* ASDRO position
+            SELECT.STAGE = SELECT.STAGE : SELECT.AHEAD.STAGE[2,99]    ;* 1009, 2999 etc
+            THIS.STAGE = INDEX(STAGE.LIST,RUNNING.STAGE,1)  ;* And where's the service at now
+            THIS.STAGE = THIS.STAGE : RUNNING.STAGE[2,99]   ;* 1100 etc
+            IF THIS.STAGE GE SELECT.STAGE THEN    ;* Gone past the stage so I can select ahead
+                BATCH.POS = CURR.JOB    ;* Select ahead
+                EXIT          ;* And go and do it
+            END
+        CASE OTHERWISE        ;*The job not completed so go to the job in the next process within stage
+            IF PROCESS.NAME NE RUNNING.PROCESS THEN         ;* Looking for next process
+                IF RUNNING.STAGE EQ PROCESS.STAGE THEN      ;* I have found whom to help
+                    BATCH.POS = CURR.JOB          ;* Point to next process_job to run
+                END
+                EXIT          ;* Can't go further forward - either found a job to run or the stage has changed
+            END
+        END CASE
+        BATCH.POS = 1
+    NEXT CURR.JOB
+
+    IF BATCH.POS = 1 THEN     ;* Can't go forward
+        SLEEP 1     ;* Wait and try the first job again
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+ONLINE.SERVICE.RESET:
+* para to reset the batch record of a online service
+*
+    READU R.BATCH FROM F.BATCH,SERVICE.NAME THEN
+        IF R.BATCH<BAT.PROCESS.STATUS> EQ '2' THEN          ;*Completed and yet to be reset
+            NO.OF.JOBS = DCOUNT(R.BATCH<BAT.JOB.NAME>,VM)   ;*Find the number of jobs
+            FOR CURR.JOB = 1 TO NO.OF.JOBS        ;*Loop through the jobs
+                R.BATCH<BAT.JOB.STATUS,CURR.JOB> = 0        ;*Set the job as 0
+            NEXT CURR.JOB
+            R.BATCH<BAT.PROCESS.STATUS> = 0       ;*Set the process status as 0
+        END
+        WRITE R.BATCH TO F.BATCH,SERVICE.NAME     ;*Write back the record
+    END  ELSE
+        RELEASE F.BATCH,SERVICE.NAME    ;*Very odd
+    END
+    RETURN
+*---------------------------------------------------------------------------
+*
+PROGRAM.ABORT:
+
+    RETURN TO PROGRAM.ABORT
+
+*-----------------------------------------------------------------------------
+
+*** <region name= UPDATE.TEC.COB.STARTED>
+UPDATE.TEC.COB.STARTED:
+*** <desc>Update Temenos Enterprise Console with COB.STARTED event </desc>
+
+    ITEM.ID = "COB.STARTED"
+    GOSUB BUILD.MY.KEY.COMPANY
+    MY.DETAIL = ""
+    MY.VALUE = 1
+    CALL TEC.RECORD.ACTIVITY(ITEM.ID, MY.KEY, MY.DETAIL, MY.VALUE)
+
+    RETURN
+
+*** </region>
+
+*-----------------------------------------------------------------------------
+
+*** <region name= UPDATE.TEC.JOB.FINISHED>
+UPDATE.TEC.COB.FINISHED:
+*** <desc>Update Temenos Enterprise Console with COB.FINISHED event </desc>
+
+    EOD.COMPANY.LIST = C$COMP.EOD.LIST<1>
+    LOOP
+        REMOVE ID.EOD.COMPANY FROM EOD.COMPANY.LIST SETTING MARK.EOD.COMPANY
+    WHILE ID.EOD.COMPANY : MARK.EOD.COMPANY DO
+        ITEM.ID = "COB.FINISHED"
+        MY.KEY = ID.EOD.COMPANY : "_" : C$BATCH.START.DATE
+        MY.DETAIL = ""
+        MY.VALUE = 1
+        CALL TEC.RECORD.ACTIVITY(ITEM.ID, MY.KEY, MY.DETAIL, MY.VALUE)
+    REPEAT
+
+    RETURN
+
+*** </region>
+
+*-----------------------------------------------------------------------------
+
+*** <region name= UPDATE.TEC.JOB.STARTED>
+UPDATE.TEC.JOB.STARTED:
+*** <desc>Update Temenos Enterprise Console with JOB.STARTED event </desc>
+
+    ITEM.ID = "JOB.STARTED"
+    GOSUB BUILD.MY.KEY.JOB
+    MY.DETAIL = PROCESS.STAGE
+    MY.VALUE = 1
+    CALL TEC.RECORD.ACTIVITY(ITEM.ID, MY.KEY, MY.DETAIL, MY.VALUE)
+
+    RETURN
+
+*** </region>
+
+*-----------------------------------------------------------------------------
+
+*** <region name= UPDATE.TEC.JOB.FINISHED>
+UPDATE.TEC.JOB.FINISHED:
+*** <desc>Update Temenos Enterprise Console with JOB.FINISHED event </desc>
+
+    ITEM.ID = "JOB.FINISHED"
+    GOSUB BUILD.MY.KEY.JOB
+    MY.DETAIL = PROCESS.STAGE
+    MY.VALUE = 1
+    CALL TEC.RECORD.ACTIVITY(ITEM.ID, MY.KEY, MY.DETAIL, MY.VALUE)
+
+    RETURN
+
+*** </region>
+
+*-----------------------------------------------------------------------------
+
+*** <region name= UPDATE.TEC.JOB.PENDING>
+UPDATE.TEC.JOB.PENDING:
+*** <desc>Update Temenos Enterprise Console with JOB.PENDING events </desc>
+
+    PENDING.BATCH.LIST = BATCH.LIST
+    NUM.JOBS = DCOUNT(PENDING.BATCH.LIST, @AM)
+    FOR JOB.NUM = 1 TO NUM.JOBS
+
+        PENDING.JOB.DETAILS = PENDING.BATCH.LIST<JOB.NUM>
+
+        PENDING.PROCESS.NAME = PENDING.JOB.DETAILS["_", 1, 1]         ;* Key to batch record and in common
+        PENDING.JOB.NAME = PENDING.JOB.DETAILS["_", 2, 1]   ;* Job name
+        PENDING.JOB.COMPANY = PENDING.JOB.DETAILS["_", 5, 1]          ;* Company ID associated to job
+        IF PENDING.JOB.COMPANY EQ ID.COMPANY OR ((UNASSIGNED(PENDING.JOB.COMPANY) OR PENDING.JOB.COMPANY = "") AND ID.COMPANY) THEN
+            PENDING.ACTIVATION.FILE = PENDING.JOB.DETAILS["_",7,1]    ;* Need one of these if it's a permanent agent (ie not a close of business)
+            PENDING.PROCESS.STATUS = PENDING.JOB.DETAILS["_",10,1]    ;* Overall status of batch record
+            PENDING.JOB.INDEX = PENDING.JOB.DETAILS["_",9,1]          ;* Job index
+
+* Read the batch record for this job
+            READ PENDING.R.BATCH FROM F.BATCH, PENDING.PROCESS.NAME ELSE
+                PENDING.R.BATCH = ""
+            END
+            PENDING.JOB.STATUS = PENDING.R.BATCH<BAT.JOB.STATUS, PENDING.JOB.INDEX>       ;* Status of job
+            IF PENDING.ACTIVATION.FILE EQ "" AND PENDING.PROCESS.STATUS NE 2 AND PENDING.JOB.STATUS NE 2 THEN
+                PENDING.NEXT.RUN.DATE = PENDING.JOB.DETAILS["_",6,1]  ;* The date it should run
+                PENDING.JOB.FREQUENCY = PENDING.R.BATCH<BAT.FREQUENCY, PENDING.JOB.INDEX>
+
+* If this job is going to run, send a JOB.PENDING event
+                BEGIN CASE
+                CASE PENDING.NEXT.RUN.DATE EQ R.DATES(EB.DAT.TODAY)
+* Send JOB.PENDING event to Temenos Enterprise Console
+                    GOSUB SEND.TEC.JOB.PENDING
+                CASE PENDING.NEXT.RUN.DATE EQ "" AND PENDING.JOB.FREQUENCY NE "A"
+* Send JOB.PENDING event to Temenos Enterprise Console
+                    GOSUB SEND.TEC.JOB.PENDING
+                CASE PENDING.JOB.NAME EQ "B.DATE.CHANGE"
+* Send JOB.PENDING event to Temenos Enterprise Console
+                    GOSUB SEND.TEC.JOB.PENDING
+                CASE PENDING.NEXT.RUN.DATE < R.DATES(EB.DAT.NEXT.WORKING.DAY) AND PENDING.NEXT.RUN.DATE > R.DATES(EB.DAT.LAST.WORKING.DAY)
+* Send JOB.PENDING event to Temenos Enterprise Console
+                    GOSUB SEND.TEC.JOB.PENDING
+                END CASE
+
+            END
+        END
+    NEXT JOB.NUM
+
+* Flush all business monitoring events
+    CALL TEC.RECORD.ACTIVITY("BM.FLUSH", "", "", "")
+
+    RETURN
+
+*** </region>
+
+*-----------------------------------------------------------------------------
+
+*** <region name= SEND.TEC.JOB.PENDING>
+SEND.TEC.JOB.PENDING:
+*** <desc>Send JOB.PENDING event to Temenos Enterprise Console </desc>
+
+    ITEM.ID = "JOB.PENDING"
+    GOSUB BUILD.MY.KEY.COMPANY
+    MY.KEY := "-" : PENDING.PROCESS.NAME : "_" : PENDING.JOB.NAME : "_" : PENDING.JOB.INDEX
+    MY.DETAIL = PENDING.JOB.DETAILS["_", 8, 1]
+    MY.VALUE = 1
+    CALL TEC.RECORD.ACTIVITY(ITEM.ID, MY.KEY, MY.DETAIL, MY.VALUE)
+
+    RETURN
+
+*** </region>
+
+*-----------------------------------------------------------------------------
+
+*** <region name= BUILD.MY.KEY.COMPANY>
+BUILD.MY.KEY.COMPANY:
+*** <desc>Build MY.KEY for company </desc>
+
+    MY.KEY = ID.COMPANY : "_" : C$BATCH.START.DATE
+
+    RETURN
+
+*** </region>
+
+*-----------------------------------------------------------------------------
+
+*** <region name= BUILD.MY.KEY.JOB>
+BUILD.MY.KEY.JOB:
+*** <desc>Build MY.KEY for a job </desc>
+
+    GOSUB BUILD.MY.KEY.COMPANY
+    MY.KEY := "-" : PROCESS.NAME : "_" : JOB.NAME : "_" : BPOS
+
+    RETURN
+
+*** </region>
+
+END

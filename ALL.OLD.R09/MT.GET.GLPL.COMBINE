@@ -1,0 +1,25 @@
+*-----------------------------------------------------------------------------
+* <Rating>-1</Rating>
+*-----------------------------------------------------------------------------
+!    PROGRAM MT.GET.GLPL.COMBINE
+
+    SUBROUTINE MT.GET.GLPL.COMBINE
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_F.HOLD.CONTROL
+
+    $INSERT JBL.BP/REPGEN MT.GET.GLPL.VARS
+
+    COM.TYPE="EXECUTE"
+
+    FILE.PATH = "ALL.GLPL.DIR/":TODAY
+
+    SHELL.COMMAND='cat ':FILE.PATH:'/MT.GET.GLPL.':Y.BANKDATE:'.':TODAY:'.* > ':FILE.PATH:'/MT.GET.GLPL.':Y.BANKDATE:'.':TODAY:'.csv'
+    CALL SYSTEM.CALL(COM.TYPE,"UNIX",SHELL.COMMAND,RESULT,RET.CODE)
+
+    CRT "TASK COMPLETED."
+    RETURN
+END

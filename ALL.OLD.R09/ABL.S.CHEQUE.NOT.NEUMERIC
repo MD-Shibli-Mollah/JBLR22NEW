@@ -1,0 +1,42 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.CHEQUE.NOT.NEUMERIC
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.TELLER
+    $INSERT I_F.FUNDS.TRANSFER
+
+    GOSUB INIT
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    Y.CHQ.NO = ""
+
+    RETURN
+
+PROCESS:
+
+    IF APPLICATION EQ 'TELLER' THEN
+        Y.CHQ.NO = R.NEW(TT.TE.CHEQUE.NUMBER)
+        AF=TT.TE.CHEQUE.NUMBER
+    END
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        Y.CHQ.NO = R.NEW(FT.CHEQUE.NUMBER)
+        AF=FT.CHEQUE.NUMBER
+    END
+
+    IF Y.CHQ.NO NE '' THEN
+        IF NOT ( NUM (Y.CHQ.NO)) THEN
+            E="Cheque should be Numeric"
+            CALL ERR
+
+        END
+
+    END
+
+    RETURN
+
+END

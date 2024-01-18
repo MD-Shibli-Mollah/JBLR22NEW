@@ -1,0 +1,133 @@
+*-----------------------------------------------------------------------------
+* <Rating>74</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.LCOBTB.ST.RTN(Y.CUS.NO,Y.DEAL.AMOUNT,Y.DEAL.CCY,Y.CCY.MKT,Y.CROSS.RATE,Y.CROSS.CCY,Y.DWN.CCY,Y.DATA,Y.CUST.CDN,Y.CHRG.AMT)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.DRAWINGS
+    $INSERT GLOBUS.BP I_F.FT.COMMISSION.TYPE
+    $INSERT GLOBUS.BP I_F.CURRENCY
+    $INSERT GLOBUS.BP I_F.CURRENCY.MARKET
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INSERT GLOBUS.BP I_F.LC.TYPES
+
+*-------------------------------------------------------------------
+* Modification Date: 20181021
+* Modified By: Kamran
+* Reason by Modification:
+* Check if Calculated Charge Amt having fraction or not
+*-------------------------------------------------------------------
+
+    IF R.NEW(TF.LC.OPERATION) NE 'O' THEN         ;! Continue only for Open
+        Y.CHRG.AMT = 0
+        RETURN
+    END
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+
+
+*----------
+INITIALISE:
+*----------
+
+    Y.CHRG.AMT = 0
+    Y.LC.TYPE = ''
+    Y.IMP.EXP = ''
+    Y.BBLC.TYPE = ''
+    Y.PROV.PER = ''
+    Y.LCOPEN.COM = 0
+    Y.LCOPEN.SEQ.COM = 0
+    Y.LC.ISSUE.DATE = ''
+    Y.LC.EXPIRY.DATE = ''
+    Y.TENOR.DAYS = ''
+    Y.TOT.CHG.QTR = 0
+    Y.TOT.CHG.QTR1 = 0
+    Y.TOT.CHG.QTR2 = 0
+    Y.LC.AMT = ''
+    Y.CAL.CHG.AMT = ''
+    Y.TOT.CHG.AMT = ''
+    Y.LCY.CHRG.AMT = ''
+    Y.CHRG.AMT.WOSTAX = ''
+    Y.SOURCE.TAX.AMT = ''
+
+
+    F.LC.TYPES = ''
+    FN.LC.TYPES = 'F.LC.TYPES'
+    CALL OPF(FN.LC.TYPES,F.LC.TYPES)
+    R.LC.TYPE.REC = ''
+
+    FN.LC = 'F.LETTER.OF.CREDIT'
+    F.LC =''
+    CALL OPF(FN.LC,F.LC)
+    R.LC.REC = ''
+
+    FN.DR = 'F.DRAWINGS'
+    F.DR = ''
+    CALL OPF(FN.DR,F.DR)
+    R.DR.REC = ''
+
+    FN.CUR = 'F.CURRENCY'
+    F.CUR = ''
+    CALL OPF(FN.CUR,F.CUR)
+    R.CUR.REC = ''
+
+    FN.FTCT = 'F.FT.COMMISSION.TYPE'
+    F.FTCT = ''
+    CALL OPF(FN.FTCT,F.FTCT)
+    R.FTCT.REC = ''
+
+    RETURN
+
+*-------
+PROCESS:
+*-------
+    Y.LC.OPCOMM.ID = 'LCOBTBV'
+    CALL BD.CAL.JBL.LCOPEN.COM.WPROV(Y.LC.OPCOMM.ID,Y.CONTINUE.FLAG,Y.MIN.CHRG.AMT,Y.TOT.CHG.AMT)
+    IF Y.CONTINUE.FLAG NE 'Y' THEN RETURN
+    IF Y.DEAL.CCY NE Y.DWN.CCY THEN
+        Y.SELL.AMT = ''
+        BASE.CCY = ''
+        EXCHANGE.RATE = ''
+        DIFFERENCE = ''
+        LCY.AMT = ''
+        RETURN.CODE = ''
+        TREASURY.RATE = ''
+        CALL EXCHRATE(Y.CCY.MKT,Y.DEAL.CCY,Y.TOT.CHG.AMT,Y.DWN.CCY,Y.SELL.AMT,BASE.CCY,EXCHANGE.RATE,DIFFERENCE,LCY.AMT,RETURN.CODE)
+        Y.LCY.CHRG.AMT = Y.SELL.AMT
+    END
+    IF Y.DWN.CCY NE LCCY THEN ;! If Charge ccy is not local ccy convert 1000 BDT to charge ccy and check if the chrg amt is more than the converted amt
+        Y.SELL.AMT = ''
+        EXCHANGE.RATE = ''
+        DIFFERENCE = ''
+        LCY.AMT = ''
+        RETURN.CODE = ''
+        Y.BUY.CCY = LCCY
+        CALL EXCHRATE(Y.CCY.MKT,Y.BUY.CCY,Y.MIN.CHRG.AMT,Y.DWN.CCY,Y.SELL.AMT,BASE.CCY,EXCHANGE.RATE,DIFFERENCE,LCY.AMT,RETURN.CODE)
+        IF Y.LCY.CHRG.AMT LT Y.SELL.AMT THEN
+            Y.LCY.CHRG.AMT = Y.SELL.AMT
+        END
+    END ELSE        ;! If charge ccy is in local ccy
+        IF Y.LCY.CHRG.AMT LT Y.MIN.CHRG.AMT THEN
+            Y.LCY.CHRG.AMT = Y.MIN.CHRG.AMT
+        END
+    END
+
+    Y.CHRG.AMT.WOSTAX = (Y.LCY.CHRG.AMT * 95)/100
+    Y.SOURCE.TAX.AMT = (Y.LCY.CHRG.AMT * 5)/100
+
+*Check if Calculated Charge Amt having fraction or not
+!Y.CHRG.AMT = INT(Y.SOURCE.TAX.AMT) + 1
+    IF FIELD(Y.SOURCE.TAX.AMT,".",2) GT '0' THEN
+        Y.CHRG.AMT = INT(Y.SOURCE.TAX.AMT) + 1
+    END ELSE
+        Y.CHRG.AMT = INT(Y.SOURCE.TAX.AMT)
+    END
+*end of checking
+
+    RETURN
+END

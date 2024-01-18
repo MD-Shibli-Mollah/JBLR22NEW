@@ -1,0 +1,39 @@
+*-----------------------------------------------------------------------------
+* <Rating>-21</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM DM.SERVICE.DATA.FILE.REC
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+INIT:
+
+!DEBUG
+    FN.DM.SDF = 'F.DM.SERVICE.DATA.FILE'
+    F.DM.SDF = ''
+!RECORD.ID = ' JBL.INT... '
+!RECORD.ID = ' JBL.CHQ... '
+    CALL OPF(FN.DM.SDF,F.DM.SDF)
+
+    RETURN
+
+PROCESS:
+    SEL.CMD.AC = "SELECT ":FN.DM.SDF
+!-----added aminul 20151106-------
+!SEL.CMD.AC = "SELECT ":FN.DM.SDF: " WITH @ID LIKE " : RECORD.ID
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.DM.SDF,'',TOT.REC,Y.ERR)
+    LOOP
+        REMOVE Y.REC.ID FROM SEL.LIST.DM.SDF SETTING POS
+    WHILE Y.REC.ID:POS
+
+        CALL F.READ(FN.DM.SDF,Y.REC.ID,R..REC,F.DM.SDF,Y..ERR1)
+        PRINT"":R..REC
+    REPEAT
+
+    RETURN
+END

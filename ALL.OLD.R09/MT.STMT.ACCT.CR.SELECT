@@ -1,0 +1,56 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.STMT.ACCT.CR.SELECT
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_F.COMPANY
+
+
+    $INSERT JBL.BP/REPGEN MT.STMT.ACCT.CR.VARS
+
+!CRT 'CREDIT.INT.FROM.DATE :'
+!INPUT Y.START.DATE
+
+!CRT 'CREDIT.INT.TO.DATE :'
+!INPUT Y.END.DATE
+
+!Y.DATE.LIST = Y.START.DATE:@FM:Y.END.DATE
+
+!---------------------------------------------------------------
+!list all dates between begin and end date
+!---------------------------------------------------------------
+
+!    Y.NO.DAYS = 'C'
+!   Y.DAYS = '-1C'
+!    Y.DAYS1 = '+1C'
+
+!    IF Y.START.DATE GT Y.END.DATE THEN
+!        RETURN
+!    END ELSE
+!        CALL CDD ('', Y.START.DATE, Y.END.DATE, Y.NO.DAYS)
+!        Y.BEGIN.DT = Y.START.DATE
+!       FOR I = 1 TO Y.NO.DAYS + 1
+!            Y.DATE.LIST<-1> = Y.BEGIN.DT
+!            CALL CDT('', Y.BEGIN.DT, Y.DAYS1)
+!        NEXT
+!    END
+
+    SEL.CMD.ACCT='SELECT ':FN.ACCT:' WITH @ID UNLIKE 3A...'
+    CALL EB.READLIST(SEL.CMD.ACCT,SEL.LIST.ACCT,'',NO.OF.REC,RET.CODE)
+
+    CRT 'TOTAL NO OF ACCOUNT SELECTED: ': DCOUNT(SEL.LIST.ACCT,@FM)
+    IF DCOUNT(SEL.LIST.ACCT,@FM) GT 0 THEN
+        CRT 'DO YOU RUN THIS PROCESS? (Y/N)'
+        INPUT USER.CHOICE
+        IF USER.CHOICE EQ 'Y' THEN
+            CALL BATCH.BUILD.LIST('',SEL.LIST.ACCT)
+        END
+    END
+    RETURN
+END

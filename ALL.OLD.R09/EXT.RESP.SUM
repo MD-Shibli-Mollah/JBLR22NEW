@@ -1,0 +1,163 @@
+*---------`--------------------------------------------------------------------
+* <Rating>408</Rating>
+*-----------------------------------------------------------------------------
+! Developed By:Fairooz Chowdhury
+! Date: 08.05.2018
+! 12810 Category wise RESPONDING transaction picking
+!----------------------------------------------------------------------------
+    SUBROUTINE EXT.RESP.SUM(Y.RETURN)
+!    PROGRAM EXT.RESP.SUM
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.ABL.H.NM.ER
+    $INSERT BP I_F.JBL.H.ZONAL.CODE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.NM = "F.ABL.H.NM.ER";          F.NM = ""
+    FN.AC = "F.ACCOUNT";              F.AC = ""
+    FN.STMT.ENTRY = "F.STMT.ENTRY";   F.STMT.ENTRY = ""
+    FN.NM.ZN = "F.EB.JBL.H.ZONAL.CODE";          F.NM.ZN = ""
+
+    Y.CATEGORY='12810'
+!-------------------------
+
+    Y.OPERAND = ENQ.SELECTION<3,1>
+    LOCATE 'DATE' IN ENQ.SELECTION<2,1> SETTING DATE.POS THEN
+        Y.DATE =  ENQ.SELECTION<4,DATE.POS>
+    END
+
+
+    Y.FROM.DATE = Y.DATE
+    Y.TO.DATE = Y.DATE
+
+!    Y.OPERAND='EQ'; Y.DATE='20170314'; Y.FROM.DATE='20170314'; Y.TO.DATE='20170314'
+    Y.OE.RE = 'RE'
+    ZONAL.CODE = "";
+    BR.CODE = "";
+    OE.DATE = "";
+    Y.OE.DEBIT = "";Y.OE.CRDT = "";DR.CR.MARK = "";Y.FALSE = ""
+    Y.ID=""
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.NM,F.NM)
+    CALL OPF(FN.NM.ZN,F.NM.ZN)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.STMT.ENTRY,F.STMT.ENTRY)
+    RETURN
+
+PROCESS:
+!---------------------CATEGORYWISE ACC-------------------
+    SEL.CMD.AC = "SELECT ":FN.AC:" WITH CO.CODE EQ ":ID.COMPANY:" AND CATEGORY EQ ":Y.CATEGORY
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+        CALL EB.ACCT.ENTRY.LIST(Y.ID,Y.FROM.DATE,Y.TO.DATE,Y.AC.STMT.LIST,Y.AC.OPEN.BAL,Y.AC.ER)
+
+        Y.FT.C=DCOUNT(Y.AC.STMT.LIST,@FM)
+        FOR I = 1 TO Y.FT.C
+            Y.STMT.ID = FIELD(Y.AC.STMT.LIST,@FM,I)
+            CALL F.READ(FN.STMT.ENTRY, Y.STMT.ID , R.STMT, F.STMT.ENTRY , Y.ERR)
+            Y.TR.REF = R.STMT<AC.STE.TRANS.REFERENCE>
+            Y.TR.ARR<-1>=Y.TR.REF
+        NEXT I
+    REPEAT
+!---------------------------------------------------
+!!!RECORD WILL BE SHOWN FOR ONLY WHEN AMENDED
+
+
+    SEL.CMD = "SELECT ":FN.NM:" WITH CO.CODE EQ ":ID.COMPANY:" AND VALUE.DATE EQ ":Y.DATE:" AND OE.RE EQ ":Y.OE.RE:" BY ZONAL.CODE BY BRANCH.CODE BY DATE.OF.OE BY ADVICE.NO"
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+        CALL F.READ(FN.NM,Y.ID,R.REC,F.NM,Y.ERR)
+!-------------------------------------------------
+        LOCATE  Y.ID IN Y.TR.ARR SETTING Y.POS THEN
+!------------------------------------------
+
+            COMPANY.CODE = R.REC<NM.CO.CODE>
+            ZONAL.CODE = R.REC<NM.ZONAL.CODE>
+            BR.CODE = R.REC<NM.BRANCH.CODE>
+            OE.DATE = R.REC<NM.DATE.OF.OE>
+            DR.CR.MARK = R.REC<NM.DR.CR.MARKER>
+
+            CALL F.READ(FN.NM.ZN,ZONAL.CODE,R.ZN,F.NM.ZN,Y.ERR)
+            ZONE.NAME=R.ZN<EB.JBL86.NAME.OF.ZOZE>
+
+            IF DR.CR.MARK EQ 'DR' THEN
+                Y.OE.DEBIT = ABS(R.REC<NM.AMOUNT>)
+            END ELSE
+                IF DR.CR.MARK EQ 'CR' THEN
+                    Y.OE.CRDT = R.REC<NM.AMOUNT>
+                END
+            END
+
+
+            IF COMPANY.CODE EQ ID.COMPANY THEN
+                Y.ARR.INDV =ZONAL.CODE:"*":ZONE.NAME:"*":BR.CODE:"*":Y.OE.DEBIT:"*":Y.OE.CRDT:"*":Y.FROM.DATE:"*":Y.TO.DATE
+!                                1              2             3            4             5              6             7
+                Y.ARR<-1>=Y.ARR.INDV
+            END
+
+
+            ZONAL.CODE = ""; ZONE.NAME="";  BR.CODE = ""; OE.DATE = "";
+            Y.OE.DEBIT = "";Y.OE.CRDT = "";DR.CR.MARK = "";
+!            PRINT Y.ARR.INDV
+        END
+    REPEAT
+
+!!----------------ZONE WISE SUMMATION--------------------
+!    DEBUG
+    X= SORT(Y.ARR)
+
+    Y.DCOUNT  = DCOUNT(X, @FM)
+    Y.ZONE1=FIELD(X,"*",1)
+    Y.ZN=FIELD(X,"*",2)
+    FLAG=0
+    Y.RE.DR=0;Y.RE.CR=0
+
+    FOR I = 1 TO Y.DCOUNT
+
+        Y.DATA = FIELD(X,@FM,I)
+        Y.ZONE=FIELD(Y.DATA,"*",1)
+
+        IF (Y.ZONE EQ Y.ZONE1) AND (FLAG NE 0) THEN
+
+            Y.RE.DR= Y.RE.DR+FIELD(Y.DATA,"*",4)
+            Y.RE.CR= Y.RE.CR+FIELD(Y.DATA,"*",5)
+
+        END ELSE
+            IF FLAG EQ 1 THEN
+                Y.RETURN<-1>=Y.ZONE1:"*":Y.ZN:"*":Y.RE.DR:"*":Y.RE.CR:"*":Y.FROM.DATE:"*":Y.TO.DATE
+                Y.ZONE1=Y.ZONE; Y.ZN="";Y.RE.DR=0;Y.RE.CR=0
+            END
+
+            Y.RE.DR= Y.RE.DR+FIELD(Y.DATA,"*",4)
+            Y.RE.CR= Y.RE.CR+FIELD(Y.DATA,"*",5)
+            Y.ZN=FIELD(Y.DATA,"*",2)
+            FLAG=1
+
+            IF I EQ Y.DCOUNT THEN
+                Y.RETURN<-1>=Y.ZONE1:"*":Y.ZN:"*":Y.RE.DR:"*":Y.RE.CR:"*":Y.FROM.DATE:"*":Y.TO.DATE
+!                               1           2        3           4             5             6
+            END
+        END
+    NEXT I
+
+!    PRINT "DD:":Y.RETURN
+    RETURN
+END

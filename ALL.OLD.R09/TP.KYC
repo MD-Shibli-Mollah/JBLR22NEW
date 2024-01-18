@@ -1,0 +1,80 @@
+    PROGRAM TP.KYC
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT BP I_F.EB.JBL.DCC.TP
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    CRT 'ENTER AMENMEND DATE'
+    INPUT Y.AMNMND
+    CRT 'ENTER COMPANY CODE'
+    INPUT Y.CO.CODE
+    FN.ACCOUNT = 'FBNK.ACCOUNT'
+    F.ACCOUNT = ''
+    FN.TP = 'FBNK.EB.JBL.DCC.TP'
+    F.TP = ''
+    OPEN "AMNMND.DIR" TO F.AMNMND.DIR ELSE
+        CMD = "CREATE.FILE AMNMND.DIR TYPE=UD"
+        EXECUTE CMD
+        OPEN "AMNMND.DIR" TO F.AMNMND.DIR ELSE
+            CRT "OPENING OF AMNMND.DIR FAILED"
+        END
+    END
+    Y.FILE.NAME.TP =  'TP.KYC.MODIFY.':Y.AMNMND:'.':Y.CO.CODE[6,4]:'.csv'
+    Y.FINAL.TP = 'AcNumber*DEP_PARTICULARS*DP_Cash_NO_TXN_MON*DP_Cash_MAX_TXN_AMT*DP_Cash_Total_Month_Amount*WITH_PARTICULAR'
+!                     1            2                 3                   4                       5                   6
+    Y.FINAL.TP := '*WITH_Cash_NO_TXN_MON*WITH_Cash_MAX_TXN_AMT*WITH_Cash_Total_Month_Amount*Upload_Company'
+!                            7                         8                      9                   10
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    CALL OPF(FN.TP,F.TP)
+    RETURN
+
+PROCESS:
+    SEL.CMD = "SELECT ":FN.TP:" WITH CO.CODE EQ ":Y.CO.CODE
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.RECORD,REC.CODE)
+    LOOP
+        REMOVE Y.TP.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.TP.ID:Y.POS
+        CALL F.READ(FN.TP,Y.TP.ID,R.TP,F.TP,TP.ERR)
+        Y.DATE.TIME.TP = '20':R.TP<EB.JBL52.DATE.TIME>[1,6]
+        Y.ACCOUNT.ID = FIELD(Y.TP.ID,'.',1)
+        CALL F.READ(FN.ACCOUNT,Y.ACCOUNT.ID,R.ACCOUNT,F.ACCOUNT,ACCOUNT.ERR)
+        Y.ALT.ACCT.ID = R.ACCOUNT<AC.ALT.ACCT.ID>
+        IF Y.ALT.ACCT.ID NE '' AND Y.DATE.TIME.TP GE Y.AMNMND THEN
+            Y.DEP.PARTICULARS = R.TP<EB.JBL52.DEP.PARTICULARS>
+            Y.NO.TXN.MON = R.TP<EB.JBL52.NO.TXN.MON>
+            Y.MAX.TXN.AMT = R.TP<EB.JBL52.MAX.TXN.AMT>
+            Y.DEP.TOT.AMT = R.TP<EB.JBL52.DEP.TOT.AMT>
+            Y.WITH.PARTICULAR = R.TP<EB.JBL52.WITH.PARTICULAR>
+            Y.WITH.NO.TXN.MON = R.TP<EB.JBL52.WITH.NO.TXN.MON>
+            Y.WITH.MAX.TXN.AM = R.TP<EB.JBL52.WITH.MAX.TXN.AM>
+            Y.WITH.TOT.AMT = R.TP<EB.JBL52.WITH.TOT.AMT>
+            Y.UPLOAD.COMPANY = R.TP<EB.JBL52.CO.CODE>
+            Y.DATA.TP = Y.ACCOUNT.ID:'*':Y.DEP.PARTICULARS:'*':Y.NO.TXN.MON:'*':Y.MAX.TXN.AMT:'*':Y.DEP.TOT.AMT
+!                     1                2                    3               4                 5
+            Y.DATA.TP := '*':Y.WITH.PARTICULAR:'*':Y.WITH.NO.TXN.MON:'*':Y.WITH.MAX.TXN.AM:'*':Y.WITH.TOT.AMT:'*':Y.UPLOAD.COMPANY
+!                            6                     7                    8                   9                   10
+            IF  EREPLACE(EREPLACE(EREPLACE(Y.DATA.TP,'*',''),Y.TP.ID,''),Y.UPLOAD.COMPANY,'') NE '' THEN
+                Y.FINAL.TP<-1> = Y.DATA.TP
+            END
+        END
+    REPEAT
+    GOSUB WRITE.DATA 
+    RETURN
+WRITE.DATA:
+    IF NOT(Y.FILE.NAME.TP) THEN
+        CRT "No file name found to write TP data"
+    END
+    ELSE
+        WRITE Y.FINAL.TP TO F.AMNMND.DIR,Y.FILE.NAME.TP
+    END
+END

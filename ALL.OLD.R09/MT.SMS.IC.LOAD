@@ -1,0 +1,36 @@
+*-----------------------------------------------------------------------------
+* <Rating>96</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.SMS.IC.LOAD
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+
+    $INSERT JBL.BP/REPGEN MT.SMS.IC.VARS
+
+    FN.ACCT = 'FBNK.ACCOUNT'
+    F.ACCT = ''
+
+    FN.CUS = 'FBNK.CUSTOMER'
+    F.CUS = ''
+
+    FN.STMT = 'FBNK.STMT.ENTRY'
+    F.STMT = ''
+
+    CALL OPF(FN.ACCT,F.ACCT)
+    CALL OPF(FN.CUS,F.CUS)
+    CALL OPF(FN.STMT,F.STMT)
+
+    SMS.DIR = 'BULK.SMS.OUT'
+    Y.VALID.ARRAY = '015':@FM:'017':@FM:'013':@FM:'019':@FM:'014':@FM:'018':@FM:'016'
+
+    CALL GET.LOC.REF("CUSTOMER","SMS.ALERT",Y.SMS.ALERT.POS)
+
+    RETURN
+END

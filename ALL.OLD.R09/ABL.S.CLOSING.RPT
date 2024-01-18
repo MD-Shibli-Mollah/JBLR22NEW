@@ -1,0 +1,111 @@
+*-----------------------------------------------------------------------------
+* <Rating>148</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.CLOSING.RPT(Y.RETURN)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CLASS
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    FN.STMT='F.STMT.ENTRY'
+    F.STMT=''
+
+    FN.FT='F.FUNDS.TRANSFER'
+    F.FT=''
+
+    FN.FT.HIS='F.FUNDS.TRANSFER$HIS'
+    F.FT.HIS=''
+
+    FN.AC.CL='F.ACCOUNT.CLASS'
+    F.AC.CL=''
+
+    FN.AC='F.ACCOUNT'
+    F.AC=''
+    REC.AC=''
+
+    REC.FT=''
+    REC.STMT=''
+    REC.AC.CL=''
+    Y.AC.ID=''
+    Y.STMT.ID=''
+    Y.AC.STMT.LIST=''
+    Y.AC.OPEN.BAL=''
+    Y.AC.ER=''
+
+
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    CALL OPF(FN.STMT,F.STMT)
+    CALL OPF(FN.AC.CL,F.AC.CL)
+    CALL OPF(FN.AC,F.AC)
+
+    Y.PROD.TYPE="U-":ENQ.SELECTION<4,1>
+    Y.DATE=ENQ.SELECTION<4,2>
+    Y.CHRG.DET=ENQ.SELECTION<4,3>
+
+!Y.PROD.TYPE="U-SB"
+!Y.DATE="20140630"
+!Y.CHRG.DET="Account.Maintenance.Fee"
+
+    Y.TRANS.TYPE=''
+    IF Y.CHRG.DET EQ "Account.Maintenance.Fee" THEN
+        Y.TRANS.TYPE='ACHY'
+    END
+
+    ELSE
+        Y.TRANS.TYPE='ACCY'
+    END
+    CONVERT "." TO " " IN Y.CHRG.DET
+    CALL F.READ(FN.AC.CL,Y.PROD.TYPE,REC.AC.CL,F.AC.CL,ERR.AC.CL)
+    Y.DES=REC.AC.CL<AC.CLS.DESCRIPTION>
+    SEL.CMD.AC="SELECT ":FN.AC:" WITH CO.CODE EQ ":ID.COMPANY:" AND ( CATEGORY EQ "
+    CNT.CO = DCOUNT(REC.AC.CL<AC.CLS.CATEGORY>,VM)
+    FOR I = 1 TO CNT.CO
+        IF I = CNT.CO THEN
+            SEL.CMD.AC :=  REC.AC.CL<AC.CLS.CATEGORY,I>
+        END ELSE
+            SEL.CMD.AC :=  REC.AC.CL<AC.CLS.CATEGORY,I>:" OR CATEGORY EQ "
+        END
+    NEXT I
+
+    SEL.CMD.AC= SEL.CMD.AC:" ) "
+
+    CALL EB.READLIST(SEL.CMD.AC,SEL.AC.LIST,'',NO.OF.REC,ERR.AC)
+
+    LOOP
+        REMOVE Y.AC.ID FROM SEL.AC.LIST SETTING AC.POS
+
+    WHILE Y.AC.ID:AC.POS
+        CALL EB.ACCT.ENTRY.LIST(Y.AC.ID,Y.DATE,Y.DATE,Y.AC.STMT.LIST,Y.AC.OPEN.BAL,Y.AC.ER)
+
+        IF Y.AC.STMT.LIST THEN
+            LOOP
+                REMOVE Y.STMT.ID FROM Y.AC.STMT.LIST SETTING STMT.POS
+            WHILE Y.STMT.ID:STMT.POS
+                CALL F.READ(FN.STMT,Y.STMT.ID,REC.STMT,F.STMT,ERR.STMT)
+
+                IF REC.STMT<AC.STE.SYSTEM.ID> EQ 'FT' AND REC.STMT<AC.STE.NARRATIVE> EQ '' THEN
+
+                    CALL F.READ(FN.FT,REC.STMT<AC.STE.TRANS.REFERENCE>,REC.FT,F.FT,ERR.FT)
+                    IF REC.FT EQ '' THEN
+                        CALL EB.READ.HISTORY.REC(F.FT.HIS,REC.STMT<AC.STE.TRANS.REFERENCE>,REC.FT,YERROR)
+                    END
+                    IF Y.TRANS.TYPE EQ REC.FT<FT.TRANSACTION.TYPE> THEN
+                        Y.RETURN<-1>=Y.CHRG.DET:"*":Y.DES:"*":Y.AC.ID:"*":REC.STMT<AC.STE.CUSTOMER.ID>:"*":REC.FT<FT.DEBIT.AMOUNT>:"*":REC.FT<FT.COMMISSION.AMT>:"*":REC.STMT<AC.STE.TRANS.REFERENCE>
+!PRINT" ":Y.CHRG.DET:"*":Y.DES:"*":Y.AC.ID:"*":REC.STMT<AC.STE.CUSTOMER.ID>:"*":REC.FT<FT.DEBIT.AMOUNT>:"*":REC.FT<FT.COMMISSION.AMT>:"*":REC.STMT<AC.STE.TRANS.REFERENCE>
+                    END
+
+                END
+
+                REC.STMT=''
+
+            REPEAT
+
+        END
+
+    REPEAT
+
+    RETURN
+END

@@ -1,0 +1,61 @@
+*-----------------------------------------------------------------------------
+* <Rating>-7</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.PORT.PAYORDER.INFO.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine
+*
+* @author mortoza@datasoft-bd.com
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* Modification History :
+*
+* 19/10/07 - EN_10003543
+*            New Template changes
+*
+* 14/11/07 - BG_100015736
+*            Exclude routines that are not released
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_DataTypes
+    $INSERT ../GLOBUS.BP I_Table
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("PORT.PAYORD.ID", T24_String)       ;* Define Table id
+*-----------------------------------------------------------------------------
+    CALL Table.addFieldDefinition("InstrumentNo","15","A","")
+    CALL Table.addFieldDefinition("COUNTER.ID","3.1","","")
+    CALL Field.setCheckFile('JBL.PORT.COUNTER.INFO')
+    CALL Table.addFieldDefinition("RECEIVING.DATE","8", "D","")
+    CALL Table.addFieldDefinition("ROUTE.NO","30","A","")
+    CALL Table.addFieldDefinition("BankName","50","A","")
+    CALL Table.addFieldDefinition("BranchName","50","A","")
+    CALL Table.addFieldDefinition("PAYORDERAMT","15","AMT","")
+    CALL Table.addFieldDefinition("TRANS.REF","20","A","")
+    CALL Table.addFieldDefinition("XX.INVOICE.REF","20","A","")
+    CALL Table.addField("IN.WORDS.AMT", T24_Text, "", "")
+    CALL Table.addOptionsField("TRANSACTION.TYPE","PAYORDER_CLEARING_FUNDSTRANSFER ","","")
+    CALL Table.addFieldDefinition("ATTRIBUTE1","60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE2", "60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE3","60", "A", "")
+    CALL Table.addField("ATTRIBUTE4", "60", "A", "")
+    CALL Table.addFieldDefinition("ATTRIBUTE5","60", "A", "")
+    CALL Table.addFieldDefinition("CUR.DATE","12", "A", "")
+    CALL Table.addLocalReferenceField(neighbour)
+    CALL Table.addOverrideField
+
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    C$NS.OPERATION = 'ALL'
+    RETURN
+*-----------------------------------------------------------------------------
+END

@@ -1,0 +1,48 @@
+*********************************************************************************************
+*Purpose: This routine is attachted to VERSION ACCOUNT,BD.CONT.LOAN as INPUT ROUTINE and    *
+*is used to get make Interest Rate mandatory                                                *
+*Developed By: Md. Shafiul Azam(Datasoft Systems Bangladesh Ltd.)                           *
+*Supervised By: Md. Aminul Islam(Datasoft Systems Bangladesh Ltd.)                          *
+*********************************************************************************************
+    SUBROUTINE SOD.INT.CHK
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*******
+INIT:
+*******
+    FN.ACC = 'F.ACCOUNT'
+    F.ACC = ''
+    CALL GET.LOC.REF('ACCOUNT','INT.RATE',Y.INT.RATE.POS)
+    Y.CATEGORY.LIST = '1920':FM:'1921':FM:'1922':FM:'1923':FM:'1924':FM:'1925'
+    Y.CATEGORY = R.NEW(AC.CATEGORY)
+    RETURN
+
+
+***********
+OPENFILES:
+***********
+    CALL OPF(FN.ACC,F.ACC)
+    RETURN
+
+***********
+PROCESS:
+***********
+    FIND Y.CATEGORY IN Y.CATEGORY.LIST SETTING Y.CATEG.POS THEN NULL
+    Y.INT.RATE = R.NEW(AC.LOCAL.REF)<1,Y.INT.RATE.POS>
+    IF Y.INT.RATE EQ '' AND Y.CATEG.POS NE '' THEN
+        AF = AC.LOCAL.REF
+        AV = Y.INT.RATE.POS
+        ETEXT = 'Interest Rate is required'
+        CALL STORE.END.ERROR
+    END
+    RETURN
+
+END

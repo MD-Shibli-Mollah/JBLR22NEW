@@ -1,0 +1,26 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.TD.OR.CLEARING.AC.SEL
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.TELLER
+!---------------------------------------------------------------------------------------------------!
+!This subroutine Attached in VERSION TELLER,PR.PO.COLLECTION.CLEAR and TELLER,PR.SDR.COLLECTION.CLEAR
+!to findout the clearing or transfer delivery internal account based on selection of local reference
+!field TD.OR.CLEARING
+!Transfer Delivery A/c=BDT140330001
+!Inward Clearing A/c  =BDT140310001
+!---------------------------------------------------------------------------------------------------!
+    Y.TD.OR.CLEARING="TD.OR.NORMAL"
+    Y.TD.OR.CLEARING.POS=""
+    CALL GET.LOC.REF("TELLER",Y.TD.OR.CLEARING,Y.TD.OR.CLEARING.POS)
+
+    BEGIN CASE
+    CASE R.NEW(TT.TE.LOCAL.REF)<1,Y.TD.OR.CLEARING.POS> EQ "Clearing"
+        R.NEW(TT.TE.ACCOUNT.2)="BDT140310001":RIGHT(ID.COMPANY,4)
+    CASE R.NEW(TT.TE.LOCAL.REF)<1,Y.TD.OR.CLEARING.POS> EQ "Transfer Delivery"
+        R.NEW(TT.TE.ACCOUNT.2)="BDT140330001":RIGHT(ID.COMPANY,4)
+    END CASE
+    RETURN
+END

@@ -1,0 +1,42 @@
+*-----------------------------------------------------------------------------
+* <Rating>-32</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.ROUND
+!PROGRAM JBL.V.ROUND
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.MD.DEAL
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+*------
+INIT:
+*------
+    FN.MD = 'F.MD.DEAL'
+    F.MD = ''
+    RETURN
+
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.MD,F.MD)
+    RETURN
+
+*---------
+PROCESS:
+*---------
+!Y.VAT = 2.00
+!Y.VAT = COMI
+    Y.VAT = R.NEW(MD.DEA.TAX.AMT)
+    Y.FRACTION = FIELD(Y.VAT,".",2)
+    IF FIELD(Y.VAT,".",2) GT '0' THEN
+        Y.INT = FIELD(Y.VAT,".",1) + 1
+    END ELSE
+        Y.INT = FIELD(Y.VAT,".",1)
+    END
+    R.NEW(MD.DEA.TAX.AMT) = Y.INT
+    RETURN

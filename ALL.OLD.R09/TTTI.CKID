@@ -1,0 +1,186 @@
+    SUBROUTINE TTTI.CKID
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.RECORD.LOCK
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.TELLER.ID
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.USER
+    $INSERT BP I_F.TT.TELLER.ID
+!DEBUG
+    IF V$FUNCTION EQ 'D' THEN RETURN
+    FN.TT = 'F.TELLER'
+    F.TT = ''
+    FN.TI = 'F.TELLER.ID'
+    F.TI = ''
+    FN.TU = 'F.TELLER.USER'
+    F.TU = ''
+    FN.TTI = 'F.TT.TELLER.ID'
+    F.TTI = ''
+    FN.TTI.NAU = 'F.TT.TELLER.ID$NAU'
+    F.TTI.NAU = ''
+    FN.CO = 'F.COMPANY'
+    F.CO = ''
+    FN.U = 'F.USER'
+    F.U = ''
+    FN.RL = 'F.RECORD.LOCK'
+    F.RL = ''
+    CALL OPF(FN.U,F.U)
+    CALL OPF(FN.RL,F.RL)
+    CALL OPF(FN.CO,F.CO)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.TI,F.TI)
+    CALL OPF(FN.TU,F.TU)
+    CALL OPF(FN.TTI,F.TTI)
+    CALL OPF(FN.TTI.NAU,F.TTI.NAU)
+
+    IF APPLICATION EQ 'TELLER' THEN
+        CALL GET.LOC.REF("TELLER","IN.WORDS",Y.POS)
+        Y.AMT = R.NEW(TT.TE.AMOUNT.LOCAL.1)
+        CALL AMTW(Y.AMT,Y.WORD)
+        R.NEW(TT.TE.LOCAL.REF)<1,Y.POS> = Y.WORD
+    END
+
+    Y.VER.ID=APPLICATION:PGM.VERSION
+    IF Y.VER.ID EQ 'TELLER,TILL.TO.VAULT' THEN
+        CALL F.READ(FN.TU,OPERATOR,R.TU,F.TU,ERR.TU)
+        IF R.TU NE '' THEN
+            CALL F.READ(FN.TI,R.TU<1>,R.TI,F.TI,ERR.TI)
+            IF R.TI<TT.TID.STATUS> EQ 'OPEN' THEN R.NEW(TT.TE.TELLER.ID.2) = R.TU<1>
+            ELSE
+                AF = TT.TE.TELLER.ID.2
+                ETEXT = 'Teller ID is not Open.'
+                CALL STORE.END.ERROR
+                RETURN
+            END
+        END
+    END
+    IF Y.VER.ID EQ 'TELLER,VAULT.TO.TILL' THEN
+        CALL F.READ(FN.TU,OPERATOR,R.TU,F.TU,ERR.TU)
+        IF R.TU NE '' THEN
+            CALL F.READ(FN.TI,R.TU<1>,R.TI,F.TI,ERR.TI)
+            IF R.TI<TT.TID.STATUS> EQ 'OPEN' THEN R.NEW(TT.TE.TELLER.ID.1) = R.TU<1>
+            ELSE
+                AF = TT.TE.TELLER.ID.1
+                ETEXT = 'Teller ID is not Open.'
+                CALL STORE.END.ERROR
+                RETURN
+            END
+        END
+    END
+    IF Y.VER.ID EQ 'TELLER,LCY.TILLTFR' OR Y.VER.ID EQ 'TELLER,FCY.TILLTFR' THEN
+        CALL F.READ(FN.TU,OPERATOR,R.TU,F.TU,ERR.TU)
+        IF R.TU<1> EQ R.NEW(TT.TE.TELLER.ID.1) OR R.TU<1> EQ R.NEW(TT.TE.TELLER.ID.2) THEN
+            CALL F.READ(FN.TI,R.NEW(TT.TE.TELLER.ID.1),R.TI,F.TI,ERR.TI)
+            IF R.TI<TT.TID.STATUS> NE 'OPEN' THEN
+                AF = TT.TE.TELLER.ID.1
+                ETEXT = 'Teller ID: ':R.NEW(TT.TE.TELLER.ID.1):' is not Open.'
+                CALL STORE.END.ERROR
+                RETURN
+            END
+            CALL F.READ(FN.TI,R.NEW(TT.TE.TELLER.ID.2),R.TI,F.TI,ERR.TI)
+            IF R.TI<TT.TID.STATUS> NE 'OPEN' THEN
+                AF = TT.TE.TELLER.ID.2
+                ETEXT = 'Teller ID: ':R.NEW(TT.TE.TELLER.ID.2):' is not Open.'
+                CALL STORE.END.ERROR
+                RETURN
+            END
+        END
+        ELSE
+            AF = 0
+            CALL F.READ(FN.TI,R.TU<1>,R.TI,F.TI,ERR.TI)
+            IF R.TI EQ '' THEN ETEXT = 'Inputter must have Teller ID.' ELSE ETEXT = R.TU<1>:' must be placed in Teller IDs.'
+            CALL STORE.END.ERROR
+            RETURN
+        END
+    END
+    IF Y.VER.ID EQ 'TT.TELLER.ID,INPUT' OR Y.VER.ID EQ 'TT.TELLER.ID,VAULT' THEN
+        Y.TI = ID.NEW
+        IF LEN(ID.NEW) EQ 9 THEN
+            Y.TI = FIELD(ID.NEW,'.',1)
+            Y.BRC = FIELD(ID.NEW,'.',2)
+        END
+        ELSE
+            Y.BRC = ID.COMPANY[6,4]
+            GOSUB DEL.RL
+        END
+        IF LEN(Y.TI) NE 4 OR LEN(Y.BRC) NE 4 OR NUM(Y.TI) NE 1 OR NUM(Y.BRC) NE 1 OR LEN(Y.TI) LE 3 OR Y.BRC NE ID.COMPANY[6,4] OR (Y.VER.ID EQ 'TT.TELLER.ID,INPUT' AND Y.TI EQ '9999') OR (Y.VER.ID EQ 'TT.TELLER.ID,VAULT' AND Y.TI NE '9999') THEN
+            E = 'Invalid ID Entered. Please enter Teller ID OR Use TellerID.BracnhCode.'
+            CALL STORE.END.ERROR
+            GOSUB DEL.RL
+            RETURN
+        END
+
+        CALL F.READ(FN.CO,ID.COMPANY,R.CO,F.CO,ERR.CO)
+        R.NEW(TTTI.BR.INFO) = ID.COMPANY[6,4]:' ':R.CO<EB.COM.COMPANY.NAME>
+        R.NEW(TTTI.TELLER.ID) = Y.TI
+
+        IF Y.TI EQ '9999' THEN
+            R.NEW(TTTI.CATEGORY) = 10011
+            R.NEW(TTTI.USER.ID) = 'VAULT'
+            R.NEW(TTTI.USER.INFO) = 'VAULT'
+            T(TTTI.COUNTER.LIMIT)<3> = "NOINPUT"
+            T(TTTI.DR.CR)<3> = "NOINPUT"
+            T(TTTI.LIMIT)<3> = "NOINPUT"
+        END
+        ELSE
+            T(TTTI.SAFE.LIMIT)<3> = "NOINPUT"
+            CALL F.READ(FN.TI,Y.TI,R.TI,F.TI,ERR.TI)
+            IF R.TI EQ '' THEN
+                E = 'Teller ID not found.'
+                CALL STORE.END.ERROR
+                GOSUB DEL.RL
+                RETURN
+            END
+
+            IF R.TI<TT.TID.CO.CODE> NE ID.COMPANY THEN
+                E = 'Teller ID is not available in this branch.'
+                CALL STORE.END.ERROR
+                GOSUB DEL.RL
+                RETURN
+            END
+            IF R.TI<TT.TID.STATUS> NE 'OPEN' THEN
+                E = 'Teller ID is not Open.'
+                CALL STORE.END.ERROR
+                GOSUB DEL.RL
+                RETURN
+            END
+
+            R.NEW(TTTI.USER.ID) = R.TI<TT.TID.USER>
+            R.NEW(TTTI.CATEGORY) = R.TI<TT.TID.CATEGORY>
+            CALL F.READ(FN.U,R.TI<TT.TID.USER>,R.U,F.U,ERR.U)
+            R.NEW(TTTI.USER.INFO) = R.U<EB.USE.USER.NAME>
+        END
+        ID.NEW = Y.TI:'.':ID.COMPANY[6,4]
+        CALL F.READ(FN.TTI.NAU,ID.NEW,R.CK,F.TTI.NAU,ERR.CK.NAU)
+        IF R.CK NE '' THEN
+            GOSUB OLD_ENTRY
+            RETURN
+        END
+        CALL F.READ(FN.TTI,ID.NEW,R.CK,F.TTI,ERR.CK)
+        IF R.CK NE '' THEN
+            GOSUB OLD_ENTRY
+            RETURN
+        END
+    END
+    RETURN
+
+    OLD_ENTRY:
+!DEBUG
+    R.NEW(TTTI.USER.ID) = R.CK<TTTI.USER.ID>
+    R.NEW(TTTI.USER.INFO) = R.CK<TTTI.USER.INFO>
+    R.NEW(TTTI.CATEGORY) = R.CK<TTTI.CATEGORY>
+    R.NEW(TTTI.CCY) = R.CK<TTTI.CCY>
+    R.NEW(TTTI.DR.CR) = R.CK<TTTI.DR.CR>
+    R.NEW(TTTI.LIMIT) = R.CK<TTTI.LIMIT>
+    R.NEW(TTTI.SAFE.LIMIT) = R.CK<TTTI.SAFE.LIMIT>
+    R.NEW(TTTI.COUNTER.LIMIT) = R.CK<TTTI.COUNTER.LIMIT>
+    R.NEW(TTTI.IN.WORD) = R.CK<TTTI.IN.WORD>
+    RETURN
+
+DEL.RL:
+    RL.ID = 'FBNK.TT.TELLER.ID$NAU':'.':ID.NEW
+    CALL F.READ(FN.RL,RL.ID,R.RL,F.RL,ERR.RL)
+    DELETE F.RL,RL.ID
+    RETURN
+END 

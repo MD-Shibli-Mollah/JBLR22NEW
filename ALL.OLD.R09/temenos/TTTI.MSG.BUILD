@@ -1,0 +1,41 @@
+    SUBROUTINE TTTI.MSG.BUILD
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT BP I_F.TT.OVER.LIMT
+!DEBUG
+    FN.TL = 'F.EB.TT.OVER.LIMT'
+    F.TL = ''
+    CALL OPF (FN.TL,F.TL)
+    FN.TT = 'F.TELLER$NAU'
+    F.TT = ''
+    CALL OPF(FN.TT,F.TT)
+
+    Y.CNT = COUNT(R.NEW(TT.TE.OVERRIDE),'Teller Limit Over for Curreny: ')
+    IF Y.CNT EQ 0 THEN RETURN
+    Y.LMSG = ''
+    FOR I = 1 TO Y.CNT
+        Y.OMSG = FIELD(R.NEW(TT.TE.OVERRIDE),'Teller Limit Over for Curreny: ',I+1)
+        Y.OMSG = FIELD(Y.OMSG,'}',1)
+        Y.OLC = FIELD(Y.OMSG,' ',1)
+        Y.LTYPE = FIELD(Y.OMSG,' ',2)
+        IF Y.LTYPE[1,1] EQ 'T' THEN Y.LTYPE = ' Txn Limit: '
+        IF Y.LTYPE[1,1] EQ 'C' THEN Y.LTYPE = ' Counter Limit: '
+        IF Y.LTYPE[1,1] EQ 'S' THEN Y.LTYPE = ' Safe Limit: '
+        Y.OLA = FIELD(Y.OMSG,' ',3)
+        Y.TID = FIELD(Y.OMSG,' ',5)
+        Y.TID = 'TID: ':Y.TID:Y.LTYPE:Y.OLC:Y.OLA
+        IF Y.LMSG EQ '' THEN Y.LMSG = Y.TID ELSE Y.LMSG = Y.LMSG:@VM:Y.TID
+    NEXT I
+
+    Y.ID = ID.COMPANY[6,4]:'.':TODAY:'.':ID.NEW:'.':R.NEW(TT.TE.TELLER.ID.1):'.':R.NEW(TT.TE.TELLER.ID.2)
+    R.TL = ''
+    R.TL<EB.TT.57.TT.ID> = Y.LMSG
+    R.TL<EB.TT.57.CURR.NO> += 1
+    R.TL<EB.TT.57.INPUTTER> = R.NEW(TT.TE.INPUTTER)
+    R.TL<EB.TT.57.DATE.TIME> = R.NEW(TT.TE.DATE.TIME)
+    R.TL<EB.TT.57.AUTHORISER> = OPERATOR
+    R.TL<EB.TT.57.CO.CODE> = ID.COMPANY
+    WRITE R.TL TO F.TL,Y.ID
+    RETURN
+END 

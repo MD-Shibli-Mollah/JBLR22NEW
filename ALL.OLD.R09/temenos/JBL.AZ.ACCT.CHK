@@ -1,0 +1,76 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+**************************************************************************
+*-------------For AZ Account Check--------------------
+*Company Name   : Datasoft
+*Developed By   : Kamran
+*
+*----------------------------------------------------------------------
+*Subroutine Type: Input Routine
+*
+*In Parameter   :
+*
+*Out Parameter  : Checking RD Account
+*--------------------------------------------------------------------------------------
+*Description    : This Routine check AZ Account & LIEN Mark. If account is already LIEN
+*                 it throw a message & Loan take against only FDR/RD account, if input
+*                 other types of account it throw ERROR message.
+*--------------------------------------------------------------------------------------
+    SUBROUTINE JBL.AZ.ACCT.CHK
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.AZ.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+******
+INIT:
+******
+    FN.ACCOUNT.NAU = 'FBNK.ACCOUNT'
+    F.ACCOUNT.NAU = ''
+    FN.AZ.ACCOUNT = 'FBNK.AZ.ACCOUNT'
+    F.AZ.ACCOUNT = ''
+    RETURN
+
+***********
+OPENFILES:
+***********
+    CALL OPF(FN.ACCOUNT.NAU,F.ACCOUNT.NAU)
+    CALL OPF(FN.AZ.ACCOUNT,F.AZ.ACCOUNT)
+    RETURN
+
+*********
+PROCESS:
+*********
+    Y.LOAN.ACCT = ID.NEW
+
+    CALL F.READ(FN.ACCOUNT.NAU,Y.LOAN.ACCT,R.ACCOUNT.NAU,F.ACCOUNT.NAU,Y.ERR)
+    CALL GET.LOC.REF('ACCOUNT','LOAN.AGAINST',Y.LOAN.AGAINST.POS)
+
+    Y.AZ.ACCT = R.NEW(AC.LOCAL.REF)<1,Y.LOAN.AGAINST.POS>
+    IF  Y.AZ.ACCT NE '' THEN
+        CALL F.READ(FN.AZ.ACCOUNT,Y.AZ.ACCT,R.AZ.ACCOUNT,F.AZ.ACCOUNT,Y.ERR)
+        CALL GET.LOC.REF('AZ.ACCOUNT','LIEN.MARK',Y.LIEN.MARK.POS)
+        Y.LIEN.MARK = R.AZ.ACCOUNT<AZ.LOCAL.REF,Y.LIEN.MARK.POS>
+        IF R.AZ.ACCOUNT EQ '' THEN
+            AF = AC.LOCAL.REF
+            AV = Y.LOAN.AGAINST.POS
+            ETEXT = 'Loan Against Must Be a FDR/RD Account'
+            CALL STORE.END.ERROR
+        END ELSE
+            IF R.AZ.ACCOUNT NE '' AND Y.LIEN.MARK EQ 'YES' THEN
+                AF = AC.LOCAL.REF
+                AV = Y.LOAN.AGAINST.POS
+                ETEXT = 'Deposit Account Already Lien Account'
+                CALL STORE.END.ERROR
+            END
+
+        END
+        RETURN
+    END

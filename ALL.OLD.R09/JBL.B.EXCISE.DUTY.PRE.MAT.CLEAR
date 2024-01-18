@@ -1,0 +1,60 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.EXCISE.DUTY.PRE.MAT.CLEAR
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine is used to clear the EB.BD.EXCISE.DUTY.LD
+*    and EB.BD.EXCISE.DUTY.PD concat table
+*-------------------------------------------------------------------------
+* Project Name : Janatha Bank Limited(Bangladesh)
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+* NA
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+* EB.CLEAR.FILE             Core            To clear the concat table
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 09/05/2011 -                            New   - Chethana.H.N
+*                                                 Thesys Technologies
+**************************************************************************
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+**************************************************************************
+PROCESS:
+********
+
+    CALL EB.CLEAR.FILE(FN.EB.BD.EXCISE.DUTY.LD,F.EB.BD.EXCISE.DUTY.LD)
+
+    CALL EB.CLEAR.FILE(FN.EB.BD.EXCISE.DUTY.PD,F.EB.BD.EXCISE.DUTY.PD)
+    RETURN
+
+INIT:
+*****
+*
+    FN.EB.BD.EXCISE.DUTY.LD = 'F.EB.BD.EXCISE.DUTY.LD'
+    F.EB.BD.EXCISE.DUTY.LD = ''
+    CALL OPF(FN.EB.BD.EXCISE.DUTY.LD,F.EB.BD.EXCISE.DUTY.LD)
+*
+    FN.EB.BD.EXCISE.DUTY.PD = 'F.EB.BD.EXCISE.DUTY.PD'
+    F.EB.BD.EXCISE.DUTY.PD = ''
+    CALL OPF(FN.EB.BD.EXCISE.DUTY.PD,F.EB.BD.EXCISE.DUTY.PD)
+*
+    RETURN
+**************************************************************************

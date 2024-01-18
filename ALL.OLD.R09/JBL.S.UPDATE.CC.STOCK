@@ -1,0 +1,334 @@
+*-----------------------------------------------------------------------------
+* <Rating>1688</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.S.UPDATE.CC.STOCK
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT BP I_F.EB.CC.STOCK.REGISTER
+    $INSERT I_F.COLLATERAL
+    $INSERT I_F.COLLATERAL.RIGHT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+INIT:
+
+    FN.CC.STOCK="F.EB.CC.STOCK.REGISTER"
+    F.CC.STOCK=""
+    REC.CC.STOCK=""
+    Y.CC.ID=""
+
+    FN.COLL.RGHT="F.COLLATERAL.RIGHT"
+    F.COLL.RGHT=""
+    REC.COLL.RGHT=""
+    Y.COLL.RGHT.ID=""
+
+    STOCK.CNT=""
+
+    OLD.CNT = ""
+    NEW.CNT = ""
+
+    Y.APPLICATION       = "COLLATERAL"
+    FIELD.NAME         = "NAME.OF.STOCK":VM:"DATE.OF.STOCK":VM:"QUANTITY":VM:"VALUE.PER.UNIT":VM:"MARGIN":VM:"DRAWING":VM:"AMOUNT.MARGIN"
+    FIELD.POS           = ""
+    CALL MULTI.GET.LOC.REF(Y.APPLICATION,FIELD.NAME,FIELD.POS)
+
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.CC.STOCK,F.CC.STOCK)
+    CALL OPF(FN.COLL.RGHT,F.COLL.RGHT)
+
+    RETURN
+
+PROCESS:
+
+    NAME.OF.STOC.POS=FIELD.POS<1,1>
+    DATE.OF.STOC.POS=FIELD.POS<1,2>
+    QUANTITY.POS=FIELD.POS<1,3>
+    VALUE.PER.UN.POS=FIELD.POS<1,4>
+    MARGIN.POS=FIELD.POS<1,5>
+    DRAWING.POS=FIELD.POS<1,6>
+    AMOUNT.MARGI.POS=FIELD.POS<1,7>
+
+    Y.COLL.RGHT.ID=FIELD(ID.NEW,".",1,1):".":FIELD(ID.NEW,".",2,1)
+    CALL F.READ(FN.COLL.RGHT,Y.COLL.RGHT.ID,REC.COLL.RGHT,F.COLL.RGHT,ERR.COLL.RGHT)
+    Y.CC.ID = REC.COLL.RGHT<COLL.RIGHT.LIMIT.REFERENCE>
+    CALL F.READ(FN.CC.STOCK,Y.CC.ID,REC.CC.STOCK,F.CC.STOCK,ERR.CC.STOCK)
+
+    IF REC.CC.STOCK THEN
+        OLD.CNT = DCOUNT(R.OLD(COLL.LOCAL.REF)<1,NAME.OF.STOC.POS>,@SM)
+        NEW.CNT = DCOUNT(R.NEW(COLL.LOCAL.REF)<1,NAME.OF.STOC.POS>,@SM)
+
+        BEGIN CASE
+
+!---------IF OLD STOCK NO AND NEW STOCK NO ARE SAME-------------!
+
+        CASE OLD.CNT EQ NEW.CNT
+            Y.STK.VAL=""
+            Y.STK.VAL=R.OLD(COLL.LOCAL.REF)<1,NAME.OF.STOC.POS>
+            FOR J=1 TO NEW.CNT
+                Y.STOCK.NM = ""
+                STK.CNT = ""
+                Y.STOCK.NM = R.NEW(COLL.LOCAL.REF)<1,NAME.OF.STOC.POS,J>
+
+                LOCATE Y.STOCK.NM IN Y.STK.VAL<1,1,1> SETTING Y.POS1 THEN
+                    Y.CC.STK.VAL=""
+                    Y.CC.STK.VAL=REC.CC.STOCK<EB.CC.33.NAME.OF.STOC>
+                    BEGIN CASE
+
+                    CASE R.OLD(COLL.LOCAL.REF)<1,QUANTITY.POS,J> GT R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,J>
+
+!!!!!!!!!!!! STOCK OUT!!!!!!!!!!!
+
+                        LOCATE Y.STOCK.NM IN Y.CC.STK.VAL<1,1> SETTING Y.CC.POS1 THEN
+                            STK.CNT = DCOUNT(REC.CC.STOCK<EB.CC.33.DATE,Y.CC.POS1>,@SM)
+                            STK.CNT = STK.CNT + 1
+                            REC.CC.STOCK<EB.CC.33.DATE,Y.CC.POS1,STK.CNT> = TODAY
+                            REC.CC.STOCK<EB.CC.33.IN.QUANTITY,Y.CC.POS1,STK.CNT> = 0
+                            REC.CC.STOCK<EB.CC.33.IN.VAL.PER.UN,Y.CC.POS1,STK.CNT> = 0
+                            REC.CC.STOCK<EB.CC.33.OUT.QUANTITY,Y.CC.POS1,STK.CNT> = ( R.OLD(COLL.LOCAL.REF)<1,QUANTITY.POS,J> - R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,J>)
+                            REC.CC.STOCK<EB.CC.33.OUT.VAL.PER.UN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,J>
+                            REC.CC.STOCK<EB.CC.33.BAL.QUANTITY,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,J>
+                            REC.CC.STOCK<EB.CC.33.BAL.VAL.PER.UN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,J>
+                            REC.CC.STOCK<EB.CC.33.MARGIN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,MARGIN.POS,J>
+                            REC.CC.STOCK<EB.CC.33.AMT.OF.MARGIN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,AMOUNT.MARGI.POS,J>
+                            REC.CC.STOCK<EB.CC.33.DRAWING,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,DRAWING.POS,J>
+                        END
+
+                    CASE R.OLD(COLL.LOCAL.REF)<1,QUANTITY.POS,J> LT R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,J>
+
+!!!!!!!!!!!! STOCK IN!!!!!!!!!!!
+
+                        LOCATE Y.STOCK.NM IN Y.CC.STK.VAL<1,1> SETTING Y.CC.POS1 THEN
+                            STK.CNT = DCOUNT(REC.CC.STOCK<EB.CC.33.DATE,Y.CC.POS1>,@SM)
+                            STK.CNT = STK.CNT + 1
+                            REC.CC.STOCK<EB.CC.33.DATE,Y.CC.POS1,STK.CNT> = TODAY
+                            REC.CC.STOCK<EB.CC.33.IN.QUANTITY,Y.CC.POS1,STK.CNT> = ( R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,J> - R.OLD(COLL.LOCAL.REF)<1,QUANTITY.POS,J>)
+                            REC.CC.STOCK<EB.CC.33.IN.VAL.PER.UN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,J>
+                            REC.CC.STOCK<EB.CC.33.OUT.QUANTITY,Y.CC.POS1,STK.CNT> = 0
+                            REC.CC.STOCK<EB.CC.33.OUT.VAL.PER.UN,Y.CC.POS1,STK.CNT> = 0
+                            REC.CC.STOCK<EB.CC.33.BAL.QUANTITY,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,J>
+                            REC.CC.STOCK<EB.CC.33.BAL.VAL.PER.UN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,J>
+                            REC.CC.STOCK<EB.CC.33.MARGIN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,MARGIN.POS,J>
+                            REC.CC.STOCK<EB.CC.33.AMT.OF.MARGIN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,AMOUNT.MARGI.POS,J>
+                            REC.CC.STOCK<EB.CC.33.DRAWING,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,DRAWING.POS,J>
+                        END
+
+                    END CASE
+
+                END
+
+                ELSE
+
+                    REC.CC.STOCK<EB.CC.33.NAME.OF.STOC,J> = R.NEW(COLL.LOCAL.REF)<1,NAME.OF.STOC.POS,J>
+                    REC.CC.STOCK<EB.CC.33.DATE,J,1> = TODAY
+                    REC.CC.STOCK<EB.CC.33.IN.QUANTITY,J,1> = R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,J>
+                    REC.CC.STOCK<EB.CC.33.IN.VAL.PER.UN,J,1> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,J>
+                    REC.CC.STOCK<EB.CC.33.OUT.QUANTITY,J,1> = 0
+                    REC.CC.STOCK<EB.CC.33.OUT.VAL.PER.UN,J,1> = 0
+                    REC.CC.STOCK<EB.CC.33.BAL.QUANTITY,J,1> = R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,J>
+                    REC.CC.STOCK<EB.CC.33.BAL.VAL.PER.UN,J,1> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,J>
+                    REC.CC.STOCK<EB.CC.33.MARGIN,J,1> = R.NEW(COLL.LOCAL.REF)<1,MARGIN.POS,J>
+                    REC.CC.STOCK<EB.CC.33.AMT.OF.MARGIN,J,1> = R.NEW(COLL.LOCAL.REF)<1,AMOUNT.MARGI.POS,J>
+                    REC.CC.STOCK<EB.CC.33.DRAWING,J,1> = R.NEW(COLL.LOCAL.REF)<1,DRAWING.POS,J>
+
+                END
+            NEXT
+            CALL F.WRITE(FN.CC.STOCK,Y.CC.ID,REC.CC.STOCK)
+        CASE OLD.CNT LT NEW.CNT
+
+            Y.STK.VAL=""
+            Y.STK.VAL=R.OLD(COLL.LOCAL.REF)<1,NAME.OF.STOC.POS>
+            FOR K = 1 TO NEW.CNT
+                Y.STOCK.NM = ""
+                STK.CNT = ""
+                Y.STOCK.NM = R.NEW(COLL.LOCAL.REF)<1,NAME.OF.STOC.POS,K>
+
+                LOCATE Y.STOCK.NM IN Y.STK.VAL<1,1,1> SETTING Y.POS1 THEN
+
+                    Y.CC.STK.VAL=""
+                    Y.CC.STK.VAL=REC.CC.STOCK<EB.CC.33.NAME.OF.STOC>
+
+
+                    BEGIN CASE
+
+                    CASE R.OLD(COLL.LOCAL.REF)<1,QUANTITY.POS,K> GT R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,K>
+
+!!!!!!!!!!!! STOCK OUT!!!!!!!!!!!
+
+                        LOCATE Y.STOCK.NM IN Y.CC.STK.VAL<1,1> SETTING Y.CC.POS1 THEN
+                            STK.CNT=""
+                            STK.CNT = DCOUNT(REC.CC.STOCK<EB.CC.33.DATE,Y.CC.POS1>,@SM)
+                            STK.CNT = STK.CNT + 1
+                            REC.CC.STOCK<EB.CC.33.DATE,Y.CC.POS1,STK.CNT> = TODAY
+                            REC.CC.STOCK<EB.CC.33.IN.QUANTITY,Y.CC.POS1,STK.CNT> = 0
+                            REC.CC.STOCK<EB.CC.33.IN.VAL.PER.UN,Y.CC.POS1,STK.CNT> = 0
+                            REC.CC.STOCK<EB.CC.33.OUT.QUANTITY,Y.CC.POS1,STK.CNT> = ( R.OLD(COLL.LOCAL.REF)<1,QUANTITY.POS,K> - R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,K>)
+                            REC.CC.STOCK<EB.CC.33.OUT.VAL.PER.UN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,K>
+                            REC.CC.STOCK<EB.CC.33.BAL.QUANTITY,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,K>
+                            REC.CC.STOCK<EB.CC.33.BAL.VAL.PER.UN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,K>
+                            REC.CC.STOCK<EB.CC.33.MARGIN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,MARGIN.POS,K>
+                            REC.CC.STOCK<EB.CC.33.AMT.OF.MARGIN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,AMOUNT.MARGI.POS,K>
+                            REC.CC.STOCK<EB.CC.33.DRAWING,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,DRAWING.POS,K>
+                        END
+
+                    CASE R.OLD(COLL.LOCAL.REF)<1,QUANTITY.POS,K> LT R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,K>
+
+!!!!!!!!!!!! STOCK IN!!!!!!!!!!!
+
+                        LOCATE Y.STOCK.NM IN Y.CC.STK.VAL<1,1> SETTING Y.CC.POS1 THEN
+                            STK.CNT =""
+                            STK.CNT = DCOUNT(REC.CC.STOCK<EB.CC.33.DATE,Y.CC.POS1>,@SM)
+                            STK.CNT = STK.CNT + 1
+                            REC.CC.STOCK<EB.CC.33.DATE,Y.CC.POS1,STK.CNT> = TODAY
+                            REC.CC.STOCK<EB.CC.33.IN.QUANTITY,Y.CC.POS1,STK.CNT> = ( R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,K> - R.OLD(COLL.LOCAL.REF)<1,QUANTITY.POS,K>)
+                            REC.CC.STOCK<EB.CC.33.IN.VAL.PER.UN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,K>
+                            REC.CC.STOCK<EB.CC.33.OUT.QUANTITY,Y.CC.POS1,STK.CNT> = 0
+                            REC.CC.STOCK<EB.CC.33.OUT.VAL.PER.UN,Y.CC.POS1,STK.CNT> = 0
+                            REC.CC.STOCK<EB.CC.33.BAL.QUANTITY,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,K>
+                            REC.CC.STOCK<EB.CC.33.BAL.VAL.PER.UN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,K>
+                            REC.CC.STOCK<EB.CC.33.MARGIN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,MARGIN.POS,K>
+                            REC.CC.STOCK<EB.CC.33.AMT.OF.MARGIN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,AMOUNT.MARGI.POS,K>
+                            REC.CC.STOCK<EB.CC.33.DRAWING,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,DRAWING.POS,K>
+                        END
+                    END CASE
+
+                END
+
+                ELSE
+
+                    REC.CC.STOCK<EB.CC.33.NAME.OF.STOC,K> = R.NEW(COLL.LOCAL.REF)<1,NAME.OF.STOC.POS,K>
+                    REC.CC.STOCK<EB.CC.33.DATE,K,1> = TODAY
+                    REC.CC.STOCK<EB.CC.33.IN.QUANTITY,K,1> = R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,K>
+                    REC.CC.STOCK<EB.CC.33.IN.VAL.PER.UN,K,1> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,K>
+                    REC.CC.STOCK<EB.CC.33.OUT.QUANTITY,K,1> = 0
+                    REC.CC.STOCK<EB.CC.33.OUT.VAL.PER.UN,K,1> = 0
+                    REC.CC.STOCK<EB.CC.33.BAL.QUANTITY,K,1> = R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,K>
+                    REC.CC.STOCK<EB.CC.33.BAL.VAL.PER.UN,K,1> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,K>
+                    REC.CC.STOCK<EB.CC.33.MARGIN,K,1> = R.NEW(COLL.LOCAL.REF)<1,MARGIN.POS,K>
+                    REC.CC.STOCK<EB.CC.33.AMT.OF.MARGIN,K,1> = R.NEW(COLL.LOCAL.REF)<1,AMOUNT.MARGI.POS,K>
+                    REC.CC.STOCK<EB.CC.33.DRAWING,K,1> = R.NEW(COLL.LOCAL.REF)<1,DRAWING.POS,K>
+
+                END
+
+            NEXT
+            CALL F.WRITE(FN.CC.STOCK,Y.CC.ID,REC.CC.STOCK)
+        CASE OLD.CNT GT NEW.CNT
+
+            Y.STK.VAL=""
+            Y.STK.VAL=R.NEW(COLL.LOCAL.REF)<1,NAME.OF.STOC.POS>
+
+
+
+            FOR L = 1 TO OLD.CNT
+                STK.CNT = ""
+                Y.STOCK.NM = ""
+                Y.STOCK.NM = R.OLD(COLL.LOCAL.REF)<1,NAME.OF.STOC.POS,L>
+                LOCATE Y.STOCK.NM IN  Y.STK.VAL<1,1,1> SETTING Y.POS1 THEN
+
+                    Y.CC.STK.VAL=""
+                    Y.CC.STK.VAL=REC.CC.STOCK<EB.CC.33.NAME.OF.STOC>
+
+                    BEGIN CASE
+
+                    CASE R.OLD(COLL.LOCAL.REF)<1,QUANTITY.POS,L> GT R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,L>
+
+!!!!!!!!!!!! STOCK OUT!!!!!!!!!!!
+
+                        LOCATE Y.STOCK.NM IN Y.CC.STK.VAL<1,1> SETTING Y.CC.POS1 THEN
+                            STK.CNT=""
+                            STK.CNT = DCOUNT(REC.CC.STOCK<EB.CC.33.DATE,Y.CC.POS1>,@SM)
+                            STK.CNT = STK.CNT + 1
+                            REC.CC.STOCK<EB.CC.33.DATE,Y.CC.POS1,STK.CNT> = TODAY
+                            REC.CC.STOCK<EB.CC.33.IN.QUANTITY,Y.CC.POS1,STK.CNT> = 0
+                            REC.CC.STOCK<EB.CC.33.IN.VAL.PER.UN,Y.CC.POS1,STK.CNT> = 0
+                            REC.CC.STOCK<EB.CC.33.OUT.QUANTITY,Y.CC.POS1,STK.CNT> = ( R.OLD(COLL.LOCAL.REF)<1,QUANTITY.POS,L> - R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,L>)
+                            REC.CC.STOCK<EB.CC.33.OUT.VAL.PER.UN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,L>
+                            REC.CC.STOCK<EB.CC.33.BAL.QUANTITY,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,L>
+                            REC.CC.STOCK<EB.CC.33.BAL.VAL.PER.UN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,L>
+                            REC.CC.STOCK<EB.CC.33.MARGIN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,MARGIN.POS,L>
+                            REC.CC.STOCK<EB.CC.33.AMT.OF.MARGIN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,AMOUNT.MARGI.POS,L>
+                            REC.CC.STOCK<EB.CC.33.DRAWING,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,DRAWING.POS,L>
+                        END
+
+                    CASE R.OLD(COLL.LOCAL.REF)<1,QUANTITY.POS,L> LT R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,L>
+
+!!!!!!!!!!!! STOCK IN!!!!!!!!!!!
+
+                        LOCATE Y.STOCK.NM IN Y.CC.STK.VAL<1,1> SETTING Y.CC.POS1 THEN
+                            STK.CNT =""
+                            STK.CNT = DCOUNT(REC.CC.STOCK<EB.CC.33.DATE,Y.CC.POS1>,@SM)
+                            STK.CNT = STK.CNT + 1
+                            REC.CC.STOCK<EB.CC.33.DATE,Y.CC.POS1,STK.CNT> = TODAY
+                            REC.CC.STOCK<EB.CC.33.IN.QUANTITY,Y.CC.POS1,STK.CNT> = ( R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,L> - R.OLD(COLL.LOCAL.REF)<1,QUANTITY.POS,L>)
+                            REC.CC.STOCK<EB.CC.33.IN.VAL.PER.UN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,L>
+                            REC.CC.STOCK<EB.CC.33.OUT.QUANTITY,Y.CC.POS1,STK.CNT> = 0
+                            REC.CC.STOCK<EB.CC.33.OUT.VAL.PER.UN,Y.CC.POS1,STK.CNT> = 0
+                            REC.CC.STOCK<EB.CC.33.BAL.QUANTITY,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,L>
+                            REC.CC.STOCK<EB.CC.33.BAL.VAL.PER.UN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,L>
+                            REC.CC.STOCK<EB.CC.33.MARGIN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,MARGIN.POS,L>
+                            REC.CC.STOCK<EB.CC.33.AMT.OF.MARGIN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,AMOUNT.MARGI.POS,L>
+                            REC.CC.STOCK<EB.CC.33.DRAWING,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,DRAWING.POS,L>
+                        END
+                    END CASE
+
+                END
+
+                ELSE
+
+                    LOCATE Y.STOCK.NM IN Y.CC.STK.VAL<1,1> SETTING Y.CC.POS1 THEN
+                        STK.CNT=""
+                        STK.CNT = DCOUNT(REC.CC.STOCK<EB.CC.33.DATE,Y.CC.POS1>,@SM)
+                        STK.CNT = STK.CNT + 1
+                        REC.CC.STOCK<EB.CC.33.DATE,Y.CC.POS1,STK.CNT> = TODAY
+                        REC.CC.STOCK<EB.CC.33.IN.QUANTITY,Y.CC.POS1,STK.CNT> = 0
+                        REC.CC.STOCK<EB.CC.33.IN.VAL.PER.UN,Y.CC.POS1,STK.CNT> = 0
+                        REC.CC.STOCK<EB.CC.33.OUT.QUANTITY,Y.CC.POS1,STK.CNT> = ( R.OLD(COLL.LOCAL.REF)<1,QUANTITY.POS,L> - R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,L>)
+                        REC.CC.STOCK<EB.CC.33.OUT.VAL.PER.UN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,L>
+                        REC.CC.STOCK<EB.CC.33.BAL.QUANTITY,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,L>
+                        REC.CC.STOCK<EB.CC.33.BAL.VAL.PER.UN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,L>
+                        REC.CC.STOCK<EB.CC.33.MARGIN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,MARGIN.POS,L>
+                        REC.CC.STOCK<EB.CC.33.AMT.OF.MARGIN,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,AMOUNT.MARGI.POS,L>
+                        REC.CC.STOCK<EB.CC.33.DRAWING,Y.CC.POS1,STK.CNT> = R.NEW(COLL.LOCAL.REF)<1,DRAWING.POS,L>
+                    END
+
+                END
+
+            NEXT
+            CALL F.WRITE(FN.CC.STOCK,Y.CC.ID,REC.CC.STOCK)
+        END CASE
+
+    END
+
+    ELSE
+
+        STOCK.CNT = DCOUNT(R.NEW(COLL.LOCAL.REF)<1,NAME.OF.STOC.POS>,@SM)
+
+        FOR I = 1 TO STOCK.CNT
+            REC.CC.STOCK<EB.CC.33.NAME.OF.STOC,I> = R.NEW(COLL.LOCAL.REF)<1,NAME.OF.STOC.POS,I>
+            REC.CC.STOCK<EB.CC.33.DATE,I,1> = TODAY
+            REC.CC.STOCK<EB.CC.33.IN.QUANTITY,I,1> = R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,I>
+            REC.CC.STOCK<EB.CC.33.IN.VAL.PER.UN,I,1> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,I>
+            REC.CC.STOCK<EB.CC.33.OUT.QUANTITY,I,1> = 0
+            REC.CC.STOCK<EB.CC.33.OUT.VAL.PER.UN,I,1> = 0
+            REC.CC.STOCK<EB.CC.33.BAL.QUANTITY,I,1> = R.NEW(COLL.LOCAL.REF)<1,QUANTITY.POS,I>
+            REC.CC.STOCK<EB.CC.33.BAL.VAL.PER.UN,I,1> = R.NEW(COLL.LOCAL.REF)<1,VALUE.PER.UN.POS,I>
+            REC.CC.STOCK<EB.CC.33.MARGIN,I,1> = R.NEW(COLL.LOCAL.REF)<1,MARGIN.POS,I>
+            REC.CC.STOCK<EB.CC.33.AMT.OF.MARGIN,I,1> = R.NEW(COLL.LOCAL.REF)<1,AMOUNT.MARGI.POS,I>
+            REC.CC.STOCK<EB.CC.33.DRAWING,I,1> = R.NEW(COLL.LOCAL.REF)<1,DRAWING.POS,I>
+            REC.CC.STOCK<EB.CC.33.COLLATERAL.ID>=ID.NEW
+        NEXT
+
+        CALL F.WRITE(FN.CC.STOCK,Y.CC.ID,REC.CC.STOCK)
+
+    END
+
+    RETURN
+
+END

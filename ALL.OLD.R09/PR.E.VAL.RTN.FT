@@ -1,0 +1,42 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+
+*******************************************************************
+*****THIS VALIDATION ROUTINE IS FOR FINDING OUT WETHER AN ACCOUNT IS
+***** INACTIVE OR NOT
+
+*****DEVELOPED BY- MANIK(DATASOFT)-20/03/2007
+*******************************************************************
+
+
+
+    SUBROUTINE PR.E.VAL.RTN.FT
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.ACCOUNT
+    * DEBUG
+    FN.ACC="F.ACCOUNT"
+    F.ACC=''
+
+    REC.ACC=''
+
+    CALL OPF(FN.ACC,F.ACC)
+    Y.AC.ID=COMI
+
+    CALL F.READ(FN.ACC,Y.AC.ID,REC.ACC,F.ACC,ERR.ACC)
+
+    IF REC.ACC<AC.INACTIV.MARKER> NE '' THEN
+        AF=FT.DEBIT.ACCT.NO
+        ETEXT="ACCOUNT IS INACTIVE "
+        CALL STORE.END.ERROR
+    END
+    IF REC.ACC<AC.POSTING.RESTRICT> EQ 3 OR REC.ACC<AC.POSTING.RESTRICT> EQ 1 THEN
+        AF=FT.DEBIT.ACCT.NO
+        ETEXT="ACCOUNT IS BLOCKED "
+        CALL STORE.END.ERROR
+    END
+
+    RETURN
+END

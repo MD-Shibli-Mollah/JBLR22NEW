@@ -1,0 +1,115 @@
+*-----------------------------------------------------------------------------
+* <Rating>-40</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.S.CENTRAL.BANK.TAX( PASS.CUSTOMER, PASS.DEAL.AMOUNT, PASS.DEAL.CCY, PASS.CCY.MKT, PASS.CROSS.RATE, PASS.CROSS.CCY, PASS.DWN.CCY, PASS.DATA, PASS.CUST.CDN,R.TAX,TAX.AMOUNT)
+
+* Developed By- msiddque@temenos.com
+* Dated 14/11/2012
+* This routine calculate TAX amount based on TIN given or not and attached in CALC.ROUTINE field of TAX Application
+* Condition 1 : If TIN given then Tax will be 10%
+* Condition 2 : If TIN not given and maximum balance less than One lac during Capitalisation period then Tax will be 10%
+* Condition 3 : If TIN not given and maximum balance grater than One lac during Capitalisation period then Tax will be 15%
+*
+* Edit History:
+* -------------
+* Second Condition(2) is omited as per BANK requirement (Mail Date : 27-06-2016)
+*
+* Edit Condition 1 : If e-TIN given then Tax will be 10%
+* Edit Condition 2 : If e-TIN not given then Tax will be 15%
+*Revision History*
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+
+INIT:
+    FN.CUS="F.CUSTOMER"
+    F.CUS=""
+    REC.CUS=""
+
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+    REC.AC = ""
+
+    Y.AC.ID=PASS.DATA<38>
+    Y.START.PERIOD=PASS.DATA<39>[1,6]
+    Y.START.MNTH=Y.START.PERIOD[5,2]
+    Y.END.PERIOD=PASS.DATA<40>[1,6]
+    Y.END.MNTH=Y.END.PERIOD[5,2]
+
+    BALANCE.TYPE='BOOKING'
+    SYSTEM.DATE=TODAY
+    ACTIVITY.REC=''
+    Y.MAX.AMT.ORIG=""
+    Y.MAX.AMT.TEMP=""
+    Y.TIN.AMOUNT=100000
+
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.CUS,F.CUS)
+    CALL OPF(FN.AC,F.AC)
+    RETURN
+
+PROCESS:
+
+    Y.TIN.GIVEN="TIN.GIVEN"
+    Y.TIN.GIVEN.POS=""
+    CALL GET.LOC.REF("CUSTOMER",Y.TIN.GIVEN,Y.TIN.GIVEN.POS)
+
+    Y.SRC.TAX.WAIVE = "SRC.TAX.WAIVE"
+    Y.SRC.TAX.WAIVE.POS = ""
+    CALL GET.LOC.REF("ACCOUNT",Y.SRC.TAX.WAIVE,Y.SRC.TAX.WAIVE.POS)
+
+    CALL F.READ(FN.CUS,PASS.CUSTOMER,REC.CUS,F.CUS,ERR.CUS)
+    CALL F.READ(FN.AC,Y.AC.ID,REC.AC,F.AC,ERR.AC)
+
+    IF REC.AC<AC.LOCAL.REF,Y.SRC.TAX.WAIVE.POS> EQ 'YES' THEN
+        TAX.AMOUNT= 0
+    END
+    ELSE
+        IF REC.CUS<EB.CUS.LOCAL.REF,Y.TIN.GIVEN.POS> EQ 'Y' THEN
+            TAX.AMOUNT=(PASS.DEAL.AMOUNT*10)/100
+        END
+        ELSE
+            LOOP
+            UNTIL Y.START.PERIOD GT Y.END.PERIOD DO
+
+                CALL EB.GET.ACCT.ACTIVITY(Y.AC.ID,REC.AC,Y.START.PERIOD,BALANCE.TYPE,SYSTEM.DATE,ACTIVITY.REC)
+                Y.MAX.AMT.TEMP=MAXIMUM(ACTIVITY.REC<4>)
+                IF Y.MAX.AMT.TEMP GT Y.MAX.AMT.ORIG THEN
+                    Y.MAX.AMT.ORIG = Y.MAX.AMT.TEMP
+                END
+                ACTIVITY.REC=''
+                Y.MAX.AMT.TEMP=''
+
+                IF Y.START.PERIOD[5,2] EQ 12 THEN
+                    Y.START.PERIOD = Y.START.PERIOD[1,4]+1:"01"
+                END
+                ELSE
+                    Y.START.PERIOD = Y.START.PERIOD[1,4]:FMT(Y.START.PERIOD[5,2]+1,"R%2")
+                END
+
+            REPEAT
+
+            BEGIN CASE
+            CASE REC.CUS<EB.CUS.LOCAL.REF,Y.TIN.GIVEN.POS> EQ '' AND ( Y.MAX.AMT.ORIG GT Y.TIN.AMOUNT )
+                TAX.AMOUNT=(PASS.DEAL.AMOUNT*15)/100
+
+            CASE REC.CUS<EB.CUS.LOCAL.REF,Y.TIN.GIVEN.POS> EQ '' AND ( Y.MAX.AMT.ORIG LE Y.TIN.AMOUNT )
+                TAX.AMOUNT=(PASS.DEAL.AMOUNT*15)/100
+            END CASE
+        END
+    END
+
+    RETURN
+
+END

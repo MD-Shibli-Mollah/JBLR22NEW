@@ -1,0 +1,83 @@
+*-----------------------------------------------------------------------------
+* <Rating>69</Rating>
+*-----------------------------------------------------------------------------
+* 24/12/2013 - modified - Huraira
+* -------------------------------
+* Provision made to change Debit Amount Manually
+* Debit Amount must be Less than or equal Calculated Amount with manually Change option
+*--------------------------------
+
+    SUBROUTINE BD.CHK.PC.DISB.ENT.AMT
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INSERT JBL.BP I_F.BD.BTB.JOB.REGISTER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+    RETURN
+
+INITIALISE:
+
+    FN.BD.BTB.JOB.REGISTER = "F.BD.BTB.JOB.REGISTER"
+    F.BD.BTB.JOB.REGISTER = ""
+    CALL OPF(FN.BD.BTB.JOB.REGISTER,F.BD.BTB.JOB.REGISTER)
+
+    Y.PC.AMT = ''
+    Y.EXCH.RATE = ''
+
+    RETURN
+
+PROCESS:
+    GOSUB GET.LOC.REF.POS
+    IF R.NEW(FT.LOCAL.REF)<1,Y.JOBNO.POS> EQ "" THEN RETURN
+    Y.JOB.NO = R.NEW(FT.LOCAL.REF)<1,Y.JOBNO.POS>
+    CALL F.READ(FN.BD.BTB.JOB.REGISTER,Y.JOB.NO,R.BTB.JOB.REGISTER,F.BD.BTB.JOB.REGISTER,Y.BTB.JOB.REG.ERR)
+    IF R.NEW(FT.LOCAL.REF)<1,Y.PC.FCVAL.POS> EQ "" OR R.NEW(FT.LOCAL.REF)<1,Y.PC.FCVAL.POS> EQ "0" THEN
+        AF = FT.LOCAL.REF
+        AV = Y.PC.FCVAL.POS
+        ETEXT = "PC FC Amount Should Not be Null"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    Y.FT.FC.AMT = R.NEW(FT.LOCAL.REF)<1,Y.PC.FCVAL.POS>
+    Y.EXCH.RATE = R.NEW(FT.LOCAL.REF)<1,Y.RATE.POS>
+    Y.JOB.PC.ENT.AMT = R.BTB.JOB.REGISTER<BTB.JOB.TOT.PC.AVL.AMT>
+
+    IF V$FUNCTION NE 'D' THEN
+        IF Y.FT.FC.AMT GT Y.JOB.PC.ENT.AMT THEN
+            Y.PC.DIFF = Y.FT.FC.AMT - Y.JOB.PC.ENT.AMT
+            AF = FT.LOCAL.REF
+            AV = Y.PC.FCVAL.POS
+            ETEXT = "PC Disburse Amt Exceeds Job PC Entitle Amt":Y.PC.DIFF
+            CALL STORE.END.ERROR
+            RETURN
+        END ELSE
+            IF Y.EXCH.RATE LE "0" THEN
+                Y.PC.AMT.LCY = Y.FT.FC.AMT * 1
+            END ELSE
+                Y.PC.AMT.LCY = Y.FT.FC.AMT * Y.EXCH.RATE
+            END
+            CALL EB.ROUND.AMOUNT('LCCY',Y.PC.AMT.LCY,'2','')
+
+*changed by huraira
+*------------------
+            IF R.NEW(FT.DEBIT.AMOUNT) EQ "" THEN
+                R.NEW(FT.DEBIT.AMOUNT) = Y.PC.AMT.LCY
+            END ELSE
+                IF R.NEW(FT.DEBIT.AMOUNT) GT Y.PC.AMT.LCY THEN
+                    ETEXT="Dr. Amt Exceeds Cal. Amount"
+                    CALL STORE.END.ERROR
+                END
+            END
+        END
+    END
+    RETURN
+
+GET.LOC.REF.POS:
+    CALL GET.LOC.REF("FUNDS.TRANSFER","DOC.VALUE.FC",Y.PC.FCVAL.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","EXCHANGE.RATE",Y.RATE.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","JOB.NUMBER",Y.JOBNO.POS)
+    RETURN
+END

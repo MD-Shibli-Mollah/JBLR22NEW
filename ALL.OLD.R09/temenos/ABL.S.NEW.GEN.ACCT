@@ -1,0 +1,66 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.NEW.GEN.ACCT
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.ABL.H.DD.CATEG
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT JBL.BP I_F.ABL.H.BRANCH.CODE
+
+    FN.DD.CATEG='F.ABL.H.DD.CATEG'
+    F.DD.CATEG=''
+
+    FN.BR.CODE="F.ABL.H.BRANCH.CODE"
+    F.BR.CODE=''
+
+    CALL OPF(FN.BR.CODE,F.BR.CODE)
+    CALL OPF(FN.DD.CATEG,F.DD.CATEG)
+
+    REC.DD.CATEG=''
+    REC.BR.CODE=''
+
+    CALL F.READ(FN.DD.CATEG,'SYSTEM',REC.DD.CATEG,F.DD.CATEG,ERR.DD.CATEG)
+    CALL F.READ(FN.BR.CODE,RIGHT(ID.COMPANY,4),REC.BR.CODE,F.BR.CODE,ERR.BR.CODE)
+
+!---------------------huraira.20170806----------
+    Y.VERSION=PGM.VERSION
+    IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+        R.NEW(FT.CREDIT.ACCT.NO)="BDT":REC.DD.CATEG<DDC.NG.CATEG>:FMT(REC.BR.CODE<BRN.ZONAL.CODE>,"R%4"):RIGHT(ID.COMPANY,4)
+
+        BEGIN CASE
+        CASE Y.VERSION EQ ',ABL.DD.ISSUE1'
+            R.NEW(FT.COMMISSION.AMT)  = ''
+            R.NEW(FT.TAX.AMT)  = ''
+            R.NEW(FT.CHARGES.ACCT.NO) = ''
+            IF R.NEW(FT.COMMISSION.CODE) EQ '' THEN
+                R.NEW(FT.COMMISSION.CODE) = 'DEBIT PLUS CHARGES'
+                R.NEW(FT.COMMISSION.TYPE)<1,1> = 'GBDDISS'
+                R.NEW(FT.COMMISSION.TYPE)<1,2> = 'DDPOSTAGE'
+            END
+            IF R.NEW(FT.COMMISSION.CODE) EQ 'CREDIT LESS CHARGES' THEN
+                R.NEW(FT.COMMISSION.CODE) = 'DEBIT PLUS CHARGES'
+                R.NEW(FT.COMMISSION.TYPE)<1,1> = 'GBDDISS'
+                R.NEW(FT.COMMISSION.TYPE)<1,2> = 'DDPOSTAGE'
+            END
+            IF R.NEW(FT.COMMISSION.CODE) EQ 'DEBIT PLUS CHARGES' THEN
+                R.NEW(FT.COMMISSION.TYPE)<1,1> = 'GBDDISS'
+                R.NEW(FT.COMMISSION.TYPE)<1,2> = 'DDPOSTAGE'
+            END
+            IF R.NEW(FT.COMMISSION.CODE) EQ 'WAIVE' THEN
+                R.NEW(FT.COMMISSION.TYPE) = ''
+                R.NEW(FT.CHARGES.ACCT.NO) = ''
+                R.NEW(FT.COMMISSION.AMT)  = ''
+                R.NEW(FT.TAX.AMT)  = ''
+            END
+        CASE 1
+        END CASE
+    END
+!-------------------end-------------------
+    IF APPLICATION EQ 'TELLER' THEN
+        R.NEW(TT.TE.ACCOUNT.1)="BDT":REC.DD.CATEG<DDC.NG.CATEG>:FMT(REC.BR.CODE<BRN.ZONAL.CODE>,"R%4"):RIGHT(ID.COMPANY,4)
+    END
+
+    RETURN
+END

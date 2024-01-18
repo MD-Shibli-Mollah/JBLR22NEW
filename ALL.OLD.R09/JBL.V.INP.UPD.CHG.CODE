@@ -1,0 +1,159 @@
+*-------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-92</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.INP.UPD.CHG.CODE
+*-------------------------------------------------------------------------
+*Subroutine Description:
+*-----------------------
+* Routine is used update the charge code and charge amount in the respective local ref. fields.
+*-------------------------------------------------------------------------
+*Parameter Description:
+*--------- -----------
+*N/A
+*-------------------------------------------------------------------------
+*Common Variable Description:
+*------  ------- -----------
+*APPLICATION = Holds the current application name
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:            Description:
+* MULTI.GET.LOC.REF           Core             This core routine will gives the
+*                                               position for the local reference fields
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+*    Date            Name                           Description
+*   ------         ------                           -----------
+* 31 Jan 2011   Mohammed Anies K                  Initial Creation
+*               (Thesys Technologies)
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INCLUDE GLOBUS.BP I_F.DRAWINGS
+    $INCLUDE JBL.BP I_F.BD.TAX.COMM
+*--------------------------------------------------------------------------------
+**********
+MAIN.PARA:
+**********
+
+    GOSUB INIT.PARA
+    GOSUB PROCESS.PARA
+
+    RETURN
+
+*--------------------------------------------------------------------------------
+**********
+INIT.PARA:
+**********
+* In this para of code, variables(generic and file) are initialised.
+    FN.BD.TAX.COMM = 'F.BD.TAX.COMM'
+    F.BD.TAX.COMM = ''
+    CALL OPF(FN.BD.TAX.COMM,F.BD.TAX.COMM)
+
+    RETURN
+*------------------------------------------------------------------------------
+*************
+PROCESS.PARA:
+*************
+*Main Processing section
+    GOSUB GET.LOCAL.FIELDS.POS
+    BEGIN CASE
+    CASE APPLICATION EQ 'LETTER.OF.CREDIT'
+        GOSUB PROCESS.LC
+
+    CASE APPLICATION EQ 'DRAWINGS'
+        GOSUB PROCESS.DR
+
+    END CASE
+    RETURN
+*--------------------------------------------------------------------------
+**********
+PROCESS.LC:
+**********
+
+    GOSUB GET.BD.TAX.COMM
+    R.NEW(TF.LC.LOCAL.REF)<1,LC.ST.COMM.CODE.POS> = ''
+    R.NEW(TF.LC.LOCAL.REF)<1,LC.ST.COMM.AMT.POS>  = ''
+    IF R.NEW(TF.LC.CHARGE.CODE) EQ '' THEN
+        RETURN
+    END
+    Y.INT.COUNT = 1
+    Y.LRF.COUNT = 1
+    Y.TOTAL.CODES = DCOUNT(R.NEW(TF.LC.CHARGE.CODE),VM)
+    LOOP
+    WHILE Y.INT.COUNT LE Y.TOTAL.CODES
+        LOCATE R.NEW(TF.LC.CHARGE.CODE)<1,Y.INT.COUNT> IN Y.FT.COMM.CODE.LIST<1,1> SETTING Y.POS  ELSE
+            Y.INT.COUNT +=1
+            CONTINUE
+        END
+        IF R.NEW(TF.LC.CHARGE.STATUS)<1,Y.INT.COUNT> NE '' THEN
+
+            R.NEW(TF.LC.LOCAL.REF)<1,LC.ST.COMM.CODE.POS,Y.LRF.COUNT> = R.NEW(TF.LC.CHARGE.CODE)<1,Y.INT.COUNT>
+            R.NEW(TF.LC.LOCAL.REF)<1,LC.ST.COMM.AMT.POS,Y.LRF.COUNT>  = R.NEW(TF.LC.CHARGE.LCCY.AMT)<1,Y.INT.COUNT>
+            Y.LRF.COUNT +=1
+        END
+        Y.INT.COUNT +=1
+    REPEAT
+
+    RETURN
+*--------------------------------------------------------------------------
+**********
+PROCESS.DR:
+**********
+
+    GOSUB GET.BD.TAX.COMM
+    R.NEW(TF.DR.LOCAL.REF)<1,DRW.ST.COMM.CODE.POS> = ''
+    R.NEW(TF.DR.LOCAL.REF)<1,DRW.ST.COMM.AMT.POS>  = ''
+    IF R.NEW(TF.DR.CHARGE.CODE) EQ '' THEN
+        RETURN
+    END
+    Y.TOTAL.CODES = DCOUNT(R.NEW(TF.DR.CHARGE.CODE),VM)
+    Y.INT.COUNT = 1
+    Y.LRF.COUNT = 1
+    LOOP
+    WHILE Y.INT.COUNT LE Y.TOTAL.CODES
+        LOCATE R.NEW(TF.DR.CHARGE.CODE)<1,Y.INT.COUNT> IN Y.FT.COMM.CODE.LIST<1,1> SETTING Y.POS ELSE
+            Y.INT.COUNT +=1
+            CONTINUE
+        END
+
+        R.NEW(TF.DR.LOCAL.REF)<1,DRW.ST.COMM.CODE.POS,Y.LRF.COUNT> = R.NEW(TF.DR.CHARGE.CODE)<1,Y.INT.COUNT>
+        R.NEW(TF.DR.LOCAL.REF)<1,DRW.ST.COMM.AMT.POS,Y.LRF.COUNT>  = R.NEW(TF.DR.CHARGE.LCCY.AMT)<1,Y.INT.COUNT>
+        Y.LRF.COUNT+=1
+
+        Y.INT.COUNT +=1
+    REPEAT
+
+
+    RETURN
+*--------------------------------------------------------------------------
+***************
+GET.BD.TAX.COMM:
+***************
+    R.BD.TAX.COMM = ''
+    CALL F.READ(FN.BD.TAX.COMM,APPLICATION,R.BD.TAX.COMM,F.BD.TAX.COMM,BD.TAX.COMM.ERR)
+    IF R.BD.TAX.COMM THEN
+        Y.FT.COMM.CODE.LIST = R.BD.TAX.COMM<BD.TC.FT.COMMISSION.CODE>
+    END
+    RETURN
+*--------------------------------------------------------------------------
+********************
+GET.LOCAL.FIELDS.POS:
+********************
+    APPL.ARRAY = 'LETTER.OF.CREDIT':FM:'DRAWINGS'
+    FLD.ARRAY = 'ST.COMM.CODE':VM:'ST.COMM.AMT':FM:'ST.COMM.CODE':VM:'ST.COMM.AMT'
+    FLD.POS =''
+    CALL MULTI.GET.LOC.REF(APPL.ARRAY,FLD.ARRAY,FLD.POS)
+    LC.ST.COMM.CODE.POS  = FLD.POS<1,1>
+    LC.ST.COMM.AMT.POS   = FLD.POS<1,2>
+    DRW.ST.COMM.CODE.POS = FLD.POS<2,1>
+    DRW.ST.COMM.AMT.POS  = FLD.POS<2,2>
+
+    RETURN
+*--------------------------------------------------------------------------
+END

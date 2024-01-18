@@ -1,0 +1,37 @@
+*-----------------------------------------------------------------------------
+* <Rating>100</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.TP.LIST.LOAD
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT BP I_F.EB.JBL.DCC.TP
+
+    $INSERT JBL.BP/REPGEN MT.TP.LIST.VARS
+
+    FN.TP = 'FBNK.EB.JBL.DCC.TP'
+    F.TP = ''
+
+    CALL OPF(FN.TP,F.TP)
+
+!-------Check Directory----------
+    OPEN "RPT.DATA.DIR" TO F.RPT.DATA.DIR
+    ELSE
+        CMD = "CREATE.FILE RPT.DATA.DIR TYPE=UD"
+        EXECUTE CMD
+        OPEN "RPT.DATA.DIR" TO F.RPT.DATA.DIR
+        ELSE
+            CRT "OPENING OF RPT.DATA.DIR FAILED"
+        END
+    END
+!-------------------------------
+
+    Y.FILE.DIR = 'rptdata'
+    Y.FILE.NAME = 'MT.TP.LIST.':TODAY:'.':SESSION.NO:'.csv'
+    OPENSEQ Y.FILE.DIR,Y.FILE.NAME TO F.FILE.DIR ELSE NULL
+
+    RETURN
+END

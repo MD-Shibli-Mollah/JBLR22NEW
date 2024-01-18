@@ -1,0 +1,80 @@
+  SUBROUTINE MICR.BATCH.SELECT
+  !  PROGRAM MICR.BATCH.SELECT
+
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT BP I_F.JBL.MICR.CHQ.BATCH
+    $INSERT BP I_F.JBL.MICR.MGT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*------
+INIT:
+*------
+    FN.MICR.NAU="F.JBL.MICR.MGT$NAU"
+    F.MICR=""
+
+    FN.BAT.NAU="F.JBL.MICR.CHQ.BATCH$NAU"
+    F.BAT.NAU=""
+
+*
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.MICR.NAU,F.MICR.NAU)
+    CALL OPF(FN.BAT.NAU,F.BAT.NAU)
+    RETURN
+*
+*--------
+PROCESS:
+*--------
+    Y.MICR.ID = ""
+    Y.BATCH.ID = O.DATA
+   ! Y.BATCH.ID = 'MICR.20220516.185141'
+    W.ENQ.KEYS = ""
+
+    CALL F.READ(FN.BAT.NAU,Y.BATCH.ID,REC.BAT,F.BAT.NAU,BAT.ERR)
+
+    IF REC.BAT NE '' AND REC.BAT<CHQ.BATCH.STATUS> EQ "CREATE" THEN
+        Y.PREFIX=REC.BAT<CHQ.BATCH.SERIES.ID>
+        Y.TOT.BOOK=REC.BAT<CHQ.BATCH.TOTAL.BOOK> - REC.BAT<CHQ.BATCH.PENDING.BOOK>
+   !     DEBUG
+        IF Y.TOT.BOOK GT 0 THEN
+            SEL.CMD = "SELECT ": FN.MICR.NAU : " WITH SERIES.ID EQ ": Y.PREFIX : " AND STATUS EQ ACCEPT AND NO.OF.BOOK LE ": Y.TOT.BOOK : " AND BATCH.NO EQ '' BY-DSND NO.OF.BOOK"
+            CRT SEL.CMD
+            CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+            CRT NO.OF.REC
+
+            FOR I = 1 TO NO.OF.REC
+
+                Y.MICR.ID = SEL.LIST<I>
+                CRT Y.MICR.ID
+                CALL F.READ(FN.MICR.NAU,Y.MICR.ID,R.MICR,F.MICR.NAU,MICR.ERR)
+                CRT Y.TOT.BOOK
+                CRT R.MICR<MICR.NO.OF.BOOK>
+                IF R.MICR<MICR.NO.OF.BOOK> LE Y.TOT.BOOK THEN
+
+                    IF ENQ.KEYS<I> NE "" THEN
+                        W.ENQ.KEYS<-1> = ENQ.KEYS<I>
+                    END
+                    Y.TOT.BOOK = Y.TOT.BOOK - R.MICR<MICR.NO.OF.BOOK>
+
+                END
+!                Y.TOT.BOOK = Y.TOT.BOOK - R.MICR<MICR.NO.OF.BOOK>
+                CRT Y.TOT.BOOK
+
+                IF Y.TOT.BOOK LE 0 THEN
+                    BREAK 
+                END
+            NEXT I
+        END
+
+        ENQ.KEYS = ""
+        ENQ.KEYS = W.ENQ.KEYS
+
+        RETURN
+    END

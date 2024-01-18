@@ -1,0 +1,69 @@
+*-----------------------------------------------------------------------------
+* <Rating>97</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.BR.WISE.CATEG.LOAD
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_GTS.COMMON
+    $INSERT GLOBUS.BP I_F.COMPANY
+
+    $INSERT JBL.BP/REPGEN MT.BR.WISE.CATEG.VARS
+
+    FN.ACCT = 'FBNK.ACCOUNT'
+    F.ACCT = ''
+    FN.COMP = 'F.COMPANY'
+    F.COMP = ''
+    Y.CATEGORY = ''
+    CALL OPF(FN.ACCT,F.ACCT)
+    CALL OPF(FN.COMP,F.COMP)
+
+!-------Check Directory----------
+    OPEN "RPT.DATA.DIR" TO F.RPT.DATA.DIR
+    ELSE
+        CMD = "CREATE.FILE RPT.DATA.DIR TYPE=UD"
+        EXECUTE CMD
+        OPEN "RPT.DATA.DIR" TO F.RPT.DATA.DIR
+        ELSE
+            CRT "OPENING OF RPT.DATA.DIR FAILED"
+        END
+    END
+!-------------------------------
+!---------------------------------------------------------------
+!READ SINGLE STATUS COMPANY
+!---------------------------------------------------------------
+    CALL GET.LOC.REF("COMPANY","BRANCH.STATUS",Y.BRANCH.STATUS.POS)
+    SEL.CMD1='SELECT ':FN.COMP
+    CALL EB.READLIST(SEL.CMD1,SEL.LIST1,'',NO.OF.REC1,RET.CODE1)
+    LOOP
+        REMOVE  Y.COMP.ID FROM SEL.LIST1 SETTING Y.POS
+    WHILE Y.COMP.ID:Y.POS
+        CALL F.READ(FN.COMP,Y.COMP.ID,R.COMP,F.COMP,ERR.CODE.COMP)
+        Y.BRANCH.STATUS = R.COMP<EB.COM.LOCAL.REF,Y.BRANCH.STATUS.POS>
+        IF Y.BRANCH.STATUS EQ 'SINGLE' THEN
+            COMPANY.LIST<-1> = Y.COMP.ID
+        END
+    REPEAT
+    CRT "TOTAL SINGLE BRANCH : " : DCOUNT(COMPANY.LIST,@FM)
+!---------------------------------------------------------------
+
+!---------------------------------------------------------------
+!READ CATEGORY FROM AMF DEDUCT APPLICATION
+!---------------------------------------------------------------
+    Y.FN.ARRAY = 'F.ABL.H.CDSTD.HY':@FM:'F.ABL.H.SB.YRPAR'
+    FOR K = 1 TO DCOUNT(Y.FN.ARRAY,@FM)
+        SEL.CMD.FN = 'SELECT ':FIELD(Y.FN.ARRAY,@FM,K):' INCLUDE.CATEG WITH @ID EQ SYSTEM'
+        CALL EB.READLIST(SEL.CMD.FN,SEL.LIST.CAT,'',NO.OF.REC,RET.CODE)
+        Y.CATEGORY<-1> = SEL.LIST.CAT
+    NEXT
+!---------------------------------------------------------------
+
+    Y.FILE.DIR = 'RPT.DATA.DIR'
+    Y.FILE.NAME = 'BR.WISE.CAT.':TODAY:'.':SESSION.NO:'.csv'
+    OPENSEQ Y.FILE.DIR,Y.FILE.NAME TO F.FILE.DIR ELSE NULL
+
+    RETURN
+END

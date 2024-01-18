@@ -1,0 +1,174 @@
+*---------`--------------------------------------------------------------------
+* <Rating>408</Rating>
+*-----------------------------------------------------------------------------
+!!! This routine is to display extract of Branches responded by this branch
+!!! extracted data is grouped by ZONAL CODE,BRANCH CODE,ADVICE NO and ORIGINATING DATE
+! Modified By:Fairooz Chowdhury
+! Date: 08.05.2018
+! Category wise transaction picking
+! Modified by : Md. Golam Rased
+! Date : 20181015
+! Modification History : Selection updated for particulars.
+!----------------------------------------------------------------------------
+    SUBROUTINE EXT.BR.RESP.ENT(Y.RETURN)
+!    PROGRAM EXT.BR.RESP.ENT
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.ABL.H.NM.ER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.NM = "F.ABL.H.NM.ER"
+    F.NM = ""
+!----------------------
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+    FN.STMT.ENTRY = "F.STMT.ENTRY"
+    F.STMT.ENTRY = ""
+
+    Y.CATEGORY='12810'
+!-------------------------
+
+    Y.OPERAND = ENQ.SELECTION<3,1>
+    LOCATE 'DATE' IN ENQ.SELECTION<2,1> SETTING DATE.POS THEN
+        Y.DATE =  ENQ.SELECTION<4,DATE.POS>
+    END
+
+    IF Y.OPERAND EQ 'RG' THEN
+        Y.FROM.DATE = FIELD(Y.DATE,SM,1)
+        Y.TO.DATE = FIELD(Y.DATE,SM,2)
+    END
+    ELSE
+        Y.FROM.DATE = Y.DATE
+        Y.TO.DATE = Y.DATE
+    END
+
+!    Y.FROM.DATE = '20170318'
+!    Y.TO.DATE = '20170318'
+
+    Y.OE.RE = 'RE'
+    ZONAL.CODE1 = "";ZONAL.CODE2 = "";ZONAL.CODE3 = "";BR.CODE1 = "";BR.CODE2 = "";OE.DATE1 = ""; OE.DATE2 = "";TRANS.CODE1 = "";TRANS.CODE2 = "";ADV.NO1 = "";ADV.NO2 = ""
+    Y.OE.DEBIT = "";Y.OE.CRDT = "";DR.CR.MARK = "";Y.FALSE = ""
+*********************** ADDED BY RASED 20181015 ***********
+    Y.PARTICULARS1 = ""
+    Y.PARTICULARS2 = ""
+******************************** END **********************
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.NM,F.NM)
+!-------------
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.STMT.ENTRY,F.STMT.ENTRY)
+!------------------
+    RETURN
+
+PROCESS:
+
+!---------------------Added by Fairooz-------------------
+    SEL.CMD.AC = "SELECT ":FN.AC:" WITH CO.CODE EQ ":ID.COMPANY:" AND CATEGORY EQ ":Y.CATEGORY
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+        CALL EB.ACCT.ENTRY.LIST(Y.ID,Y.FROM.DATE,Y.TO.DATE,Y.AC.STMT.LIST,Y.AC.OPEN.BAL,Y.AC.ER)
+
+        Y.FT.C=DCOUNT(Y.AC.STMT.LIST,@FM)
+        FOR I = 1 TO Y.FT.C
+
+            Y.STMT.ID = FIELD(Y.AC.STMT.LIST,@FM,I)
+            CALL F.READ(FN.STMT.ENTRY, Y.STMT.ID , R.STMT, F.STMT.ENTRY , Y.ERR)
+            Y.TR.REF = R.STMT<AC.STE.TRANS.REFERENCE>
+            CALL F.READ(FN.NM,Y.TR.REF,R.REC,F.NM,Y.ERR)
+            IF ZONAL.CODE1 EQ "" AND ZONAL.CODE2 EQ "" AND R.REC<NM.OE.RE> EQ 'RE' THEN
+                ZONAL.CODE1 = R.REC<NM.ZONAL.CODE>
+                ZONAL.CODE2 = R.REC<NM.ZONAL.CODE>
+                ZONAL.CODE3 = R.REC<NM.ZONAL.CODE>
+                BR.CODE1 = R.REC<NM.BRANCH.CODE>
+                BR.CODE2 = R.REC<NM.BRANCH.CODE>
+                OE.DATE1 = R.REC<NM.DATE.OF.OE>
+                OE.DATE2 = R.REC<NM.DATE.OF.OE>
+                ADV.NO1 = R.REC<NM.ADVICE.NO>
+                ADV.NO2 = R.REC<NM.ADVICE.NO>
+                TRANS.CODE1 = R.REC<NM.TRANS.CODE>
+                TRANS.CODE2 = R.REC<NM.TRANS.CODE>
+                DR.CR.MARK = R.REC<NM.DR.CR.MARKER>
+********************* UPDATED BY RASED 201801015 **********
+!Y.PARTICULARS = R.REC<NM.REMARKS>
+                Y.PARTICULARS1 = R.REC<NM.REMARKS>
+                Y.PARTICULARS2 = R.REC<NM.REMARKS>
+******************************* END ***********************
+
+!                Y.RETURN<-1> = ZONAL.CODE2:"*":ZONAL.CODE2:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FROM.DATE:"*":Y.TO.DATE:"*":Y.PARTICULARS
+!                               1               2             3           4            5           6          7            8             9             10                  11
+            END ELSE
+                ZONAL.CODE1 = R.REC<NM.ZONAL.CODE>
+                BR.CODE1 = R.REC<NM.BRANCH.CODE>
+                OE.DATE1 = R.REC<NM.DATE.OF.OE>
+                ADV.NO1 = R.REC<NM.ADVICE.NO>
+                TRANS.CODE1 = R.REC<NM.TRANS.CODE>
+                DR.CR.MARK = R.REC<NM.DR.CR.MARKER>
+*
+                Y.PARTICULARS1 = R.REC<NM.REMARKS>
+*
+            END
+
+            IF R.REC<NM.OE.RE> EQ 'RE' AND ZONAL.CODE1 EQ ZONAL.CODE2 AND BR.CODE1 EQ BR.CODE2 AND OE.DATE1 EQ OE.DATE2 AND ADV.NO1 EQ ADV.NO2 THEN
+
+                IF DR.CR.MARK EQ 'DR' THEN
+                    Y.OE.DEBIT = Y.OE.DEBIT + ABS(R.REC<NM.AMOUNT>)
+                END ELSE
+                    IF DR.CR.MARK EQ 'CR' THEN
+                        Y.OE.CRDT = Y.OE.CRDT + R.REC<NM.AMOUNT>
+                    END
+                END
+                ZONAL.CODE2 = ZONAL.CODE1; BR.CODE2 = BR.CODE1; ADV.NO2 = ADV.NO1; TRANS.CODE2 = TRANS.CODE1; OE.DATE2 = OE.DATE1;Y.PARTICULARS2=Y.PARTICULARS1
+
+            END ELSE
+                IF R.REC<NM.OE.RE> EQ 'RE' THEN
+                    IF R.REC<NM.OE.RE> EQ 'RE' AND ZONAL.CODE3 NE ZONAL.CODE2 THEN
+!                    Y.RETURN<-1> = ZONAL.CODE2:"*":ZONAL.CODE2:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FROM.DATE:"*":Y.TO.DATE:"*":Y.PARTICULARS
+!                                   1               2             3           4           5            6           7           8            9              10                   11
+                        ZONAL.CODE3 = ZONAL.CODE2
+                    END
+
+                    Y.RETURN<-1> = Y.FALSE:"*":ZONAL.CODE2:"*":BR.CODE2:"*":ADV.NO2:"*":TRANS.CODE2:"*":OE.DATE2:"*":Y.OE.DEBIT:"*":Y.OE.CRDT:"*":Y.FROM.DATE:"*":Y.TO.DATE:"*":Y.PARTICULARS2
+!                             1             2              3            4            5              6             7             8              9              10                  11
+                    ZONAL.CODE2 = ""; BR.CODE2 = ""; ADV.NO2 = ""; TRANS.CODE2 = ""; OE.DATE2 = ""; Y.OE.DEBIT = ""; Y.OE.CRDT = "";Y.PARTICULARS2=""
+
+                    IF DR.CR.MARK EQ 'DR' THEN
+                        Y.OE.DEBIT = Y.OE.DEBIT + ABS(R.REC<NM.AMOUNT>)
+                    END ELSE
+                        IF DR.CR.MARK EQ 'CR' THEN
+                            Y.OE.CRDT = Y.OE.CRDT + R.REC<NM.AMOUNT>
+                        END
+                    END
+                    ZONAL.CODE2 = ZONAL.CODE1; BR.CODE2 = BR.CODE1; ADV.NO2 = ADV.NO1; TRANS.CODE2 = TRANS.CODE1; OE.DATE2 = OE.DATE1; Y.PARTICULARS2 = Y.PARTICULARS1
+                END
+            END
+            ZONAL.CODE1 = ""; BR.CODE1 = ""; ADV.NO1 = ""; TRANS.CODE1 = ""; OE.DATE1 = ""; DR.CR.MARK = ""; Y.PARTICULARS1 = ""
+            Y.TR.ARR<-1>=Y.TR.REF
+        NEXT I
+    REPEAT
+
+    IF ZONAL.CODE3 NE ZONAL.CODE2 THEN
+!        Y.RETURN<-1> = ZONAL.CODE2:"*":ZONAL.CODE2:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FROM.DATE:"*":Y.TO.DATE:"*":Y.PARTICULARS
+!                           1                2             3           4         5            6           7           8             9              10               11
+    END
+
+    Y.RETURN<-1> = Y.FALSE:"*":ZONAL.CODE2:"*":BR.CODE2:"*":ADV.NO2:"*":TRANS.CODE2:"*":OE.DATE2:"*":Y.OE.DEBIT:"*":Y.OE.CRDT:"*":Y.FROM.DATE:"*":Y.TO.DATE:"*":Y.PARTICULARS2
+!                     1              2             3            4             5             6             7              8             9             10               11
+!    CRT Y.RETURN
+    RETURN
+END

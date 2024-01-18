@@ -1,0 +1,73 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SB.AVG.CALC.SELECT
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT I_F.ABL.H.SB.YRPAR
+    $INSERT JBL.BP I_BD.SB.AVG.CALC.COMMON
+
+    GOSUB MAIN.SELECTION
+    RETURN
+
+*---------------
+MAIN.SELECTION:
+*---------------
+
+    SEL.CMD.AC="SELECT ":FN.AC:" WITH ( CO.CODE EQ "
+    CNT.CO = DCOUNT(REC.SB.YR.SYS<SY.INCLUDE.COMP>,VM)
+    FOR I = 1 TO CNT.CO
+        IF I = CNT.CO THEN
+            SEL.CMD.AC :=  REC.SB.YR.SYS<SY.INCLUDE.COMP,I>
+        END ELSE
+            SEL.CMD.AC :=  REC.SB.YR.SYS<SY.INCLUDE.COMP,I>:" OR CO.CODE EQ "
+        END
+    NEXT I
+
+    SEL.CMD.AC= SEL.CMD.AC:" ) AND ( CATEGORY EQ "
+    CNT.CATEG = DCOUNT(REC.SB.YR.SYS<SY.INCLUDE.CATEG>,VM)
+    FOR I = 1 TO CNT.CATEG
+        IF I = CNT.CATEG THEN
+            SEL.CMD.AC :=  REC.SB.YR.SYS<SY.INCLUDE.CATEG,I>
+        END ELSE
+            SEL.CMD.AC :=  REC.SB.YR.SYS<SY.INCLUDE.CATEG,I>:" OR CATEGORY EQ "
+        END
+    NEXT I
+
+    IF Y.EXCLUDE.AC.LIST THEN
+        SEL.CMD.AC= SEL.CMD.AC:") AND ( @ID NE "
+
+        CONVERT FM TO VM IN Y.EXCLUDE.AC.LIST
+
+        CNT.EX.ACC = DCOUNT(Y.EXCLUDE.AC.LIST,VM)
+        FOR I = 1 TO CNT.EX.ACC
+            IF I = CNT.EX.ACC THEN
+                SEL.CMD.AC := Y.EXCLUDE.AC.LIST<1,I>
+            END ELSE
+                SEL.CMD.AC := Y.EXCLUDE.AC.LIST<1,I>:" AND @ID NE "
+            END
+        NEXT I
+
+        SEL.CMD.AC= SEL.CMD.AC:") "
+    END
+    ELSE
+        SEL.CMD.AC= SEL.CMD.AC:") "
+    END
+
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.AC,'',NO.OF.REC.AC,ERR.AC)
+    CRT" TOTAL RECORDS SELECTED FOR SAVINGS HALF YEARLY CHRG ......":NO.OF.REC.AC
+    CRT" DO YOU WANT TO START THE PROCESSING OF SAVING HALF YEARLY CHRG Y/N"
+
+    INPUT USER.CHOICE
+    IF USER.CHOICE EQ 'Y' THEN
+        GOSUB BATCH.RUN
+    END
+    RETURN
+
+*----------
+BATCH.RUN:
+*----------
+    CALL BATCH.BUILD.LIST('',SEL.LIST.AC)
+    RETURN

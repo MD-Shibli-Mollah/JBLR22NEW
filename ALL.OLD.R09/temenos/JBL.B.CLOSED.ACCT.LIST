@@ -1,0 +1,122 @@
+*-----------------------------------------------------------------------------
+* <Rating>40</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.CLOSED.ACCT.LIST(Y.ACCT.ID)
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This is the main record routine and all processing will be done here.
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+*
+* Incoming Parameter : it is having one incoming parameter from .SELECT routine(Y.ACCT.ID)
+*
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+*Variable name:   Insert file:          Description:
+* TODAY            I_COMMON              Will hold Todays date used for
+*                                        writing in flat file
+*
+* OCONV            I_COMMON              Used to convert the date in the required format
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:            Description:
+*OFS.PROCESS.MANAGER        Core                Using OFS.PROCESS.MANAGER, the records will get processed.
+*
+* EB.NO.OF.MONTHS           Core                To Retrive the No. of Months between the two dates
+*
+*MULTI.GET.LOC.REF           Core               This core routine will gives the
+*                                               position for the local reference fields
+
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 01/02/2011 -                            New   - Shiva Shankar G
+*                                                 Thesys Technologies
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CLOSURE
+    $INCLUDE JBL.BP I_F.JBL.H.GEN.PARAMETER
+    $INCLUDE JBL.BP I_JBL.B.CLOSED.ACCT.LIST.COMMON
+
+    GOSUB PROCESS
+
+    RETURN
+*-------------------------------------------------------------------------
+PROCESS:
+*-------------------------------------------------------------------------
+!Read the Account file with the ID returned from .SELECT routine and fetch
+!the value from DATE.TIME field and prefix 20 for the date and select first six characters
+
+
+    CALL F.READ(FN.ACCOUNT,Y.ACCT.ID,R.ACCOUNT,F.ACCOUNT,Y.ACCOUNT.ERR)
+    IF R.ACCOUNT EQ '' THEN RETURN
+    Y.ACC.DATE.TIME = R.ACCOUNT<AC.DATE.TIME>
+    Y.ACC.COMP.CODE = R.ACCOUNT<AC.CO.CODE>
+
+    Y.ACC.DATE = '20':Y.ACC.DATE.TIME[1,6]
+
+!Now the variable Y.ACC.DATE will holds account date
+
+
+!Find the differnce between SYSTEM'S DATE date and ACCOUNT's date and if the differnce
+!is less than 9 years then leave that account.
+
+    SYSTEM.DATE = OCONV(DATE(),"D4/")
+    SYS.DATE = SYSTEM.DATE[7,4]:SYSTEM.DATE[1,2]:SYSTEM.DATE[4,2]
+    Y.NO.OF.MONTHS = 1
+    CALL EB.NO.OF.MONTHS(Y.ACC.DATE,SYS.DATE,Y.NO.OF.MONTHS)
+    IF Y.NO.OF.MONTHS GE '108' THEN
+
+!If the difference is more than 9 years, then transfer the balance to the NRB's Account
+!and close that account.
+
+        GOSUB UPDATE.ACCOUNT
+        GOSUB OFS.PROCESS
+    END
+    RETURN
+*-------------------------------------------------------------------------
+UPDATE.ACCOUNT:
+*-------------------------------------------------------------------------
+!Updating the LRF in account file with text TFRD TO JBL
+
+    APPLN = 'ACCOUNT'; FLD.NAMES = 'JBL.BATCH.TEXT' ; FLD.POS = ''
+    CALL MULTI.GET.LOC.REF(APPLN,FLD.NAMES,FLD.POS)
+    Y.AC.LOC.POS = FLD.POS<1,1>
+
+    R.ACCOUNT<AC.LOCAL.REF,Y.AC.LOC.POS> = 'TFRD TO JBL'
+    CALL F.WRITE(FN.ACCOUNT,Y.ACCT.ID,R.ACCOUNT)
+
+    RETURN
+*-------------------------------------------------------------------------
+OFS.PROCESS:
+*-------------------------------------------------------------------------
+!first frame the OFS string and then call OFS.INITIALISE.SOURCE
+! and after that call OFS.PROCESS.MANAGER.
+    CALL F.READ(FN.JBL.H.GEN.PARAMETER,'SYSTEM',R.JBL.H.GEN.PARAMETER,F.JBL.H.GEN.PARAMETER,Y.JBL.H.GEN.PARAMETER.ERR)
+
+    VERSION = R.JBL.H.GEN.PARAMETER<JBL.PARAM.AC.CLS.VERS>
+    OFS.SRC.ID = R.JBL.H.GEN.PARAMETER<JBL.PARAM.JBL.ACCT.CLS.OFS>
+    Y.SETTLE.ACCT = R.JBL.H.GEN.PARAMETER<JBL.PARAM.NOSTRO.ACCOUNT>
+
+    OFFLINE.FL = ''
+    LG.NAME = ''
+    OFS.RESP = ''
+    ENQ.USRNAME = ''
+    ENQ.PASSWORD = ''
+
+    OFS.STR=VERSION:'/I/PROCESS,':ENQ.USRNAME:'/':ENQ.PASSWORD:'/'
+    OFS.STR:=Y.ACC.COMP.CODE:',':Y.ACCT.ID:',POSTING.RESTRICT:1:1=90,SETTLEMENT.ACCT:1:1=':Y.SETTLE.ACCT:',CLOSE.ONLINE:1:1=Y'
+    CALL OFS.INITIALISE.SOURCE(OFS.SRC.ID,OFFLINE.FL,LG.NAME)
+    CALL OFS.PROCESS.MANAGER(OFS.STR,OFS.RESP)
+    RETURN
+*-------------------------------------------------------------------------
+
+END

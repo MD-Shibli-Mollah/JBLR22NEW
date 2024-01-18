@@ -1,0 +1,68 @@
+*-----------------------------------------------------------------------------
+* <Rating>-33</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VAU.LD.PRE.MATLN
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This routine is an authorisation routine to calculate excise duty online
+* on all preclosure of LD
+*-------------------------------------------------------------------------
+* Project Name : Janatha Bank Limited(Bangladesh)
+*-------------------------------------------------------------------------
+*Parameter Description
+*--------- -----------
+* NA
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 28/04/2011 -                            New   - Chethana.H.N
+*                                                 Thesys Technologies
+**************************************************************************
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+*-------------------------------------------------------------------------
+PROCESS:
+********
+! Process
+! For preclosure of LD
+
+    IF (R.NEW(LD.FIN.MAT.DATE) LE TODAY) THEN
+        IF (R.NEW(LD.OVERDUE.STATUS) EQ 'CUR') OR (R.NEW(LD.OVERDUE.STATUS) EQ '') THEN
+            CALL CONCAT.FILE.UPDATE(FN.EB.BD.EXCISE.DUTY.LD,ID.NEW,'','I','AR')
+        END
+    END
+    RETURN
+*-------------------------------------------------------------------------
+INIT:
+*****
+! Initialise variables
+    FN.EB.BD.EXCISE.DUTY.LD = 'F.EB.BD.EXCISE.DUTY.LD'
+    F.EB.BD.EXCISE.DUTY.LD = ''
+
+    RETURN
+*-------------------------------------------------------------------------
+OPENFILES:
+***********
+! Open files
+
+    CALL OPF(FN.EB.BD.EXCISE.DUTY.LD,F.EB.BD.EXCISE.DUTY.LD)
+    RETURN
+*-------------------------------------------------------------------------
+END

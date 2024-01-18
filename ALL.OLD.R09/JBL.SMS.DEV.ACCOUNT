@@ -1,0 +1,140 @@
+*-----------------------------------------------------------------------------
+* <Rating>160</Rating>
+*-----------------------------------------------------------------------------
+****************************************************************************************************************
+*Objective: This subroutine read parameters(application wise) from EB.SMS.TEMPLATE and build SMS string based  *
+*on SMS TEXT and SMS VARIABLE defined on EB.SMS.TEMPLATE.Then write that SMS in SMS.OUT folder.This message    *
+*will be send to SMS TARGET on SMS EVENT defined on EB.SMS.TEMPLATE.                                           *
+*Developer: Md. Zahid Hasan                                                                                    *
+*Release Date: 16-FEB-2016                                                                                     *
+*Update History:19-April-2017(Mehedi)                                                                          *
+****************************************************************************************************************
+    SUBROUTINE JBL.SMS.DEV.ACCOUNT
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.SMS.TEMPLATE.DEFINE
+    $INSERT GLOBUS.BP I_F.STANDARD.SELECTION
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.TELLER
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+*-----
+INIT:
+*-----
+    FN.SMS = 'F.EB.SMS.TEMPLATE.DEFINE'
+    F.SMS = ''
+    FN.ACCT = 'F.ACCOUNT'
+    F.ACCT = ''
+    FN.CUS = 'F.CUSTOMER'
+    F.CUS = ''
+    FN.COM = 'F.COMPANY'
+    F.COM = ''
+
+    SMS.BUILD = ''
+    SMS.DIR = 'SMS.OUT'
+    DR.CR.IND = ''
+    RETURN
+
+*----------
+OPENFILES:
+*----------
+    CALL OPF(FN.SMS,F.SMS)
+    CALL OPF(FN.ACCT,F.ACCT)
+    CALL F.READ(FN.SMS,APPLICATION,R.SMS,F.SMS,ERR.SMS)
+    CALL GET.STANDARD.SELECTION.DETS(APPLICATION,R.SS)
+    CALL GET.LOC.REF('CUSTOMER','SMS.ALERT',CUS.SMS.ALERT.POS)
+    CALL GET.LOC.REF('COMPANY','SMS.ALERT',COM.SMS.ALERT.POS)
+    RETURN
+
+*--------
+PROCESS:
+*--------
+**************Update/Start(Mehedi)*****
+    IF R.NEW(AC.CURR.NO) GT 1 THEN
+        RETURN
+    END
+**************Update/End***************
+    IF R.SMS THEN
+        Y.SMS.EVNT = R.SMS<EB.SMS7.SMS.EVENT>
+        IF R.SMS<EB.SMS7.SMS.EVENT> EQ '' THEN
+            SMS.COUNT = 1
+        END
+        ELSE
+            SMS.COUNT = DCOUNT(R.SMS<EB.SMS7.SMS.EVENT>,@VM)
+        END
+        EVENT.CHECK = 0
+        FOR J=1 TO SMS.COUNT
+            IF R.SMS<EB.SMS7.SMS.TARGET,J> EQ '@ID' THEN
+                CALL F.READ(FN.CUS,ID.NEW,R.CUS,F.CUS,E.CUS)
+                MOBILE.NO = R.CUS<EB.CUS.SMS.1,1>
+                SMS.ALERT.VAL = R.CUS<EB.CUS.LOCAL.REF,CUS.SMS.ALERT.POS>
+                COM.BOOK.VAL = R.CUS<EB.CUS.COMPANY.BOOK>
+            END
+            ELSE
+                FIND FIELD(R.SMS<EB.SMS7.SMS.TARGET>,@VM,J) IN R.SS<SSL.SYS.FIELD.NAME> SETTING Y.FM,Y.VM,Y.SM THEN
+                    AF = R.SS<SSL.SYS.FIELD.NO,Y.VM>
+                    SMS.TARGET = R.NEW(AF)
+                END
+
+                CALL F.READ(FN.CUS,SMS.TARGET,R.CUS,F.CUS,E.CUS)
+                MOBILE.NO = R.CUS<EB.CUS.SMS.1,1>
+                SMS.ALERT.VAL = R.CUS<EB.CUS.LOCAL.REF,CUS.SMS.ALERT.POS>
+                COM.BOOK.VAL = R.CUS<EB.CUS.COMPANY.BOOK>
+            END
+            CALL F.READ(FN.COM,COM.BOOK.VAL,R.COM,F.COM,E.COM)
+            COM.SMS.ALERT.VAL = R.COM<EB.COM.LOCAL.REF,COM.SMS.ALERT.POS>
+
+            IF COM.SMS.ALERT.VAL EQ 'Y' AND SMS.ALERT.VAL EQ 'Y' AND MOBILE.NO NE '' THEN
+                GOSUB BUILD.MSG
+            END
+            EVENT.CHECK =1
+        NEXT
+    END
+    RETURN
+*----------
+BUILD.MSG:
+*----------
+    SMS.TXT.NO = DCOUNT(R.SMS<EB.SMS7.SMS.TEXT,J>,@SM)
+    FOR I=1 TO SMS.TXT.NO
+        SMS.TXT = FIELD(R.SMS<EB.SMS7.SMS.TEXT,J>,@SM,I)
+        SMS.FLD = FIELD(R.SMS<EB.SMS7.SMS.VARIABLE,J>,@SM,I)
+        LOCATE SMS.FLD IN R.SS<SSL.SYS.FIELD.NAME,1> SETTING POS1 THEN
+            AF = R.SS<SSL.SYS.FIELD.NO,POS1>
+            SMS.VAR = R.NEW(AF)
+            IF FIELD (R.SMS<EB.SMS7.VAR.CONVERSION,J>,@SM,I) EQ 'MASKING' THEN
+                TEMP.SMS.VAR = SMS.VAR[LEN(SMS.VAR)-3,4]
+                SMS.VAR = FMT(TEMP.SMS.VAR,'R*':LEN(SMS.VAR))
+            END
+            ELSE
+                IF SMS.FLD EQ 'CO.CODE' THEN
+                    SMS.VAR = R.COMPANY(1)[1,30]
+                END
+                ELSE
+                    IF SMS.FLD EQ 'DATE.TIME' THEN
+                        SMS.VAR = OCONV(DATE(),'D2'):' ':OCONV(TIME(),'MTS')
+                    END
+                END
+            END
+        END
+        SMS.BUILD:= SMS.TXT:' ':SMS.VAR:' '
+    NEXT
+    SMS.BUILD = ID.NEW:"|":MOBILE.NO:"|":SMS.BUILD:"|":"1":"|":"4"
+    IF SMS.BUILD THEN
+        SMS.FILE = SMS.DIR:'/':MOBILE.NO:'-':ID.NEW:'-':J:V$FUNCTION:'.csv'
+        OPENSEQ SMS.FILE TO SMS.FILE.POINT ELSE
+            CRT 'OPEN FAILED'
+        END
+        WRITESEQ SMS.BUILD TO SMS.FILE.POINT ELSE
+            CRT 'WRITE FAILED'
+        END
+        CLOSESEQ SMS.FILE.POINT
+    END
+    SMS.BUILD = ''
+    RETURN
+END

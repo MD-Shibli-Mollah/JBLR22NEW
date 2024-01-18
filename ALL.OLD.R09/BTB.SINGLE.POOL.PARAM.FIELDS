@@ -1,0 +1,41 @@
+*-----------------------------------------------------------------------------
+* <Rating>-6</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BTB.SINGLE.POOL.PARAM.FIELDS
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine YOURAPPLICATION.FIELDS
+*
+* @author tcoleman@temenos.com
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* Modification History :
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("SINGLE.POOL.ID", T24_String)       ;* Define Table id
+*-----------------------------------------------------------------------------
+    CALL Table.addFieldDefinition("XX<COMPANY.ID","9","A","")
+    CALL Field.setCheckFile("COMPANY")
+    CALL Table.addFieldDefinition("XX-XX<CUSTOMER.NO","15","","")
+    CALL Field.setCheckFile("CUSTOMER")
+    CALL Table.addFieldDefinition("XX-XX>PER.LETTER","40","A","")
+
+*  CALL Table.addFieldWithEbLookup(fieldName,virtualTableName,neighbour)       ;* Specify Lookup values
+*  CALL Field.setDefault(defaultValue) ;* Assign default value
+*-----------------------------------------------------------------------------
+    CALL Table.addOverrideField
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

@@ -1,0 +1,134 @@
+*--------------------------------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.HOME.LOAN.LD.TXN(Y.FINAL.LIST)
+*--------------------------------------------------------------------------------------------------------
+* This is a process routine ,Routine takes up the incomming ids and forms the OFS message to update the
+* LD record. This routine also authorise the updated LD record .When the OFS updates the LD record with
+* relevent fields details,Then the local ref fields HOME.LOAN.RB.DT, HOME.LOAN.RB.PR will also be updated
+* with todays date and Y respectively or If ofs fails then local fields updates with Todays date and N
+* Respectively.
+*--------------------------------------------------------------------------------------------------------
+* Modification History :
+* --------------------
+* 20110210 - New - Naveen Kumar N
+*--------------------------------------------------------------------------------------------------------
+* Common Variables :
+* ----------------
+*  N/A
+*--------------------------------------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INSERT JBL.BP I_JBL.B.HOME.LOAN.LD.TXN.COMMON
+*
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+INIT:
+    Y.APPLN               = 'LD.LOANS.AND.DEPOSITS'
+    Y.FIELDS              = 'HOME.LOAN.RB.DT':VM:'HOME.LOAN.RB.PR'
+    Y.POS                 = ''
+    CALL MULTI.GET.LOC.REF(Y.APPLN,Y.FIELDS,Y.POS)
+    Y.HOME.LOAN.RB.DT.POS = Y.POS<1,1>
+    Y.HOME.LOAN.RB.PR.POS = Y.POS<1,2>
+*
+    Y.LD.ID               = FIELD(Y.FINAL.LIST,'*',1,1)
+    Y.AMT                 = '-':FIELD(Y.FINAL.LIST,'*',2,1)
+*
+    Y.AMT.V.DATE          = TODAY
+*
+    RETURN
+
+PROCESS:
+    CALL F.READ(FN.LD.LOANS.AND.DEPOSITS,Y.LD.ID,R.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS,Y.LD.ERR)
+    IF R.LD.LOANS.AND.DEPOSITS EQ '' THEN RETURN
+    Y.LD.COMP.CODE = R.LD.LOANS.AND.DEPOSITS<LD.CO.CODE>
+
+    GOSUB PROCESS.OFS.MSG
+
+    Y.RESP = OFS.RESP[',',1,1]
+    Y.RET  = Y.RESP['/',3,1]
+*
+    IF Y.RET EQ 1 THEN
+        GOSUB PROCESS.FOR.AUTHORISE
+        GOSUB UPDATE.AS.Y
+    END ELSE
+        GOSUB UPDATE.AS.N
+    END
+*
+    RETURN
+*
+UPDATE.AS.Y:
+    Y.CNT = DCOUNT(R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF,Y.HOME.LOAN.RB.DT.POS>,SM)
+    IF Y.CNT GE 1 THEN
+        Y.CNT++
+        R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF,Y.HOME.LOAN.RB.DT.POS,Y.CNT> = TODAY
+        R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF,Y.HOME.LOAN.RB.PR.POS,Y.CNT> = 'Y'
+        CALL F.WRITE(FN.LD.LOANS.AND.DEPOSITS,Y.LD.ID,R.LD.LOANS.AND.DEPOSITS)
+
+    END ELSE
+        R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF,Y.HOME.LOAN.RB.DT.POS,1> = TODAY
+        R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF,Y.HOME.LOAN.RB.PR.POS,1> = 'Y'
+        CALL F.WRITE(FN.LD.LOANS.AND.DEPOSITS,Y.LD.ID,R.LD.LOANS.AND.DEPOSITS)
+
+    END
+    RETURN
+*
+UPDATE.AS.N:
+    Y.CNT = DCOUNT(R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF,Y.HOME.LOAN.RB.DT.POS>,SM)
+    IF Y.CNT GE 1 THEN
+        Y.CNT++
+        R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF,Y.HOME.LOAN.RB.DT.POS,Y.CNT> = TODAY
+        R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF,Y.HOME.LOAN.RB.PR.POS,Y.CNT> = 'N'
+        CALL F.WRITE(FN.LD.LOANS.AND.DEPOSITS,Y.LD.ID,R.LD.LOANS.AND.DEPOSITS)
+
+    END ELSE
+        R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF,Y.HOME.LOAN.RB.DT.POS,1> = TODAY
+        R.LD.LOANS.AND.DEPOSITS<LD.LOCAL.REF,Y.HOME.LOAN.RB.PR.POS,1> = 'N'
+        CALL F.WRITE(FN.LD.LOANS.AND.DEPOSITS,Y.LD.ID,R.LD.LOANS.AND.DEPOSITS)
+
+    END
+    RETURN
+*
+PROCESS.OFS.MSG:
+*
+    VERSION       = Y.VERSION.ID
+    OFS.SRC.ID    = Y.OFS.SOURCE
+    OFFLINE.FL    = ''
+    LG.NAME       = ''
+    OFS.RESP      = ''
+    ENQ.USRNAME   = Y.INPUTTER
+    ENQ.PASSWORD  = ''
+* 
+    OFS.STR = VERSION:'/I/PROCESS,':ENQ.USRNAME:'/':ENQ.PASSWORD:'/':Y.LD.COMP.CODE:",":Y.LD.ID:',AMOUNT.INCREASE::=':Y.AMT:',AMT.V.DATE::=':Y.AMT.V.DATE
+    CALL OFS.INITIALISE.SOURCE(OFS.SRC.ID,OFFLINE.FL,LG.NAME)
+    CALL OFS.PROCESS.MANAGER(OFS.STR,OFS.RESP)
+*
+    RETURN
+*
+PROCESS.FOR.AUTHORISE:
+*
+    VERSION      = Y.VERSION.ID
+    OFS.SRC.ID   = Y.OFS.SOURCE
+    OFFLINE.FL   = ''
+    LG.NAME      = ''
+    OFS.RESP     = ''
+    ENQ.USRNAME  = Y.AUTHORISER
+    ENQ.PASSWORD = ''
+    OPERATOR.SAVE = OPERATOR
+    OPERATOR      = Y.AUTHORISER
+* 
+    OFS.STR  = VERSION:'/A/PROCESS,':ENQ.USRNAME:'/':ENQ.PASSWORD:'/':Y.LD.COMP.CODE:",":Y.LD.ID
+    CALL OFS.INITIALISE.SOURCE(OFS.SRC.ID,OFFLINE.FL,LG.NAME)
+    CALL OFS.PROCESS.MANAGER(OFS.STR,OFS.RESP)
+*
+    CALL F.READ(FN.LD.LOANS.AND.DEPOSITS,Y.LD.ID,R.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS,E.LD.LOANS.AND.DEPOSITS)
+*
+    OPERATOR = OPERATOR.SAVE
+    RETURN
+END

@@ -1,0 +1,90 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.CONT.LIM.LTR.RTN
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This routine will populate the LIM.LTR.AMOUNT,Liquidation Account,Maturity
+* Date values in LIM/LTR Version.
+*-------------------------------------------------------------------------------
+* Modification History:
+* --------------------
+* 04/03/2011 - New - G.Sabari
+*                    Thesys Technologies
+*-------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE JBL.BP I_F.BD.LIM.LTR.REGISTER
+    $INCLUDE JBL.BP I_F.BD.LIM.LTR.PARAMETER
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-------------------------------------------------------------------------------
+INITIALISE:
+**********
+
+    FN.LD.LOANS.AND.DEPOSITS = 'F.LD.LOANS.AND.DEPOSITS'
+    F.LD.LOANS.AND.DEPOSITS  = ''
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+    R.LD.LOANS.AND.DEPOSITS  = ''
+
+    FN.BD.LIM.LTR.REGISTER = 'F.BD.LIM.LTR.REGISTER'
+    F.BD.LIM.LTR.REGISTER  = ''
+    CALL OPF(FN.BD.LIM.LTR.REGISTER,F.BD.LIM.LTR.REGISTER)
+    R.BD.LIM.LTR.REGISTER  = ''
+
+    FN.BD.LIM.LTR.REGISTER.NAU = 'F.BD.LIM.LTR.REGISTER$NAU'
+    F.BD.LIM.LTR.REGISTER.NAU  = ''
+    CALL OPF(FN.BD.LIM.LTR.REGISTER.NAU,F.BD.LIM.LTR.REGISTER.NAU)
+    R.BD.LIM.LTR.REGISTER.NAU  = ''
+
+    FN.BD.LIM.LTR.PARAMETER = 'F.BD.LIM.LTR.PARAMETER'
+    F.BD.LIM.LTR.PARAMETER  = ''
+    CALL OPF(FN.BD.LIM.LTR.PARAMETER,F.BD.LIM.LTR.PARAMETER)
+    R.BD.LIM.LTR.PARAMETER  = ''
+
+    RETURN
+*-------------------------------------------------------------------------------
+PROCESS:
+********
+
+    CALL F.READ(FN.BD.LIM.LTR.PARAMETER,'SYSTEM',R.BD.LIM.LTR.PARAMETER,F.BD.LIM.LTR.PARAMETER,Y.BD.LIM.LTR.PARAMETER.ERR)
+
+    IF R.BD.LIM.LTR.PARAMETER<BD.PARAM.AUTO.DEBIT> EQ 'YES' THEN
+        LD.REG.ID = ID.NEW
+        CALL F.READ(FN.BD.LIM.LTR.REGISTER,LD.REG.ID,R.BD.LIM.LTR.REGISTER,F.BD.LIM.LTR.REGISTER,Y.REG.ERR)
+        IF R.BD.LIM.LTR.REGISTER THEN
+            Y.LIM.LTR.AMT    = R.BD.LIM.LTR.REGISTER<BD.REG.LIM.LTR.AMOUNT>
+            R.NEW(LD.AMOUNT) = Y.LIM.LTR.AMT
+        END ELSE
+            CALL F.READ(FN.BD.LIM.LTR.REGISTER.NAU,ID.NEW,R.BD.LIM.LTR.REGISTER.NAU,F.BD.LIM.LTR.REGISTER.NAU,Y.BD.LIM.LTR.REGISTER.NAU.ERR)
+            IF R.BD.LIM.LTR.REGISTER.NAU THEN
+                Y.LIM.LTR.AMT    = R.BD.LIM.LTR.REGISTER.NAU<BD.REG.LIM.LTR.AMOUNT>
+                R.NEW(LD.AMOUNT) = Y.LIM.LTR.AMT
+            END
+        END
+        GOSUB POPULATE.LIM.VAL
+    END
+
+    RETURN
+*-------------------------------------------------------------------------------
+POPULATE.LIM.VAL:
+*****************
+
+    Y.PAD.ID = R.BD.LIM.LTR.REGISTER<BD.REG.PAD.ID>
+    CALL F.READ(FN.LD.LOANS.AND.DEPOSITS,Y.PAD.ID,R.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS,Y.PAD.ERR)
+    IF R.LD.LOANS.AND.DEPOSITS THEN
+        Y.PAD.LIQ.ACCT = R.LD.LOANS.AND.DEPOSITS<LD.PRIN.LIQ.ACCT>
+        Y.PAD.MAT.DTE  = R.LD.LOANS.AND.DEPOSITS<LD.FIN.MAT.DATE>
+        R.NEW(LD.DRAWDOWN.ACCOUNT) = Y.PAD.LIQ.ACCT
+        R.NEW(LD.VALUE.DATE)       = Y.PAD.MAT.DTE
+    END
+
+    RETURN
+*-------------------------------------------------------------------------------
+
+END

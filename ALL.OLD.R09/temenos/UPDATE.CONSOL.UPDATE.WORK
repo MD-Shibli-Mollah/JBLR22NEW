@@ -1,0 +1,156 @@
+*-----------------------------------------------------------------------------
+* <Rating>313</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE UPDATE.CONSOL.UPDATE.WORK
+*-----------------------------------------------------------------------------
+*
+** Routine to update CONSOL.UPDATE.WORK
+* CUW.UPDATE.SL - &SAVEDLISTS& should have the entry ID as below
+*<<CPL Key>>^<<ccy>>^<<Amt FCY>>        ======>> For CPL correction
+*<<CAL Key>>.<<asset type>>^<<ccy>>^<<Amt FCY>> ======>> For CAL correction
+*ex:
+*PL.51000.1010..85....^GBP^-526503408.06
+*AC.1.TR.USD.11279.N.1..........US0010001.DEBIT^USD^-1979013398.28
+*
+*Sutheesh
+*
+
+*   15/09/2015 Code Changes done to fetch LCY AMOUNT from 4th position (if given) in SAVEDLISTS for FCY keys alone
+*              Code processing flow is unchanged for LCY CONSOL keys (3rd position can be input with amount and 4th position can be left blank)
+*ex:
+*PL.51000.1010..85....^GBP^-526503408.06^-124516116.01
+*AC.1.TR.USD.11279.N.1..........US0010001.DEBIT^USD^-1979013398.28
+*
+*-----------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.DATES
+    $INSERT GLOBUS.BP I_F.CURRENCY
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.ACCOUNT.PARAMETER
+    $INSERT GLOBUS.BP I_F.CATEG.ENTRY
+
+*-----------------------------------------------------------------------------
+*
+
+    RTN.COMO = "UPDATE.CONSOL.UPDATE.WORK.log"
+    EXECUTE 'COMO ON ':RTN.COMO
+    PRINT "Date on which this routine processed : " : R.DATES(EB.DAT.TODAY)
+    OPEN "&SAVEDLISTS&" TO FV.SAVEDLIST ELSE
+        CRT "ERROR"
+        RETURN
+    END
+    GOSUB INITIALISE
+    GOSUB UPDATE.WORK
+
+    CALL JOURNAL.UPDATE("UPDATE.CONSOL.UPDATE.WORK")
+
+    EXECUTE 'COMO OFF ':RTN.COMO
+
+    RETURN
+
+
+INITIALISE:
+
+    ENTRY.TYPE = ""
+
+    IF R.ACCOUNT.PARAMETER<AC.PAR.USE.SESSION.NO> = 'YES' THEN
+        ENTRY.TYPE<2> = 0     ;* Set to update with session no
+    END ELSE
+        ENTRY.TYPE<2> = 1     ;* Set to update without session no.
+    END
+    ENTRY.TYPE<3> = 0
+
+
+    RETURN
+
+UPDATE.WORK:
+
+    READ ENTRY.LIST.IDS FROM FV.SAVEDLIST,"CUW.UPDATE.SL" THEN
+*        PRINT "LIST OF PROBLEMATIC ENTRIES :": ENTRY.LIST.IDS
+    END
+    LOOP
+        REMOVE KEY.ID FROM ENTRY.LIST.IDS SETTING POS
+    WHILE KEY.ID:POS
+
+        CONSOL.KEY = '' ; CAL.LEN = '' ; Y.CAL.KEY = '' ; Y.TYPE = '' ; CCY = '';
+        AMT = '' ; PROCESSING.DATE = '' ; ENTRY.REC = '' ; LOC.AMT = '';
+        IF FIELD(KEY.ID,"^",1) EQ 'PROCESSED' THEN RETURN
+
+        KEY.ID = TRIM(KEY.ID)
+        CONSOL.KEY = FIELD(KEY.ID,'^',1)
+        CAL.LEN = DCOUNT(CONSOL.KEY,'.')
+        Y.CAL.KEY  = FIELD(CONSOL.KEY,".",1,CAL.LEN-1)
+        Y.TYPE = FIELD(CONSOL.KEY,".",CAL.LEN)
+
+        CCY = FIELD(KEY.ID,'^',2)
+
+        IF CONSOL.KEY[1,2] EQ 'PL' THEN
+        Y.TYPE = CCY
+        Y.CAL.KEY = FIELD(CONSOL.KEY,".",1,CAL.LEN)
+        END
+
+        AMT = FIELD(KEY.ID,'^',3)
+        PROCESSING.DATE = R.DATES(EB.DAT.TODAY)
+
+* Form entry.rec
+        ENTRY.REC<AC.STE.CURRENCY> = CCY
+
+        IF CCY <> LCCY THEN
+            LOC.AMT = FIELD(KEY.ID,'^',4)
+            IF LOC.AMT EQ '' THEN
+                GOSUB GET.LOCAL.AMT
+                ENTRY.REC<AC.STE.AMOUNT.FCY> = AMT
+                ENTRY.REC<AC.STE.AMOUNT.LCY> = LOC.AMT
+            END ELSE
+                ENTRY.REC<AC.STE.AMOUNT.FCY> = AMT
+                ENTRY.REC<AC.STE.AMOUNT.LCY> = LOC.AMT
+            END
+        END ELSE
+            ENTRY.REC<AC.STE.AMOUNT.FCY> = ""
+            ENTRY.REC<AC.STE.AMOUNT.LCY> = AMT
+        END
+
+*
+        BEGIN CASE
+        CASE CONSOL.KEY[1,2] EQ 'PL'
+            ENTRY.TYPE<1> = 'C'
+            ENTRY.REC<AC.CAT.CONSOL.KEY> = CONSOL.KEY
+
+        CASE CONSOL.KEY[1,2] EQ 'AC'
+            ENTRY.TYPE<1> = 'S'
+
+        CASE 1
+            ENTRY.TYPE<1> = 'R'
+
+        END CASE
+
+* Update work file
+        CALL EB.UPD.CONSOL.UPDATE.WORK(ENTRY.TYPE, "", ENTRY.REC, PROCESSING.DATE, "", Y.CAL.KEY, Y.TYPE, "")
+
+        PRINT "Updated ==> " : KEY.ID
+
+    REPEAT
+
+    ENTRY.LIST.IDS = INSERT(ENTRY.LIST.IDS, 1,1; "PROCESSED^")
+    ENTRY.LIST.IDS = TRIM(ENTRY.LIST.IDS,@VM,"A")
+    WRITE ENTRY.LIST.IDS TO FV.SAVEDLIST, "CUW.UPDATE.SL"
+
+
+    RETURN
+
+
+GET.LOCAL.AMT:
+
+    MKT = FIELD(Y.CAL.KEY,".",2)
+    IF MKT = "" THEN
+        MKT = 1
+    END
+    LOC.AMT = ""    ;* Calculate Local Equiv
+    CALL MIDDLE.RATE.CONV.CHECK(AMT, CCY, "", MKT, LOC.AMT, "", "")
+    CALL EB.ROUND.AMOUNT(LCCY, LOC.AMT, "", "")
+
+    RETURN
+
+
+END 

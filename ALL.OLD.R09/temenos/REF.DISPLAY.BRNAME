@@ -1,0 +1,87 @@
+*-----------------------------------------------------------------------------
+* <Rating>70</Rating>
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* Developed by : MD ZAKIR HOSSAIN
+* This routine has been used for reference num with br name
+* Date : 08 April 2019
+
+*-----------------------------------------------------------------------------
+    SUBROUTINE REF.DISPLAY.BRNAME
+!PROGRAM REF.DISPLAY.BRNAME
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.TELLER
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+!DEBUG
+    FN.CM = "F.COMPANY"
+    F.CM = ""
+    Y.TRANS.REF = O.DATA
+    FN.FT = "F.FUNDS.TRANSFER"
+    F.FT = ""
+    FN.FT.HIS = "F.FUNDS.TRANSFER$HIS"
+    F.FT.HIS = ""
+    FN.TT = "F.TELLER"
+    F.TT = ""
+    FN.TT.HIS = "F.TELLER$HIS"
+    F.TT.HIS = ""
+    Y.CODE=""
+    RETURN
+
+
+OPENFILES:
+
+    CALL OPF(FN.CM,F.CM)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.TT.HIS,F.TT.HIS)
+
+    RETURN
+
+PROCESS:
+
+    IF Y.TRANS.REF MATCHES "...\..."  THEN
+        Y.REF=FIELD(Y.TRANS.REF, "\", 1)
+        Y.MNEMONIC=FIELD(Y.TRANS.REF, "\", 2)
+        Y.TYPE=SUBSTRINGS(Y.REF,1,2)
+        IF Y.TYPE EQ 'FT'  THEN
+            CALL F.READ(FN.FT,Y.REF,R.FT.REC,F.FT,Y.ERR)
+            IF R.FT.REC EQ "" THEN
+                CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.REF,R.FT.REC,Y.ERR)
+            END
+            Y.CODE = R.FT.REC<FT.CO.CODE>
+
+            END ELSE IF Y.TYPE EQ 'TT'  THEN
+                CALL F.READ(FN.TT,Y.REF,R.TT.REC,F.TT,Y.ERR)
+                IF R.TT.REC EQ "" THEN
+                    CALL EB.READ.HISTORY.REC(F.TT.HIS,Y.REF,R.TT.REC,Y.ERR)
+                END
+                Y.CODE= R.TT.REC<TT.TE.CO.CODE>
+            END
+            IF Y.REF MATCHES "...;..."  THEN
+                Y.REF=FIELD(Y.REF, ";", 1)
+            END
+            IF Y.CODE EQ "" THEN
+                O.DATA=Y.TRANS.REF
+            END ELSE
+!Y.CODE=RIGHT(Y.CODE,4)
+                CALL F.READ(FN.CM,Y.CODE,R.CM,F.CM,CM.ERR)
+                Y.COM.NAME=LEFT(R.CM<EB.COM.COMPANY.NAME>,15)
+                O.DATA =Y.REF:"-":Y.COM.NAME:"\":RIGHT(Y.CODE,4)
+            END
+
+        END ELSE
+            O.DATA=Y.TRANS.REF
+        END
+
+        RETURN
+
+    END

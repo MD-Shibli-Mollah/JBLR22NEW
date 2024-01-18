@@ -1,0 +1,30 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.BREAKUP.FIELDS
+
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_DataTypes
+*** </region>
+
+    CALL Table.defineId("REF.ID", T24_String)
+    CALL Table.addField("REF.NAME",T24_String,"", "")
+    CALL Table.addField("REF.DETAILS",T24_String,"", "")
+    CALL Table.addField("JBL.BK.ID",T24_String,"", "")
+    CALL Table.addReservedField('RESERVED.10')
+    CALL Table.addReservedField('RESERVED.09')
+    CALL Table.addReservedField('RESERVED.08')
+    CALL Table.addReservedField('RESERVED.07')
+    CALL Table.addReservedField('RESERVED.06')
+    CALL Table.addReservedField('RESERVED.05')
+    CALL Table.addReservedField('RESERVED.04')
+    CALL Table.addReservedField('RESERVED.03')
+    CALL Table.addReservedField('RESERVED.02')
+    CALL Table.addReservedField('RESERVED.01')
+    CALL Table.setAuditPosition
+
+    RETURN
+END

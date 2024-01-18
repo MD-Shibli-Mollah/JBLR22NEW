@@ -1,0 +1,47 @@
+*-----------------------------------------------------------------------------
+* <Rating>-1</Rating>
+*-----------------------------------------------------------------------------
+*Check the Legacy Account No with 4 digit branch+min 8 digit account no=12 digit min*
+*Prevent to insert multiple Legacy Account Against one T24 Account*
+* Developed By : Md Zakir Hossain
+*Published As on 20 April 2016*
+    SUBROUTINE LEGACY.AC.VAL
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+*....................Co.Code And Length Validation...................*
+    Y.LEG.ID = COMI
+    IF Y.LEG.ID NE '' THEN
+        IF RIGHT(ID.COMPANY,4) NE LEFT(Y.LEG.ID,4) OR LEN(Y.LEG.ID) LT 12 THEN
+            ETEXT="Legacy Account Number Must Be Start With the Branch Code and Length Should Be Greater Than or Equal 12 Digit"
+            CALL STORE.END.ERROR
+        END
+    END
+*.......................Multi Legacy Account Number Validation................*
+
+    Y.LEGACY.VAL = R.NEW(AC.ALT.ACCT.ID)
+    Y.CNT = DCOUNT(Y.LEGACY.VAL,@VM)
+    Y.BR = 'BD0010866':@FM:'BD0010275':@FM:'BD0010447':@FM:'BD0010489':@FM:'BD0010864':@FM:'BD0010220':@FM:'BD0010878':@FM:'BD0010847':@FM:'BD0010433'
+    Y.COM = ID.COMPANY
+    LOCATE Y.COM IN Y.BR SETTING POS THEN
+        IF POS NE "" THEN
+            IF Y.CNT GT 2 THEN
+                AF = AC.ALT.ACCT.ID
+                AV=1
+                ETEXT = "Only Two Legacy Account is allow against a T24 Account Number"
+                CALL STORE.END.ERROR
+            END
+        END
+    END
+
+    ELSE
+        IF Y.CNT GT 1 THEN
+            AF = AC.ALT.ACCT.ID
+            AV =1
+            ETEXT = "Only one Legacy Account is allow against a T24 Account Number"
+            CALL STORE.END.ERROR
+        END
+    END
+    RETURN
+END

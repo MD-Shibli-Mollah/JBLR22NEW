@@ -1,0 +1,47 @@
+*-----------------------------------------------------------------------------
+* <Rating>-1</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SP.INFO.CHECK
+!PROGRAM SP.INFO.CHECK
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.TELLER
+
+!DEBUG
+    FN.TT = 'F.TELLER'
+    F.TT = ''
+    FN.TT.SP.INFO ='F.TELLER.SP.INFO'
+    F.TT.SP.INFO = ''
+    FN.TT.NAU = 'F.TELLER$NAU'
+    F.TT.NAU = ''
+
+
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.TT.NAU,F.TT.NAU)
+    CALL OPF(FN.TT.SP.INFO,F.TT.SP.INFO)
+    IF V$FUNCTION EQ 'I' THEN
+        CALL GET.LOC.REF("TELLER","SP.INFO",Y.SP.INFO.POS)
+        Y.SP.INFO = R.NEW(TT.TE.LOCAL.REF)<1,Y.SP.INFO.POS>
+!Y.SP.INFO ='SP1633521093'
+        SEL.CMD = 'SELECT ':FN.TT.NAU: ' WITH SP.INFO EQ ':Y.SP.INFO
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+
+        REMOVE Y.SP.INFO.ID FROM SEL.LIST SETTING Y.POS.ID
+
+        CALL F.READ(FN.TT.SP.INFO,Y.SP.INFO,R.SP.INFO,F.TT.SP.INFO,Y.ERR)
+
+        IF R.SP.INFO THEN
+            AF = TT.TE.LOCAL.REF
+            AV = Y.SP.INFO.POS
+            ETEXT = "SP INFO: ":Y.SP.INFO:" IS ALREADY USED"
+            CALL STORE.END.ERROR
+        END
+        IF NO.OF.REC THEN
+            AF = TT.TE.LOCAL.REF
+            AV = Y.SP.INFO.POS
+            ETEXT = "SP INFO:":Y.SP.INFO: " IS ALREADY USED (UNAUTHORISED)"
+            CALL STORE.END.ERROR
+        END
+    END
+    RETURN
+END

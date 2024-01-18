@@ -1,0 +1,113 @@
+*-----------------------------------------------------------------------------
+* <Rating>170</Rating>
+*-----------------------------------------------------------------------------
+!    SUBROUTINE JBL.S.CIBTA.IBFTA.PRODUCT.SHEET(Y.RETURN)
+    PROGRAM JBL.S.CIBTA.IBFTA.PRODUCT.SHEET
+!---------------------------------------------------------------------------------------!
+!This subroutine calculate HO(CIBTA and IBFTA) Interest calculation based on the From   !
+!date to To date and Interest Rate.                                                     !
+!CIBTA Category=12810                                                                   !
+!IBFTA Category=12820                                                                   !
+!---------------------------------------------------------------------------------------!
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+INIT:
+
+    FN.AC="F.ACCOUNT"
+    F.AC=""
+    Y.AC.ID=""
+    REC.AC=""
+
+!    Y.ST.DATE=ENQ.SELECTION<4,1>
+!    Y.ED.DATE=ENQ.SELECTION<4,2>
+
+    Y.ST.DATE="20120401"
+    Y.ED.DATE="20120430"
+
+    Y.CIBTA.AMT=""
+    Y.IBFTA.AMT=""
+
+    Y.CIBTA.AMT.GROSS=""
+    Y.IBFTA.AMT.GROSS=""
+
+    Y.CIBTA.AMT.TOTAL=""
+    Y.IBFTA.AMT.TOTAL=""
+
+    Y.AMT.GROSS=""
+    Y.AMT.AVERAGE=""
+    Y.INCOME.AMT=""
+    Y.EXPENDITURE.AMT=""
+    Y.DAYS="C"
+
+    IN.DATA=""
+    OUT.DATA=""
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.AC,F.AC)
+
+    RETURN
+
+
+PROCESS:
+
+    CALL CDD ('',Y.ST.DATE,Y.ED.DATE,Y.DAYS)
+    Y.DAYS = Y.DAYS + 1
+    SEL.CMD.AC="SELECT ":FN.AC:" WITH ( CATEGORY EQ '12810' OR CATEGORY EQ '12820' ) AND CO.CODE EQ ":ID.COMPANY
+    EXECUTE "COMO ON PRO.SHT.2"
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST,'',NO.OF.REC,ERR.AC.LIST)
+
+    FOR I = 1 TO Y.DAYS
+        J=""
+        FOR J =1 TO NO.OF.REC
+            Y.AC.ID = SEL.LIST<J>
+            CALL F.READ(FN.AC,Y.AC.ID,REC.AC,F.AC,ERR.AC)
+
+            BEGIN CASE
+
+            CASE REC.AC<AC.CATEGORY> EQ '12810'
+
+                IF ( Y.ST.DATE EQ Y.ED.DATE ) AND (Y.ED.DATE EQ TODAY ) THEN
+                    Y.CIBTA.AMT.GROSS = Y.CIBTA.AMT.GROSS + REC.AC<AC.WORKING.BALANCE>
+                END
+                ELSE
+                    ACCOUNT.BAL=""
+                    CALL GET.ENQ.BALANCE(Y.AC.ID,Y.ST.DATE,ACCOUNT.BAL)
+                    Y.CIBTA.AMT.GROSS = Y.CIBTA.AMT.GROSS + ACCOUNT.BAL
+                END
+
+            CASE REC.AC<AC.CATEGORY> EQ '12820'
+                IF ( Y.ST.DATE EQ Y.ED.DATE ) AND ( Y.ED.DATE EQ TODAY ) THEN
+                    Y.IBFTA.AMT.GROSS = Y.IBFTA.AMT.GROSS + REC.AC<AC.WORKING.BALANCE>
+                END
+                ELSE
+                    ACCOUNT.BAL=""
+                    CALL GET.ENQ.BALANCE(Y.AC.ID,Y.ST.DATE,ACCOUNT.BAL)
+                    Y.IBFTA.AMT.GROSS = Y.IBFTA.AMT.GROSS + ACCOUNT.BAL
+                END
+            END CASE
+!            PRINT" ":Y.ST.DATE:" ":Y.AC.ID:"  ":Y.CIBTA.AMT.GROSS:"  ":Y.IBFTA.AMT.GROSS
+        NEXT
+        Y.TOTAL=Y.TOTAL + Y.CIBTA.AMT.GROSS + Y.IBFTA.AMT.GROSS
+!        PRINT" ":Y.ST.DATE:" ":Y.AC.ID:"  ":Y.CIBTA.AMT.GROSS:"  ":Y.IBFTA.AMT.GROSS
+        PRINT" ":Y.ST.DATE:"  ":Y.CIBTA.AMT.GROSS:"  ":Y.IBFTA.AMT.GROSS
+        CALL CDT("",Y.ST.DATE,"+1C")
+        Y.CIBTA.AMT.GROSS =""
+        Y.IBFTA.AMT.GROSS =""
+    NEXT
+    PRINT " ":Y.TOTAL
+    RETURN
+
+
+END

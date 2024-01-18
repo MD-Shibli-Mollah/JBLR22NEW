@@ -1,0 +1,62 @@
+*-----------------------------------------------------------------------------
+* Developed by : MD ROBIUL ISLAM
+*This rutine use account title show account statement
+* Date : 28-7-2016
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.ACC.TITLE
+!PROGRAM JBL.ACC.TITLE
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+! DEBUG
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+    FN.AC.HIS = "F.ACCOUNT$HIS"
+    F.AC.HIS = ""
+    Y.AC.TITLE=""
+    Y.AC.TITLE1=""
+    Y.AC.TITLE2=""
+
+    Y.REC.ID = O.DATA
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+
+    RETURN
+
+PROCESS:
+!DEBUG
+
+    CALL F.READ(FN.AC,Y.REC.ID,R.AC.REC,F.AC,Y.ERR)
+    IF R.AC.REC EQ "" THEN
+        CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.REC.ID,R.AC.REC,Y.ERR)
+        Y.REC.ID = FIELD(Y.REC.ID,';'1,1)
+    END
+
+    Y.AC.TITLE1 = R.AC.REC<AC.ACCOUNT.TITLE.1>
+    Y.AC.TITLE2 = R.AC.REC<AC.ACCOUNT.TITLE.2>
+
+    IF Y.AC.TITLE1 NE "" AND  Y.AC.TITLE2 NE "" THEN
+        Y.AC.TITLE= Y.AC.TITLE1 : " " : Y.AC.TITLE2
+        END ELSE IF Y.AC.TITLE1 EQ "" THEN
+            Y.AC.TITLE = Y.AC.TITLE2
+        END  ELSE
+            Y.AC.TITLE = Y.AC.TITLE1
+        END
+
+        O.DATA = Y.AC.TITLE
+        RETURN
+
+
+    END

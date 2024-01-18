@@ -1,0 +1,53 @@
+*Developed By: ALIN BOBY
+*check FT debit and credit account for category 12810 and 12820
+*requirement from core cell for HO account implementation
+*date 20210315
+
+    SUBROUTINE JBL.FT.EXT.CHECK
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+
+    Y.CREDIT.AC=''
+    Y.DEBIT.AC=''
+    Y.CREDIT.AC.CAT=''
+    Y.DEBIT.AC.CAT=''
+    Y.FLAG.MARK = ''
+
+    Y.CREDIT.AC = R.NEW(FT.CREDIT.ACCT.NO)
+    Y.DEBIT.AC = R.NEW(FT.DEBIT.ACCT.NO)
+
+    IF LEFT(Y.CREDIT.AC,3) EQ 'BDT' THEN
+        Y.CREDIT.AC.CAT=RIGHT(LEFT(Y.CREDIT.AC,8),5)
+    END
+    ELSE
+        Y.CREDIT.AC.CAT = ''
+    END
+
+    IF LEFT(Y.DEBIT.AC,3) EQ 'BDT' THEN
+        Y.DEBIT.AC.CAT=RIGHT(LEFT(Y.DEBIT.AC,8),5)
+    END
+    ELSE
+        Y.DEBIT.AC.CAT = ''
+    END
+
+    IF Y.CREDIT.AC.CAT EQ '12810' THEN
+        IF Y.DEBIT.AC.CAT EQ '12820' OR Y.DEBIT.AC.CAT EQ '12810' THEN
+            Y.FLAG.MARK = 1
+        END
+    END
+
+    IF Y.CREDIT.AC.CAT EQ '12820' THEN
+        IF Y.DEBIT.AC.CAT EQ '12820' OR Y.DEBIT.AC.CAT EQ '12810' THEN
+            Y.FLAG.MARK = 1
+        END
+    END
+
+    IF Y.FLAG.MARK EQ 1 THEN
+        AF=I
+        ETEXT = 'CIBTA OR IBFTA FOR BOTH ACC IS NOT ALLOWED AT SAME TIME'
+        CALL STORE.END.ERROR
+    END
+
+    RETURN

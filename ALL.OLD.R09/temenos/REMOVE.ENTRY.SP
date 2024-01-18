@@ -1,0 +1,116 @@
+*-------------------------------------------------------------------------
+* <Rating>387</Rating>
+*-------------------------------------------------------------------------
+    SUBROUTINE REMOVE.ENTRY.SP
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.DATES
+    $INSERT GLOBUS.BP I_F.EB.CONTRACT.BALANCES
+
+    EXECUTE "COMO ON REMOVE.ENTRY.SP"
+    GOSUB OPENFILES
+    Y.ENTRY.LIST = ""
+    Y.ENTRY.LIST<-1> = "0100084702735#184190101945624.050001##"
+
+    LOOP
+        REMOVE Y.ENTRY FROM Y.ENTRY.LIST SETTING POS
+    WHILE Y.ENTRY:POS
+        ACC.NO=""
+        Y.ENTRY.ID=""
+
+        ACC.ID = FIELD(Y.ENTRY,"#", 1)
+        Y.ENTRY.ID = FIELD(Y.ENTRY,"#", 2)
+        REMOVE.DETAIL = FIELD(Y.ENTRY,"#", 3)
+        XREF.ID = FIELD(Y.ENTRY,"#", 4)
+
+        IF REMOVE.DETAIL EQ 'Y' THEN
+            R.STMT.ENTRY.DETAIL.XREF = ""
+            READU R.STMT.ENTRY.DETAIL.XREF FROM F.STMT.ENTRY.DETAIL.XREF, XREF.ID THEN
+                LOCATE Y.ENTRY.ID IN R.STMT.ENTRY.DETAIL.XREF<1> SETTING XREF.POS THEN
+                    DEL R.STMT.ENTRY.DETAIL.XREF<XREF.POS>
+                    WRITE R.STMT.ENTRY.DETAIL.XREF TO F.STMT.ENTRY.DETAIL.XREF, XREF.ID
+                    CRT "Problematic entry ":Y.ENTRY.ID:" removed from Stmt Entry Detail Xref ":XREF.ID
+                END ELSE
+                    CRT "Unable to locate entry in Stmt Entry Detail Xref ":XREF.ID:" Problematic entry already removed."
+                END
+            END
+            RELEASE F.STMT.ENTRY.DETAIL.XREF, XREF.ID
+        END ELSE
+            READ R.STMT FROM F.STMT.ENTRY, Y.ENTRY.ID THEN
+                Y.BOOK.DATE = R.STMT<AC.STE.BOOKING.DATE>
+                GOSUB REMOVE.FROM.SP
+            END
+        END
+    REPEAT
+
+    EXECUTE "COMO OFF REMOVE.ENTRY.SP"
+
+REMOVE.FROM.SP:
+***************
+    R.SP =''
+    READ R.ASM FROM F.ASM, ACC.ID ELSE R.ASM = ''
+    STMT.DATES = FIELDS(R.ASM,'/',1)
+    LOCATE Y.BOOK.DATE IN STMT.DATES<1> BY 'AR' SETTING DATE.POS ELSE NULL
+    LAST.DATE = DCOUNT(STMT.DATES,@FM)
+    STMT.PR.ID = ''
+    IF STMT.DATES<DATE.POS> EQ '' THEN
+        STMT.PR.ID = ACC.ID:'-':STMT.DATES<LAST.DATE>
+    END ELSE
+        STMT.PR.ID = ACC.ID:'-':STMT.DATES<DATE.POS>
+    END
+
+    READU R.SP FROM F.SP,STMT.PR.ID ELSE R.SP=""
+    LOCATE Y.ENTRY.ID IN R.SP<1>  SETTING PROB.POS THEN
+        CRT 'Entry id is ':Y.ENTRY.ID:"-":STMT.PR.ID
+        DEL R.SP<PROB.POS>
+        IF R.SP THEN
+            WRITE R.SP TO F.SP,STMT.PR.ID
+        END ELSE
+            DELETE F.SP,STMT.PR.ID
+        END
+    END ELSE
+        CRT "Problematic entry ":Y.ENTRY.ID:" not found in STMT.PRINTED ":STMT.PR.ID
+    END
+    RELEASE F.SP,STMT.PR.ID
+    RETURN
+
+OPENFILES:
+**********
+
+    YR.MULTI.STMT=""
+    ACC.ID=""
+
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT, F.ACCOUNT)
+
+    FN.STMT.ENTRY = 'F.STMT.ENTRY'
+    F.STMT.ENTRY = ''
+    CALL OPF(FN.STMT.ENTRY, F.STMT.ENTRY)
+
+    FN.ECB="F.EB.CONTRACT.BALANCES"
+    F.ECB=""
+    CALL OPF(FN.ECB,F.ECB)
+    MNE.ID = FN.ACCOUNT[2,3]
+
+    FN.ASM="F.ACCT.STMT.PRINT"
+    F.ASM=""
+    CALL OPF(FN.ASM,F.ASM)
+
+    FN.SP="F.STMT.PRINTED"
+    F.SP=""
+    CALL OPF(FN.SP,F.SP)
+
+    FN.STMT.ENTRY.DETAIL = "F.STMT.ENTRY.DETAIL"
+    F.STMT.ENTRY.DETAIL.XREF = ""
+    CALL OPF(FN.STMT.ENTRY.DETAIL, F.STMT.ENTRY.DETAIL)
+
+    FN.STMT.ENTRY.DETAIL.XREF = "F.STMT.ENTRY.DETAIL.XREF"
+    F.STMT.ENTRY.DETAIL.XREF = ""
+    CALL OPF(FN.STMT.ENTRY.DETAIL.XREF, F.STMT.ENTRY.DETAIL.XREF)
+
+    RETURN
+END 

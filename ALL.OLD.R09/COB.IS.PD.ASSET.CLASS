@@ -1,0 +1,455 @@
+*
+*-----------------------------------------------------------------------------
+* <Rating>2566</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE COB.IS.PD.ASSET.CLASS(Y.LIMIT.REF)
+!    PROGRAM COB.AB.PD.ASSET.CLASS
+* -------------------------------------------------------------------
+* COB Multi threaded routine to do the classification and provisioning
+* for PDPD AND PDLD
+* Routine written by Md. Omar Faruque,Datasoft Systems Bangladesh Limited
+* Last Updated On January 19,2010
+*-------------------------------------------------------------------
+* Arguments - The Incoming argument will be a LIMIT REFERENCE id(Y.LIMIT.REF).
+*----------------------------------------------------------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.PD.PAYMENT.DUE
+    $INSERT I_F.DATES
+    $INSERT I_F.CUSTOMER
+    $INCLUDE GLOBUS.BP I_F.COLLATERAL
+    $INCLUDE GLOBUS.BP I_F.COLLATERAL.RIGHT
+    $INSERT I_F.AB.H.ASSET.CLASS.PARAM
+    $INCLUDE GLOBUS.BP I_F.EB.CONTRACT.BALANCES
+    $INSERT I_COB.AB.PD.ASSET.CLASS.COMMON
+    $INSERT GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INSERT I_F.AB.H.LOAN.BROAD.CATEG
+    $INSERT I_F.AB.L.CLASSIFICATION.HIST
+    $INSERT I_F.AB.H.CLASSIFICATION.AMT
+
+    GOSUB WRITE.REC
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+*----------------------------------------------------------------------------
+WRITE.REC:
+*----------
+!DEBUG
+!   Y.SEQ.ID = 'IS.PD.PROV.':TODAY
+!   OPEN "IS.LD.PD" TO F.IS.LD.PD ELSE
+!       CMD = "CREATE.FILE IS.LD.PD TYPE=UD"
+!       EXECUTE CMD
+!       OPEN "IS.LD.PD" TO F.IS.LD.PD ELSE NULL
+!   END
+    RETURN
+**************************************************************************
+INIT:
+*----
+!DEBUG
+!    CALL COB.IS.PD.ASSET.CLASS.LOAD
+!    Y.LIMIT.REF=''
+!---------------------------------
+
+    Y.DAYS=""
+    Y.OP=""
+    Y.COND = ''
+    Y.LAST.WDAY = TODAY
+    Y.MAIN.CNT=""
+    Y.MAIN.CTR=""
+    Y.ASSET.CLASS=""   ;Y.COL.TYPE="" ;Y.TOT.EXE.VAL=0
+    Y.PROVISION=""  ;Y.FIRST.OD="" ;Y.TOT.OUTS="" ;Y.COL.ID=""
+    Y.BASE.AMT=''
+    Y.RESULT = 0 ; Y.FIN.RES = ''
+    Y.CO.CODE = ''
+    Y.FLAG = ''
+    R.PD.PAYMENT.DUE = ''
+    Y.PD.ERR = ''
+    Y.TOT.OUTS.AMT = ''
+    Y.FIN.SUSP.AMT = ''
+    Y.ELIGIBLE.SEC = 0
+    Y.REMAIN.SEC = 0
+    Y.CUSTOMER = ''
+    Y.PRV.CLASS = ''
+    Y.CL.DATE = ''
+    Y.LD.ID = ''
+    R.LD.LOANS.AND.DEPOSITS = ''
+    Y.LD.ERR = ''
+    Y.LD.OVERDUE.STATUS = ''
+    Y.CATEGORY = ''
+
+    RETURN
+*-------------------------------------------------------------------------
+PROCESS:
+*-------
+    SEL.CMD = 'SELECT ': FN.PD.PAYMENT.DUE : ' WITH ORIG.LIMIT.REF LIKE "' : Y.LIMIT.REF : '..."'
+    CALL EB.READLIST(SEL.CMD,PD.LIST,'',NO.OF.PD,PD.ERR)
+    IF PD.LIST THEN
+        LOOP
+            REMOVE Y.PD.ID FROM PD.LIST SETTING PD.POS
+        WHILE Y.PD.ID : PD.POS
+            GOSUB PROCESS.FOR.PD
+        REPEAT
+
+    END
+    RETURN
+*----------------
+PROCESS.FOR.PD:
+*-------------
+    CALL F.READ(FN.PD.PAYMENT.DUE,Y.PD.ID,R.PD.PAYMENT.DUE,F.PD.PAYMENT.DUE,Y.PD.ERR)
+    IF R.PD.PAYMENT.DUE THEN
+        Y.CATEGORY = R.PD.PAYMENT.DUE<PD.CATEGORY>
+        IF  Y.PD.ID[1,4] EQ 'PDPD' THEN
+*-----------calculate both bullet type loan and amortised loan
+            GOSUB PROCESS.PD
+
+        END
+        ELSE
+
+            IF Y.CATEGORY MATCHES Y.DEMAND.CATEG THEN
+*---------------bullet type
+                GOSUB PROCESS.PD
+            END
+            ELSE
+*---------------amortised type
+                Y.LD.ID = FIELD(Y.PD.ID,'D',2,2)
+                CALL F.READ(FN.LD.LOANS.AND.DEPOSITS,Y.LD.ID,R.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS,Y.LD.ERR)
+                IF R.LD.LOANS.AND.DEPOSITS THEN
+                    Y.LD.OVERDUE.STATUS = R.LD.LOANS.AND.DEPOSITS<LD.OVERDUE.STATUS>
+                    IF Y.LD.OVERDUE.STATUS EQ 'LIQ' THEN
+                        GOSUB PROCESS.PD
+                    END
+                END ELSE
+                    GOSUB PROCESS.PD
+                END
+
+            END
+        END
+    END
+*----clear cache
+    EXECUTE "CLEAR.FILE F.OS.XML.CACHE"
+
+    RETURN
+*-----------------------------------------------------------------------------------------------
+PROCESS.PD:
+*----------
+!    DEBUG
+
+    IF R.PD.PAYMENT.DUE THEN
+        IF R.PD.PAYMENT.DUE<PD.STATUS> NE 'CUR' THEN
+            Y.CUSTOMER = R.PD.PAYMENT.DUE<PD.CUSTOMER>
+            Y.PRV.CLASS = R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.ASSET.CLASS.POS>
+            Y.CL.DATE = R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.CL.DATE.POS>
+            Y.MAN.ASSET.CLASS = R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.MAN.ASSET.CLASS.POS>
+            Y.TOT.OUTS = R.PD.PAYMENT.DUE<PD.TOTAL.OVERDUE.AMT>
+            Y.TOT.OUTS.AMT = DROUND(Y.TOT.OUTS,2)
+!  Y.LIMIT.REF = FIELD(R.PD.PAYMENT.DUE<PD.ORIG.LIMIT.REF>,'.',1)
+            Y.CTR = DCOUNT(R.PD.PAYMENT.DUE<PD.PAYMENT.DTE.DUE>,@VM)
+            Y.START.DATE = R.PD.PAYMENT.DUE<PD.PAYMENT.DTE.DUE,Y.CTR>
+            Y.DAYS = 'C'
+*---------calculate total days passed after gone to PD
+
+            CALL CDD('',Y.START.DATE,Y.LAST.WDAY,Y.DAYS)
+            R.IS.H.ASSET.CLASS.PARAM = ''
+            Y.ASSET.PARAM.ERR = ''
+
+            CALL F.READ(FN.IS.H.ASSET.CLASS.PARAM,Y.LIMIT.REF,R.IS.H.ASSET.CLASS.PARAM,F.IS.H.ASSET.CLASS.PARAM,Y.ASSET.PARAM.ERR)
+            IF R.IS.H.ASSET.CLASS.PARAM THEN
+                Y.RUN.FREQ = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.PROV.REVIEW.FREQ>[1,8]
+                Y.NEXT.WORKING.DAY = R.DATES(EB.DAT.NEXT.WORKING.DAY)
+! IF Y.RUN.FREQ GE TODAY AND Y.RUN.FREQ LE Y.NEXT.WORKING.DAY THEN
+                Y.FLAG = 1
+! END ELSE
+!    Y.FLAG = 0
+!END
+                IF Y.FLAG EQ 1 THEN
+                    Y.MAIN.CNT = DCOUNT(R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.ASSET.CLASS>,VM)
+                    Y.MAIN.CTR = 1
+                    LOOP
+                    WHILE (Y.MAIN.CTR LE Y.MAIN.CNT)
+                        Y.TENOR = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.TENOR,Y.MAIN.CTR>
+                        Y.OP = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.OPERAND><1,Y.MAIN.CTR,1>
+                        IF Y.CATEGORY MATCHES Y.CONTIN.CATEG :VM: Y.TLLT5.CATEG :VM: Y.TLGE5.CATEG :VM: Y.AGRI.CATEG :VM: Y.SME.CATEG THEN
+                            IF Y.TENOR EQ '>5 YEARS' THEN
+                                GOSUB GET.OPERAND.VALUES
+                                IF Y.RESULT EQ 1 THEN
+                                    GOSUB GET.ASSET.CLASS
+                                    IF (Y.PRV.CLASS EQ '' OR Y.PRV.CLASS EQ 10 OR Y.PRV.CLASS EQ 20) AND (Y.ASSET.CLASS EQ 30 OR Y.ASSET.CLASS EQ 40 OR Y.ASSET.CLASS EQ 50) THEN
+                                        Y.CL.DATE = TODAY
+                                    END ELSE
+                                        IF (Y.PRV.CLASS EQ 30 OR Y.PRV.CLASS EQ 40 OR Y.PRV.CLASS EQ 50 ) AND (Y.ASSET.CLASS EQ '' OR Y.ASSET.CLASS EQ 10 OR Y.ASSET.CLASS EQ 20) THEN
+                                            Y.CL.DATE = TODAY
+                                        END
+                                    END
+                                    GOSUB GET.PROVISION
+                                    Y.MAIN.CTR = Y.MAIN.CNT
+                                END
+                            END
+                        END
+                        ELSE
+                            IF Y.TENOR EQ '<=5 YEARS' THEN
+                                GOSUB GET.OPERAND.VALUES
+                                IF Y.RESULT EQ 1 THEN
+                                    GOSUB GET.ASSET.CLASS
+                                    IF (Y.PRV.CLASS EQ '' OR Y.PRV.CLASS EQ 10 OR Y.PRV.CLASS EQ 20) AND (Y.ASSET.CLASS EQ 30 OR Y.ASSET.CLASS EQ 40 OR Y.ASSET.CLASS EQ 50) THEN
+                                        Y.CL.DATE = TODAY
+                                    END ELSE
+                                        IF (Y.PRV.CLASS EQ 30 OR Y.PRV.CLASS EQ 40 OR Y.PRV.CLASS EQ 50 ) AND (Y.ASSET.CLASS EQ '' OR Y.ASSET.CLASS EQ 10 OR Y.ASSET.CLASS EQ 20) THEN
+                                            Y.CL.DATE = TODAY
+                                        END
+                                    END
+                                    GOSUB GET.PROVISION
+                                    Y.MAIN.CTR = Y.MAIN.CNT
+                                END
+                            END
+                        END
+                        Y.MAIN.CTR += 1
+                    REPEAT
+
+                END
+            END
+        END
+    END
+
+    RETURN
+*--------------------------------------------------------------------------
+GET.OPERAND.VALUES:
+*-------------------
+!    DEBUG
+    Y.DESC = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.DECISION><1,Y.MAIN.CTR,1>
+    Y.OVD.FR = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.OVERDUE.FR><1,Y.MAIN.CTR,1>
+    Y.OVD.TO = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.OVERDUE.TO><1,Y.MAIN.CTR,1>
+    Y.RESULT = 0
+    BEGIN CASE
+    CASE Y.DESC EQ "LT"
+        IF Y.DAYS LT Y.OVD.FR THEN Y.RESULT = 1
+    CASE Y.DESC EQ "LE"
+        IF Y.DAYS LE Y.OVD.FR THEN Y.RESULT = 1
+    CASE Y.DESC EQ "GT"
+        IF Y.DAYS GT Y.OVD.FR THEN Y.RESULT = 1
+    CASE Y.DESC EQ "GE"
+        IF Y.DAYS GE Y.OVD.FR THEN Y.RESULT = 1
+    CASE Y.DESC EQ "EQ"
+        IF Y.DAYS EQ Y.OVD.FR THEN Y.RESULT = 1
+    CASE Y.DESC EQ "NE"
+        IF Y.DAYS NE Y.OVD.FR THEN Y.RESULT = 1
+    CASE Y.DESC EQ "RG"
+        IF Y.DAYS GE Y.OVD.FR AND Y.DAYS LE Y.OVD.TO THEN Y.RESULT = 1
+    CASE Y.DESC EQ "NR"
+        IF Y.DAYS LT Y.OVD.FR OR Y.DAYS GE Y.OVD.TO THEN Y.RESULT = 1
+
+    END CASE
+
+    RETURN
+*-----------------------------------------------------------------------------------
+GET.ASSET.CLASS:
+*---------------
+!   DEBUG
+*----assign manual asset class specified in local field MAN.ASSET.CLASS manually if is
+*----greater then the found class matched in AB.H.ASSET.CLASS.PARAM
+
+    IF Y.MAN.ASSET.CLASS EQ '' THEN
+        Y.ASSET.CLASS = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.ASSET.CLASS><1,Y.MAIN.CTR>
+    END ELSE
+        IF Y.MAN.ASSET.CLASS GT R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.ASSET.CLASS><1,Y.MAIN.CTR> THEN
+            Y.ASSET.CLASS = Y.MAN.ASSET.CLASS
+        END
+        ELSE
+            Y.ASSET.CLASS = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.ASSET.CLASS><1,Y.MAIN.CTR>
+        END
+    END
+
+    RETURN
+*--------------------------------------------------------------------------
+GET.SUSPENSE:
+*------------
+! DEBUG
+    Y.CONTRACT.ID = Y.PD.ID
+    R.EB.CONTRACT.BALANCES = ''
+    Y.ERR.EB.CONTRACT.BALANCES = ''
+    Y.OPN.BAL = 0
+    Y.DEBIT.MVMNT = 0
+    Y.CREDIT.MVMNT = 0
+
+    CALL F.READ(FN.EB.CONTRACT.BALANCES,Y.CONTRACT.ID,R.EB.CONTRACT.BALANCES,F.EB.CONTRACT.BALANCES,Y.ERR.EB.CONTRACT.BALANCES)
+    IF R.EB.CONTRACT.BALANCES THEN
+        Y.SP.CNT=DCOUNT(R.EB.CONTRACT.BALANCES<ECB.TYPE.SYSDATE>,VM)
+        Y.SP.CTR = 1
+        LOOP
+        WHILE (Y.SP.CTR LE Y.SP.CNT)
+            IF R.EB.CONTRACT.BALANCES<ECB.TYPE.SYSDATE,Y.SP.CTR>[6,2] EQ 'SP' THEN
+
+                Y.BAL.CNT = DCOUNT(R.EB.CONTRACT.BALANCES<ECB.OPEN.BALANCE,Y.SP.CTR>,@SM)
+                Y.BAL.CTR = 1
+                LOOP
+                    WHILE(Y.BAL.CTR LE Y.BAL.CNT)
+                    Y.OPN.BAL += R.EB.CONTRACT.BALANCES<ECB.OPEN.BALANCE,Y.SP.CTR,Y.BAL.CTR>
+                    Y.BAL.CTR += 1
+                REPEAT
+
+                Y.DBT.CNT = DCOUNT(R.EB.CONTRACT.BALANCES<ECB.DEBIT.MVMT,Y.SP.CTR>,@SM)
+                Y.DBT.CTR = 1
+                LOOP
+                    WHILE(Y.DBT.CTR LE Y.DBT.CNT)
+                    Y.DEBIT.MVMNT += R.EB.CONTRACT.BALANCES<ECB.DEBIT.MVMT,Y.SP.CTR,Y.DBT.CTR>
+                    Y.DBT.CTR += 1
+                REPEAT
+
+                Y.CRT.CNT = DCOUNT(R.EB.CONTRACT.BALANCES<ECB.CREDIT.MVMT,Y.SP.CTR>,@SM)
+                Y.CRT.CTR = 1
+                LOOP
+                    WHILE(Y.CRT.CTR LE Y.CRT.CNT)
+                    Y.CREDIT.MVMNT += R.EB.CONTRACT.BALANCES<ECB.CREDIT.MVMT,Y.SP.CTR,Y.CRT.CTR>
+                    Y.CRT.CTR += 1
+                REPEAT
+            END
+            Y.SP.CTR += 1
+        REPEAT
+        Y.SUSPENSE.AMT= Y.OPN.BAL + Y.DEBIT.MVMNT + Y.CREDIT.MVMNT
+
+
+!------------Add commission amount with suspense if any--------------------
+        Y.COMMISSION=''
+        Y.COUNT = DCOUNT(R.PD.PAYMENT.DUE<PD.TOT.OVRDUE.TYPE>,VM)
+        Y.LOOP.CTR = 1
+        LOOP
+            WHILE(Y.LOOP.CTR LE Y.COUNT)
+            IF R.PD.PAYMENT.DUE<PD.TOT.OVRDUE.TYPE,Y.LOOP.CTR> EQ 'CO' THEN
+                Y.COMMISSION = R.PD.PAYMENT.DUE<PD.TOT.OD.TYPE.AMT,Y.LOOP.CTR>
+                Y.LOOP.CTR = Y.COUNT
+            END
+            Y.LOOP.CTR += 1
+        REPEAT
+        Y.SUSPENSE.AMT += Y.COMMISSION
+
+!---------------------------------------------------------------------
+
+        Y.FIN.SUSP.AMT = DROUND(Y.SUSPENSE.AMT,2)
+
+        IF Y.FIN.SUSP.AMT LT 0 THEN
+            Y.FIN.SUSP.AMT = 0
+        END
+        RETURN
+
+*-----------------------------------------------------------------------------------
+GET.PROVISION:
+*---------------
+
+        Y.DR.ACCT = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.PROV.EXP.CATEG><1,Y.MAIN.CTR>
+        Y.CR.ACCOUNT = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.PROV.RESV.CATEG><1,Y.MAIN.CTR>
+        Y.CR.ACCT = 'BDT':Y.CR.ACCOUNT:'0001'
+        Y.TRANS.CODE = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.DR.CR.TXN.CODE><1,Y.MAIN.CTR>
+*----Get the suspense amount from EB.CONTRACT.BALANCES only for those class less than or equal 20 (SMA) and the rest will be calculated at CALC.SEC routine
+!DEBUG
+        IF Y.ASSET.CLASS LE 20  THEN
+            GOSUB GET.SUSPENSE
+        END
+        Y.BASE = ''
+        Y.BASE.FR.PROV = ''
+
+*------Find percentage from AB.H.ASSET.CLASS.PARAM for the assigned asset class
+
+        LOCATE Y.ASSET.CLASS IN R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.ASSET.CLASS,1> SETTING POS THEN
+            Y.PROVISION = R.IS.H.ASSET.CLASS.PARAM<IS.ASSET.CL.PROV.PERC,POS>
+        END
+*------calculate base for provisioning under the following condition
+*---------provistion of contract with Asset class greater then 20 is calculates at CALC.SEC multithreaded routine
+
+        IF Y.ASSET.CLASS EQ 10 THEN
+            Y.BASE = Y.TOT.OUTS.AMT
+            Y.BASE.FR.PROV = Y.BASE * (Y.PROVISION/100)
+        END
+        ELSE
+            IF Y.ASSET.CLASS EQ 20 THEN
+                Y.BASE = Y.TOT.OUTS.AMT - Y.FIN.SUSP.AMT
+                Y.BASE.FR.PROV = Y.BASE * (Y.PROVISION/100)
+            END
+        END
+
+        IF Y.BASE LT 0 THEN
+            Y.BASE = 0
+        END
+
+        Y.BASE.AMT = DROUND(Y.BASE,2)
+        Y.PROV.AMT = DROUND(Y.BASE.FR.PROV,2)
+
+*------ Update the Local reference fields PR.ASSET.CLASS,
+*------ PR.PROVISION, PR.PROV.AMT, PR.BASE.FR.PROV,TOT.SUSP.AMT,TOT.EXV.AMT,CL.DATE of the Underlying PD Contract.
+
+        R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.ASSET.CLASS.POS> = Y.ASSET.CLASS
+        IF Y.ASSET.CLASS LE 20 THEN     ;*provistion of contract with Asset class greater then 20 is calculates at CALC.SEC multithreaded routine
+            R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.PROVISION.POS> = Y.PROVISION
+            R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.BASE.PROV.POS> = Y.BASE.AMT
+            R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.PROV.AMT.POS> = Y.PROV.AMT
+            R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.TOT.SUSP.AMT.POS> = Y.FIN.SUSP.AMT
+            R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.TOT.EXV.AMT.POS> = Y.ELIGIBLE.SEC
+            R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.CL.DATE.POS> = Y.CL.DATE
+        END
+        WRITE R.PD.PAYMENT.DUE ON F.PD.PAYMENT.DUE,Y.PD.ID
+!CALL JOURNAL.UPDATE("")
+*---------------write classification history only for those having class LE 20 others is written is CALC.SEC multithreaded routine----------
+        IF Y.ASSET.CLASS LE 20  THEN
+            CALL F.READ(FN.CLASS.HIST,Y.PD.ID,R.CLASS.HIST,F.CLASS.HIST,ERR)
+            IF R.CLASS.HIST THEN
+                R.CLASS.HIST<1,-1> = TODAY
+                R.CLASS.HIST<2,-1> = Y.ASSET.CLASS
+                R.CLASS.HIST<3,-1> = Y.TOT.OUTS.AMT
+                R.CLASS.HIST<4,-1> = Y.FIN.SUSP.AMT
+                R.CLASS.HIST<6,-1> = Y.BASE.FR.PROV
+            END
+            ELSE
+                R.CLASS.HIST<1> = TODAY
+                R.CLASS.HIST<2> = Y.ASSET.CLASS
+                R.CLASS.HIST<3> = Y.TOT.OUTS.AMT
+                R.CLASS.HIST<4> = Y.FIN.SUSP.AMT
+                R.CLASS.HIST<6> = Y.BASE.FR.PROV
+            END
+            WRITE R.CLASS.HIST ON F.CLASS.HIST,Y.PD.ID
+        END
+*------------------------------------------------------------------------
+*--------------------write to classification amount for generating accounting entry-----------
+! CALL F.READ(FN.CLASS.AMT,Y.PD.ID,R.CLASS.AMT,F.CLASS.AMT,ERR)
+        IF Y.ASSET.CLASS LE 20 THEN
+            R.CLASS.AMT<CL.AMT.PROVISION.AMT> = Y.BASE.FR.PROV
+        END
+        R.CLASS.AMT<CL.AMT.DR.CR.TXN.CODE> = Y.TRANS.CODE
+        R.CLASS.AMT<CL.AMT.PROV.RESV.CATEG> = Y.CR.ACCT
+        R.CLASS.AMT<CL.AMT.PROV.EXP.CATEG> = Y.DR.ACCT
+        R.CLASS.AMT<CL.AMT.PROV.APPLIED> = 'N'
+
+        WRITE R.CLASS.AMT TO F.CLASS.AMT,Y.PD.ID
+
+
+*---------------------------------------------------------------------------
+*--------------- Store the details in Y.WRITE.DETS for every account.
+! Y.WRITE.DETS = Y.DR.ACCT : "*" : Y.CR.ACCT : "*" : Y.PROV.AMT : "*" : Y.CO.CODE
+! READ Y.SEQ.REC FROM F.IS.LD.PD,Y.SEQ.ID THEN
+!     Y.SEQ.REC<-1> = Y.WRITE.DETS
+!     WRITE Y.SEQ.REC TO F.IS.LD.PD, Y.SEQ.ID
+! END ELSE
+!     Y.SEQ.REC = Y.WRITE.DETS
+!     WRITE Y.SEQ.REC TO F.IS.LD.PD, Y.SEQ.ID
+! END
+
+        RETURN
+*----------------------------------------------------------------------
+CLEAR.PD.VALUES:
+*---------------
+        R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.ASSET.CLASS.POS> = ''
+        R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.PROVISION.POS> = ''
+        R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.BASE.PROV.POS> = ''
+        R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.PROV.AMT.POS> = ''
+        R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.TOT.SUSP.AMT.POS> = ''
+        R.PD.PAYMENT.DUE<PD.LOCAL.REF,Y.TOT.EXV.AMT.POS> = ''
+
+        WRITE R.PD.PAYMENT.DUE ON F.PD.PAYMENT.DUE,Y.PD.ID
+
+        RETURN
+*----------------------------------------------------------
+    END
+
+
+
+
+

@@ -1,0 +1,47 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.EXP.DOC.PUR.PERC
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LD.LOANS.AND.DEPOSITS
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+
+INITIALISE:
+*---------
+
+    FN.LD.LOANS.AND.DEPOSITS='F.LD.LOANS.AND.DEPOSITS'
+    F.LD.LOANS.AND.DEPOSITS =''
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+
+    CALL GET.LOC.REF("LD.LOANS.AND.DEPOSITS","PUR.PERCENT",Y.PUR.POS)
+    CALL GET.LOC.REF("LD.LOANS.AND.DEPOSITS","BILL.DOC.VAL",Y.BILL.POS)
+    CALL GET.LOC.REF("LD.LOANS.AND.DEPOSITS","PURCHASE.FC.AMT",Y.FCY.POS)
+*
+    Y.BILL.AMT=''
+    Y.PER.AMT=''
+    Y.AMT.CAL=''
+
+    RETURN
+
+PROCESS:
+*------
+    IF COMI LE 0 OR COMI GT 100 THEN
+        ETEXT = "Percentage Should be 1-100"
+        CALL STORE.END.ERROR
+    END ELSE
+        Y.BILL.AMT=R.NEW(LD.LOCAL.REF)<1,Y.BILL.POS>[4,20]
+        Y.PER.AMT=COMI/100
+        Y.AMT.CAL = Y.BILL.AMT * Y.PER.AMT
+        Y.CCY = R.NEW(LD.LOCAL.REF)<1,Y.BILL.POS>[1,3]
+        CALL EB.ROUND.AMOUNT(Y.CCY,Y.AMT.CAL,'','')
+        R.NEW(LD.LOCAL.REF)<1,Y.FCY.POS> = R.NEW(LD.LOCAL.REF)<1,Y.BILL.POS>[1,3] : Y.AMT.CAL
+    END
+
+    RETURN
+END

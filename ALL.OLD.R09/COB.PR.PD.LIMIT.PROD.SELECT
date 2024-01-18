@@ -1,0 +1,25 @@
+*
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE COB.PR.PD.LIMIT.PROD.SELECT
+*------------------------------------------------------------------
+* COB routine to select the ids of the PD.PAYMENT.DUE
+*----------------------------------------------------------------------
+*MODIFICATION HISTORY:
+*---------------------
+*26/11/2006 -S.INDUMATHI--New
+*----------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.PD.PAYMENT.DUE
+    $INSERT I_F.LD.LOANS.AND.DEPOSITS
+    $INSERT I_COB.PR.PD.LIMIT.PROD.COMMON
+
+    SEL.CMD = "SELECT ":FN.PD.ENT.TODAY
+    CALL EB.READLIST(SEL.CMD,Y.LIST.ID,'',NO.OF.REC,RET.CODE)
+    IF Y.LIST.ID THEN
+        CALL BATCH.BUILD.LIST('',Y.LIST.ID)
+    END
+    RETURN
+END

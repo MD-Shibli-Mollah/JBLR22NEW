@@ -1,0 +1,100 @@
+*-----------------------------------------------------------------------------
+* <Rating>282</Rating>
+*-----------------------------------------------------------------------------
+*NAME:KH.MONWAR HOSSAIN.
+*DATE:26-07-2017
+*COUPON GENERATION.
+*DATA PICK F.BD.H.SP.STOCK.ISSUE AND SEND DATA F.BD.L.SP.COUPON
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SP.COUPON.GEN
+!PROGRAM COUPON.GEN.SP
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT SP.BP I_F.BD.H.SP.CATEGORY
+    $INSERT SP.BP I_F.BD.H.SP.STOCK.ISSUE
+    $INSERT SP.BP I_F.BD.H.SP.COUPON
+
+    FN.CAT = 'F.BD.H.SP.CATEGORY'
+    F.CAT = ''
+    FN.SP.ISSUE = 'F.BD.H.SP.STOCK.ISSUE'
+    F.SP.ISSUE = ''
+    FN.SP.ISSUE.AUTH = 'F.BD.H.SP.STOCK.ISSUE$NAU'
+    F.SP.ISSUE.AUTH = ''
+    FN.SP.COUPON = 'F.BD.H.SP.COUPON'
+    F.SP.COUPON = ''
+
+    CALL OPF(FN.CAT,F.CAT)
+    CALL OPF(FN.SP.ISSUE.AUTH,F.SP.ISSUE.AUTH)
+    CALL OPF(FN.SP.COUPON,F.SP.COUPON)
+    IF V$FUNCTION EQ 'A' THEN
+!DEBUG
+        Y.SP.ISS.ID = ID.NEW
+        CALL F.READ(FN.SP.ISSUE.AUTH,Y.SP.ISS.ID,R.SP,F.SP.ISSUE.AUTH,ERR.SP)
+
+        Y.SP.ID = R.SP<SP.STK.SP.SL.ID>
+        Y.FREQUENCY = R.SP<SP.STK.FREQUENCY>
+        Y.COUPON.START.NO = R.SP<SP.STK.COUPON.START.NO>
+        Y.COUPON.END.NO = R.SP<SP.STK.COUPON.END.NO>
+        IF Y.FREQUENCY NE '' AND Y.COUPON.START.NO NE '' AND Y.COUPON.END.NO NE '' THEN
+            Y.TOT.COUPON = Y.COUPON.END.NO - Y.COUPON.START.NO + 1
+            Y.FACE.VALUE = R.SP<SP.STK.FACE.VALUE>
+            Y.CAT.ID = R.SP<SP.STK.TYPE.OF.SP>
+            Y.FLAT.INT.RATE = R.SP<SP.STK.FLAT.INTT.RATE>
+            Y.SOURCE.TAX = R.SP<SP.STK.SOURCE.TAX>
+            Y.ISSUE.DATE = R.SP<SP.STK.ISSUE.DATE>
+            Y.DATE = RIGHT(Y.ISSUE.DATE,2)
+            IF LEN(Y.FREQUENCY) EQ 1 THEN
+                Y.FREQUENCY = "0":Y.FREQUENCY
+            END
+            Y.FREQ=Y.FREQUENCY
+            COMI= Y.ISSUE.DATE:'M':Y.FREQUENCY:Y.DATE
+            CALL CFQ
+            Y.MAT.DATE1 = COMI
+            Y.MAT.DATE = Y.MAT.DATE1[1,8]
+            IF LEN(Y.COUPON.START.NO) EQ '1' THEN
+                Y.ST.CP.NO = "0":Y.COUPON.START.NO
+            END
+            ELSE
+                Y.ST.CP.NO = Y.COUPON.START.NO
+            END
+
+            Y.ID = Y.SP.ID:'-':Y.ST.CP.NO
+!Coupon Amount Calculation Part
+            Y.COUPON.AMT = (Y.FACE.VALUE * Y.FLAT.INT.RATE * Y.FREQUENCY)/(100*12)
+            Y.LEGAL.COUPON.AMT = (Y.COUPON.AMT * (100-Y.SOURCE.TAX))/100
+            Y.LEGAL.CP.AMT = FMT(Y.LEGAL.COUPON.AMT, "R2")
+!End Counpon amount calculation part
+            FOR I = 1 TO Y.TOT.COUPON
+!Coupon Generation Part
+
+                R.SP.COUPON<SP.CP.MATURITY.DATE> = Y.MAT.DATE
+                R.SP.COUPON<SP.CP.COUPON.AMT> = Y.LEGAL.CP.AMT
+                R.SP.COUPON<SP.CP.STATUS> = 'ISSUED TO CUSTOMER'
+                R.SP.COUPON<SP.CP.OVERRIDE> = R.SP<SP.STK.OVERRIDE>
+                R.SP.COUPON<SP.CP.CURR.NO> = R.SP<SP.STK.CURR.NO>
+                R.SP.COUPON<SP.CP.INPUTTER> = R.SP<SP.STK.INPUTTER>
+                R.SP.COUPON<SP.CP.DATE.TIME> = R.SP<SP.STK.DATE.TIME>
+                R.SP.COUPON<SP.CP.AUTHORISER> = OPERATOR
+                R.SP.COUPON<SP.CP.CO.CODE> = ID.COMPANY
+                WRITE R.SP.COUPON TO F.SP.COUPON,Y.ID       ;!FILE WRITE
+                Y.MATURE.DATE = Y.MAT.DATE
+                Y.DATE2 = RIGHT(Y.MATURE.DATE,2)
+                Y.FREQ=Y.FREQ + Y.FREQUENCY
+                IF LEN(Y.FREQ) EQ '1' THEN
+                    Y.FREQ= '0':Y.FREQ
+                END
+                COMI = Y.ISSUE.DATE:'M':Y.FREQ: Y.DATE
+                CALL CFQ
+                Y.MAT.DATE2 = COMI
+                Y.MAT.DATE = Y.MAT.DATE2[1,8]
+                Y.ST.CP.NO = Y.COUPON.START.NO + I
+                IF LEN(Y.ST.CP.NO) EQ '1' THEN
+                    Y.ST.CP.NO = "0":Y.ST.CP.NO
+                END
+                Y.ID = Y.SP.ID:'-':Y.ST.CP.NO
+            NEXT I
+        END
+    END
+    RETURN
+
+END

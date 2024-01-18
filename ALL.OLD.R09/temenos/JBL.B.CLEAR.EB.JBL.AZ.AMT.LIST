@@ -1,0 +1,59 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.CLEAR.EB.JBL.AZ.AMT.LIST
+*-------------------------------------------------------------------------
+* Subroutine Description:
+*-----------------------
+* The Purpose of this Routine is to clear the file EB.JBL.AZ.MAT.LIST
+*-------------------------------------------------------------------------
+* Parameter Description
+*--------- -----------
+* NA
+*-------------------------------------------------------------------------
+* Common Variable Description
+*------  ------- -----------
+*
+* Variable name:    Insert file:          Description:
+* TODAY            I_COMMON              Will hold Today's date
+*-------------------------------------------------------------------------
+* Called Subroutines:
+*------ ------------
+* Routine Name:             Local/Core:     Description:
+* NA
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 01/03/2011 -                            New   - Rashmitha M
+*                                                 Thesys Technologies
+**************************************************************************
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INSERT JBL.BP I_F.EB.JBL.AZ.MAT.LIST
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+*--------------------------------------------------------------------------
+INIT:
+*****
+    FN.EB.JBL.AZ.MAT.LIST='F.EB.JBL.AZ.MAT.LIST'
+    F.EB.JBL.AZ.MAT.LIST=''
+
+    RETURN
+*--------------------------------------------------------------------------
+OPENFILES:
+**********
+    CALL OPF(FN.EB.JBL.AZ.MAT.LIST,F.EB.JBL.AZ.MAT.LIST)
+
+    RETURN
+*--------------------------------------------------------------------------
+PROCESS:
+********
+    EXECUTE "CLEAR.FILE ":FN.EB.JBL.AZ.MAT.LIST
+    RETURN
+*--------------------------------------------------------------------------
+
+END

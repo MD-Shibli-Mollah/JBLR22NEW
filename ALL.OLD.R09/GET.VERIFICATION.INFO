@@ -1,0 +1,116 @@
+*****************************************************************************************
+*Purpose: to verifi the dispo transaction is verified                                   *
+*Developed By: Md. Aminul Islam(Datasoft Systems)                                       *
+*Live Date:                                                                             *
+*****************************************************************************************
+    SUBROUTINE GET.VERIFICATION.INFO
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT JBL.BP I_F.DISPO.PARAM
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.IC.ADJUST.ACCRUAL
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.DISPO="F.EB.DISPO.PARAM"
+    F.DISPO = ''
+
+    FN.FT.NAU = 'F.FUNDS.TRANSFER$NAU'
+    F.FT.NAU = ''
+
+    FN.TT.NAU = 'F.TELLER$NAU'
+    F.TT.NAU = ''
+
+    FN.IC.NAU = 'F.IC.ADJUST.ACCRUAL$NAU'
+    F.IC.NAU = ''
+
+    Y.OVERR.ID = ''
+    Y.OVERR.AMT = ''
+    Y.BRANCH.CODE = ''
+    REC.ID = O.DATA
+    Y.DEBIT.AMOUNT = ''
+    Y.MESSAGE = ''
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.DISPO,F.DISPO)
+    CALL OPF(FN.FT.NAU,F.FT.NAU)
+    CALL OPF(FN.TT.NAU,F.TT.NAU)
+    CALL OPF(FN.IC.NAU,F.IC.NAU)
+
+    RETURN
+
+PROCESS:
+    CALL F.READ(FN.DISPO, 'SYSTEM' , R.DISPO , F.DISPO , Y.ERR)
+    Y.ALL.BR.CODE = R.DISPO<EB.DIS26.BRANCH.CODE>
+    FINDSTR ID.COMPANY IN Y.ALL.BR.CODE SETTING BR.F.POS,BR.V.POS,BR.S.POS THEN
+        Y.DISPO.APROV.AMT = R.DISPO<EB.DIS26.OVERR.AMT,BR.V.POS>
+        IF REC.ID[1,2] EQ 'FT' THEN
+            CALL F.READ(FN.FT.NAU, REC.ID, R.FT.NAU, F.FT.NAU , Y.ERR.FT)
+            Y.TXN.AMT = R.FT.NAU<FT.DEBIT.AMOUNT>
+            IF Y.TXN.AMT EQ '' THEN
+                Y.TXN.AMT = R.FT.NAU<FT.CREDIT.AMOUNT>
+            END
+            Y.RECORD.STATUS = R.FT.NAU<FT.RECORD.STATUS>
+            IF Y.TXN.AMT GT Y.DISPO.APROV.AMT THEN
+                IF Y.RECORD.STATUS EQ 'INAU' THEN
+                    Y.MESSAGE = 'Verification Required'
+                END
+                ELSE IF Y.RECORD.STATUS EQ 'INAO' THEN
+                    Y.MESSAGE = 'Verified'
+                END
+            END
+        END
+        IF REC.ID[1,2] EQ 'TT' THEN
+            CALL F.READ(FN.TT.NAU, REC.ID, R.TT.NAU, F.TT.NAU , Y.ERR.TT)
+            Y.TXN.AMT = R.TT.NAU<TT.TE.AMOUNT.LOCAL.1>
+            IF Y.TXN.AMT EQ '' THEN
+                Y.TXN.AMT = R.TT.NAU<TT.TE.AMOUNT.LOCAL.2>
+            END
+            Y.RECORD.STATUS = R.TT.NAU<TT.TE.RECORD.STATUS>
+            IF Y.TXN.AMT GT Y.DISPO.APROV.AMT THEN
+                IF Y.RECORD.STATUS EQ 'INAU' THEN
+                    Y.MESSAGE = 'Verification Required'
+                END
+                ELSE IF Y.RECORD.STATUS EQ 'INAO' THEN
+                    Y.MESSAGE = 'Verified'
+                END
+            END
+        END
+*************************
+        APP = FIELD(ENQ.SELECTION,FM,1)
+        IF APP EQ 'IC.ADJUST.ACCRUAL.NAU' THEN
+            CALL F.READ(FN.IC.NAU,REC.ID,R.IC.NAU,F.IC.NAU,Y.ERR.IC)
+            DR.AMT = R.IC.NAU<IC.ADJ.DR.ADJ.AMOUNT>
+            Y.CR.ADJ.AMT = R.IC.NAU<IC.ADJ.CR.ADJ.AMOUNT>
+            Y.RECORD.STATUS = R.IC.NAU<IC.ADJ.RECORD.STATUS>
+            IF Y.CR.ADJ.AMT LT DR.AMT THEN
+                Y.CR.ADJ.AMT = DR.AMT
+            END
+            IF Y.CR.ADJ.AMT GT Y.DISPO.APROV.AMT THEN
+                IF Y.RECORD.STATUS EQ 'INAU' THEN
+                    Y.MESSAGE = 'Verification Required'
+                END
+                ELSE IF Y.RECORD.STATUS EQ 'INAO' THEN
+                    Y.MESSAGE = 'Verified'
+                END
+            END
+            ELSE
+                Y.MESSAGE = ''
+            END
+
+        END
+*************************
+    END
+    O.DATA = Y.MESSAGE
+
+    RETURN
+END

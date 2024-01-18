@@ -1,0 +1,54 @@
+*-----------------------------------------------------------------------------
+* <Rating>189</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE REMOVE.ACCT.SUSP.ACT
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+**************************************
+EXECUTE "COMO ON REMOVE.ACCT.SUSP.ACT"
+
+    GOSUB OPEN.FILES
+    GOSUB REMOVE.SUSP.ACT
+   EXECUTE "COMO OFF REMOVE.ACCT.SUSP.ACT"
+    RETURN
+************************************
+
+OPEN.FILES:
+
+    FN.ACCOUNT="F.ACCOUNT"
+    F.ACCOUNT=""
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    FN.ASA="F.ACCT.SUSP.ACT"
+    F.ASA=""
+    CALL OPF(FN.ASA,F.ASA)
+
+
+
+    FN.ACCOUNT.CLOSED="F.ACCOUNT.CLOSED"
+    F.ACCOUNT.CLOSED=""
+    CALL OPF(FN.ACCOUNT.CLOSED,F.ACCOUNT.CLOSED)
+
+    RETURN
+
+REMOVE.SUSP.ACT:
+
+
+    SEL.CMD ="SELECT ":FN.ASA
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.REC,Y.ERR)
+  LOOP
+      REMOVE ASA.ID FROM SEL.LIST SETTING POS
+  WHILE ASA.ID:POS
+      ACC.ID = ASA.ID["*",1,1]
+      PRINT "Processing ACCT.SUSP.ACCT:":ASA.ID
+      READU ACC.REC FROM F.ACCOUNT.CLOSED, ACC.ID ELSE ACC.REC=""
+      IF ACC.REC THEN
+          READU ACCT.REC FROM F.ACCOUNT,ACC.ID ELSE ACCT.REC=""
+          IF NOT(ACCT.REC) THEN
+              PRINT "REMOVED THE PROBLEMATIC ID:":ASA.ID
+              DELETE F.ASA,ASA.ID
+          END
+      END
+  REPEAT
+  RETURN 

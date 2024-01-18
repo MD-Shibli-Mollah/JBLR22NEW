@@ -1,0 +1,46 @@
+*-----------------------------------------------------------------------------
+* <Rating>-31</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VVR.BTBRATE.RTN
+*----------------------------------------------------------------------------
+*this calculates the entitlement value
+*----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LETTER.OF.CREDIT
+
+    GOSUB INITIALISE
+    GOSUB OPENFILES
+    GOSUB CHKCALC
+    RETURN
+
+INITIALISE:
+
+    FN.LETTER.OF.CREDIT="F.LETTER.OF.CREDIT"
+    F.LETTER.OF.CREDIT=""
+    Y.ID=ID.NEW
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+    RETURN
+
+CHKCALC:
+
+    CALL F.READ(FN.LETTER.OF.CREDIT,Y.ID,R.LEETER.OF.CREDIT,F.LETTER.OF.CREDIT,Y.ERR)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","FOB.VALUE",Y.FOB.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","RATE.ENT",Y.RATE.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","LC.AMT.LCY",Y.AMT.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","ENTITLEMENT.PER",Y.ENT.PER.POS)
+ *calculates the amount lcy by rate of entitlement
+    Y.RATE=COMI
+    Y.FOB.VALUE=R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.POS>
+    Y.AMT.LCY=(Y.RATE * Y.FOB.VALUE)/100
+
+    R.NEW(TF.LC.LOCAL.REF)<1,Y.ENT.PER.POS>=Y.RATE
+    R.NEW(TF.LC.LOCAL.REF)<1,Y.AMT.POS>=Y.AMT.LCY
+
+    !CALL REBUILD.SCREEN
+    RETURN
+END

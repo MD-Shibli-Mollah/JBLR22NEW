@@ -1,0 +1,377 @@
+    SUBROUTINE BD.ARC.BUILD.NARRATIVE(NARR.FORMAT.ID, TXN.ID, STMT.ID, STMT.REC, MVSET, NARRATIVE)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.STMT.NARR.FORMAT
+    $INSERT GLOBUS.BP I_F.STANDARD.SELECTION
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.USER
+    $INSERT GLOBUS.BP I_F.CURRENCY
+    $INSERT GLOBUS.BP I_F.CUSTOMER.POSITION
+    $INSERT GLOBUS.BP I_F.COMPANY
+*
+    GOSUB INITIALISE
+    GOSUB EXTRACT.NARR
+    GOSUB FORMAT.NARR
+*
+    IF ID.COMPANY # SAVE.ID.COMPANY THEN
+        CALL LOAD.COMPANY(SAVE.ID.COMPANY)
+        APPLIC.COMP.MNE = SAVE.MNE.COMPANY
+    END
+
+    RETURN
+*
+*------------------------------------------------------------------------
+INITIALISE:
+*==========
+*
+    YERR = ''       ;* EN_10002549
+    CALL CACHE.READ('F.STMT.NARR.FORMAT',NARR.FORMAT.ID,SNF.REC,YERR) ;*EN_10002549
+
+*
+    APP.FILE = SNF.REC<NR.FMT.FILE>
+    APPLIC.COMP.MNE = TXN.ID["\",2,1]
+    SAVE.MNE.COMPANY = ''
+    SAVE.ID.COMPANY = ''
+*
+** Get the standard selection details of APP FILE
+*
+    STD.REC = ""
+    CALL GET.STANDARD.SELECTION.DETS(APP.FILE, STD.REC)
+*
+** Get the id of the record
+*
+    BEGIN CASE
+    CASE APP.FILE = "STMT.ENTRY" AND STMT.ID
+        APPLIC.ID = STMT.ID["\",1,1]
+        APPLIC.REC = STMT.REC
+*
+    CASE 1
+        APPLIC.ID = TXN.ID["\",1,1]
+        APPLIC.REC = ""
+*
+    END CASE
+    STORE.APPLIC.ID = APPLIC.ID         ;* Store full id for later use
+*
+    SAVE.MNE.COMPANY = APPLIC.COMP.MNE
+    SAVE.ID.COMPANY = ID.COMPANY
+    IF R.COMPANY(EB.COM.MNEMONIC) <> APPLIC.COMP.MNE THEN
+* The TXN.ID is null when we execute the enquiries like VAL.STMT.ENT.BOOK, due to which
+* the APPLIC.COMP.MNE is null
+        IF APPLIC.COMP.MNE THEN
+            CALL LOAD.COMPANY(APPLIC.COMP.MNE)
+        END
+    END
+
+    READ.APP.FILE = "F":".":APP.FILE:FM:"NO FATAL ERROR"
+    CALL OPF(READ.APP.FILE,F.READ.APP.FILE)
+    IF ETEXT THEN
+        ETEXT = "" ; APPLIC.REC = ""
+    END ELSE
+        CALL F.READ(READ.APP.FILE, APPLIC.ID, APPLIC.REC, F.READ.APP.FILE, "")
+        IF APP.FILE EQ "STMT.ENTRY" AND APPLIC.REC EQ "" THEN
+            APP.FILE.ARC = "STMT.ENTRY$ARC"
+            READ.APP.FILE.ARC = "F":".":APP.FILE.ARC:FM:"NO FATAL ERROR"
+            CALL OPF(READ.APP.FILE.ARC,F.READ.APP.FILE.ARC)
+            CALL F.READ(READ.APP.FILE.ARC, APPLIC.ID, APPLIC.REC, F.READ.APP.FILE.ARC, "")
+        END
+    END
+*
+    IF APPLIC.REC = "" THEN
+        ETEXT = "" ; NO.HISTORY = ""
+        APPLIC.HIS.FILE = "F":".":APP.FILE:'$HIS':FM:"NO.FATAL.ERROR"
+        CALL OPF(APPLIC.HIS.FILE,F.APPLIC.HIS.FILE)
+*
+        IF ETEXT THEN
+            NO.HISTORY = 1
+            ETEXT = ""
+        END ELSE
+*
+            IF APPLIC.REC = "" THEN
+                APPLIC.ID = STORE.APPLIC.ID       ;* Reset in case of history
+                IF NOT(NO.HISTORY) THEN
+                    CALL EB.READ.HISTORY.REC(F.APPLIC.HIS.FILE,APPLIC.ID,APPLIC.REC,READ.ERROR)
+                END
+            END
+*
+        END
+    END
+*
+
+    NARR = ""       ;* Work narrative
+    NARRATIVE = ""  ;* Returned narrative
+    SING.MULTI = ""
+*
+    NARR.NEW = ""   ;* Temporary NARR.ARRAY variable
+    NARR1 = ""      ;* Temp NARR variable
+
+    RETURN
+*
+*-------------------------------------------------------------------------
+EXTRACT.NARR:
+****************
+* With Narr format id reads the Stmt narr format record, then extracts
+* the text and data fields calling a further routine to enrich these
+* A single string is then built up from this data before formatting
+*
+    TXT.CNT = 1
+    VMC = DCOUNT(SNF.REC<NR.FMT.TEXT.DATA>, VM)
+    FOR TXT.CNT = 1 TO VMC
+        TEXT.LINE = SNF.REC<NR.FMT.TEXT.DATA,TXT.CNT,LNGG>
+        IF TEXT.LINE = "" THEN          ;* Use english
+            TEXT.LINE = SNF.REC<NR.FMT.TEXT.DATA,TXT.CNT,1>
+        END
+        GOSUB ENRICH.TEXT
+        NARR:=' ':NEW.TEXT    ;* Trimmed at the end
+    NEXT TXT.CNT
+*
+    RETURN
+*
+*-------------------------------------------------------------------------
+FORMAT.NARR:
+****************
+* This routine takes the single narrative data string now built up
+* and formats it as follows. The string is broken at the last space
+* before the line length. If Truncate is set the narrative will be
+* the string upto this point else the string will continually be
+* broken at a space before the line length is reached. Each time a
+* sub value marker is inserted so the new narrative string is
+* formatted into the correct display lengths. A further check is
+* made as to the maximum no of lines and should this be reached the
+* is ended at this point.
+*
+    MAX.LINE = SNF.REC<NR.FMT.MAX.LINES>
+    IF SNF.REC<NR.FMT.WRAP.TRUNCATE> = 'TRUNCATE' THEN
+        NARRATIVE = CONVERT(@TM,@VM,NARR)         ;* Make multi valued
+        NARR.ARRAY = SUBSTRINGS(TRIMS(NARRATIVE),1,SNF.REC<NR.FMT.LINE.LENGTH>) ;* Truncate
+    END ELSE
+        NARRATIVE = CONVERT(@TM,@VM,NARR)
+
+        LOOP
+            REMOVE NARR1 FROM NARRATIVE SETTING NARR.POS
+        WHILE NARR1:NARR.POS
+            LNARR = LEN(TRIMS(NARR1))
+            IF LNARR > SNF.REC<NR.FMT.LINE.LENGTH> THEN
+                NARR.ARRAY = FMTS(TRIMS(NARR1),SNF.REC<NR.FMT.LINE.LENGTH>:"T")
+            END ELSE
+                NARR.ARRAY = SUBSTRINGS(TRIMS(NARR1),1,SNF.REC<NR.FMT.LINE.LENGTH>)
+            END
+
+            IF NARR.NEW = '' THEN
+                NARR.NEW = NARR.ARRAY
+            END ELSE
+                NARR.NEW<1,-1> = NARR.ARRAY
+            END
+
+        REPEAT
+
+        NARR.ARRAY = NARR.NEW
+    END
+*
+    NARRATIVE = CONVERT(VM:SM,@TM:@TM,NARR.ARRAY)
+    NARRATIVE = FIELD(NARRATIVE,@TM,1,MAX.LINE)
+    NARRATIVE = CONVERT(@TM,VM,NARRATIVE)
+*
+* CI_10010152 - Changing the delimiter ":VM:" with " ".
+* These fields will be either a multivalue field or a subvalue field.
+* It should print the values in the same line if no. is less than max.
+* no.of characters allowed per line.
+    NARRATIVE = CHANGE(NARRATIVE,":VM:"," ")
+*
+    RETURN
+*
+*-------------------------------------------------------------------
+ENRICH.TEXT:
+****************
+* This routine reads the Standard selection record for a file for a
+* field specified in Text.Data and returns the position of that field
+* allowing the field value to be read from the file. If the data has
+* a date or amount format then the data is formatted using appropriate
+* format routine ie(Dieter date or In2amt)
+*
+    NEW.TEXT = ""   ;* Returns enriched text
+    BEGIN CASE
+    CASE TEXT.LINE = "<NL>"   ;* Convert to TM to throw new line
+        NEW.TEXT = @TM
+*
+    CASE TEXT.LINE[1,1] <> '"'          ;* it must be on standard selection
+        LOCATE TEXT.LINE IN STD.REC<SSL.SYS.FIELD.NAME,1> SETTING CNT3 THEN
+            FLD.NO = STD.REC<SSL.SYS.FIELD.NO,CNT3>
+            TYPE = STD.REC<SSL.SYS.TYPE,CNT3>
+            FORMAT = STD.REC<SSL.SYS.VAL.PROG,CNT3>
+            LANG.FLD = STD.REC<SSL.SYS.LANG.FIELD,CNT3>
+            SING.MULTI = STD.REC<SSL.SYS.SINGLE.MULT,CNT3>
+*
+            IF TYPE = 'I' OR TYPE = 'J' THEN
+                CONVERT SM TO "" IN FLD.NO
+                CALL IDESC(READ.APP.FILE,APPLIC.ID,APPLIC.REC,TEXT.LINE,NEW.TEXT)
+            END ELSE
+*
+* While picking the value for accrued interest,taking care to add
+* the other accured interest(DEBIT OR CREDIT) also.
+*
+                IF (TEXT.LINE = "ACCRUED.INT") AND (APP.FILE = "CUSTOMER.POSITION") THEN
+                    NEW.TEXT = APPLIC.REC<FLD.NO> + APPLIC.REC<CUP.OTH.INT.CHG.AMT>
+                END ELSE
+                    NEW.TEXT = APPLIC.REC<FLD.NO>
+                END
+*
+                IF (APP.FILE = 'SEC.TRADE') OR (APP.FILE = 'DX.TRADE') THEN
+                    NUMMV = DCOUNT(NEW.TEXT,VM)
+                    IF NUMMV GE 2 THEN
+                        NEW.TEXT = APPLIC.REC<FLD.NO,MVSET>
+                    END
+                END
+            END
+*
+            BEGIN CASE
+            CASE LANG.FLD = "Y"         ;* Standard language field
+                IF NEW.TEXT<1,LNGG> THEN
+                    NEW.TEXT = NEW.TEXT<1,LNGG>
+                END ELSE
+                    NEW.TEXT = NEW.TEXT<1,1>
+                END
+*
+            CASE LANG.FLD = "S"         ;* Sub valued
+                LINE.CNT = DCOUNT(NEW.TEXT,VM)
+                FULL.STR = ''
+                FOR CNT = 1 TO LINE.CNT
+                    X = LNGG
+                    IF X > 1 THEN
+                        IF NEW.TEXT<1,CNT,X> = "" THEN
+                            X = 1
+                        END
+                    END
+                    FULL.STR = FULL.STR:' ':NEW.TEXT<1,CNT,X>
+                NEXT CNT
+                NEW.TEXT = TRIM(FULL.STR)
+            END CASE
+        END ELSE    ;* Should not happen
+            NEW.TEXT = ""
+        END
+        GOSUB FORMAT.FLD
+*
+    CASE 1          ;* Text only
+        TEXT.LINE = FIELD(TEXT.LINE,'"',2)
+        TEXT.LINE = FIELD(TEXT.LINE,'"',1)
+        NEW.TEXT = TEXT.LINE
+*
+    END CASE
+*
+    RETURN
+*
+****************
+FORMAT.FLD:
+****************
+* Format date/money values
+*
+    V$FMT = SNF.REC<NR.FMT.FORMAT,TXT.CNT>
+    COMI = NEW.TEXT
+    BEGIN CASE
+    CASE V$FMT = "" ;* Do nothing
+*
+    CASE COMI = ""  ;* Ignore
+*
+    CASE NUM(COMI) AND COMI LT 1000 AND V$FMT[1,4] = "DATE" ;* Call Notice
+        IF COMI = "0" THEN
+            NOTICE.TXT = "CALL"
+        END ELSE
+            NOTICE.TXT = "DAYS NTCE"
+        END
+        CALL TXT(NOTICE.TXT)
+        NEW.TEXT = COMI:" ":NOTICE.TXT
+*
+    CASE NUM(COMI) AND V$FMT = "DATE-D2/"
+        NEW.TEXT = COMI[7,2]:'/':COMI[5,2]:'/':COMI[3,2]
+    CASE NUM(COMI) AND V$FMT = "DATE-D2-"
+        NEW.TEXT = COMI[7,2]:'-':COMI[5,2]:'-':COMI[3,2]
+    CASE NUM(COMI) AND V$FMT = "DATE-D4/"
+        NEW.TEXT = COMI[7,2]:'/':COMI[5,2]:'/':COMI[1,4]
+*
+    CASE FORMAT[1,4] = "IN2D"
+        V$FMT = V$FMT[6,99]
+        FMT.DATE = ""
+        CALL DIETER.DATE(NEW.TEXT,FMT.DATE,V$FMT)
+        NEW.TEXT = FMT.DATE
+*
+    CASE NUM(COMI) AND V$FMT["-",1,1] = "AMOUNT"
+        GOSUB FORMAT.VALUES
+    CASE NUM(COMI) AND V$FMT["-",1,1] = "RATE"
+        CALL IN2R("15", "R")
+        NEW.TEXT = V$DISPLAY
+        NEW.TEXT := V$FMT["-",2,1]      ;* Append % sign
+*
+    END CASE
+*
+* If the field is either multi/sub value field then remove
+* each value & do the formatting,if its an amount field
+* otherwise,just remove each element & concatenate with
+* delimiter string ":VM:" which will be replaced with space
+* in FORMAT.NARR paragraph.
+
+    IF SING.MULTI EQ "M" THEN
+        NEW.TEXT.ARRAY = ''
+        TEMP.COMI = COMI
+        CONVERT SM TO VM IN TEMP.COMI
+        NO.OF.VALUES = DCOUNT(TEMP.COMI,VM)
+        FOR VM.CNT = 1 TO NO.OF.VALUES
+            COMI = TEMP.COMI<1,VM.CNT>
+            IF V$FMT["-",1,1] = "AMOUNT" THEN
+                GOSUB FORMAT.VALUES
+            END ELSE
+                NEW.TEXT = COMI
+            END
+            IF NEW.TEXT.ARRAY THEN
+                NEW.TEXT.ARRAY := @VM:NEW.TEXT    ;* delimiter is the string ":VM:"
+            END ELSE
+                NEW.TEXT.ARRAY = NEW.TEXT
+            END
+        NEXT VM.CNT
+        NEW.TEXT = NEW.TEXT.ARRAY
+    END
+*
+    RETURN
+*
+FORMAT.VALUES:
+
+    BEGIN CASE
+    CASE V$FMT = "AMOUNT-LCY"
+        CURR = LCCY
+    CASE V$FMT = "AMOUNT-FCY"
+        CURR = STMT.REC<AC.STE.CURRENCY>
+        IF CURR = "" THEN
+            CURR = LCCY
+        END
+    CASE 1
+        FLD.NAME = V$FMT["-",2,1]
+        LOCATE FLD.NAME IN STD.REC<SSL.SYS.FIELD.NAME,1> SETTING CNT3 THEN
+            FLD.NO = STD.REC<SSL.SYS.FIELD.NO,CNT3>
+            CURR = APPLIC.REC<FLD.NO>
+            IF CURR = "" THEN
+                CURR = LCCY
+            END
+        END
+    END CASE
+*
+* If the no. of decimals in the amount value is greater
+* than that which is defined in CURRENCY file for the
+* amount currency,then do this conversion before calling IN2AMT.
+    AMT.MASK = ''
+    CALL DBR('CURRENCY':FM:EB.CUR.NO.OF.DECIMALS:FM:'.A',CURR,AMT.MASK)
+    IF FIELD(COMI,'.',2) GT AMT.MASK THEN
+        AMT.MASK = 'MD':AMT.MASK
+        COMI = OCONV(ICONV(COMI,AMT.MASK),AMT.MASK)
+    END
+
+    T1 = ""
+    T1<1> = NEW.TEXT
+    T1<2,1> = '-'
+    T1<2,2> = CURR
+    IF R.USER<EB.USE.AMOUNT.FORMAT> EQ '.,' AND INDEX(COMI,'.',1) THEN
+        CONVERT '.' TO ',' IN COMI
+    END
+    CALL IN2AMT("19",T1)
+    NEW.TEXT = V$DISPLAY
+*
+    RETURN
+END

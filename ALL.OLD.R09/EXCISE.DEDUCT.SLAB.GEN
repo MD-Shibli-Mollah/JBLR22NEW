@@ -1,0 +1,56 @@
+*-----------------------------------------------------------------------------
+* <Rating>-31</Rating>
+*-----------------------------------------------------------------------------
+*************************************************************
+*********Develop By: Zakir **********
+*************Date: 25 DEC 2016 ********
+
+    PROGRAM EXCISE.DEDUCT.SLAB.GEN
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.COMPANY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.COMP = 'F.COMPANY'
+    F.COMP = ''
+    Y.BRANCH.STATUS.POS=''
+    Y.DEDUCT.RATE = '150':@FM:'500':@FM:'1500':@FM:'7500':@FM:'15000'
+    Y.SOURCE="BUILD.CONTROL"
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.COMP,F.COMP)
+    CALL GET.LOC.REF("COMPANY","BRANCH.STATUS",Y.BRANCH.STATUS.POS)
+
+    RETURN
+
+PROCESS:
+    SEL.CMD='SELECT ':FN.COMP
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+    LOOP
+        REMOVE  COMP.ID FROM SEL.LIST SETTING Y.POS
+    WHILE COMP.ID:Y.POS
+        CALL F.READ(FN.COMP,COMP.ID,R.COMP,F.COMP,ERR.CODE.COMP)
+        Y.BRANCH.STATUS = R.COMP<EB.COM.LOCAL.REF,Y.BRANCH.STATUS.POS>
+
+        IF Y.BRANCH.STATUS EQ 'SINGLE' THEN
+            FOR K = 1 TO DCOUNT(Y.DEDUCT.RATE,@FM)
+                Y.RATE = FIELD(Y.DEDUCT.RATE,@FM,K)
+                Y.MESSAGE = "ENQUIRY.REPORT,ANN.EXC.DUTY/V/PROCESS,//":COMP.ID:",ER.ANN.EXC.DUTY.":Y.RATE
+                MSG.ID = ''
+                CALL OFS.POST.MESSAGE(Y.MESSAGE, MSG.ID , Y.SOURCE, "DMUSER")
+                CALL JOURNAL.UPDATE ('TEST')
+            NEXT
+        END
+    REPEAT
+    RETURN
+END

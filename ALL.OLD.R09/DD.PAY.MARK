@@ -1,0 +1,51 @@
+*-------------------------------------------------------------------------------*
+* <Rating>-31</Rating>                                                          *
+*PURPOSE: MARK DD GARBAGE TRANSACTION                                           *
+*DEVELOPED BY: KAMRAN MALLICK                                                   *
+*MODIFIED BY: NA                                                                *
+*CREATION DATE: 07 OCTOBER 2018                                                 *
+*MODIFICATION DATE:NA                                                           *
+*-------------------------------------------------------------------------------*
+    PROGRAM DD.PAY.MARK
+!SUBROUTINE DD.PAY.MARK
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.ABL.H.DD.DETAILS
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+
+*----
+INIT:
+*----
+    FN.DD.DET = 'F.ABL.H.DD.DETAILS'
+    F.DD.DET = ''
+    Y.CO.ID = '...':ID.COMPANY[6,4]:'...'
+    RETURN
+
+*--------
+OPENFILE:
+*--------
+    CALL OPF(FN.DD.DET,F.DD.DET)
+    RETURN
+
+*-------
+PROCESS:
+*-------
+    SEL.CMD = 'SELECT ':FN.DD.DET:' WITH @ID LIKE ...':Y.CO.ID:'...'
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+    LOOP
+        REMOVE Y.DD.ID FROM SEL.LIST SETTING POS
+    WHILE Y.DD.ID : POS
+        IF FIELD(Y.DD.ID,'.',3) EQ ID.COMPANY[6,4] AND FIELD(Y.DD.ID,'.',1) EQ 'DD' THEN
+            CALL F.READ(FN.DD.DET,Y.DD.ID,R.DD,F.DD.DET,Y.DD.ERR)
+            R.DD<DDT.RESERVED.1> = 'Y'
+            CALL F.WRITE(FN.DD.DET,Y.DD.ID,R.DD)
+            CALL JOURNAL.UPDATE ('TEST')
+            CRT R.DD
+        END
+    REPEAT
+    RETURN
+END

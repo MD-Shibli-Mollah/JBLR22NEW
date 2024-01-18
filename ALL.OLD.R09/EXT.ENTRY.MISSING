@@ -1,0 +1,152 @@
+*-----------------------------------------------------------------------------
+* <Rating>821</Rating>
+*-----------------------------------------------------------------------------
+!********************************************************************
+! ROUTINE FOR       : Extract Entry Missing Report for CIBTA and IBFTA
+! DEV BY            : Md. Imran Hasan
+! UPDATE DATE       : 20210906
+!********************************************************************
+
+    SUBROUTINE EXT.ENTRY.MISSING(Y.REC)
+
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.ABL.H.NM.ER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INIT
+
+    RETURN
+
+INIT:
+
+    FN.NM = "F.ABL.H.NM.ER"
+    F.NM = ""
+    FN.NM.BR="F.ABL.H.BRANCH.CODE"
+    F.NM.BR=""
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+    FN.STMT.ENTRY = "F.STMT.ENTRY"
+    F.STMT.ENTRY = ""
+
+
+    LOCATE 'START.DATE' IN ENQ.SELECTION<2,1> SETTING START.DATE.POS THEN
+        Y.START.DATE =  ENQ.SELECTION<4,START.DATE.POS>
+    END
+    LOCATE 'END.DATE' IN ENQ.SELECTION<2,1> SETTING END.DATE.POS THEN
+        Y.END.DATE =  ENQ.SELECTION<4,END.DATE.POS>
+    END
+    LOCATE 'CATEGORY' IN ENQ.SELECTION<2,1> SETTING CAT.POS THEN
+        Y.CATEGORY =  ENQ.SELECTION<4,CAT.POS>
+    END
+
+!Y.START.DATE = "20200727"
+!Y.END.DATE   = "20200727"
+!Y.CATEGORY   = 12820
+
+    CALL CDD ('', Y.START.DATE, Y.END.DATE, Y.NO.DAYS)
+
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.NM,F.NM)
+    CALL OPF(FN.NM.BR,F.NM.BR)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.STMT.ENTRY,F.STMT.ENTRY)
+    RETURN
+
+PROCESS:
+
+    Y.FROM.DATE = Y.START.DATE
+    Y.TO.DATE   = Y.FROM.DATE
+    Y.ID.COMPANY = ID.COMPANY
+
+!-------------------------List all account with category-----------------------
+
+    SEL.CMD.AC = "SELECT ":FN.AC:" WITH CO.CODE EQ ":Y.ID.COMPANY:" AND CATEGORY EQ ":Y.CATEGORY
+    CALL EB.READLIST(SEL.CMD.AC,SEL.AC.LIST,"",NO.OF.RECORD,RET.CODE)
+    Y.AC.LIST = SEL.AC.LIST
+    Y.COUNT = 0
+
+    FOR J = 1 TO Y.NO.DAYS + 1
+
+        FOR K = 1 TO DCOUNT(Y.AC.LIST,@FM)
+
+            Y.AC.ID = FIELD(Y.AC.LIST,@FM,K)
+
+            CALL EB.ACCT.ENTRY.LIST(Y.AC.ID,Y.FROM.DATE,Y.TO.DATE,Y.AC.STMT.LIST,Y.AC.OPEN.BAL,Y.AC.ER)
+
+            Y.FT.C = DCOUNT(Y.AC.STMT.LIST,@FM)
+            Y.COUNT = Y.FT.C
+
+            FOR I = 1 TO Y.FT.C
+
+                Y.STMT.ID = FIELD(Y.AC.STMT.LIST,@FM,I)
+                CALL F.READ(FN.STMT.ENTRY, Y.STMT.ID , R.STMT, F.STMT.ENTRY , Y.ERR)
+
+                Y.STMT.REC.STATUS = R.STMT<AC.STE.RECORD.STATUS>
+
+                IF Y.STMT.REC.STATUS NE 'REVE' THEN
+
+                    Y.TR.REF = R.STMT<AC.STE.TRANS.REFERENCE>
+                    Y.TXN.AMT = R.STMT<AC.STE.AMOUNT.LCY>
+                    Y.TXN.DATE = R.STMT<AC.STE.PROCESSING.DATE>
+
+                    IF Y.TXN.AMT LT 0 THEN
+                        Y.AMT.CRDR = 'DR'
+                    END ELSE
+                        Y.AMT.CRDR = 'CR'
+                    END
+
+                    IF Y.TR.REF EQ '' THEN
+                        Y.TR.REF = R.STMT<AC.STE.OUR.REFERENCE>
+                    END
+
+                    Y.NM.ID = Y.TR.REF
+                    CALL F.READ(FN.NM,Y.NM.ID,R.NM,F.NM,Y.ERR)
+
+                    IF R.NM NE '' THEN
+
+                        Y.AMT = ABS(Y.TXN.AMT)
+                        Y.NMAMT = R.NM<NM.AMOUNT>
+                        Y.NM.CRDR = R.NM<NM.DR.CR.MARKER>
+
+                        IF Y.AMT NE Y.NMAMT OR Y.NM.CRDR NE Y.AMT.CRDR THEN
+                            Y.NM.ID = Y.STMT.ID
+                            CALL F.READ(FN.NM,Y.NM.ID,R.NM,F.NM,Y.ERR.NM)
+                        END
+
+                    END
+                    ELSE
+                        Y.NM.ID = Y.STMT.ID
+                        CALL F.READ(FN.NM,Y.NM.ID,R.NM,F.NM,Y.ERR.NM)
+                    END
+
+
+                    IF R.NM EQ '' THEN
+
+                        Y.REC<-1> = Y.AC.ID:'|':Y.NM.ID:'|':Y.TR.REF:'|':Y.TXN.DATE:'|':Y.TXN.AMT:'|':Y.AMT.CRDR
+
+                    END
+                END
+            NEXT I
+
+        NEXT K
+
+!--------increasing DATE-----------------
+        CALL CDT('', Y.FROM.DATE, '+1W')
+        CALL CDT('', Y.TO.DATE, '+1W')
+!----------------------------------------
+
+    NEXT J
+
+    RETURN
+
+END

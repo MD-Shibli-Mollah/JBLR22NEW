@@ -1,0 +1,93 @@
+*-----------------------------------------------------------------------------
+* <Rating>-45</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE E.JBL.OUTWARD.TD.CONV
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.CHEQUE.COLLECTION
+    $INSERT GLOBUS.BP I_F.TELLER
+
+    GOSUB INIT
+    GOSUB PROCESS
+    GOSUB UPDATE
+*************************************************************************************
+INIT:
+************************************************************************************
+    FN.CHEQUE.COLLECTION = "F.CHEQUE.COLLECTION" ; F.CHEQUE.COLLECTION = ""
+    CALL OPF(FN.CHEQUE.COLLECTION,F.CHEQUE.COLLECTION)
+
+    FN.TELLER = "F.TELLER" ; F.TELLER = ""
+    CALL OPF(FN.TELLER,F.TELLER)
+
+    FN.COMPANY = "F.COMPANY" ; F.COMPANY = ""
+    CALL OPF(FN.COMPANY,F.COMPANY)
+
+    EXPOSURE.DATE = O.DATA
+    Y.AMT.N = 0
+    Y.CHEQUE.CLEAR.AMT.C.N =0
+    Y.CHEQUE.CLEAR.AMT.U.N=0
+    Y.AMT.H =0
+    Y.CHEQUE.CLEAR.AMT.C.H =0
+    Y.CHEQUE.RET.AMT.U.H=0
+
+    Y.CNT.N= 0
+    Y.CHQ.COUNT.C.N =0
+    Y.RET.COUNT.U.N=0
+    Y.CNT.H = 0
+    Y.CHQ.COUNT.C.H =0
+    Y.RET.COUNT.U.H =0
+    Y.CNT.H =0
+    Y.CHQ.COUNT.C.H=0
+    Y.RET.COUNT.U.H=0
+
+    RETURN
+
+***********************************************************************************
+PROCESS:
+*********************************************************************************
+
+    Y.ID.COM = ID.COMPANY
+
+    SEL = "SELECT ":FN.CHEQUE.COLLECTION: " WITH EXPOSURE.DATE EQ ":O.DATA:" AND CO.CODE EQ ":Y.ID.COM
+
+    CALL EB.READLIST(SEL,SEL.LIST,'',SEL.CNT,SEL.ERR)
+    LOOP
+        REMOVE Y.CC.ID FROM SEL.LIST SETTING Y.CC.POS
+    WHILE Y.CC.ID:Y.CC.POS
+        CALL F.READ(FN.CHEQUE.COLLECTION,Y.CC.ID,R.CC.REC,F.CHEQUE.COLLECTION,Y.ERR1)
+        CALL GET.LOC.REF('CHEQUE.COLLECTION',"CHQ.COLL.STATUS",LOCAL.REF.F.POS)
+        Y.CHQ.STATUS = R.CC.REC<CHQ.COL.LOCAL.REF,LOCAL.REF.F.POS>
+        Y.TXN.ID = R.CC.REC<CHQ.COL.TXN.CODE>
+        Y.CHQ.CLEAR.ST= R.CC.REC<CHQ.COL.CHQ.STATUS>
+        IF Y.CHQ.STATUS NE "RETURNED"  AND Y.CHQ.CLEAR.ST EQ "CLEARED" AND Y.TXN.ID EQ 92 THEN
+            Y.CHEQUE.CLEAR.AMT.C.N += R.CC.REC<CHQ.COL.AMOUNT>
+            Y.CHQ.COUNT.C.N += 1
+        END
+        IF Y.CHQ.STATUS EQ "RETURNED"  AND Y.CHQ.CLEAR.ST EQ "CLEARED" AND Y.TXN.ID EQ 92 THEN
+            Y.CHEQUE.CLEAR.AMT.U.N += R.CC.REC<CHQ.COL.AMOUNT>
+            Y.RET.COUNT.U.N += 1
+        END
+
+    REPEAT
+
+    RETURN
+*******************************************************************************
+UPDATE:
+*************************************************************************
+
+    Y.AMT.N = Y.CHEQUE.CLEAR.AMT.C.N +  Y.CHEQUE.CLEAR.AMT.U.N
+    Y.AMT.H = Y.CHEQUE.CLEAR.AMT.C.H + Y.CHEQUE.RET.AMT.U.H
+    Y.CNT.N=  Y.CHQ.COUNT.C.N + Y.RET.COUNT.U.N
+    Y.CNT.H =Y.CHQ.COUNT.C.H +Y.RET.COUNT.U.H
+!Y.STR1="Total Same Day Honored Inst No :": Y.CHQ.COUNT.C.H :" (Total Inst: ":Y.CNT.H:" Return Inst : ":Y.RET.COUNT.U.H: " )" :"H :": Y.CHEQUE.CLEAR.AMT.C.H  :"(T: ": Y.AMT.H :" -R:":Y.CHEQUE.RET.AMT.U.H:")"
+    Y.STR2="Total TD Honored Inst No   :" :Y.CHQ.COUNT.C.N :" (Total Inst: ":Y.CNT.N:" Return Inst : ":Y.RET.COUNT.U.N: " )" :"H :": Y.CHEQUE.CLEAR.AMT.C.N  :"(T: ":Y.AMT.N:" -R:":Y.CHEQUE.CLEAR.AMT.U.N:" )"
+*Y.VAL = Y.CHQ.COUNT.C.N:"*":Y.CHQ.COUNT.C.H:"*":Y.CHEQUE.CLEAR.AMT.C.N:"*"
+*Y.VAL:= Y.CHEQUE.CLEAR.AMT.C.H:"*":Y.RET.COUNT.U.N:"*":Y.RET.COUNT.U.H:"*"
+*Y.VAL:= Y.CHEQUE.CLEAR.AMT.U.N:"*":Y.CHEQUE.RET.AMT.U.H :"*":Y.STR1 : "*":Y.STR2
+*Y.ARRAY<-1> = Y.STR1 : "*" : Y.STR2
+    Y.ARRAY<-1> = Y.STR2
+    O.DATA = Y.ARRAY
+    RETURN
+END

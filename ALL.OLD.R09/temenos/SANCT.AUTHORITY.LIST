@@ -1,0 +1,11 @@
+    SUBROUTINE SANCT.AUTHORITY.LIST(Y.DATA)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+
+    Y.DATA = 'Head of Branch':FM:'Head of Corp-2':FM:'Head of Corp-1':FM:'Head of JBCB':FM:'Head of L.O'
+!                  1                   2                   3                   4                 5
+    Y.DATA := FM:'Area Head':FM:'Division Head':FM:'H.O Divisional Head':FM:'H.O DMD':FM:'CEO & MD':FM:'BoD'
+!                      6               7                    8                  9              10        11
+    RETURN
+END

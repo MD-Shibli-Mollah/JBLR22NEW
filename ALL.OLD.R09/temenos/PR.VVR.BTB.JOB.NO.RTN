@@ -1,0 +1,86 @@
+*-----------------------------------------------------------------------------
+* <Rating>-32</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VVR.BTB.JOB.NO.RTN
+*--------------------------------------------------------------------
+*this gives the job entitlement when the job number given
+*--------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LETTER.OF.CREDIT
+    $INSERT I_F.PR.H.BTB.JOB.REGISTER
+
+    GOSUB INIT
+    GOSUB OPEN
+    GOSUB CHK.ENT
+    RETURN
+
+INIT:
+
+    FN.LETTER.OF.CREDIT="F.LETTER.OF.CREDIT"
+    F.LETTER.OF.CREDIT=""
+    FN.PR.H.BTB.JOB.REGISTER="F.PR.H.BTB.JOB.REGISTER"
+    F.PR.BTB.JOB.REGISTER=""
+
+
+    Y.ENT.AMT.FCY=''
+    Y.ENT.AMT.LCY=''
+    Y.ENT.AMT=''
+
+    RETURN
+
+OPEN:
+
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+    CALL OPF(FN.PR.H.BTB.JOB.REGISTER,F.PR.H.BTB.JOB.REGISTER)
+    RETURN
+
+CHK.ENT:
+    Y.ID=ID.NEW
+
+*gets the local ref position
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","JOB.NO",Y.JOB.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","JOB.ENTITLEMENT",Y.JOB.ENT.POS)
+    CALL F.READ(FN.LETTER.OF.CREDIT,Y.ID,R.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT,Y.ERR)
+*displays the job entitlement value when job number given
+    Y.JOB.NO=COMI
+    Y.LC.AMOUNT=R.NEW(TF.LC.LC.AMOUNT)
+    Y.CCY=R.NEW(TF.LC.LC.CURRENCY)
+    AMT1=''
+    AMT2=''
+!Y.JOB.NO=R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.POS>
+    CALL F.READ(FN.PR.H.BTB.JOB.REGISTER,Y.JOB.NO,R.PR.H.BTB.JOB.REGISTER,F.PR.H.BTB.JOB.REGISTER,Y.ERR)
+    Y.ENT.AMT.FCY=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.FC>
+    Y.ENT.AMT.LCY=R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.LCY>
+
+    IF Y.ENT.AMT.FCY EQ '' THEN
+        R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS> = Y.ENT.AMT.LCY
+        Y.ENT.AMT = Y.ENT.AMT.LCY
+    END ELSE
+        R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS> = Y.ENT.AMT.FCY
+        Y.ENT.AMT = Y.ENT.AMT.FCY
+    END
+
+    Y.EXP.LC.CCY = R.PR.H.BTB.JOB.REGISTER<BTB.JOB.EXPORT.LC.CY,1>
+    IF Y.CCY NE LCCY THEN
+        CALL EXCHRATE('1',Y.CCY,Y.LC.AMOUNT,LCCY,AMT1,'','','','',RET.CODE)
+        Y.LC.AMOUNT1=AMT1
+    END ELSE
+        Y.LC.AMOUNT1=Y.LC.AMOUNT
+    END
+
+    IF Y.CCY NE Y.EXP.LC.CCY THEN
+        CALL EXCHRATE('1',LCCY,Y.LC.AMOUNT1,Y.EXP.LC.CCY,AMT2,'','','','',RET.CODE)
+        Y.LC.AMOUNT2=AMT2
+    END ELSE
+        Y.LC.AMOUNT2=Y.LC.AMOUNT
+    END
+
+    IF Y.LC.AMOUNT2 GT Y.ENT.AMT THEN
+        Y.DIFF=Y.LC.AMOUNT2 - R.PR.H.BTB.JOB.REGISTER<BTB.JOB.AVL.ENT.FC>
+        TEXT="LC AMOUNT EXCEEDS":"BY":SPACE(2):Y.DIFF
+        CALL STORE.OVERRIDE(CURR.NO)
+    END
+
+    RETURN
+END

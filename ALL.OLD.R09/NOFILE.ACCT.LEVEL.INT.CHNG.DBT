@@ -1,0 +1,471 @@
+*-----------------------------------------------------------------------------
+* <Rating>-108</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE NOFILE.ACCT.LEVEL.INT.CHNG.DBT(Y.ARR)
+*-------------------------------------------------------------------------
+* This is a Nofile Enquiry Routine used to display the status of interest rate,
+* changed by the internal user in particular date.
+* To display based on date range in input from report selection field.
+*
+*@author        manjunath.s@sepit.net
+*-------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCT.GEN.CONDITION
+    $INSERT GLOBUS.BP I_F.BASIC.INTEREST
+    $INSERT GLOBUS.BP I_F.GROUP.DEBIT.INT
+*-------------------------------------------------------------------------
+* Main controlling section:
+*-------------------------------------------------------------------------
+    GOSUB INITIALISATION
+    GOSUB MAIN.PROCESS
+
+    RETURN
+
+*-------------------------------------------------------------------------
+* Subroutine Section:
+* File Opening and Variable set up
+
+INITIALISATION:
+
+*-------------------------------------------------------------------------
+    FN.ACCT.GEN.CONDITION = "F.ACCT.GEN.CONDITION"
+    F.ACCT.GEN.CONDITION = ""
+    R.ACCT.GEN.CONDITION = ""
+    CALL OPF(FN.ACCT.GEN.CONDITION,F.ACCT.GEN.CONDITION)
+
+    FN.BASIC.INTEREST = "F.BASIC.INTEREST"
+    F.BASIC.INTEREST = ""
+    R.BASIC.INTEREST = ""
+    CALL OPF(FN.BASIC.INTEREST,F.BASIC.INTEREST)
+
+    FN.GROUP.DEBIT.INT = "F.GROUP.DEBIT.INT"
+    F.GROUP.DEBIT.INT = ""
+    R.GROUP.DEBIT.INT = ""
+    CALL OPF(FN.GROUP.DEBIT.INT,F.GROUP.DEBIT.INT)
+
+    RETURN
+
+
+*-------------------------------------------------------------------------
+* Main Subroutine processing:
+* Locating the field of Category and Date in the ENQUIRY which should be a Mandatory input
+
+MAIN.PROCESS:
+
+*-------------------------------------------------------------------------
+
+    LOCATE "CONDITION.CODE" IN  D.FIELDS<1> SETTING POS THEN
+        Y.CATEGORY = D.RANGE.AND.VALUE<POS>
+    END
+
+    LOCATE "Y.DATE.RG" IN  D.FIELDS<1> SETTING POS1 THEN
+        Y.DATE.RG = D.RANGE.AND.VALUE<POS1>
+    END
+
+    GOSUB VALIDATE.DATA
+    RETURN
+
+*-------------------------------------------------------------------------
+VALIDATE.DATA:
+*-------------------------------------------------------------------------
+    SEL.CMD = "SELECT ":FN.GROUP.DEBIT.INT
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORDS,RET.CODE)
+    LOOP
+        REMOVE REC.ID FROM SEL.LIST SETTING REC.POS
+    WHILE REC.ID:REC.POS
+        Y.ID = REC.ID
+        Y.LEN = LEN(Y.ID)
+        Y.LEN2 = Y.LEN - 11
+        Y.LEN3 = Y.LEN2 + 1
+        Y.LEN4 = Y.LEN3 + 3
+        Y.CAT = Y.ID[1,Y.LEN2]
+        IF Y.CATEGORY EQ Y.CAT THEN
+            Y.CATG = Y.CAT
+            Y.CURR = Y.ID[Y.LEN3,3]
+            Y.CAT.DATE = Y.ID[Y.LEN4,Y.LEN]
+            Y.GP.DEBIT<-1> = Y.CATG:" @ ":Y.CURR:" @ ":Y.CAT.DATE
+            Y.ID.DEBIT<-1> = Y.ID
+        END
+        Y.LEN = '' ; Y.LEN2 = '' ; Y.LEN3 = '' ; Y.LEN4 = ''
+    REPEAT
+
+*-------------------------------------------------------------------------
+    Y.COUNT =  DCOUNT(Y.ID.DEBIT,@FM)
+*To get the unique currency from the array
+    GOSUB GET.CURRENCY
+*-------------------------------------------------------------------------
+    Y.CURNC = DCOUNT(Y.CURNCY,@FM)
+*To get the Date range between dates of record in GCI file
+    GOSUB GET.VAL.DATA
+*-------------------------------------------------------------------------
+
+    Y.COUNT3 = DCOUNT(Y.FIN.DATE,@FM)
+    IF Y.COUNT3 GT '0' THEN
+        FOR Y.A1 = 1 TO Y.COUNT3
+            Y.FIN.D = FIELD(Y.FIN.DATE,FM,Y.A1,1)
+            Y.FIN.CAT = TRIM(FIELD(Y.FIN.D,"@",1))
+            Y.FIN.CUR = TRIM(FIELD(Y.FIN.D,"@",2))
+            Y.FIN.DAT = TRIM(FIELD(Y.FIN.D,"@",3))
+            Y.FINAL.DATE<-1> = Y.FIN.CAT:Y.FIN.CUR:Y.FIN.DAT
+            Y.FIN.D = '' ; Y.FIN.CAT = '' ; Y.FIN.CUR = '' ; Y.FIN.DAT = ''
+        NEXT Y.A1
+    END
+
+*-------------------------------------------------------------------------
+
+    Y.COUNT4 = DCOUNT(Y.FINAL.DATE,@FM)
+    FOR Y.A2 = 1 TO Y.COUNT4
+        Y.G.ID = FIELD(Y.FINAL.DATE,FM,Y.A2,1)
+        Y.LEN = LEN(Y.G.ID)
+        Y.LEN2 = Y.LEN - 11
+        Y.LEN3 = Y.LEN2 + 1
+        Y.LEN4 = Y.LEN3 + 3
+        Y.CURRENCY = Y.G.ID[Y.LEN3,3]
+        Y.DR.DATE = TRIM(Y.G.ID[Y.LEN4,Y.LEN])
+        CALL F.READ(FN.GROUP.DEBIT.INT,Y.G.ID,R.GROUP.DEBIT.INT,F.GROUP.DEBIT.INT,Y.ERR)
+        Y.R.CINT  = R.GROUP.DEBIT.INT<IC.GDI.DR.BASIC.RATE>
+        Y.RE.CNT = DCOUNT(Y.R.CINT,@VM)
+        Y.DR.INT = R.GROUP.DEBIT.INT<IC.GDI.DR.BASIC.RATE>
+        IF Y.DR.INT NE '' AND Y.RE.CNT GT '0' THEN
+
+*To get Floating interest change from Basic Interest file
+            GOSUB BASIC.INT.DATA
+
+        END ELSE
+            Y.DR.DATE = TRIM(Y.G.ID[Y.LEN4,Y.LEN])
+            Y.DR.INT = R.GROUP.DEBIT.INT<IC.GDI.DR.INT.RATE>
+            Y.DR.AMT = R.GROUP.DEBIT.INT<IC.GDI.DR.LIMIT.AMT>
+            Y.D.SBY = R.GROUP.DEBIT.INT<IC.GDI.INPUTTER>
+            Y.DR.SBY = TRIM(FIELD(Y.D.SBY,"_",2))
+            Y.ARR<-1> = Y.CURRENCY:"*":Y.DR.INT:"*":Y.DR.AMT:"*":Y.DR.DATE:"*":Y.DR.SBY
+        END
+        Y.CURRENCY = '' ; Y.DR.INT = '' ; Y.DR.SBY = '' ; Y.DR.DATE = '' ; Y.REC.DATA = ''
+        Y.LEN = '' ; Y.LEN2 = '' ; Y.LEN3 = '' ; Y.LEN4 = '' ; Y.CK = '' ; Y.CK.LG = ''
+    NEXT Y.A2
+    Y.GP.DEBIT = ''
+    Y.ID.DEBIT = ''
+    Y.FINAL.DATE = ''
+    Y.FIN.DATE = ''
+    Y.CURNCY = ''
+
+    RETURN
+*validate.data gosub's return
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+
+*-------------------------------------------------------------------------
+*Gosub of subroutine related starts from here
+*-------------------------------------------------------------------------
+GET.CURRENCY:
+*-------------------------------------------------------------------------
+*To taking the unique currency from the list
+
+    FOR Y.M1 = 1 TO Y.COUNT
+        Y.DEB.INT = FIELD(Y.ID.DEBIT,FM,Y.M1)
+        FLAG = '0'
+        Y.TEMP.CCY = ''
+        Y.LN = LEN(Y.DEB.INT)
+        Y.LN2 = LEN(Y.CATEGORY)
+        Y.LN3 = Y.LN2 + 1
+        Y.CCY = Y.DEB.INT[Y.LN3,3]
+        Y.COUNT2 = Y.COUNT
+        FOR Y.M2 =  1 TO Y.COUNT2
+            Y.TEMP.CCY = FIELD(Y.CURNCY,FM,Y.M2,1)
+            IF Y.CCY = Y.TEMP.CCY THEN
+                FLAG = '1'
+            END
+        NEXT Y.M2
+        IF FLAG = '0' THEN
+            Y.CURNCY<-1> = Y.CCY
+        END
+        Y.LN = '' ; Y.LN2 = '' ; Y.LN3 = ''
+    NEXT Y.M1
+
+    RETURN
+
+*-------------------------------------------------------------------------
+GET.VAL.DATA:
+*-------------------------------------------------------------------------
+*To data of with and without range from selection criteria
+
+    FOR Y.PP = 1 TO Y.CURNC
+        Y.CCY = FIELD(Y.CURNCY,FM,Y.PP,1)
+        Y.CNT =  DCOUNT(Y.GP.DEBIT,@FM)
+        Y.D.RG1 = LEN(Y.DATE.RG)
+        Y.DT.RG1 = Y.DATE.RG[1,8]
+        Y.DT.RG2 = Y.DATE.RG[10,Y.D.RG1]
+
+*To get dates range date's in particular array
+        GOSUB GET.VAL.DATA2
+
+*To get dates for Range without range
+        GOSUB GET.VAL.DATA3
+
+    NEXT Y.PP
+
+    RETURN
+
+
+*-------------------------------------------------------------------------
+GET.VAL.DATA2:
+*-------------------------------------------------------------------------
+*To get dates range date's in particular array
+
+    FOR Y.PP2 = 1 TO Y.CNT
+        Y.DT.P = FIELD(Y.GP.DEBIT,FM,Y.PP2,1)
+        Y.DT.POS1 = FIELD(Y.DT.P,"@",3)
+        Y.CUR.POS1 = TRIM(FIELD(Y.DT.P,"@",2))
+        IF Y.CCY EQ Y.CUR.POS1 THEN
+            IF (Y.DT.POS1 GE Y.DT.RG1) AND (Y.DT.POS1 LE Y.DT.RG2) THEN
+                Y.FIN.DATE<-1> = FIELD(Y.GP.DEBIT,FM,Y.PP2,1)
+            END ELSE
+                IF Y.DT.POS1 LT Y.DT.RG1 THEN
+                    Y.CCY.GRP = FIELD(Y.GP.DEBIT,FM,Y.PP2,1)
+                    Y.FIN.DATE2<-1> = FIELD(Y.GP.DEBIT,FM,Y.PP2,1)
+                    Y.CUR.PP = TRIM(FIELD(Y.CCY.GRP,"@",2))
+                END
+            END
+        END
+    NEXT Y.PP2
+    RETURN
+*-------------------------------------------------------------------------
+
+*-------------------------------------------------------------------------
+GET.VAL.DATA3:
+*-------------------------------------------------------------------------
+*To get dates for without range.
+*Here without date range is not available any interest change then it will,
+*take from the previous dates given from the range
+
+    Y.F2 = DCOUNT(Y.FIN.DATE2,@FM)
+    IF Y.F2 GT '0' THEN
+        Y.F1 = DCOUNT(Y.FIN.DATE,@FM)
+        Y.FLG = 0
+
+*To taking the flag value
+        GOSUB GET.VAL.DATA4
+
+        IF Y.FLG = 0 THEN
+*To take the value to array
+            GOSUB GET.VAL.DATA5
+
+        END
+        Y.FIN.DATE2 = ''
+        Y.F1 = '' ; Y.FLG = '' ; Y.AAA = '' ; Y.AAA1 = '' ; Y.ACR = ''
+        Y.F2 = '' ; Y.AAA2 = '' ; Y.ZZ1 = '' ; Y.ZCR = ''
+    END
+    RETURN
+*-------------------------------------------------------------------------
+
+*-------------------------------------------------------------------------
+GET.VAL.DATA4:
+*-------------------------------------------------------------------------
+*To checking the currency for with range data and without range data
+*To identitify the currency of whether available in with range data
+*If its Not there the return the flag 1 or else flag will remains 0
+
+    FOR Y.AAA = 1 TO Y.F2
+        Y.AAA1 = FIELD(Y.FIN.DATE2,FM,Y.AAA,1)
+        Y.ACR = TRIM(FIELD(Y.AAA1,"@",2))
+        IF Y.F1 GT '0' THEN
+            FOR Y.AAA2 = 1 TO Y.F1
+                Y.ZZ1 = FIELD(Y.FIN.DATE,FM,Y.AAA2,1)
+                Y.ZCR = TRIM(FIELD(Y.ZZ1,"@",2))
+                IF Y.ACR EQ Y.ZCR THEN
+                    Y.FLG = 1
+                END
+            NEXT Y.AAA2
+        END ELSE
+            Y.FLG = 0
+        END
+    NEXT Y.AAA
+    RETURN
+*-------------------------------------------------------------------------
+
+*-------------------------------------------------------------------------
+GET.VAL.DATA5:
+*-------------------------------------------------------------------------
+*To identify the nearest date for from date and fetch the array data
+
+    FOR Y.PP3 = 1 TO Y.F2
+        Y.D1 = FIELD(Y.FIN.DATE2,FM,Y.PP3,1)
+        Y.DD.C = TRIM(FIELD(Y.D1,"@",1))
+        Y.DD.CU = TRIM(FIELD(Y.D1,"@",2))
+        Y.DD.DT = TRIM(FIELD(Y.D1,"@",3))
+        Y.DDD<-1> = Y.DD.DT
+    NEXT Y.PP3
+    Y.DD.S = SORT(Y.DDD)
+    Y.DD.CNT = DCOUNT(Y.DD.S,@FM)
+    FOR Y.PP4 = 1 TO Y.DD.CNT
+        Y.DD.DATA = FIELD(Y.DD.S,FM,Y.DD.CNT,1)
+    NEXT Y.PP4
+    Y.CNCT.DATA<-1> = Y.CATEGORY:" @ ":Y.CUR.PP:" @ ":Y.DD.DATA
+    Y.FIN.DATE<-1> = Y.CNCT.DATA
+    Y.FIN.DATE2 = '' ; Y.F2 = '' ; Y.DDD = '' ; Y.DD.DATA = ''
+    Y.CNCT.DATA = ''
+
+    RETURN
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+
+*-------------------------------------------------------------------------
+BASIC.INT.DATA:
+*-------------------------------------------------------------------------
+*To fetching data from Basic Interest file
+    FOR Y.R.A1 = 1 TO Y.RE.CNT
+        Y.DR.INT = R.GROUP.DEBIT.INT<IC.GDI.DR.BASIC.RATE,Y.R.A1>
+        Y.DR.AMT = R.GROUP.DEBIT.INT<IC.GDI.DR.LIMIT.AMT,Y.R.A1>
+        IF Y.DR.INT NE '' THEN
+            Y.REC.ID = Y.DR.INT:Y.CURRENCY
+            SELECT.CMD = "SELECT ":FN.BASIC.INTEREST:" WITH @ID LIKE ":Y.REC.ID:"..."
+            CALL EB.READLIST(SELECT.CMD,SELECT.LIST,"",NO.OF.RECORDS,RET.CODE)
+
+*To find range and with ranged data in basic interest file
+            GOSUB BASIC.INT.DATA2
+
+*To find the Previous date of from given date range
+            GOSUB BASIC.INT.DATA4
+
+            IF Y.R.CNT GT '0' THEN
+
+*To get the Final out data of Floating interest from with range of data
+                GOSUB BASIC.INT.DATA5
+
+            END ELSE
+
+*To get the Final out data of Floating interest from without range of data
+                GOSUB BASIC.INT.DATA6
+
+            END
+
+        END ELSE
+
+*To get the Final out data of Fixed interest from with range of data
+            GOSUB BASIC.INT.DATA7
+
+        END
+    NEXT Y.R.A1
+
+    RETURN
+
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+BASIC.INT.DATA2:
+*-------------------------------------------------------------------------
+*To get the range and without range data from record variable
+    LOOP
+        REMOVE REC.ID FROM SELECT.LIST SETTING REC.POS
+    WHILE REC.ID:REC.POS
+        Y.R.ID = REC.ID
+        Y.LEN = LEN(Y.R.ID)
+        Y.LEN2 = Y.LEN - 11
+        Y.LEN3 = Y.LEN2 + 1
+        Y.LEN4 = Y.LEN3 + 3
+        Y.REC.DATA<-1> = Y.R.ID[Y.LEN4,Y.LEN]
+    REPEAT
+    Y.D.RG1 = LEN(Y.DATE.RG)
+    Y.DT.RG1 = Y.DATE.RG[1,8]
+    Y.DT.RG2 = Y.DATE.RG[10,Y.D.RG1]
+
+*To get differenciate the values in different array variables
+    GOSUB BASIC.INT.DATA3
+
+
+    RETURN
+
+*-------------------------------------------------------------------------
+
+*-------------------------------------------------------------------------
+BASIC.INT.DATA3:
+*-------------------------------------------------------------------------
+*To get differenciate the values in different array variables
+
+    Y.TT.CNT = DCOUNT(Y.REC.DATA,@FM)
+    LOOP
+        REMOVE R.ID FROM Y.REC.DATA SETTING R.POS
+    WHILE R.ID:R.POS
+        IF (R.ID GE Y.DT.RG1) AND (R.ID LE Y.DT.RG2) THEN
+            Y.CK<-1> = R.ID
+        END ELSE
+            IF R.ID LT Y.DT.RG1 THEN
+                Y.CK.LG<-1> = R.ID
+            END
+        END
+    REPEAT
+
+    RETURN
+
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+BASIC.INT.DATA4:
+*-------------------------------------------------------------------------
+*To find the Previous date of from given date range
+
+    Y.R.CNT = DCOUNT(Y.CK,@FM)
+    Y.L.CNT = DCOUNT(Y.CK.LG,@FM)
+    IF Y.R.CNT EQ '0' THEN
+        Y.CKK = SORT(Y.CK.LG)
+        Y.LG.CNT = DCOUNT(Y.CKK,@FM)
+        FOR Y.AAA2 = 1 TO Y.DD.CNT
+            Y.CK.PREV = TRIM(FIELD(Y.CKK,FM,Y.LG.CNT,1))
+        NEXT Y.AAA2
+    END
+
+    RETURN
+
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+BASIC.INT.DATA5:
+*-------------------------------------------------------------------------
+*To get the Final out data of Floating interest from with range of data
+
+    FOR Y.AB1 = 1 TO Y.R.CNT
+        Y.ID = FIELD(Y.CK,FM,Y.AB1,1)
+        Y.B.ID = Y.REC.ID:Y.ID
+        CALL F.READ(FN.BASIC.INTEREST,Y.B.ID,R.BASIC.INTEREST,F.BASIC.INTEREST,Y.ERR)
+        Y.DR.DATE = Y.ID
+        Y.DR.INT = R.BASIC.INTEREST<EB.BIN.INTEREST.RATE>
+        Y.D.SBY =  R.BASIC.INTEREST<EB.BIN.AUTHORISER>
+        Y.DR.SBY = TRIM(FIELD(Y.D.SBY,"_",2))
+        Y.ARR<-1> = Y.CURRENCY:"*":Y.DR.INT:"*":Y.DR.AMT:"*":Y.DR.DATE:"*":Y.DR.SBY
+    NEXT Y.AB1
+
+    RETURN
+
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+BASIC.INT.DATA6:
+*-------------------------------------------------------------------------
+*To get the Final out data of Floating interest from with without range of data
+
+    IF Y.L.CNT GT '0' THEN
+        Y.B.ID = Y.REC.ID:Y.CK.PREV
+        CALL F.READ(FN.BASIC.INTEREST,Y.B.ID,R.BASIC.INTEREST,F.BASIC.INTEREST,Y.ERR)
+        Y.DR.DATE = TRIM(Y.CK.PREV)
+        Y.DR.INT = R.BASIC.INTEREST<EB.BIN.INTEREST.RATE>
+        Y.D.SBY =  R.BASIC.INTEREST<EB.BIN.AUTHORISER>
+        Y.DR.SBY = TRIM(FIELD(Y.D.SBY,"_",2))
+        Y.ARR<-1> = Y.CURRENCY:"*":Y.DR.INT:"*":Y.DR.AMT:"*":Y.DR.DATE:"*":Y.DR.SBY
+    END
+
+    RETURN
+
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+BASIC.INT.DATA7:
+*-------------------------------------------------------------------------
+*To get the Final out data of Fixed interest from with range of data
+
+    Y.DR.DATE = TRIM(Y.G.ID[Y.LEN4,Y.LEN])
+    Y.DR.INT = R.GROUP.DEBIT.INT<IC.GDI.DR.INT.RATE,Y.R.A1>
+    Y.DR.AMT = R.GROUP.DEBIT.INT<IC.GDI.DR.LIMIT.AMT,Y.R.A1>
+    Y.D.SBY = R.GROUP.DEBIT.INT<IC.GDI.INPUTTER>
+    Y.DR.SBY = TRIM(FIELD(Y.D.SBY,"_",2))
+    Y.ARR<-1> = Y.CURRENCY:"*":Y.DR.INT:"*":Y.DR.AMT:"*":Y.DR.DATE:"*":Y.DR.SBY
+
+    RETURN
+
+*-------------------------------------------------------------------------
+END

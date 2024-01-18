@@ -1,0 +1,131 @@
+*-----------------------------------------------------------------------------
+* <Rating>-41</Rating>
+*-----------------------------------------------------------------------------
+
+    SUBROUTINE BD.AUT.SUS.REGISTER
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT BP I_F.EB.BD.SUSPENSE.REGISTER
+
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+
+******
+INIT:
+******
+    FN.ACC = 'FBNK.ACCOUNT'
+    F.ACC = ''
+    FN.SR = 'FBNK.EB.BD.SUSPENSE.REGISTER'
+    F.SR = ''
+    FN.FT = 'FBNK.FUNDS.TRANSFER'
+    F.FT = ''
+
+    Y.NEW.SUSP.AMNT = ''
+    Y.TXN.REF = ''
+
+    RETURN
+
+**********
+OPENFILES:
+**********
+    CALL OPF(FN.ACC,F.ACC)
+    CALL OPF(FN.SR,F.SR)
+    CALL OPF(FN.FT,F.FT)
+    RETURN
+
+********
+PROCESS:
+********
+
+    Y.SUSPENSE.AMOUNT = R.NEW(EB.BD.67.SUSPENSE.AMOUNT)
+    Y.DEBIT.AMT = R.NEW(EB.BD.67.REPAY.AMOUNT)
+
+    IF R.NEW(EB.BD.67.RESERVED) EQ 'DEBIT' THEN
+        IF R.NEW(EB.BD.67.ADJUST.TO.ACCT) EQ 'Y' THEN
+            Y.CREDIT.ACC = ID.NEW
+        END
+        ELSE
+            Y.PL.CATEGORY = R.NEW(EB.BD.67.PL.CATEGORY)
+            Y.CREDIT.ACC = 'PL':Y.PL.CATEGORY
+        END
+        Y.DEBIT.ACC = 'BDT173830001':ID.COMPANY[6,4]
+
+
+        IF Y.SUSPENSE.AMOUNT EQ 0 THEN
+            Y.NEW.SUSP.AMNT = Y.DEBIT.AMT
+        END
+        ELSE
+            Y.NEW.SUSP.AMNT = Y.SUSPENSE.AMOUNT - Y.DEBIT.AMT
+        END
+
+        Y.TXN.REF = 'Susp Dr'
+    END
+    ELSE
+        Y.DEBIT.ACC = ID.NEW
+        Y.CREDIT.ACC = 'BDT173830001':ID.COMPANY[6,4]
+        Y.NEW.SUSP.AMNT = Y.SUSPENSE.AMOUNT + Y.DEBIT.AMT
+        Y.TXN.REF = 'Susp Cr'
+    END
+
+
+    Y.SOURCE = 'DM.OFS.SRC.VAL'
+    Y.FT.ID = ''
+
+    GOSUB OFS.STR
+
+    CALL LOAD.COMPANY(Y.CO.CODE)
+    Y.OFS.MSG.POST = "FUNDS.TRANSFER,SUS.REG.ADJUST/I/PROCESS,//,":Y.FT.ID:",": Y.OFS.STR
+    RUNNING.UNDER.BATCH = 1
+    CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.OFS.MSG.POST)
+    RUNNING.UNDER.BATCH = 0
+    SENSITIVITY = ''
+
+    Y.OFS.ERR.CODE = FIELD(FIELD(Y.OFS.MSG.POST,"/",3),',',1)
+    IF Y.OFS.ERR.CODE EQ '1' THEN
+
+        R.NEW(EB.BD.67.SUSPENSE.AMOUNT) = Y.NEW.SUSP.AMNT
+        Y.DCOUNT = DCOUNT(R.NEW(EB.BD.67.TXN.REFERENCE),VM)+1
+        R.NEW(EB.BD.67.TXN.REFERENCE)<1,Y.DCOUNT> = FIELD(Y.OFS.MSG.POST,"/",1)
+        R.NEW(EB.BD.67.REPAY.AMOUNT) = ''
+        R.NEW(EB.BD.67.ADJUST.TO.ACCT) = ''
+        R.NEW(EB.BD.67.RESERVED) = ''
+
+****************TIPU START 15 NOV 2017*******************************
+        CALL F.READ(FN.SR, ID.NEW, R.SR, F.SR, Y.SR.ERR)
+        IF R.SR EQ '' OR R.SR<EB.BD.67.ORG.SUSP.AMOUNT> EQ '' THEN
+            R.NEW(EB.BD.67.ORG.SUSP.AMOUNT) = Y.SUSPENSE.AMOUNT
+        END
+****************TIPU END*********************************************
+
+    END
+    ELSE
+        Y.ERROR = 'TXN.ERR ':FIELD(Y.OFS.MSG.POST,'/',4)
+        E = Y.ERROR
+        CALL STORE.END.ERROR
+        RETURN
+    END
+    RETURN
+
+********
+OFS.STR:
+********
+    Y.OFS.STR = 'TRANSACTION.TYPE::=ACSM':','
+    Y.OFS.STR := 'DEBIT.ACCT.NO::=':Y.DEBIT.ACC:','
+    Y.OFS.STR := 'DEBIT.CURRENCY::=BDT':','
+    Y.OFS.STR := 'DEBIT.AMOUNT::=':Y.DEBIT.AMT:','
+    Y.OFS.STR := 'DEBIT.VALUE.DATE::=':TODAY:','
+    Y.OFS.STR := 'ORDERING.CUST::=JBL':','
+    Y.OFS.STR := 'CREDIT.ACCT.NO::=':Y.CREDIT.ACC:','
+    Y.OFS.STR := 'CREDIT.CURRENCY::=BDT':','
+    Y.OFS.STR := 'CREDIT.VALUE.DATE::=':TODAY:','
+    Y.OFS.STR := 'CREDIT.THEIR.REF::=':Y.TXN.REF:'-':TODAY[1,6]:','
+    Y.OFS.STR := 'DEBIT.THEIR.REF::=':Y.TXN.REF:'-':TODAY[1,6]
+    RETURN
+END

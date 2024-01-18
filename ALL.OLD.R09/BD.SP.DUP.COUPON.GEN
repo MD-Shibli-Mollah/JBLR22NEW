@@ -1,0 +1,131 @@
+*-----------------------------------------------------------------------------
+* <Rating>498</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SP.DUP.COUPON.GEN
+* Subroutine Description :
+*------------------------
+* This routine is use to generate duplicate issue coupon no
+* take the lost script coupon information
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20170802 - New - Md. Sarowar Mortoza
+*                  Datasoft Systems BD Ltd.
+*
+* 20180422 - MODIFIED BY - ALIN BOBY
+*            JBL
+*-------------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT SP.BP I_F.BD.H.SP.STOCK.ISSUE
+    $INSERT SP.BP I_F.BD.H.SP.COUPON
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+*** </region>*-----------------------------------------------------------------------------
+
+***---------------------------------------------------------------
+INIT:
+    FN.SP.ISSUE = 'F.BD.H.SP.STOCK.ISSUE'
+    F.SP.ISSUE = ''
+    FN.SP.COUPON = 'F.BD.H.SP.COUPON'
+    F.SP.COUPON = ''
+    Y.MATURITY.DATE =''
+    Y.WITHDRAW.DATE =''
+    Y.COUPON.AMT =''
+    Y.STATUS =''
+    Y.MATURITY.STATUS =''
+    Y.TRAN.REFRENCE =''
+    RETURN
+***---------------------------------------------------------------
+OPENFILE:
+    CALL OPF(FN.SP.ISSUE,F.SP.ISSUE)
+    CALL OPF(FN.SP.COUPON,F.SP.COUPON)
+    RETURN
+***---------------------------------------------------------------
+PROCESS:
+!DEBUG
+    Y.LOST.SP=R.NEW(SP.STK.OLD.SCRIPT.NO)
+    Y.LOST.TYPE=R.NEW(SP.STK.TYPE.OF.SP)
+    Y.LOST.ID=Y.LOST.TYPE:".":Y.LOST.SP
+
+    IF V$FUNCTION EQ 'A' THEN
+        SEL.CMD = 'SELECT ':FN.SP.ISSUE:' WITH SP.SL.ID EQ ':Y.LOST.ID
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+        IF SEL.LIST THEN
+            REMOVE Y.LOST.SP.ID FROM SEL.LIST SETTING Y.LOST.POS
+            Y.STATUS ="LOST BY CUSTOMER"
+            Y.OFS.STR := "STATUS::=" : Y.STATUS
+            Y.MESSAGE = "BD.H.SP.STOCK.ISSUE,OFS/I/PROCESS,//,":Y.LOST.SP.ID:",": Y.OFS.STR
+            Y.OFS.ERR.CODE = FIELD(FIELD(Y.MESSAGE,"/",3),',',1)
+            IF Y.OFS.ERR.CODE EQ '-1' THEN
+                Y.ERR<-1> = Y.MESSAGE
+            END
+            ELSE
+                RUNNING.UNDER.BATCH=1
+                Y.SOURCE="DM.OFS.SRC.VAL"
+                CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.MESSAGE)
+                RUNNING.UNDER.BATCH=0
+                SENSITIVITY=''
+            END
+        END
+
+
+        Y.SP.ISS.ID = ID.NEW
+        CALL F.READ(FN.SP.ISSUE,Y.SP.ISS.ID,R.SP,F.SP.ISSUE,ERR.SP)
+        Y.SP.ID = R.SP<SP.STK.SP.SL.ID>
+        Y.COUPON.START.NO = R.SP<SP.STK.COUPON.START.NO>
+        Y.COUPON.END.NO = R.SP<SP.STK.COUPON.END.NO>
+        Y.TOT.COUPON = Y.COUPON.END.NO - Y.COUPON.START.NO + 1
+        Y.ID = Y.SP.ID:'-':Y.COUPON.START.NO
+
+        SEL.CMD = 'SELECT ':FN.SP.COUPON:' WITH @ID EQ ':Y.LOST.ID:"..."
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+        IF SEL.LIST THEN
+            FOR I = 1 TO Y.TOT.COUPON
+                REMOVE Y.CP.ID FROM SEL.LIST SETTING Y.POS
+                CALL F.READ(FN.SP.COUPON,Y.CP.ID,R.COUPON,F.SP.COUPON,Y.ERR)
+                Y.MATURITY.DATE= R.COUPON<SP.CP.MATURITY.DATE>
+                Y.WITHDRAW.DATE= R.COUPON<SP.CP.WITHDRAW.DATE>
+                Y.COUPON.AMT= R.COUPON<SP.CP.COUPON.AMT>
+                Y.STATUS= R.COUPON<SP.CP.STATUS>
+                Y.MATURITY.STATUS= R.COUPON<SP.CP.MATURITY.STATUS>
+                Y.TRAN.REFRENCE= R.COUPON<SP.CP.TRAN.REFRENCE>
+                R.SP.COUPON<SP.CP.MATURITY.DATE> = Y.MATURITY.DATE
+                R.SP.COUPON<SP.CP.WITHDRAW.DATE>=Y.WITHDRAW.DATE
+                R.SP.COUPON<SP.CP.COUPON.AMT> = Y.COUPON.AMT
+                IF Y.WITHDRAW.DATE NE '' THEN
+                    R.SP.COUPON<SP.CP.STATUS>="DUPLICATE"
+                END
+                IF Y.WITHDRAW.DATE EQ '' THEN
+                    R.SP.COUPON<SP.CP.STATUS> = Y.STATUS
+                END
+                R.SP.COUPON<SP.CP.MATURITY.STATUS>=Y.MATURITY.STATUS
+                R.SP.COUPON<SP.CP.TRAN.REFRENCE>=Y.TRAN.REFRENCE
+                R.SP.COUPON<SP.CP.OVERRIDE> = R.SP<SP.STK.OVERRIDE>
+                R.SP.COUPON<SP.CP.CURR.NO> = R.SP<SP.STK.CURR.NO>
+                R.SP.COUPON<SP.CP.INPUTTER> = R.SP<SP.STK.INPUTTER>
+                R.SP.COUPON<SP.CP.DATE.TIME> = R.SP<SP.STK.DATE.TIME>
+                R.SP.COUPON<SP.CP.AUTHORISER> = OPERATOR
+                R.SP.COUPON<SP.CP.CO.CODE> = ID.COMPANY
+                WRITE R.SP.COUPON TO F.SP.COUPON,Y.ID       ;!FILE WRITE
+                Y.ST.CP.NO = Y.COUPON.START.NO + I
+                IF LEN(Y.ST.CP.NO) EQ '1' THEN
+                    Y.ST.CP.NO = "0":Y.ST.CP.NO
+                END
+                Y.ID = Y.SP.ID:'-':Y.ST.CP.NO
+
+                IF Y.WITHDRAW.DATE EQ '' THEN
+                    R.SP.COUPON<SP.CP.STATUS>="LOST BY CUSTOMER"
+                    WRITE R.SP.COUPON TO F.SP.COUPON,Y.CP.ID
+                END
+            NEXT I
+        END
+    END
+    RETURN
+END

@@ -1,0 +1,64 @@
+*-----------------------------------------------------------------------------
+* <Rating>-35</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.VVR.BTBCHK.RTN
+*-------------------------------------------------------
+*this routine calculates the FOB VALUE and Entitilement value ,this routine attached to the BTB version
+*---------------------------------------------------------
+
+*insert files
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LETTER.OF.CREDIT
+
+    GOSUB INITIALISE
+    GOSUB OPENFILES
+    GOSUB CHKCALC
+    RETURN
+
+INITIALISE:
+
+    FN.LETTER.OF.CREDIT="F.LETTER.OF.CREDIT"
+    F.LETTER.OF.CREDIT=""
+    Y.ID=ID.NEW
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+    RETURN
+
+CHKCALC:
+
+    CALL F.READ(FN.LETTER.OF.CREDIT,Y.ID,R.LEETER.OF.CREDIT,F.LETTER.OF.CREDIT,Y.ERR)
+    Y.CONT.VALUE=COMI
+    IF Y.CONT.VALUE EQ '' THEN
+        Y.CONT.VALUE=R.NEW(TF.LC.LC.AMOUNT)
+    END
+*gets the osition of local reference fields
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","FOB.VALUE",Y.FOB.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","CHARGES.IN.FC",Y.FC.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","FREIGHT.CHARGES",Y.CHRG.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","DOC.VALUE.FC",Y.LOC.AGEN.POS)          ;* Newly added shankrish
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","RATE.ENT",Y.RATE.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","LC.AMT.LCY",Y.AMT.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","JOB.VALUE",Y.JOB.VAL.POS)
+    CALL GET.LOC.REF("LETTER.OF.CREDIT","JOB.ENTITLEMENT",Y.JOB.ENT.POS)
+
+*calculation of Fob value
+    Y.FREIGHT.CHRG=R.NEW(TF.LC.LOCAL.REF)<1,Y.CHRG.POS>
+    Y.FOREIGN.CHRG=R.NEW(TF.LC.LOCAL.REF)<1,Y.FC.POS>
+    Y.LOC.AGENT.COMM = R.NEW(TF.LC.LOCAL.REF)<1,Y.LOC.AGEN.POS>       ;* Newly added shankrish.
+    Y.CHRG=Y.FREIGHT.CHRG + Y.FOREIGN.CHRG + Y.LOC.AGENT.COMM
+    Y.FOB.VALUE=Y.CONT.VALUE - Y.CHRG
+*calculation of Entitlement value with rate of entitlement
+    R.NEW(TF.LC.LOCAL.REF)<1,Y.FOB.POS>=Y.FOB.VALUE
+    Y.RATE=R.NEW(TF.LC.LOCAL.REF)<1,Y.RATE.POS>
+    Y.ENT=(Y.RATE * Y.FOB.VALUE)/100
+    R.NEW(TF.LC.LOCAL.REF)<1,Y.AMT.POS>=Y.ENT
+    R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.VAL.POS> = Y.CONT.VALUE
+    R.NEW(TF.LC.LOCAL.REF)<1,Y.JOB.ENT.POS> = Y.ENT
+!CALL REBUILD.SCREEN
+    RETURN
+END

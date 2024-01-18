@@ -1,0 +1,111 @@
+*--------------------------------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-40</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.HOME.LOAN.LD.TXN.LOAD
+*--------------------------------------------------------------------------------------------------------
+* This is Load routine which opens all the necessary files for the processing . This routine also check
+* for Service attribute and its values else throws the fatal error.
+*--------------------------------------------------------------------------------------------------------
+* Modification History :
+* --------------------
+* 20110210 - New - Naveen Kumar N
+*--------------------------------------------------------------------------------------------------------
+* Common Variables :
+* ----------------
+*  PROCESS.NAME - Holds the Id of Batch/Service.
+*--------------------------------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE GLOBUS.BP I_F.TSA.SERVICE
+    $INCLUDE GLOBUS.BP I_F.USER
+    $INCLUDE GLOBUS.BP I_F.OFS.SOURCE
+    $INCLUDE GLOBUS.BP I_F.VERSION
+    $INCLUDE GLOBUS.BP I_BATCH.FILES
+    $INCLUDE JBL.BP I_F.BD.L.HME.LOAN.REBATE
+    $INCLUDE JBL.BP I_JBL.B.HOME.LOAN.LD.TXN.COMMON
+*
+    GOSUB PROCESS
+    GOSUB GET.COMMON.DETAILS
+    RETURN
+*
+PROCESS:
+    FN.LD.LOANS.AND.DEPOSITS = "F.LD.LOANS.AND.DEPOSITS"
+    F.LD.LOANS.AND.DEPOSITS  = ""
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+    R.LD.LOANS.AND.DEPOSITS  = ""
+*
+    FN.BD.L.HME.LOAN.REBATE  = "F.BD.L.HME.LOAN.REBATE"
+    F.BD.L.HME.LOAN.REBATE   = ""
+    CALL OPF(FN.BD.L.HME.LOAN.REBATE,F.BD.L.HME.LOAN.REBATE)
+    R.BD.L.HME.LOAN.REBATE   = ""
+*
+    FN.OFS.SOURCE            = "F.OFS.SOURCE"
+    F.OFS.SOURCE             = ""
+    R.OFS.SOURCE             = ""
+    E.OFS.SOURCE             = ""
+    CALL OPF(FN.OFS.SOURCE,F.OFS.SOURCE)
+*
+    FN.TSA.SERVICE           = "F.TSA.SERVICE"
+    F.TSA.SERVICE            = ""
+    R.TSA.SERVICE            = ""
+    E.TSA.SERVICE            = ""
+    CALL OPF(FN.TSA.SERVICE,F.TSA.SERVICE)
+*
+    FN.USER                  = "F.USER"
+    F.USER                   = ""
+    R.USER.INP               = ""
+    R.USER.AUT               = ""
+    E.USER                   = ""
+    CALL OPF(FN.USER,F.USER)
+*
+    FN.VERSION               = "F.VERSION"
+    F.VERSION                = ""
+    R.VERSIONS               = ""
+    E.VERSION                = ""
+    CALL OPF(FN.VERSION,F.VERSION)
+*
+    RETURN
+*
+GET.COMMON.DETAILS:
+    Y.ID               = PROCESS.NAME
+    CALL F.READ(FN.TSA.SERVICE,Y.ID,R.TSA.SERVICE,F.TSA.SERVICE,E.TSA.SERVICE)
+    IF R.TSA.SERVICE THEN
+        Y.INPUTTER      = R.TSA.SERVICE<TS.TSM.ATTRIBUTE.VALUE,1>
+        Y.AUTHORISER    = R.TSA.SERVICE<TS.TSM.ATTRIBUTE.VALUE,2>
+        Y.VERSION       = R.TSA.SERVICE<TS.TSM.ATTRIBUTE.VALUE,3>
+        Y.OFS.SOURCE    = R.TSA.SERVICE<TS.TSM.ATTRIBUTE.VALUE,4>
+*
+        Y.INP.ID        = R.TSA.SERVICE<TS.TSM.ATTRIBUTE.TYPE,1>
+        Y.AUTH.ID       = R.TSA.SERVICE<TS.TSM.ATTRIBUTE.TYPE,2>
+        Y.FILE.NAME     = R.TSA.SERVICE<TS.TSM.ATTRIBUTE.TYPE,3>
+        Y.VERSION.ID    = Y.FILE.NAME:",":Y.VERSION
+        Y.OFS.SOURCE.ID = Y.OFS.SOURCE
+*
+        CALL F.READ(FN.USER,Y.INP.ID,R.USER.INP,F.USER,E.USER)
+        CALL F.READ(FN.USER,Y.AUTH.ID,R.USER.AUT,F.USER,E.USER)
+        CALL F.READ(FN.VERSION,Y.VERSION.ID,R.VERSIONS,F.VERSION,E.VERSION)
+        CALL F.READ(FN.OFS.SOURCE,Y.OFS.SOURCE.ID,R.OFS.SOURCE,F.OFS.SOURCE,E.OFS.SOURCE)
+    END
+*
+    GOSUB CHECK.FOR.FATAL
+*
+    RETURN
+*
+CHECK.FOR.FATAL:
+    IF Y.INPUTTER EQ "" OR Y.AUTHORISER EQ "" OR Y.VERSION EQ "" OR Y.OFS.SOURCE EQ "" THEN
+        GOSUB THROW.FATAL
+    END ELSE
+        IF R.USER.INP EQ "" OR R.USER.AUT EQ "" OR R.VERSIONS EQ "" OR R.OFS.SOURCE EQ "" THEN
+            GOSUB THROW.FATAL
+        END
+    END
+    RETURN
+*
+THROW.FATAL:
+    TEXT           = "MISSING VERSION/USER/OFS.SOURCE DETAILS IN TSA.SERVICE : ":Y.ID
+    CALL FATAL.ERROR('JBL.B.HOME.LOAN.LD.TXN')
+    RETURN
+*
+END

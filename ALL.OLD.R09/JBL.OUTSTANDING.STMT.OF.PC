@@ -1,0 +1,151 @@
+    SUBROUTINE JBL.OUTSTANDING.STMT.OF.PC(Y.RETURN)
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT JBL.BP I_F.BD.BTB.JOB.REGISTER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+!$INSERT GLOBUS.BP I_F.FUNDS.TRANSFER$HIS
+    $INSERT GLOBUS.BP I_F.LETTER.OF.CREDIT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.ACCOUNT = 'F.ACCOUNT';                 F.ACCOUNT = ''
+    FN.JOB.REG = 'F.BD.BTB.JOB.REGISTER';     F.JOB.REG = ''
+    FN.FT = 'F.FUNDS.TRANSFER';               F.FT = ''
+    FN.FT.HIS = 'F.FUNDS.TRANSFER$HIS';       F.FT.HIS = ''
+    FN.LC = 'F.LETTER.OF.CREDIT';             F.LC = ''
+
+    CALL GET.LOC.REF('ACCOUNT','JOB.NUMBER',Y.JOB.NUMBER.POS)
+    CALL GET.LOC.REF('ACCOUNT','LOAN.START.DATE',Y.LOAN.START.DATE.POS)
+    CALL GET.LOC.REF('ACCOUNT','LOAN.MAT.DATE',Y.LOAN.MAT.DATE.POS)
+
+    LOCATE 'LOAN.START.DATE' IN ENQ.SELECTION<2,1> SETTING LOAN.START.DATE.POS THEN
+        Y.C.LOAN.START.DATE =  ENQ.SELECTION<4,LOAN.START.DATE.POS>
+    END
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    CALL OPF(FN.JOB.REG,F.JOB.REG)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    CALL OPF(FN.LC,F.LC)
+
+    RETURN
+
+PROCESS:
+
+    IF Y.C.LOAN.START.DATE NE '' THEN
+        SEL.CMD = 'SELECT ':FN.ACCOUNT :' WITH CATEGORY EQ 1951 1952 1953 AND CO.CODE EQ ':ID.COMPANY:' AND LOAN.START.DATE LE ':Y.C.LOAN.START.DATE
+    END
+    ELSE
+        SEL.CMD = 'SELECT ':FN.ACCOUNT :' WITH CATEGORY EQ 1951 1952 1953 AND CO.CODE EQ ':ID.COMPANY
+    END
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+    FOR L = 1 TO NO.OF.REC
+
+        Y.ACCOUNT.ID = FIELD(SEL.LIST,@FM,L)
+        CALL F.READ(FN.ACCOUNT,Y.ACCOUNT.ID,R.ACC,F.ACCOUNT,ACC.ERR)
+
+        Y.SHORT.TITLE = R.ACC<AC.SHORT.TITLE>
+        Y.LOAN.START.DATE = R.ACC<AC.LOCAL.REF,Y.LOAN.START.DATE.POS>
+        Y.LOAN.MAT.DATE = R.ACC<AC.LOCAL.REF,Y.LOAN.MAT.DATE.POS>
+        Y.WORKING.BALANCE = R.ACC<AC.WORKING.BALANCE>
+        Y.JOB.NUMBER = R.ACC<AC.LOCAL.REF,Y.JOB.NUMBER.POS>
+
+        IF Y.JOB.NUMBER THEN
+            CALL F.READ(FN.JOB.REG,Y.JOB.NUMBER,R.JOB.REG,F.JOB.REG,JOB.REG.ERR)
+            IF R.JOB.REG THEN
+
+                Y.TOT.PC.ENT.AMT = R.JOB.REG<BTB.JOB.TOT.PC.ENT.AMT>
+                Y.TOT.EX.TF.REF = DCOUNT(R.JOB.REG<BTB.JOB.EX.TF.REF>,@VM)
+                FOR I = 1 TO Y.TOT.EX.TF.REF
+                    Y.EX.TF.REF = R.JOB.REG<BTB.JOB.EX.TF.REF,I>
+                    CALL F.READ(FN.LC,Y.EX.TF.REF,R.EXP.LC,F.LC,EXP.LC.ERR)
+                    IF R.EXP.LC THEN
+                        Y.ISSUE.DATE = R.EXP.LC<TF.LC.ISSUE.DATE>
+                        Y.LC.AMOUNT = R.EXP.LC<TF.LC.LC.AMOUNT>
+                        Y.EXP.CCY = R.EXP.LC<TF.LC.LC.CURRENCY>
+                        Y.EXP.DATA<-1> = Y.TOT.PC.ENT.AMT:'*':Y.EX.TF.REF:'*':Y.ISSUE.DATE:'*':Y.EXP.CCY:'*':Y.LC.AMOUNT
+                        Y.TOT.PC.ENT.AMT = ''
+                    END
+                NEXT I
+
+                Y.TOT.PCECC.LOAN.ID = DCOUNT(R.JOB.REG<BTB.JOB.PCECC.LOAN.ID>,@VM)
+                FOR J = 1 TO Y.TOT.PCECC.LOAN.ID
+                    Y.PCECC.LOAN.ID = R.JOB.REG<BTB.JOB.PCECC.LOAN.ID,J>
+                    IF Y.PCECC.LOAN.ID = Y.ACCOUNT.ID THEN
+                        Y.LOAN.REF.NO = R.JOB.REG<BTB.JOB.LOAN.REF.NO,J>
+                        CALL F.READ(FN.FT,Y.LOAN.REF.NO,R.FT,F.FT,FT.ERR)
+                        IF NOT(R.FT) THEN
+                            CALL EB.READ.HISTORY.REC(F.FT.HIS,Y.LOAN.REF.NO,R.FT,FT.ERR.HIS)
+                        END
+                        IF NOT(R.FT<FT.STATUS>) THEN
+                            Y.DATE.OF.ADV = R.FT<FT.DEBIT.VALUE.DATE>
+                            Y.DISBURSE.AMT = R.FT<FT.CREDIT.AMOUNT>
+                            IF Y.DISBURSE.AMT EQ '' THEN
+                                Y.DISBURSE.AMT = R.FT<FT.DEBIT.AMOUNT>
+                            END
+                            Y.DISBURSE.DATA<-1> = Y.DATE.OF.ADV:'*':Y.DISBURSE.AMT
+                        END
+                    END
+                NEXT J
+            END
+        END
+        ELSE
+            Y.EXP.DATA = ''
+            Y.DISBURSE.DATA = ''
+        END
+        GOSUB GET.DATA
+!END
+    NEXT L
+    RETURN
+
+GET.DATA:
+    Y.TOT.EXP.DATA = DCOUNT(Y.EXP.DATA,@FM)
+    Y.TOT.DISBURSE.DATA = DCOUNT(Y.DISBURSE.DATA,@FM)
+    Y.COMB.ALL = Y.TOT.EXP.DATA:@FM:Y.TOT.DISBURSE.DATA
+    Y.MAX = 0
+    FOR Q = 1 TO 2
+        Y.TEMP = FIELD(Y.COMB.ALL,@FM,Q)
+        IF Y.TEMP GT Y.MAX THEN
+            Y.MAX = Y.TEMP
+        END
+    NEXT
+    FOR P  = 1 TO Y.MAX
+        Y.EXP = FIELD(Y.EXP.DATA,@FM,P)
+        Y.DIS = FIELD(Y.DISBURSE.DATA,@FM,P)
+        IF Y.EXP EQ '' THEN
+            Y.EXP = '':'*':'':'*':'':'*':'':'*':''
+        END
+        IF Y.DIS EQ '' THEN
+            Y.DIS = '':'*':''
+        END
+        IF P EQ 1 THEN
+            Y.SL.NO = L
+        END
+        ELSE
+            Y.SL.NO = ''
+            Y.ACCOUNT.ID = ''
+            Y.SHORT.TITLE = ''
+            Y.LOAN.START.DATE = ''
+            Y.WORKING.BALANCE = ''
+            Y.LOAN.MAT.DATE = ''
+        END
+        Y.RETURN<-1> = Y.SL.NO:'*':Y.DIS:'*':Y.ACCOUNT.ID:'*':Y.SHORT.TITLE:'*':Y.LOAN.START.DATE:'*':Y.WORKING.BALANCE:'*':Y.LOAN.MAT.DATE:'*':Y.EXP
+!                         1          2,3          4               5                      6                       7                  8
+    NEXT P
+    Y.EXP.DATA = ''
+    Y.DISBURSE.DATA = ''
+    RETURN
+END

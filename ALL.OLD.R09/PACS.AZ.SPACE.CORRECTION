@@ -1,0 +1,105 @@
+*-----------------------------------------------------------------------------
+* <Rating>529</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PACS.AZ.SPACE.CORRECTION
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.AZ.ACCOUNT
+        $INSERT GLOBUS.BP I_F.ACCOUNT.CREDIT.INT
+        $INSERT GLOBUS.BP I_F.AZ.SCHEDULES
+
+    GOSUB INIT
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+******
+    FN.AZ.ACCOUNT = "F.AZ.ACCOUNT"
+    F.AZ.ACCOUNT = ""
+    CALL OPF(FN.AZ.ACCOUNT,F.AZ.ACCOUNT)
+
+        FN.ACI = "F.ACCOUNT.CREDIT.INT"
+        FV.ACI = ""
+        CALL OPF(FN.ACI,FV.ACI)
+
+        FN.AZ.SCHD = "F.AZ.SCHEDULES"
+        FV.AZ.SCHD = ""
+        CALL OPF(FN.AZ.SCHD,FV.AZ.SCHD)
+
+
+    RETURN
+
+PROCESS:
+********
+    SEL.CMD = "GET.LIST PROBLEM.AZ.ISSUE"
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,Y.RET.ERROR)
+    IF SEL.LIST THEN
+        LOOP
+            REMOVE AZ.ID FROM SEL.LIST SETTING Y.AZ.POS
+        WHILE AZ.ID:Y.AZ.POS
+            AZ.ID=TRIM(AZ.ID)
+                        GOSUB CRCT.AZ.ACCT
+                        GOSUB CRCT.AZ.ACI
+                        GOSUB CRCT.AZ.SCHD
+        REPEAT
+        END
+   RETURN
+
+**************
+CRCT.AZ.ACCT:
+**************
+            R.AZ.ACCOUNT = '' ; AZ.ERR=''
+            READ R.AZ.ACCOUNT FROM F.AZ.ACCOUNT,AZ.ID THEN
+                IF R.AZ.ACCOUNT AND NOT(AZ.ERR) THEN
+                    Y.TAX.KEY = '' ; Y.TAX.KEY=R.AZ.ACCOUNT<AZ.TAX.KEY>
+                    Y.TAX.E.I = '' ; Y.TAX.E.I=R.AZ.ACCOUNT<AZ.TAX.E.I>
+                    Y.AZ.TAX.ON = '' ; Y.AZ.TAX.ON = R.AZ.ACCOUNT<AZ.TAX.ON>
+
+                    IF Y.TAX.KEY EQ " " THEN R.AZ.ACCOUNT<AZ.TAX.KEY>=""
+                    IF Y.TAX.E.I EQ " " THEN R.AZ.ACCOUNT<AZ.TAX.E.I>=""
+                    IF Y.AZ.TAX.ON EQ " " THEN R.AZ.ACCOUNT<AZ.TAX.ON>=""
+                    WRITE R.AZ.ACCOUNT TO F.AZ.ACCOUNT,AZ.ID
+                END ELSE
+                    CRT "AZ.ACCOUNT MISSING":AZ.ID
+                END
+            END
+                        RETURN
+*************
+CRCT.AZ.ACI:
+*************
+     SEL.CMD1 = '';SEL.LIST1= '';NO.REC1='';RET1='';R.ACI=''
+     SEL.CMD1 = 'SELECT ':FN.ACI:' WITH @ID LIKE ':AZ.ID:'...'
+     CALL EB.READLIST(SEL.CMD1, SEL.LIST1, '', NO.REC1, RET1)
+     LOOP
+         REMOVE ACI.ID FROM SEL.LIST1 SETTING POS
+     WHILE ACI.ID:POS
+         READ R.ACI FROM FV.ACI,ACI.ID THEN
+             S.TAX.KEY = ''; S.TAX.KEY=R.ACI<IC.ACI.TAX.KEY>
+                          IF S.TAX.KEY EQ " " THEN
+                            R.ACI<IC.ACI.TAX.KEY>=""
+                                WRITE R.ACI TO FV.ACI,ACI.ID
+                          END
+         END
+     REPEAT
+
+ RETURN
+
+*************
+CRCT.AZ.SCHD:
+*************
+
+         R.AZ.SCH=''
+         READ R.AZ.SCH FROM FV.AZ.SCHD,AZ.ID THEN
+                         CNT = DCOUNT(R.AZ.SCH<AZ.SLS.TAX.KEY>,@VM)
+                         FOR J = 1 TO CNT
+                 IF R.AZ.SCH<AZ.SLS.TAX.KEY,J> = " " THEN
+                                     R.AZ.SCH<AZ.SLS.TAX.KEY,J>=""
+                             END
+             NEXT J
+               WRITE R.AZ.SCH TO FV.AZ.SCHD,AZ.ID
+                END
+
+ RETURN
+
+END 

@@ -1,0 +1,182 @@
+*-----------------------------------------------------------------------------
+* <Rating>1255</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.ACI.AF.MONTH.END
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.ABL.H.AC.VIOLATION
+    $INSERT GLOBUS.BP I_F.GROUP.CREDIT.INT
+    $INSERT GLOBUS.BP I_F.GROUP.DATE
+    $INSERT GLOBUS.BP I_F.DATES
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+*----------------------------------
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CREDIT.INT
+*----------------------------------
+
+!---This Subroutine is used to generate ACI record according to the
+!---violation in the ABL.H.AC.VIOLATION file.
+!
+!*******************Modification History****************************
+!1) 15/8/2011 --Applying Condition For both Savings and SNTD
+!
+!
+!******************************************************************
+    FN.ABL.VIOL='F.ABL.H.AC.VIOLATION'
+    F.ABL.VIOL=''
+
+    FN.GCI='F.GROUP.CREDIT.INT'
+    F.GCI =''
+
+    FN.GR.DATE='F.GROUP.DATE'
+    F.GR.DATE = ''
+*------------------------------
+    FN.ACI = 'F.ACCOUNT.CREDIT.INT'
+    F.ACI = ''
+*------------------------------
+!---1/S------!
+    FN.AC='F.ACCOUNT'
+    F.AC=''
+    REC.AC=''
+    Y.AC.ID=''
+!----1/E------!
+
+    Y.GCI.ID = ''
+    R.GCI=''
+    Y.GR.ID =''
+    R.GR.ID = ''
+    REC.AC.VIOL =''
+    Y.AC.VIOL.ID = ''
+    Y.CR.INT = ''
+    Y.CR.MIN.VALUE = ''
+    Y.CR.MIN.WAIVE = ''
+    USER.CHOICE =''
+    Y.SOURCE= ''
+    Y.MESSAGE = ''
+    Y.STATUS = ''
+    Y.START.DATE = ''
+    Y.ACI.ID =''
+
+    CALL OPF(FN.ABL.VIOL,F.ABL.VIOL)
+    CALL OPF(FN.GCI,F.GCI)
+    CALL OPF(FN.GR.DATE,F.GR.DATE)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.ACI,F.ACI)
+
+    Y.START.DATE=TODAY[1,6]
+
+    Y.LAST.WORKING.DAY = R.DATES(EB.DAT.LAST.WORKING.DAY)
+    Y.LAST.WORKING.DAY = Y.LAST.WORKING.DAY[1,6]
+
+
+    SEL.CMD.VIOL = "SELECT ":FN.ABL.VIOL:" WITH @ID LIKE '....":Y.LAST.WORKING.DAY:"'"
+    CALL EB.READLIST(SEL.CMD.VIOL,SEL.LIST.VIOL,'',NO.OF.REC.VIOL,SEL.ERR.VIOL)
+
+    CRT" TOTAL RECORDS SELECTED ....... ":NO.OF.REC.VIOL
+    CRT" DO YOU WANT TO START THE PROCESSING  Y/N"
+    INPUT USER.CHOICE
+    IF USER.CHOICE EQ 'Y' THEN
+        LOOP
+            REMOVE Y.AC.VIOL.ID  FROM SEL.LIST.VIOL SETTING Y.POS
+        WHILE Y.AC.VIOL.ID:Y.POS
+            CALL F.READ(FN.ABL.VIOL,Y.AC.VIOL.ID,REC.AC.VIOL,F.ABL.VIOL,ERR.ABL.VIOL)
+            Y.ACI.ID =FIELD(Y.AC.VIOL.ID,".",1):"-":Y.START.DATE:"01"
+!-----1/S--------!
+            Y.AC.ID=FIELD(Y.AC.VIOL.ID,".",1)
+            CALL F.READ(FN.AC,Y.AC.ID,REC.AC,F.AC,ERR.AC)
+            Y.GR.ID =REC.AC<AC.CONDITION.GROUP>:'BDT'
+            CALL F.READ(FN.GR.DATE,Y.GR.ID,R.GR.ID,F.GR.DATE,ERR.GR.DATE)
+            Y.GCI.ID=Y.GR.ID:"":R.GR.ID<AC.GRD.CREDIT.GROUP.DATE>
+            CALL F.READ(FN.GCI,Y.GCI.ID,R.GCI,F.GCI,ERR.GCI)
+************** find out inputter OFS **********
+
+            SEL.ACI = "SELECT ":FN.ACI:" WITH @ID LIKE ":FIELD(Y.ACI.ID,"-",1):"..."
+            CALL EB.READLIST(SEL.ACI,SEL.LIST,'',NO.OF.REC,RET.CODE)
+            SEL.LIST = SORT(SEL.LIST)
+            LATEST.ACI.INDEX = NO.OF.REC - 1
+            IF NO.OF.REC EQ '0' OR NO.OF.REC EQ '' THEN
+                Y.INPUTTER.OFS.SRC = "DM.OFS.SRC"
+            END ELSE
+                IF NO.OF.REC EQ '1' THEN
+                    Y.LIVE.ACI.ID = SEL.LIST
+                    CALL F.READ(FN.ACI,Y.LIVE.ACI.ID,REC.ACI,F.ACI,ERR.ACI)
+                    Y.INPUTTER = REC.ACI<IC.ACI.INPUTTER>
+                    Y.INPUTTER.OFS.SRC = FIELD(Y.INPUTTER,"_",6)
+                END ELSE
+                    FOR I = 1 TO NO.OF.REC - 1
+                        Y.LIVE.ACI.ID = SEL.LIST<LATEST.ACI.INDEX>
+                        CALL F.READ(FN.ACI,Y.LIVE.ACI.ID,REC.ACI,F.ACI,ERR.ACI)
+                        Y.INPUTTER = REC.ACI<IC.ACI.INPUTTER>
+                        Y.INPUTTER.OFS.SRC = FIELD(Y.INPUTTER,"_",6)
+                        IF Y.INPUTTER.OFS.SRC EQ "DM.OFS.SRC" THEN
+                            LATEST.ACI.INDEX = LATEST.ACI.INDEX - 1
+                        END ELSE
+                            I = NO.OF.REC -1
+                        END
+                    NEXT I
+                    I = 1
+                END
+            END
+************** end finding inputter OFS *******
+*******Savings Group Condition********
+            IF ( Y.GR.ID EQ '4BDT' OR Y.GR.ID EQ '5BDT' OR Y.GR.ID EQ '6BDT' OR Y.GR.ID EQ '29BDT' OR Y.GR.ID EQ '65BDT' ) THEN
+                IF Y.INPUTTER.OFS.SRC EQ "DM.OFS.SRC" THEN
+                    Y.MESSAGE="ACCOUNT.CREDIT.INT,INT.ZERO/I/PROCESS,DMUSER.1//":REC.AC.VIOL<ACV.CO.CODE>:",":Y.ACI.ID:",INTEREST.DAY.BASIS=GENERAL"
+                END
+                ELSE
+                    IF REC.ACI<IC.ACI.INTEREST.DAY.BASIS> EQ 'GENERAL' THEN
+                        Y.MESSAGE="ACCOUNT.CREDIT.INT,INT.ZERO/I/PROCESS,DMUSER.1//":REC.AC.VIOL<ACV.CO.CODE>:",":Y.ACI.ID:",INTEREST.DAY.BASIS=GENERAL"
+                    END ELSE
+                        Y.MESSAGE="ACCOUNT.CREDIT.INT,INT.ZERO/I/PROCESS,DMUSER.1//":REC.AC.VIOL<ACV.CO.CODE>:",":Y.ACI.ID:",INTEREST.DAY.BASIS=":REC.ACI<IC.ACI.INTEREST.DAY.BASIS>
+                        Y.MESSAGE:=",TAX.KEY=":REC.ACI<IC.ACI.TAX.KEY>:",CR.BALANCE.TYPE=":REC.ACI<IC.ACI.CR.BALANCE.TYPE>:",CR.CALCUL.TYPE=":REC.ACI<IC.ACI.CR.CALCUL.TYPE>:",CR.MINIMUM.BAL=":REC.ACI<IC.ACI.CR.MINIMUM.BAL>
+                        Y.MESSAGE:=",CR.INT.RATE=":REC.ACI<IC.ACI.CR.INT.RATE>
+                    END
+                END
+            END
+
+******SNTD Group Condition************
+            IF Y.GR.ID EQ '7BDT' THEN
+                Y.CR.INT.CNT=''
+                Y.CR.INT=''
+                Y.CR.LIMIT=''
+                TOT.CR.INT.RATE = DCOUNT(REC.ACI<IC.ACI.CR.INT.RATE>,VM)
+                IF TOT.CR.INT.RATE GT 1 THEN
+                    FOR J = 1 TO TOT.CR.INT.RATE
+                        Y.CR.INT:=",CR.INT.RATE:":J:":1=":REC.ACI<IC.ACI.CR.INT.RATE,J>
+                        Y.CR.LIMIT:=",CR.LIMIT.AMT:":J:":1=":REC.ACI<IC.ACI.CR.LIMIT.AMT,J>
+                    NEXT J
+                END ELSE
+                    Y.CR.INT = ",CR.INT.RATE=":REC.ACI<IC.ACI.CR.INT.RATE>
+                    Y.CR.LIMIT = ",CR.LIMIT.AMT=":REC.ACI<IC.ACI.CR.LIMIT.AMT>
+                END
+
+
+                IF Y.INPUTTER.OFS.SRC EQ "DM.OFS.SRC" THEN
+                    Y.MESSAGE="ACCOUNT.CREDIT.INT,INT.ZERO/I/PROCESS,DMUSER.1//":REC.AC.VIOL<ACV.CO.CODE>:",":Y.ACI.ID:",INTEREST.DAY.BASIS=GENERAL"
+                END
+                ELSE
+                    IF REC.ACI<IC.ACI.INTEREST.DAY.BASIS> EQ 'GENERAL' THEN
+                        Y.MESSAGE="ACCOUNT.CREDIT.INT,INT.ZERO/I/PROCESS,DMUSER.1//":REC.AC.VIOL<ACV.CO.CODE>:",":Y.ACI.ID:",INTEREST.DAY.BASIS=GENERAL"
+                    END ELSE
+                        Y.MESSAGE="ACCOUNT.CREDIT.INT,INT.ZERO/I/PROCESS,DMUSER.1//":REC.AC.VIOL<ACV.CO.CODE>:",":Y.ACI.ID:",INTEREST.DAY.BASIS=":REC.ACI<IC.ACI.INTEREST.DAY.BASIS>
+                        Y.MESSAGE:=",TAX.KEY=":REC.ACI<IC.ACI.TAX.KEY>:",CR.BALANCE.TYPE=":REC.ACI<IC.ACI.CR.BALANCE.TYPE>:",CR.CALCUL.TYPE=":REC.ACI<IC.ACI.CR.CALCUL.TYPE>:",CR.MINIMUM.BAL=":REC.ACI<IC.ACI.CR.MINIMUM.BAL>
+                        Y.MESSAGE:=Y.CR.INT:Y.CR.LIMIT
+                    END
+                END
+            END
+!-----1/E--------!
+            Y.SOURCE="DM.OFS.SRC"
+            RUNNING.UNDER.BATCH=1
+            CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.MESSAGE)
+            RUNNING.UNDER.BATCH=0
+            SENSITIVITY=''
+            Y.STATUS =FIELD(FIELD(Y.MESSAGE,"/",3,1),",",1)
+            Y.MESSAGE = ''
+            IF Y.STATUS EQ '1' THEN
+                CNT =CNT+1
+                CRT" PROCESS................":CNT
+            END
+
+        REPEAT
+
+        RETURN
+    END

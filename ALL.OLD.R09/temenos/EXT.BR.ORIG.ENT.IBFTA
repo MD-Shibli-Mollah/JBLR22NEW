@@ -1,0 +1,274 @@
+*------------------------------------------------------------------------------
+* <Rating>972</Rating>
+* Developed By:Fairooz Chowdhury
+* Date: 7.05.2018
+* Modified By: Kamran and Rashed
+* Modified Date: 20181009
+* Modified By: Mazba
+* Modified Date: 20190908
+* DEPLOY: 20190917
+*-----------------------------------------------------------------------------
+    SUBROUTINE EXT.BR.ORIG.ENT.IBFTA(Y.FINAL.DATA)
+!PROGRAM EXT.BR.ORIG.ENT.IBFTA
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.ABL.H.NM.ER
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+    FN.NM = "F.ABL.H.NM.ER"
+    F.NM = ""
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+    Y.CATEGORY = '12820'
+    FN.STMT.ENTRY = "F.STMT.ENTRY";   F.STMT.ENTRY = ""
+
+    Y.OPERAND = ENQ.SELECTION<3,1>
+    LOCATE 'DATE' IN ENQ.SELECTION<2,1> SETTING DATE.POS THEN
+        Y.DATE =  ENQ.SELECTION<4,DATE.POS>
+    END
+!Y.DATE = '20170401'
+    IF Y.OPERAND EQ 'RG' THEN
+        Y.FROM.DATE = FIELD(Y.DATE,SM,1)
+        Y.TO.DATE = FIELD(Y.DATE,SM,2)
+    END ELSE
+        Y.FROM.DATE = Y.DATE
+        Y.TO.DATE = Y.DATE
+    END
+
+!    Y.FROM.DATE = '20170318'
+!    Y.TO.DATE = '20170318'
+
+    BR.CODE1 = "";BR.CODE2 = "";TRANS.CODE1 = "";TRANS.CODE2 = "";ADV.NO1 = "";ADV.NO2 = ""
+    Y.OE.DEBIT = "";Y.OE.CRDT = ""; DR.CR.MARK = ""; OE.RE.REM = ""
+    Y.OPEN.BAL = ""; Y.OPENING.AMT.DBT = ""; Y.OPENING.AMT.CRDT = ""; Y.CLOSING.AMT.DBT = ""; Y.CLOSING.AMT.CRDT = ""
+    Y.OE.DBT.TOT = ""; Y.OE.CRDT.TOT = ""; Y.RE.DBT.TOT = ""; Y.RE.CRDT.TOT = ""; Y.FALSE = ""
+    Y.DBT.GRND.TOT = ""; Y.CRDT.GRND.TOT = ""
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.NM,F.NM)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.STMT.ENTRY,F.STMT.ENTRY)
+    RETURN
+
+PROCESS:
+
+!!!READ OPENING AND CLOSING BALANCE FOR THIS BRANCH IBFTA ACCOUNT FOR SUMMARY
+! DEBUG
+    SEL.CMD.AC = "SELECT ":FN.AC:" WITH CO.CODE EQ ":ID.COMPANY:" AND CATEGORY EQ ":Y.CATEGORY
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+    WHILE Y.ID:POS
+
+!  --------------------------------------------------------
+        CALL EB.ACCT.ENTRY.LIST(Y.ID,Y.FROM.DATE,Y.TO.DATE,Y.AC.STMT.LIST,Y.AC.OPEN.BAL,Y.AC.ER)
+        Y.AC.CLOSE.BAL=Y.AC.OPEN.BAL
+
+        Y.FT.C=DCOUNT(Y.AC.STMT.LIST,@FM)
+        FOR I = 1 TO Y.FT.C
+            Y.STMT.ID = FIELD(Y.AC.STMT.LIST,@FM,I)
+            CALL F.READ(FN.STMT.ENTRY, Y.STMT.ID , R.STMT, F.STMT.ENTRY , Y.ERR)
+            Y.TR.REF = R.STMT<AC.STE.TRANS.REFERENCE>
+
+            CALL F.READ(FN.NM,Y.TR.REF,R.REC,F.NM,Y.ERR)
+            Y.OE.RE = R.REC<NM.OE.RE>
+            Y.LOOP.CNT = 1
+            IF BR.CODE1 EQ "" AND BR.CODE2 EQ "" AND Y.OE.RE EQ 'OE' AND Y.LOOP.CNT EQ 1 THEN
+                Y.LOOP.CNT = Y.LOOP.CNT + 1
+                BR.CODE1 = R.REC<NM.BRANCH.CODE>
+                BR.CODE2 = R.REC<NM.BRANCH.CODE>
+                ADV.NO1 = R.REC<NM.ADVICE.NO>
+                ADV.NO2 = R.REC<NM.ADVICE.NO>
+                TRANS.CODE1 = R.REC<NM.TRANS.CODE>
+                TRANS.CODE2 = R.REC<NM.TRANS.CODE>
+                OE.RE.REM = R.REC<NM.OE.RE>
+                DR.CR.MARK = R.REC<NM.DR.CR.MARKER>
+*****************UPDATE BY KAMRAN***********
+                Y.PARTICULARS = R.REC<NM.REMARKS>
+*********************END*********************
+            END ELSE
+                BR.CODE1 = R.REC<NM.BRANCH.CODE>
+                ADV.NO1 = R.REC<NM.ADVICE.NO>
+
+                TRANS.CODE1 = R.REC<NM.TRANS.CODE>
+                OE.RE.REM = R.REC<NM.OE.RE>
+                DR.CR.MARK = R.REC<NM.DR.CR.MARKER>
+*****************KAMRAN*******************
+                Y.PARTICULARS = R.REC<NM.REMARKS>
+**********************END*******************
+            END
+!DEBUG
+            IF OE.RE.REM EQ 'OE' THEN
+
+                IF BR.CODE1 EQ BR.CODE2 AND ADV.NO1 EQ ADV.NO2 THEN
+
+                    IF DR.CR.MARK EQ 'DR' THEN
+!Y.OE.DEBIT = Y.OE.DEBIT + ABS(R.REC<NM.AMOUNT>)
+!Y.OE.DBT.TOT = Y.OE.DBT.TOT + ABS(R.REC<NM.AMOUNT>)
+                        Y.OE.DEBIT = Y.OE.DEBIT + ABS(R.STMT<AC.STE.AMOUNT.LCY>)
+                        Y.OE.DBT.TOT = Y.OE.DBT.TOT + ABS(R.STMT<AC.STE.AMOUNT.LCY>)
+                        Y.RETURN<-1> = BR.CODE2:"*":TRANS.CODE2:"*":ADV.NO2:"*":Y.OE.DEBIT:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FROM.DATE:"*":Y.TO.DATE:"*":Y.PARTICULARS:"*":"TRUE"
+                    END ELSE
+                        IF DR.CR.MARK EQ 'CR' THEN
+!Y.OE.CRDT = Y.OE.CRDT + R.REC<NM.AMOUNT>
+!Y.OE.CRDT.TOT = Y.OE.CRDT.TOT + R.REC<NM.AMOUNT>
+                            Y.OE.CRDT = Y.OE.CRDT + ABS(R.STMT<AC.STE.AMOUNT.LCY>)
+                            Y.OE.CRDT.TOT = Y.OE.CRDT.TOT + ABS(R.STMT<AC.STE.AMOUNT.LCY>)
+******************************** ADDED BY RASHED-KAMRAN***********************
+                            Y.RETURN<-1> = BR.CODE2:"*":TRANS.CODE2:"*":ADV.NO2:"*":Y.OE.DEBIT:"*":Y.OE.CRDT:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FROM.DATE:"*":Y.TO.DATE:"*":Y.PARTICULARS:"*":"TRUE"
+***********************************END ***************************************
+                        END
+                    END
+                    BR.CODE2 = BR.CODE1; ADV.NO2 = ADV.NO1; TRANS.CODE2 = TRANS.CODE1
+*******************************************2019****************************************************
+                    BR.CODE1 = ""; ADV.NO1 = ""; Y.OE.DEBIT = ""; Y.OE.CRDT = "";Y.PARTICULARS = ""
+***************************************************************END********************************
+                END ELSE
+!Y.RETURN<-1> = BR.CODE1:"*":TRANS.CODE1:"*":ADV.NO1:"*":Y.OE.DEBIT:"*":Y.OE.CRDT:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FROM.DATE:"*":Y.TO.DATE:"*":Y.PARTICULARS
+!                                 1               2            3             4              5           6           7           8            9          10          11           12         13            14             15                  16
+!BR.CODE1 = ""; ADV.NO1 = ""; Y.OE.DEBIT = ""; Y.OE.CRDT = "";Y.PARTICULARS = ""
+
+                    IF DR.CR.MARK EQ 'DR' THEN
+!Y.OE.DEBIT = Y.OE.DEBIT + ABS(R.REC<NM.AMOUNT>)
+!Y.OE.DBT.TOT = Y.OE.DBT.TOT + ABS(R.REC<NM.AMOUNT>)
+                        Y.OE.DEBIT = Y.OE.DEBIT + ABS(R.STMT<AC.STE.AMOUNT.LCY>)
+                        Y.OE.DBT.TOT = Y.OE.DBT.TOT + ABS(R.STMT<AC.STE.AMOUNT.LCY>)
+************************UPDATED BY MAZBA************
+                        Y.RETURN<-1> = BR.CODE1:"*":TRANS.CODE1:"*":ADV.NO1:"*":Y.OE.DEBIT:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FROM.DATE:"*":Y.TO.DATE:"*":Y.PARTICULARS:"*":"TRUE"
+                    END ELSE
+                        IF DR.CR.MARK EQ 'CR' THEN
+***************** UPDATED BY RASHED-KAMRAN ***************
+!Y.OE.CRDT = Y.OE.CRDT + R.REC<NM.AMOUNT>
+!Y.OE.CRDT = R.REC<NM.AMOUNT>
+                            Y.OE.CRDT = R.STMT<AC.STE.AMOUNT.LCY>
+***************** END ****************************
+!Y.OE.CRDT.TOT = Y.OE.CRDT.TOT + R.REC<NM.AMOUNT>
+                            Y.OE.CRDT.TOT = Y.OE.CRDT.TOT + R.STMT<AC.STE.AMOUNT.LCY>
+******************* UPDATED BY RASHED-KAMRAN *************
+!Y.RETURN<-1> = BR.CODE2:"*":TRANS.CODE2:"*":ADV.NO2:"*":Y.OE.DEBIT:"*":Y.OE.CRDT:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FROM.DATE:"*":Y.TO.DATE:"*":Y.PARTICULARS
+                            Y.RETURN<-1> = BR.CODE1:"*":TRANS.CODE1:"*":ADV.NO1:"*":Y.OE.DEBIT:"*":Y.OE.CRDT:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FROM.DATE:"*":Y.TO.DATE:"*":Y.PARTICULARS
+****************** END ***********************************
+                        END
+                    END
+                    BR.CODE1 = ""; ADV.NO1 = ""; Y.OE.DEBIT = ""; Y.OE.CRDT = "";Y.PARTICULARS = ""
+                    BR.CODE2 = BR.CODE1; ADV.NO2 = ADV.NO1; TRANS.CODE2 = TRANS.CODE1
+                END
+                BR.CODE1 = ""; ADV.NO1 = ""; DR.CR.MARK = ""; TRANS.CODE1 = ""; OE.RE.REM = ""
+
+            END ELSE
+                IF OE.RE.REM EQ 'RE' THEN
+                    IF DR.CR.MARK EQ 'DR' THEN
+!Y.RE.DBT.TOT = Y.RE.DBT.TOT + ABS(R.REC<NM.AMOUNT>)
+                        Y.RE.DBT.TOT = Y.RE.DBT.TOT + ABS(R.STMT<AC.STE.AMOUNT.LCY>)
+                    END ELSE
+!Y.RE.CRDT.TOT = Y.RE.CRDT.TOT + R.REC<NM.AMOUNT>
+                        Y.RE.CRDT.TOT = Y.RE.CRDT.TOT + R.STMT<AC.STE.AMOUNT.LCY>
+                    END
+
+                END
+                OE.RE.REM = ""; DR.CR.MARK = ""
+            END
+        NEXT I
+!---------------------------ADDING all OPEN & CLOSE------------------------------
+
+        Y.INDV.DATA<-1>=Y.ID:"*":Y.FROM.DATE:"*":Y.AC.OPEN.BAL:"*":Y.AC.CLOSE.BAL
+        Y.TOTAL.OPEN=Y.TOTAL.OPEN+Y.AC.OPEN.BAL
+
+        Y.AC.OPEN.BAL=0; Y.AC.CLOSE.BAL=0;
+
+    REPEAT
+!------------------------OPENING & CLOSING-----------------------
+
+!    IF Y.OPEN.BAL LT '0' THEN
+!
+!        Y.OPENING.AMT.DBT = ABS(Y.OPEN.BAL)
+!        Y.DBT.GRND.TOT = Y.OPENING.AMT.DBT + Y.OE.DBT.TOT + Y.RE.DBT.TOT
+!        Y.CLOSING.AMT.CRDT = ABS(Y.DBT.GRND.TOT - (Y.OE.CRDT.TOT + Y.RE.CRDT.TOT))
+!    END ELSE
+!        Y.OPENING.AMT.CRDT = Y.OPEN.BAL
+!        Y.CRDT.GRND.TOT = Y.OPEN.BAL + Y.OE.CRDT.TOT + Y.RE.CRDT.TOT
+!        Y.CLOSING.AMT.DBT = ABS(Y.CRDT.GRND.TOT - (Y.OE.DBT.TOT + Y.RE.DBT.TOT))
+!    END
+
+    IF Y.TOTAL.OPEN LT '0' THEN
+        Y.OPENING.AMT.DBT = ABS(Y.TOTAL.OPEN)
+        Y.OPENING.AMT.CRDT=0
+        Y.CLOSE.RESULT= (Y.OPENING.AMT.DBT + Y.OE.DBT.TOT + Y.RE.DBT.TOT) - (Y.OE.CRDT.TOT + Y.RE.CRDT.TOT)
+
+        IF Y.CLOSE.RESULT<0 THEN
+            Y.CLOSING.AMT.DBT=Y.CLOSE.RESULT
+            Y.CLOSING.AMT.CRDT=0
+        END ELSE
+            Y.CLOSING.AMT.CRDT=Y.CLOSE.RESULT
+            Y.CLOSING.AMT.DBT=0
+        END
+
+        Y.CRDT.GRND.TOT = Y.OPENING.AMT.CRDT + Y.OE.CRDT.TOT + Y.RE.CRDT.TOT+Y.CLOSING.AMT.CRDT
+        Y.DBT.GRND.TOT = Y.OPENING.AMT.DBT + Y.OE.DBT.TOT + Y.RE.DBT.TOT+Y.CLOSING.AMT.DBT
+
+    END ELSE
+        Y.OPENING.AMT.CRDT = Y.TOTAL.OPEN
+        Y.OPENING.AMT.DBT=0
+        Y.CLOSE.RESULT= (Y.OPENING.AMT.CRDT + Y.OE.CRDT.TOT + Y.RE.CRDT.TOT) - (Y.OE.DBT.TOT + Y.RE.DBT.TOT)
+
+        IF Y.CLOSE.RESULT <0 THEN
+            Y.CLOSING.AMT.CRDT=Y.CLOSE.RESULT
+            Y.CLOSING.AMT.DBT=0
+        END ELSE
+            Y.CLOSING.AMT.DBT=Y.CLOSE.RESULT
+            Y.CLOSING.AMT.CRDT=0
+        END
+
+        Y.CRDT.GRND.TOT = Y.OPENING.AMT.CRDT + Y.OE.CRDT.TOT + Y.RE.CRDT.TOT+Y.CLOSING.AMT.CRDT
+        Y.DBT.GRND.TOT = Y.OPENING.AMT.DBT + Y.OE.DBT.TOT + Y.RE.DBT.TOT+Y.CLOSING.AMT.DBT
+
+    END
+
+!Y.RETURN<-1> = BR.CODE1:"*":TRANS.CODE1:"*":ADV.NO1:"*":Y.OE.DEBIT:"*":Y.OE.CRDT:"*":Y.OPENING.AMT.DBT:"*":Y.OPENING.AMT.CRDT:"*":Y.OE.DBT.TOT:"*":Y.OE.CRDT.TOT:"*":Y.RE.DBT.TOT:"*":Y.RE.CRDT.TOT:"*":Y.CLOSING.AMT.DBT:"*":Y.CLOSING.AMT.CRDT:"*":Y.FROM.DATE:"*":Y.TO.DATE:"*":Y.PARTICULARS
+    Y.RETURN<-1> = Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE:"*":Y.OPENING.AMT.DBT:"*":Y.OPENING.AMT.CRDT:"*":Y.OE.DBT.TOT:"*":Y.OE.CRDT.TOT:"*":Y.RE.DBT.TOT:"*":Y.RE.CRDT.TOT:"*":Y.CLOSING.AMT.DBT:"*":Y.CLOSING.AMT.CRDT:"*":Y.FALSE:"*":Y.FALSE:"*":Y.FALSE
+!                      1              2            3              4            5                  6                     7                   8                 9                10                11                  12                     13                14             15              16
+!    CRT Y.RETURN
+
+    Y.LOOP.CNT = DCOUNT(Y.RETURN,FM) - 1
+    FOR H = 1 TO Y.LOOP.CNT
+        IF H EQ Y.LOOP.CNT THEN
+            Y.TEMP.DATA = FIELD(Y.RETURN,FM,H)
+            Y.TEMP.DATA2 = FIELD(Y.RETURN,FM,H+1)
+            Y.VAR1 = FIELD(Y.TEMP.DATA,"*",1)
+            Y.VAR2 = FIELD(Y.TEMP.DATA,"*",2)
+            Y.VAR3 = FIELD(Y.TEMP.DATA,"*",3)
+            Y.VAR4 = FIELD(Y.TEMP.DATA,"*",4)
+            Y.VAR5 = FIELD(Y.TEMP.DATA,"*",5)
+            Y.VAR6 = FIELD(Y.TEMP.DATA2,"*",6)
+            Y.VAR7 = FIELD(Y.TEMP.DATA2,"*",7)
+            Y.VAR8 = FIELD(Y.TEMP.DATA2,"*",8)
+            Y.VAR9 = FIELD(Y.TEMP.DATA2,"*",9)
+            Y.VAR10 = FIELD(Y.TEMP.DATA2,"*",10)
+            Y.VAR11 = FIELD(Y.TEMP.DATA2,"*",11)
+            Y.VAR12 = FIELD(Y.TEMP.DATA2,"*",12)
+            Y.VAR13 = FIELD(Y.TEMP.DATA2,"*",13)
+            Y.VAR14 = FIELD(Y.TEMP.DATA,"*",14)
+            Y.VAR15 = FIELD(Y.TEMP.DATA,"*",15)
+            Y.VAR16 = FIELD(Y.TEMP.DATA,"*",16)
+            Y.FINAL.DATA<-1> = Y.VAR1:"*":Y.VAR2:"*":Y.VAR3:"*":Y.VAR4:"*":Y.VAR5:"*":Y.VAR6:"*":Y.VAR7:"*":Y.VAR8:"*":Y.VAR9:"*":Y.VAR10:"*":Y.VAR11:"*":Y.VAR12:"*":Y.VAR13:"*":Y.VAR14:"*":Y.VAR15:"*":Y.VAR16
+        END
+        ELSE
+            Y.FINAL.DATA<-1> = FIELD(Y.RETURN,FM,H)
+        END
+    NEXT H
+!CRT Y.RETURN
+    RETURN
+END

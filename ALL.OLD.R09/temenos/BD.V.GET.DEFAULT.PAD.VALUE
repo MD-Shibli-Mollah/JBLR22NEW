@@ -1,0 +1,82 @@
+*-----------------------------------------------------------------------------
+* <Rating>-40</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.GET.DEFAULT.PAD.VALUE
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.ACCOUNT.CLOSURE
+    $INSERT I_F.LD.LOANS.AND.DEPOSITS
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+    FN.AC.CLOSE = 'F.ACCOUNT.CLOSURE'
+    F.AC.CLOSE = ''
+    R.AC.CLOSE.REC = ''
+    Y.AC.CLOSE.ERR = ''
+    CALL OPF(FN.AC.CLOSE,F.AC.CLOSE)
+
+    FN.AC.HIS = 'F.ACCOUNT$HIS'
+    F.AC.HIS = ''
+    R.AC.HIS.REC = ''
+    Y.AC.HIS.ERR = ''
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+
+    FN.LD = 'F.LD.LOANS.AND.DEPOSITS'
+    F.LD = ''
+    R.LD.REC = ''
+    Y.LD.ERR = ''
+    CALL OPF(FN.LD,F.LD)
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+    GOSUB GET.LOC.REF.POS
+    Y.AC.ID = COMI
+    Y.OLD.AC.ID = Y.AC.ID
+    CALL F.READ(FN.AC.CLOSE,Y.OLD.AC.ID,R.AC.CLOSE.REC,F.AC.CLOSE,Y.AC.CLOSE.ERR)
+    Y.TOT.PAD.AMT = ABS(R.AC.CLOSE.REC<AC.ACL.ONLINE.CLEARED.BAL>) + ABS(R.AC.CLOSE.REC<AC.ACL.TOTAL.DR.INTEREST>)
+    Y.SETT.AC = R.AC.CLOSE.REC<AC.ACL.SETTLEMENT.ACCT>
+    CALL EB.READ.HISTORY.REC(F.AC.HIS,Y.AC.ID,R.AC.HIS.REC,Y.AC.HIS.ERR)
+    Y.PAD.CUSNO = R.AC.HIS.REC<AC.CUSTOMER>
+    Y.PAD.REFNO = R.AC.HIS.REC<AC.LOCAL.REF,Y.AC.PADREF.POS>
+    Y.PAD.TFNO = R.AC.HIS.REC<AC.LOCAL.REF,Y.AC.TFNO.POS>
+    Y.PAD.DRNO = R.AC.HIS.REC<AC.LOCAL.REF,Y.AC.DRNO.POS>
+    Y.PAD.LCNO = R.AC.HIS.REC<AC.LOCAL.REF,Y.AC.LCNO.POS>
+    GOSUB SET.PAD.DEF.VALUE.LD
+    RETURN
+
+*---------------------------------------------------------------------------------
+SET.PAD.DEF.VALUE.LD:
+*------------------
+    R.NEW(LD.CUSTOMER.ID) = Y.PAD.CUSNO
+    R.NEW(LD.DRAWDOWN.ACCOUNT) = Y.SETT.AC
+    R.NEW(LD.LOCAL.REF)<1,Y.LD.PADREF.POS> = Y.PAD.REFNO
+    R.NEW(LD.LOCAL.REF)<1,Y.LD.PADAMT.POS> = Y.TOT.PAD.AMT
+    R.NEW(LD.LOCAL.REF)<1,Y.LD.LCNO.POS> = Y.PAD.LCNO
+    R.NEW(LD.LOCAL.REF)<1,Y.LD.TFNO.POS> = Y.PAD.TFNO
+    R.NEW(LD.LOCAL.REF)<1,Y.LD.DRNO.POS> = Y.PAD.DRNO
+
+    RETURN
+*-----------------------------------------------------------------------------
+GET.LOC.REF.POS:
+*--------------
+    CALL GET.LOC.REF('LD.LOANS.AND.DEPOSITS','IMP.PAD.REF',Y.LD.PADREF.POS)
+    CALL GET.LOC.REF('LD.LOANS.AND.DEPOSITS','IMP.PAD.AMT',Y.LD.PADAMT.POS)
+    CALL GET.LOC.REF('LD.LOANS.AND.DEPOSITS','LC.NO',Y.LD.LCNO.POS)
+    CALL GET.LOC.REF('LD.LOANS.AND.DEPOSITS','LINKED.TF.NO',Y.LD.TFNO.POS)
+    CALL GET.LOC.REF('LD.LOANS.AND.DEPOSITS','LINKED.TFDR.REF',Y.LD.DRNO.POS)
+    CALL GET.LOC.REF('ACCOUNT','LC.NO',Y.AC.LCNO.POS)
+    CALL GET.LOC.REF('ACCOUNT','OLD.LEGACY.ID',Y.AC.PADREF.POS)
+    CALL GET.LOC.REF('ACCOUNT','LINKED.TF.NO',Y.AC.TFNO.POS)
+    CALL GET.LOC.REF('ACCOUNT','LINKED.TFDR.REF',Y.AC.DRNO.POS)
+    RETURN
+END

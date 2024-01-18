@@ -1,0 +1,272 @@
+!PROGRAM JBL.VIO.REPORT.TP
+    SUBROUTINE JBL.VIO.REPORT.TP(Y.RETURN)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT BP I_F.EB.JBL.DCC.TP
+
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+
+
+*---------
+INIT:
+*------
+    FN.STMT='F.STMT.ENTRY'
+    F.STMT=''
+    FN.TP = 'F.EB.JBL.DCC.TP'
+    F.TP = ''
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+
+    Y.DEP.AMT = 0
+    Y.DEP.COUNT = 0
+    Y.WITH.AMT = 0
+    Y.WITH.COUNT = 0
+    Y.DEP.TRAS.AMT = 0
+    Y.DEP.TRANS.COUNT = 0
+    Y.WITH.TRAS.AMT = 0
+    Y.WITH.TRANS.COUNT = 0
+    Y.DEP.CLR.AMT = 0
+    Y.DEP.CLR.COUNT = 0
+    Y.WITH.CLR.AMT = 0
+    Y.WITH.CLR.COUNT = 0
+
+    LOCATE "ACCOUNT" IN ENQ.SELECTION<2,1> SETTING AC.POS THEN
+        Y.AC.ID = ENQ.SELECTION<4,AC.POS>
+    END
+    LOCATE "FROM.DATE" IN ENQ.SELECTION<2,1> SETTING F.DATE.POS THEN
+        Y.FROM.DATE = ENQ.SELECTION<4,F.DATE.POS>
+    END
+    LOCATE "TO.DATE" IN ENQ.SELECTION<2,1> SETTING T.DATE.POS THEN
+        Y.TO.DATE = ENQ.SELECTION<4,T.DATE.POS>
+    END
+!IF Y.FROM.DATE1 GT Y.TO.DATE1 THEN
+!Y.TEMP = Y.FROM.DATE
+!Y.FROM.DATE = Y.TO.DATE1
+!Y.TO.DATE = Y.TEMP
+!END
+    CALL CDD('C',Y.FROM.DATE,Y.TO.DATE,Y.DAYS)
+
+    Y.F.DATE = RIGHT(Y.FROM.DATE[1,6],2)
+    Y.T.DATE = RIGHT(Y.TO.DATE[1,6],2)
+    Y.DIFF.DATE = Y.T.DATE - Y.F.DATE
+
+    IF Y.DIFF.DATE EQ '0' THEN
+        Y.DI.DATE = Y.DIFF.DATE + 1
+    END
+    ELSE
+        Y.DI.DATE = Y.DIFF.DATE + 1
+    END
+    RETURN
+*---------
+OPENFILE:
+*---------
+    CALL OPF(FN.TP,F.TP)
+    CALL OPF(FN.STMT,F.STMT)
+    CALL OPF(FN.AC,F.AC)
+    Y.ID.COMPANY = ID.COMPANY
+    RETURN
+
+*---------
+PROCESS:
+*---------
+*****RETRIEVE TRANSACTION PROFILE FROM TP APPLICATION*****************
+    CALL F.READ(FN.AC,Y.AC.ID,R.ACCOUNT,F.AC,Y.ERR)
+    IF R.ACCOUNT THEN
+        IF R.ACCOUNT<AC.CO.CODE> EQ ID.COMPANY THEN
+            ERR.FLAG = 0
+        END
+        ELSE
+            E = 'INVALID COMPANY'
+        END
+    END
+    ELSE
+        E = 'INVALID ACCOUNT NO'
+    END
+
+!CALL EB.NO.OF.MONTHS(Y.FROM.DATE,Y.TO.DATE,NO.OF.MONTHS)
+    CALL F.READ(FN.TP,Y.AC.ID,R.TP.REC,F.TP,Y.TP.ERR)
+
+    Y.DP.NAR = R.TP.REC<EB.JBL52.DEP.PARTICULARS>
+    Y.DP.TRN.NO = R.TP.REC<EB.JBL52.NO.TXN.MON>
+    Y.DP.TOT.AMT = R.TP.REC<EB.JBL52.DEP.TOT.AMT>
+
+    Y.WITH.NAR = R.TP.REC<EB.JBL52.WITH.PARTICULAR>
+    Y.WITH.TRN.NO = R.TP.REC<EB.JBL52.WITH.NO.TXN.MON>
+    Y.WITH.TOT.AMT = R.TP.REC<EB.JBL52.WITH.TOT.AMT>
+!Y.CO.CODE = R.TP.REC<EB.JBL52.CO.CODE>
+*****DEPOSIT INFORMATION FOR TP**************
+!IF Y.ID.COMPANY EQ Y.CO.CODE THEN
+    IF ERR.FLAG EQ '0' THEN
+!IF NO.OF.MONTHS NE '0' THEN
+        IF Y.DAYS LT '365' THEN
+            Y.DP.NARR = FIELD(Y.DP.NAR,@VM,1)
+            Y.DP.TRNS.NO = FIELD(Y.DP.TRN.NO,@VM,1) * (Y.DI.DATE)
+            Y.DP.TOTL.AMT = FIELD(Y.DP.TOT.AMT,@VM,1) * (Y.DI.DATE)
+            Y.DP.TRANS.NARR = FIELD(Y.DP.NAR,@VM,2)
+            Y.DP.TRANS.TRN.NO = FIELD(Y.DP.TRN.NO,@VM,2) * (Y.DI.DATE)
+            Y.DP.TRANS.TOT.AMT = FIELD(Y.DP.TOT.AMT,@VM,2) * (Y.DI.DATE)
+            Y.DP.CLR.NARR = FIELD(Y.DP.NAR,@VM,5)
+            Y.DP.CLR.TRN.NO = FIELD(Y.DP.TRN.NO,@VM,5) * (Y.DI.DATE)
+            Y.DP.CLR.TOT.AMT = FIELD(Y.DP.TOT.AMT,@VM,5) * (Y.DI.DATE)
+*****WITHDRAW INFORMATION FOR TP**************
+            Y.WITH.NARR = FIELD(Y.WITH.NAR,@VM,1)
+            Y.WITH.TRNS.NO = FIELD(Y.WITH.TRN.NO,@VM,1) * (Y.DI.DATE)
+            Y.WITH.TOTL.AMT = FIELD(Y.WITH.TOT.AMT,@VM,1) * (Y.DI.DATE)
+            Y.WITH.TRANS.NARR = FIELD(Y.WITH.NAR,@VM,2)
+            Y.WITH.TRANS.TRN.NO = FIELD(Y.WITH.TRN.NO,@VM,2) * (Y.DI.DATE)
+            Y.WITH.TRANS.TOT.AMT = FIELD(Y.WITH.TOT.AMT,@VM,2) * (Y.DI.DATE)
+            Y.WITH.CLR.NARR = FIELD(Y.WITH.NAR,@VM,5)
+            Y.WITH.CLR.TRN.NO = FIELD(Y.WITH.TRN.NO,@VM,5) * (Y.DI.DATE)
+            Y.WITH.CLR.TOT.AMT = FIELD(Y.WITH.TOT.AMT,@VM,5) * (Y.DI.DATE)
+
+******************STMT.ENTRY INFORMATION******************
+            CALL EB.ACCT.ENTRY.LIST(Y.AC.ID,Y.FROM.DATE,Y.TO.DATE,YID.LIST,OPENING.BAL,ER)
+            LOOP
+                REMOVE Y.VAL FROM YID.LIST SETTING POS
+            WHILE Y.VAL:POS
+                CALL F.READ(FN.STMT,Y.VAL,REC.STMT,F.STMT,ERR.STMT)
+                Y.STMT.AMT = REC.STMT<AC.STE.AMOUNT.LCY>
+                Y.STMT.SYS.ID = REC.STMT <AC.STE.SYSTEM.ID>
+                Y.TR.CODE = REC.STMT<AC.STE.TRANSACTION.CODE>
+                IF Y.STMT.AMT GT 0 AND Y.STMT.SYS.ID EQ "TT" AND Y.TR.CODE EQ 52 THEN
+                    Y.DEP.AMT + = Y.STMT.AMT
+                    Y.DEP.COUNT + = 1
+                END ELSE
+                    IF Y.STMT.AMT LT 0 AND Y.STMT.SYS.ID EQ "TT" AND Y.TR.CODE EQ 2 THEN
+                        Y.WITH.AMT + = Y.STMT.AMT
+                        Y.WITH.COUNT = Y.WITH.COUNT+1
+                    END ELSE
+                        IF Y.STMT.AMT GT 0 AND Y.STMT.SYS.ID EQ "FT"  THEN
+                            Y.DEP.TRAS.AMT + = Y.STMT.AMT
+                            Y.DEP.TRANS.COUNT + = 1
+                        END ELSE
+                            IF Y.STMT.AMT LT 0 AND Y.STMT.SYS.ID EQ "FT"  THEN
+                                Y.WITH.TRAS.AMT + = Y.STMT.AMT
+                                Y.WITH.TRANS.COUNT + = 1
+                            END ELSE
+
+                                IF Y.STMT.AMT GT 0 AND Y.STMT.SYS.ID EQ "TT" AND Y.TR.CODE EQ 94 THEN
+                                    Y.DEP.CLR.AMT + = Y.STMT.AMT
+                                    Y.DEP.CLR.COUNT + = 1
+                                END  ELSE
+                                    IF Y.STMT.AMT LT 0 AND Y.STMT.SYS.ID EQ "TT" AND Y.TR.CODE EQ 90 THEN
+                                        Y.WITH.CLR.AMT + = Y.STMT.AMT
+                                        Y.WITH.CLR.COUNT + = 1
+                                    END
+                                END
+                            END
+                        END
+                    END
+                END
+            REPEAT
+            Y.WITH.TXN.AMT = (Y.WITH.AMT)*(-1)
+            Y.WITH.TRAS.TXN.AMT = (Y.WITH.TRAS.AMT)*(-1)
+            Y.WITH.CLR.TXN.AMT = (Y.WITH.CLR.AMT)*(-1)
+
+*******************************
+            IF Y.DP.TRNS.NO LE Y.DEP.COUNT THEN
+                Y.DP.VIO.TR = Y.DEP.COUNT - Y.DP.TRNS.NO
+            END
+            ELSE
+                Y.DP.VIO.TR = 'No Violation'
+            END
+            IF Y.DP.TOTL.AMT LE Y.DEP.AMT THEN
+                Y.DP.VIO.AMT = Y.DEP.AMT - Y.DP.TOTL.AMT
+            END
+            ELSE
+                Y.DP.VIO.AMT = 'No Amount Violation'
+            END
+
+            IF Y.WITH.TRNS.NO LE Y.WITH.COUNT THEN
+                Y.WITH.VIO.TR = Y.WITH.COUNT - Y.WITH.TRNS.NO
+            END
+            ELSE
+                Y.WITH.VIO.TR = 'No Violation'
+            END
+            IF Y.WITH.TOTL.AMT LE Y.WITH.TXN.AMT THEN
+                Y.WITH.VIO.AMT = Y.WITH.TXN.AMT - Y.WITH.TOTL.AMT
+            END
+            ELSE
+                Y.WITH.VIO.AMT = 'No Amount Violation'
+            END
+
+            IF Y.DP.TRANS.TRN.NO LE Y.DEP.TRANS.COUNT THEN
+                Y.DP.TRANS.VIO.TR = Y.DEP.TRANS.COUNT-Y.DP.TRANS.TRN.NO
+
+            END
+            ELSE
+                Y.DP.TRANS.VIO.TR = 'No Violation'
+            END
+            IF Y.DP.TRANS.TOT.AMT LE Y.DEP.TRAS.AMT THEN
+                Y.DP.TRANS.VIO.AMT = Y.DEP.TRAS.AMT - Y.DP.TRANS.TOT.AMT
+            END
+            ELSE
+                Y.DP.TRANS.VIO.AMT = 'No Amount Violation'
+            END
+
+            IF Y.WITH.TRANS.TRN.NO LE Y.WITH.TRANS.COUNT THEN
+                Y.WITH.TRANS.VIO.TR = Y.WITH.TRANS.COUNT-Y.WITH.TRANS.TRN.NO
+            END
+            ELSE
+                Y.WITH.TRANS.VIO.TR = 'No Violation'
+            END
+            IF Y.WITH.TRANS.TOT.AMT LE Y.WITH.TRAS.TXN.AMT  THEN
+                Y.WITH.TRANS.VIO.AMT =  Y.WITH.TRAS.TXN.AMT - Y.WITH.TRANS.TOT.AMT
+            END
+            ELSE
+                Y.WITH.TRANS.VIO.AMT = 'No Amount Violation'
+            END
+
+            IF Y.DP.CLR.TRN.NO LE Y.DEP.CLR.COUNT THEN
+                Y.DP.CLR.VIO.TR = Y.DEP.CLR.COUNT-Y.DP.CLR.TRN.NO
+            END
+            ELSE
+                Y.DP.CLR.VIO.TR = 'No Violation'
+            END
+            IF Y.DP.CLR.TOT.AMT LE Y.DEP.CLR.AMT THEN
+                Y.DP.CLR.VIO.AMT = Y.DEP.CLR.AMT - Y.DP.CLR.TOT.AMT
+            END
+            ELSE
+                Y.DEP.CLR.VIO.AMT = 'No Amount Violation'
+            END
+
+            IF Y.WITH.CLR.TRN.NO LE Y.WITH.CLR.COUNT THEN
+                Y.WITH.CLR.VIO.TR = Y.WITH.CLR.COUNT-Y.WITH.CLR.TRN.NO
+            END
+            ELSE
+                Y.WITH.CLR.VIO.TR = 'No Violation'
+            END
+            IF Y.WITH.CLR.TOT.AMT LE Y.WITH.CLR.TXN.AMT THEN
+                Y.WITH.CLR.VIO.AMT = Y.WITH.CLR.TXN.AMT - Y.WITH.CLR.TOT.AMT
+            END
+            ELSE
+                Y.WITH.CLR.VIO.AMT = 'No Amount Violation'
+            END
+
+            Y.RETURN<-1>="---------Deposit Particulars---------"
+            Y.RETURN<-1>=Y.DP.NARR:"*":Y.DP.TRNS.NO:"*":Y.DP.TOTL.AMT:"*":Y.DEP.COUNT:"*":Y.DEP.AMT:"*":Y.DP.VIO.TR:"*":Y.DP.VIO.AMT
+            Y.RETURN<-1>= Y.DP.TRANS.NARR:"*":Y.DP.TRANS.TRN.NO:"*":Y.DP.TRANS.TOT.AMT:"*":Y.DEP.TRANS.COUNT:"*":Y.DEP.TRAS.AMT:"*":Y.DP.TRANS.VIO.TR:"*":Y.DP.TRANS.VIO.AMT
+            Y.RETURN<-1>=Y.DP.CLR.NARR:"*": Y.DP.CLR.TRN.NO:"*":Y.DP.CLR.TOT.AMT:"*":Y.DEP.CLR.COUNT:"*":Y.DEP.CLR.AMT:"*":Y.DP.CLR.VIO.TR:"*":Y.DEP.CLR.VIO.AMT
+
+            Y.RETURN<-1>='-----------Withdrawal Particulars-----------------'
+            Y.RETURN<-1>= Y.WITH.NARR:"*": Y.WITH.TRNS.NO:"*":Y.WITH.TOTL.AMT:"*":Y.WITH.COUNT:"*":Y.WITH.TXN.AMT:"*": Y.WITH.VIO.TR:"*":Y.WITH.VIO.AMT
+            Y.RETURN<-1>=Y.WITH.TRANS.NARR:"*":Y.WITH.TRANS.TRN.NO:"*":Y.WITH.TRANS.TOT.AMT:"*":Y.WITH.TRANS.COUNT:"*":Y.WITH.TRAS.TXN.AMT:"*":Y.WITH.TRANS.VIO.TR:"*":Y.WITH.TRANS.VIO.AMT
+            Y.RETURN<-1>=Y.WITH.CLR.NARR:"*":Y.WITH.CLR.TRN.NO:"*":Y.WITH.CLR.TOT.AMT:"*":Y.WITH.CLR.COUNT:"*":Y.WITH.CLR.TXN.AMT:"*":Y.WITH.CLR.VIO.TR:"*":Y.WITH.CLR.VIO.AMT
+        END
+        ELSE
+            Y.RETURN<-1> = "*":"DIFFERENCE BETWEEN TWO DATE MUST BE BELOW ONE YEAR"
+        END
+!END
+!ELSE
+!Y.RETURN<-1> = "*":"TO DATE MUST BE GREATER THAN FROM DATE"
+!END
+    END
+    RETURN
+END

@@ -1,0 +1,35 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE FDR.MAT.EXCISE.DUTY.PROCESS.SELECT
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.AZ.ACCOUNT
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT JBL.BP I_FDR.MAT.EXCISE.DUTY.PROCESS.COMMON
+
+    GOSUB PROCESS
+    RETURN
+*----------
+PROCESS:
+*----------
+    SEL.CMD = 'SELECT ':FN.AZ.ACCT:' WITH CATEGORY EQ 6621 AND VALUE.DATE GT ':Y.LAST.WRK.DAY:' AND VALUE.DATE LE ':Y.DATE
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',REC.NO,RET.CODE)
+
+    CRT" TOTAL RECORDS....":REC.NO
+!CRT" DO YOU WANT TO START THEN INPUT Y/N"
+
+!INPUT USER.CHOICE
+!IF USER.CHOICE EQ 'Y' THEN
+    GOSUB BATCH.RUN
+!END
+    RETURN
+
+*----------
+BATCH.RUN:
+*----------
+    CALL BATCH.BUILD.LIST('',SEL.LIST)
+    RETURN
+END

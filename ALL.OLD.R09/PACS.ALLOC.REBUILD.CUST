@@ -1,0 +1,36 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PACS.ALLOC.REBUILD.CUST
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+
+    COMO.ID = "PACS.ALLOC.REBUILD.CUST.LOG_":TODAY:"_":TIMEDATE()
+    EXECUTE "COMO ON ":COMO.ID
+    PRINT ""
+    PRINT "Running this routine will rebuild the LIMIT COLLATERAL ALLOCATION STRUCTURE"
+    PRINT "for the customer given in &SAVEDLIST& LI.COLL.CORRECT"
+    PRINT "Do you want to Proceed (Y/N)"
+    INPUT CHK.VAR
+    IF CHK.VAR NE 'Y' THEN
+    PRINT "Exit"
+    EXECUTE "COMO OFF ":COMO.ID
+
+    END ELSE
+    PRINT TIMEDATE()
+    PRINT "#####Calling ALLOC.WORK.CLEAR.CUST#####"
+    CALL ALLOC.WORK.CLEAR.CUST
+    PRINT TIMEDATE()
+    PRINT "#####Calling CLEAR.COLR.IN.LIMIT.CUST#####"
+    CALL CLEAR.COLR.IN.LIMIT.CUST
+    PRINT TIMEDATE()
+    PRINT "#####Calling CLEAR.LIMIT.REF.IN.COLR.CUST#####"
+    CALL CLEAR.LIMIT.REF.IN.COLR.CUST
+    PRINT TIMEDATE()
+    PRINT "Completed PACS.ALLOC.REBUILD.CUST"
+    PRINT "USER RUNNING THIS ROUTINE :":OPERATOR
+
+    EXECUTE "COMO OFF ":COMO.ID
+
+    RETURN
+END 

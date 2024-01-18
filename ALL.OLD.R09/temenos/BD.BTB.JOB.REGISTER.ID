@@ -1,0 +1,55 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.BTB.JOB.REGISTER.ID
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This ID routine will generate the ID's for BD.BTB.JOB.REGISTER table
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 04/03/2011 - New -
+*
+*-------------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.BD.BTB.JOB.REGISTER
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-------------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.BTB.JOB.NAU = 'F.BD.BTB.JOB.REGISTER$NAU'
+    F.BTB.JOB.NAU = ''
+    CALL OPF(FN.BTB.JOB.NAU,F.BTB.JOB.NAU)
+
+    FN.BTB.JOB = 'F.BD.BTB.JOB.REGISTER'
+    F.BTB.JOB = ''
+    CALL OPF(FN.BTB.JOB,F.BTB.JOB)
+
+    RETURN
+*-------------------------------------------------------------------------------
+PROCESS:
+********
+    IF V$FUNCTION EQ 'I' THEN
+        CALL F.READ(FN.BTB.JOB,ID.NEW,R.BTB.JOB,F.BTB.JOB,Y.BTB.JOB.ERR)
+        IF R.BTB.JOB THEN
+            ID.NEW = ID.NEW
+            RETURN
+        END ELSE
+            E = 'INVALID JOB NUMBER'
+            GOSUB CHECK.ID.RETURN
+        END
+    END
+    RETURN
+
+CHECK.ID.RETURN:
+    RETURN TO CHECK.ID.RETURN
+*-------------------------------------------------------------------------------
+
+END

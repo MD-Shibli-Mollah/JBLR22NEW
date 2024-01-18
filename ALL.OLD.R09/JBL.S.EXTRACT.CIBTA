@@ -1,0 +1,66 @@
+    SUBROUTINE JBL.S.EXTRACT.CIBTA
+
+*DEV: ALIN BOBY
+*DATE: 20210401
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT JBL.BP I_F.ABL.H.NM.ER
+    $INSERT JBL.BP I_F.ABL.H.BRANCH.CODE
+
+    FN.BR.CODE = "F.ABL.H.BRANCH.CODE"
+    F.BR.CODE = ""
+
+    FN.FT.NAU='F.FUNDS.TRANSFER$NAU'
+    F.FT.NAU=''
+    REC.FT.NAU=''
+
+    FN.FT ='F.FUNDS.TRANSFER'
+    F.FT =''
+
+    R.AC.REC = ''
+    R.AC.REC1 = ''
+    Y.AC.ERR = ''
+    Y.AC.ERR1 = ''
+
+    Y.LC.TYPE.ID = ''
+    TOT.ASS = ''
+    Y.TOT.ASS.AMT = ''
+    Y.TOT.AMT = ''
+    Y.ASS.AC.ID = ''
+    Y.AC.ID = ''
+    Y.AMT = ''
+
+    CALL OPF(FN.FT.NAU,F.FT.NAU)
+    CALL OPF(FN.BR.CODE,F.BR.CODE)
+    CALL OPF(FN.FT,F.FT)
+
+    IF V$FUNCTION EQ 'I' THEN
+        Y.BR.CODE = COMI
+
+        Y.ZONE.CODE = "''"
+        SEL.CMD='SELECT ':FN.BR.CODE:' WITH @ID EQ ':Y.BR.CODE:' AND ZONAL.CODE NE ':Y.ZONE.CODE
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,E.RR)
+
+        IF NO.OF.REC EQ '0' THEN
+            ETEXT = 'Not a Valid Company ID'
+        END ELSE
+
+            CALL F.READ(FN.BR.CODE,Y.BR.CODE,R.BR.CODE,F.BR.CODE,Y.BR.ERR)
+            R.NEW(NM.ZONAL.CODE) = R.BR.CODE<BRN.ZONAL.CODE>
+
+            IF ID.NEW[1,2] EQ 'FT' THEN
+
+                CALL GET.LOC.REF("FUNDS.TRANSFER","DATE.OF.OE",Y.FIELDS.POS)
+
+                CALL F.READ(FN.FT.NAU,ID.NEW,REC.FT.NAU,F.FT.NAU,ERR.FT.NAU)
+                IF REC.FT.NAU THEN
+                    R.NEW(NM.AMOUNT)=REC.FT.NAU<FT.DEBIT.AMOUNT>
+                    R.NEW(NM.DATE.OF.OE) = REC.FT.NAU<FT.LOCAL.REF,Y.FIELDS.POS>
+                END
+            END
+        END
+    END
+    RETURN

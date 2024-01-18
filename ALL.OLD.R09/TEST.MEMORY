@@ -1,0 +1,193 @@
+*-----------------------------------------------------------------------------
+* <Rating>1140</Rating>
+*-----------------------------------------------------------------------------
+*********************************************
+* Memory leak on SELECT
+*
+*********************************************
+
+    PROGRAM  TEST.MEMORY
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_EB.TRANS.COMMON
+    $INSERT I_TV.COMMON
+
+    filename = 'TEST.ORACLE'
+    filetype = 'XMLORACLE'
+    Debug = 1
+    result=0
+
+* Create test file.
+
+    GOSUB CreateTestFile            ; IF result THEN RETURN
+
+* Populate with test dict/data.
+
+    GOSUB BuildTestData             ; IF result THEN RETURN
+    GOSUB BuildTestDict             ; IF result THEN RETURN
+
+
+    GOSUB DoSelect                 ; IF result THEN RETURN
+
+
+* Remove test file.
+
+    GOSUB DeleteTestFile                                ; IF result THEN RETURN
+
+    result=0
+    RETURN
+
+*********************************************
+CreateTestFile:
+
+    IF Debug THEN CRT "CreateTestFile()"
+
+*   CRT "ENTER FILE NAME TO CREATE :"
+* INPUT filename
+*   CRT "ENTER THE FILETYPE(XMLORACLE,J4,JR) :"
+*   INPUT filetype
+
+*   Delete test file if present.
+
+    GOSUB DeleteTestFile
+
+*   Create data part of testfile.
+
+    command  = "CREATE-FILE DICT ":filename:" TYPE=":filetype
+    EXECUTE command
+*   Create dict part of testfile.
+
+    command  = "CREATE-FILE DATA ":filename:" TYPE=":filetype
+    EXECUTE command
+
+    RETURN
+
+*********************************************
+BuildTestData:
+
+    IF Debug THEN CRT "BuildTestData()"
+
+    OPEN filename TO data_fd ELSE
+        feedback = "Failed to open (DATA) filename=":filename
+        result=3
+        RETURN
+    END
+
+    Record = STR("X",1000)
+    TRANSTART "" ELSE result = 3  ; RETURN
+    FOR RecKey = 1 TO 1000
+        WRITE Record ON data_fd, RecKey
+    NEXT RecKey
+    TRANSEND "" ELSE result = 3  ; RETURN
+
+    CLOSE data_fd
+
+    RETURN
+
+*********************************************
+BuildTestDict:
+
+    IF Debug THEN CRT "BuildTestDict()"
+
+    OPEN "DICT ":filename TO dict_fd ELSE
+        feedback = "Failed to open DICT filename=":filename
+        result=4
+        RETURN
+    END
+
+    ATT0 = ""
+    ATT0<0>="@ID"
+    ATT0<1>="D"
+    ATT0<2>="0"
+    ATT0<4> = "ATT1R"
+    ATT0<5>="10L"
+    ATT0<6>="S"
+
+    WRITE ATT0 TO dict_fd,"@ID"
+
+    ATT1 = ""
+    ATT1<0>="ATT1R"
+    ATT1<1>="D"
+    ATT1<2>="1"
+    ATT1<4> = "ATT1R"
+    ATT1<5>="10L"
+    ATT1<6>="S"
+    ATT1<30>="JBASE_EDICT_START"
+    ATT1<31>="108"
+    ATT1<32> = "10"
+    ATT1<34> = "ATT1R"
+    ATT1<39> = "1073741909"
+    ATT1<47>="JBASE_EDICT_END"
+
+    WRITE ATT1 TO dict_fd,"ATT1R"
+
+    CLOSE dict_fd
+
+    RETURN
+
+*********************************************
+DeleteTestFile:
+
+    IF Debug THEN CRT "DeleteTestFile()"
+
+* Remove test file if it exists.
+
+    command = "DELETE-FILE DATA ":filename
+    PERFORM command CAPTURING dummy
+
+    command = "DELETE-FILE DICT ":filename
+    PERFORM command CAPTURING dummy
+
+    RETURN
+
+*********************************************
+DoSelect:
+
+    IF Debug THEN CRT "DoSelect()"
+
+    x = PUTENV("JEDI_XMLDRIVER_DEBUG=1")
+    x = PUTENV("JEDI_XMLDRIVER_DEBUG_DISPLAY=1")
+
+    OPEN filename TO data_fd ELSE
+        feedback = "Failed to open (DATA) filename=":filename
+        result=3
+        RETURN
+    END
+
+    FOR Iteration = 1 TO 100
+
+        Memusage = SYSTEM(1013)
+        MemStart = INT((Memusage<3> + Memusage<4>) / 1024)
+
+        command = "SELECT ":filename:" WITH ATT1R LIKE ":DQUOTE("'X'...")
+        PERFORM command CAPTURING output
+
+        IF Debug THEN
+            CRT "Command ": command
+            CRT "Output  ": output
+        END
+
+        Memusage = SYSTEM(1013)
+        MemEnd = INT((Memusage<3> + Memusage<4>) / 1024)
+
+        IF Debug THEN
+            CRT "Memory start ": MemStart
+            CRT "Memory end   ": MemEnd
+            CRT "Memory used  ": MemEnd - MemStart
+        END
+
+        IF Iteration > 1 THEN
+            IF ( MemEnd - MemStart ) > 100 THEN
+*   result = 6
+                CRT "Memory appears to be leaking"
+                STOP
+            END
+        END
+
+    NEXT Iteration
+    CLOSE data_fd
+
+    x = PUTENV("JEDI_XMLDRIVER_DEBUG_DISPLAY=")
+    x = PUTENV("JEDI_XMLDRIVER_ENABLE_DB_SORT=")
+
+    STOP

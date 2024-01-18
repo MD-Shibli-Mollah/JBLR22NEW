@@ -1,0 +1,287 @@
+*-----------------------------------------------------------------------------
+* <Rating>-130</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.LIM.LTR.REGISTER.VALIDATE
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*-----------------------
+* This routine is to validate the fields of BD.LIM.LTR.REGISTER
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 03/03/2011 - New - G.Sabari
+*                    Thesys Technologies
+*-------------------------------------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE JBL.BP I_F.BD.LIM.LTR.REGISTER
+    $INCLUDE JBL.BP I_F.BD.LIM.LTR.PARAMETER
+
+    GOSUB INITIALISE
+    GOSUB PROCESS.MESSAGE
+
+    RETURN
+*-------------------------------------------------------------------------------------------------------------
+VALIDATE:
+*********
+
+* TODO - Add the validation code here.
+* Set AF, AV and AS to the field, multi value and sub value and invoke STORE.END.ERROR
+* Set ETEXT to point to the EB.ERROR.TABLE
+
+*      AF = MY.FIELD.NAME                 <== Name of the field
+*      ETEXT = 'EB-EXAMPLE.ERROR.CODE'    <== The error code
+*      CALL STORE.END.ERROR               <== Needs to be invoked per error
+
+    AF = BD.REG.PAD.INTEREST
+    GOSUB CHK.PAD
+    GOSUB CHECK.CHARGE.TYPE
+    IF Y.ERROR.FLAG THEN
+        RETURN
+    END
+    GOSUB CHARGE.VALIDATE
+    GOSUB OTHER.DESC.VALIDATE
+    GOSUB MARGIN.DETS.VALIDATE
+
+    RETURN
+*-------------------------------------------------------------------------------------------------------------
+CHK.PAD:
+********
+
+    Y.PAD.INT    = R.NEW(BD.REG.PAD.INTEREST)
+    Y.INT.PAY    = R.NEW(BD.REG.PAD.INT.PAYMT)
+    Y.PAD.DR.ACT = R.NEW(BD.REG.PAD.DEBIT.ACCT)
+    Y.PAD.ID     = R.NEW(BD.REG.PAD.ID)
+    IF Y.PAD.INT THEN
+        IF Y.INT.PAY EQ '' AND Y.PAD.DR.ACT EQ '' THEN
+            ETEXT = 'EB-PAD.INT'
+            CALL STORE.END.ERROR
+        END ELSE
+            CALL F.READ(FN.ACCOUNT,Y.PAD.DR.ACT,R.ACCOUNT,F.ACCOUNT,Y.ACC.ERR)
+            IF R.ACCOUNT THEN
+                Y.ACC.CCY = R.ACCOUNT<AC.CURRENCY>
+            END
+        END
+    END
+    CALL F.READ(FN.LD.LOANS.AND.DEPOSITS,Y.PAD.ID,R.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS,Y.LD.ERR)
+    IF R.LD.LOANS.AND.DEPOSITS THEN
+        Y.LD.CCY  = R.LD.LOANS.AND.DEPOSITS<LD.CURRENCY>
+        IF Y.ACC.CCY NE Y.LD.CCY THEN
+            AF    = BD.REG.PAD.DEBIT.ACCT
+            ETEXT = 'EB-PAD.DR.ACCT.CCY'
+            CALL STORE.END.ERROR
+        END
+    END
+
+    RETURN
+*-------------------------------------------------------------------------------------------------------------
+CHARGE.VALIDATE:
+****************
+
+    Y.CHARGE.TYPE     = R.NEW(BD.REG.CHG.TYPE)
+    Y.CHG.AMT.TYPE    = R.NEW(BD.REG.CHG.AMT.TYPE)
+    Y.CHG.AMOUNT      = R.NEW(BD.REG.CHG.AMOUNT)
+    Y.CHG.PAY.MTD     = R.NEW(BD.REG.CHG.PAY.METHOD)
+    Y.DR.ACCT         = R.NEW(BD.REG.CHG.DR.ACCT)
+    Y.CHARGE.TYPE.CNT = DCOUNT(Y.CHARGE.TYPE,VM)
+    Y.CHARGE.TYPE.INT = 1
+    LOOP
+    WHILE Y.CHARGE.TYPE.INT LE Y.CHARGE.TYPE.CNT
+        Y.CHARGE.TYPE.VAL  = Y.CHARGE.TYPE<1,Y.CHARGE.TYPE.INT>
+        Y.CHG.AMT.TYPE.VAL = Y.CHG.AMT.TYPE<1,Y.CHARGE.TYPE.INT>
+        Y.CHG.AMOUNT.VAL   = Y.CHG.AMOUNT<1,Y.CHARGE.TYPE.INT>
+        Y.CHG.PAY.MTD.VAL  = Y.CHG.PAY.MTD<1,Y.CHARGE.TYPE.INT>
+        Y.DR.ACCT.VAL      = Y.DR.ACCT<1,Y.CHARGE.TYPE.INT>
+        IF Y.CHARGE.TYPE.VAL THEN
+            IF NOT(Y.CHG.AMT.TYPE.VAL AND Y.CHG.AMOUNT.VAL AND Y.CHG.PAY.MTD.VAL) THEN
+                AF    = BD.REG.CHG.TYPE
+                AV    = Y.CHARGE.TYPE.INT
+                ETEXT = 'EB-CHARGE.TYPE'
+                CALL STORE.END.ERROR
+            END
+        END
+        Y.CHARGE.TYPE.INT++
+    REPEAT
+
+    RETURN
+*-------------------------------------------------------------------------------------------------------------
+OTHER.DESC.VALIDATE:
+********************
+
+    Y.OTH.CHG.DESC     = R.NEW(BD.REG.OTH.CHGS.DESC)
+    Y.OTH.CHG.AMT      = R.NEW(BD.REG.OTH.CHGS.AMT)
+    Y.OTH.PAT.MTD      = R.NEW(BD.REG.OTH.CHG.PAYMTD)
+    Y.OTH.CHG.DR.ACCT  = R.NEW(BD.REG.OTH.CHG.DRACCT)
+    Y.OTH.CHG.DESC.CNT = DCOUNT(Y.OTH.CHG.DESC,VM)
+    Y.OTH.CHG.DESC.INT = 1
+    LOOP
+    WHILE Y.OTH.CHG.DESC.INT LE Y.OTH.CHG.DESC.CNT
+        Y.OTH.CHG.DESC.VAL    = Y.OTH.CHG.DESC<1,Y.OTH.CHG.DESC.INT>
+        Y.OTH.CHG.AMT.VAL     = Y.OTH.CHG.AMT<1,Y.OTH.CHG.DESC.INT>
+        Y.OTH.PAT.MTD.VAL     = Y.OTH.PAT.MTD<1,Y.OTH.CHG.DESC.INT>
+        Y.OTH.CHG.DR.ACCT.VAL = Y.OTH.CHG.DR.ACCT<1,Y.OTH.CHG.DESC.INT>
+        IF Y.OTH.CHG.DESC.VAL THEN
+            IF NOT(Y.OTH.CHG.AMT.VAL AND Y.OTH.PAT.MTD.VAL) THEN
+                AF    = BD.REG.OTH.CHGS.DESC
+                AV    = Y.OTH.CHG.DESC.INT
+                ETEXT = 'EB-OTH.CHG.DESC'
+                CALL STORE.END.ERROR
+            END
+        END
+        Y.OTH.CHG.DESC.INT++
+    REPEAT
+
+    RETURN
+*-------------------------------------------------------------------------------------------------------------
+MARGIN.DETS.VALIDATE:
+*********************
+
+    Y.LD.MARGIN.AMT = R.NEW(BD.REG.LC.MARGIN.AMT)
+    Y.DR.MAR.ACCT   = R.NEW(BD.REG.DR.MARGIN.ACCT)
+    Y.CR.MAR.ACCT   = R.NEW(BD.REG.CR.MARGIN.ACCT)
+* IF Y.LD.MARGIN.AMT AND R.BD.LIM.LTR.PARAMETER<BD.PARAM.DEBIT.SETTL.ACCT> NE 'YES' THEN
+*      AF    = BD.REG.LC.MARGIN.AMT
+*       ETEXT = 'EB-LC.MARGIN.AMT'
+*      CALL STORE.END.ERROR
+*     RETURN
+*END
+    IF Y.LD.MARGIN.AMT THEN
+        IF NOT(Y.DR.MAR.ACCT) THEN
+            AF    = BD.REG.DR.MARGIN.ACCT
+            ETEXT = 'EB-LC.MARGIN.DR.CR'
+            CALL STORE.END.ERROR
+        END
+        IF NOT(Y.CR.MAR.ACCT) THEN
+            AF    = BD.REG.CR.MARGIN.ACCT
+            ETEXT = 'EB-LC.MARGIN.DR.CR'
+            CALL STORE.END.ERROR
+        END
+    END
+
+    RETURN
+*-------------------------------------------------------------------------------------------------------------
+CHECK.CHARGE.TYPE:
+*****************
+
+    CALL F.READ(FN.BD.LIM.LTR.PARAMETER,'SYSTEM',R.BD.LIM.LTR.PARAMETER,F.BD.LIM.LTR.PARAMETER,BD.LIM.LTR.PARAMETER.ERR)
+    IF R.BD.LIM.LTR.PARAMETER THEN
+        Y.CHG.TYPE.PARAM.LIST = R.BD.LIM.LTR.PARAMETER<BD.PARAM.CHG.TYPE>
+        Y.AUTO.DEBIT          = R.BD.LIM.LTR.PARAMETER<BD.PARAM.AUTO.DEBIT>
+    END
+    IF Y.AUTO.DEBIT NE 'YES' THEN
+        RETURN
+    END
+    Y.ERROR.FLAG    = ''
+    Y.CHG.TYPE.LIST = R.NEW(BD.REG.CHG.TYPE)
+    Y.TOT.COUNT     = DCOUNT(Y.CHG.TYPE.LIST,VM)
+    Y.INIT.COUNT    = 1
+    LOOP
+    WHILE Y.INIT.COUNT LE Y.TOT.COUNT
+        Y.CHG.TYPE  = Y.CHG.TYPE.LIST<1,Y.INIT.COUNT>
+        LOCATE Y.CHG.TYPE IN Y.CHG.TYPE.PARAM.LIST<1,1> SETTING Y.CHG.TYPE.POS ELSE
+            AF    = BD.REG.CHG.TYPE
+            AV    = Y.INIT.COUNT
+            ETEXT = 'EB-CHG.TYPE'
+            CALL STORE.END.ERROR
+            Y.ERROR.FLAG = 1
+        END
+        Y.INIT.COUNT +=1
+    REPEAT
+
+    IF R.NEW(BD.REG.OTH.CHGS.DESC) THEN
+        LOCATE 'OTHER.CHARGES' IN Y.CHG.TYPE.PARAM.LIST<1,1> SETTING Y.OTHER.CHGS.POS ELSE
+            AF    = BD.REG.OTH.CHGS.DESC
+            AV    = 1
+            ETEXT = 'EB-OTHER.CHARGE.TYPE'
+            CALL STORE.END.ERROR
+            Y.ERROR.FLAG = 1
+            RETURN
+        END
+    END
+
+    RETURN
+*-------------------------------------------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.BD.LIM.LTR.PARAMETER = 'F.BD.LIM.LTR.PARAMETER'
+    F.BD.LIM.LTR.PARAMETER  = ''
+    CALL OPF(FN.BD.LIM.LTR.PARAMETER,F.BD.LIM.LTR.PARAMETER)
+    R.BD.LIM.LTR.PARAMETER  = ''
+
+    FN.BD.LIM.LTR.REGISTER = 'F.BD.LIM.LTR.REGISTER'
+    F.BD.LIM.LTR.REGISTER  = ''
+    CALL OPF(FN.BD.LIM.LTR.REGISTER,F.BD.LIM.LTR.REGISTER)
+    R.BD.LIM.LTR.REGISTER  = ''
+
+    FN.LETTER.OF.CREDIT = 'F.LETTER.OF.CREDIT'
+    F.LETTER.OF.CREDIT  = ''
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+    R.LETTER.OF.CREDIT  = ''
+
+    FN.LD.LOANS.AND.DEPOSITS = 'F.LD.LOANS.AND.DEPOSITS'
+    F.LD.LOANS.AND.DEPOSITS  = ''
+    CALL OPF(FN.LD.LOANS.AND.DEPOSITS,F.LD.LOANS.AND.DEPOSITS)
+    R.LD.LOANS.AND.DEPOSITS  = ''
+
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT  = ''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+    R.ACCOUNT  = ''
+
+    RETURN
+*-----------------------------------------------------------------------------
+*** <region name= Process Message>
+
+PROCESS.MESSAGE:
+****************
+
+    BEGIN CASE
+    CASE MESSAGE EQ ''        ;* Only during commit...
+        BEGIN CASE
+        CASE V$FUNCTION EQ 'D'
+            GOSUB VALIDATE.DELETE
+        CASE V$FUNCTION EQ 'R'
+            GOSUB VALIDATE.REVERSE
+        CASE OTHERWISE        ;* The real VALIDATE...
+            GOSUB VALIDATE
+        END CASE
+    CASE MESSAGE EQ 'AUT' OR MESSAGE EQ 'VER'     ;* During authorisation and verification...
+        GOSUB VALIDATE.AUTHORISATION
+    END CASE
+
+    RETURN
+
+*** </region>
+*-----------------------------------------------------------------------------
+*** <region name= VALIDATE.DELETE>
+
+VALIDATE.DELETE:
+****************
+* Any special checks for deletion
+
+    RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+*** <region name= VALIDATE.REVERSE>
+
+VALIDATE.REVERSE:
+*****************
+* Any special checks for reversal
+
+    RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+*** <region name= VALIDATE.AUTHORISATION>
+
+VALIDATE.AUTHORISATION:
+***********************
+* Any special checks for authorisation
+
+    RETURN
+*** </region>
+*-----------------------------------------------------------------------------
+END

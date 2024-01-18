@@ -1,0 +1,509 @@
+*-----------------------------------------------------------------------------
+* <Rating>360</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE NOFILE.CALL.MONEY.SHEET(Y.ARR)
+*-------------------------------------------------------------------------
+* This is a Nofile Enquiry for generate the Treasury call money sheet.
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 03/10/2013 - New - Manjunath Suvarna
+*                    Sepit SoftTech Pvt. Ltd.
+*
+*-------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.DATES
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.STANDARD.SELECTION
+    $INCLUDE JBL.BP I_F.BD.PARTICULARS.OUT
+    $INCLUDE JBL.BP I_F.BD.PARTICULARS.IN
+    $INCLUDE JBL.BP I_F.BD.PARTICULARS.FLD
+    $INCLUDE JBL.BP I_F.BD.CALL.REFUND
+    $INCLUDE JBL.BP I_F.BD.CALL.BORROW
+    $INCLUDE JBL.BP I_F.BD.INTERBANK.REPO.MATURED
+    $INCLUDE JBL.BP I_F.BD.INTERBANK.REPO
+    $INCLUDE JBL.BP I_F.BD.INTERBANK.REVERSE.REPO
+    $INCLUDE JBL.BP I_F.BD.IB.REVERSE.REPO.MATURED
+    $INCLUDE JBL.BP I_F.BD.CALL.LOAN.GIVEN
+    $INCLUDE JBL.BP I_F.BD.CALL.LOAN.REFUND
+*
+*-------------------------------------------------------------------------
+* Main controlling section:
+*-------------------------------------------------------------------------
+    GOSUB INITIALISATION
+    GOSUB SEL.CRITERIA
+    GOSUB MAIN.PROCESS
+
+    RETURN
+
+*-------------------------------------------------------------------------
+* Subroutine Section:
+* File Opening and Variable set up
+
+INITIALISATION:
+*-------------------------------------------------------------------------
+*
+    FN.SS.STAND = 'F.STANDARD.SELECTION'
+    F.SS.STAND = ''
+*
+    FN.PARTI.OUT = 'F.BD.PARTICULARS.OUT'
+    F.PARTI.OUT = ''
+*
+    FN.PARTI.IN = 'F.BD.PARTICULARS.IN'
+    F.PARTI.IN = ''
+*
+    FN.PARTI.FLD = 'F.BD.PARTICULARS.FLD'
+    F.PARTI.FLD = ''
+*
+    FN.CALL.REFUND = 'F.BD.CALL.REFUND'
+    F.CALL.REFUND = ''
+*
+    FN.CALL.BORROW = 'F.BD.CALL.BORROW'
+    F.CALL.BORROW = ''
+*
+    FN.IB.REPO.MAT = 'F.BD.INTERBANK.REPO.MATURED'
+    F.IB.REPO.MAT = ''
+*
+    FN.IB.REPO = 'F.BD.INTERBANK.REPO'
+    F.IB.REPO = ''
+*
+    FN.IB.REV.REPO = 'F.BD.INTERBANK.REVERSE.REPO'
+    F.IB.REV.REPO = ''
+*
+    FN.IB.REV.REPO.MAT = 'F.BD.IB.REVERSE.REPO.MATURED'
+    F.IB.REV.REPO.MAT = ''
+*
+    FN.CALL.LOAN.GIVEN = 'F.BD.CALL.LOAN.GIVEN'
+    F.CALL.LOAN.GIVEN = ''
+*
+    FN.CALL.LOAN.REFUND = 'F.BD.CALL.LOAN.REFUND'
+    F.CALL.LOAN.REFUND = ''
+*
+    CALL OPF(FN.SS.STAND,F.SS.STAND)
+    CALL OPF(FN.PARTI.OUT,F.PARTI.IN)
+    CALL OPF(FN.PARTI.IN,F.PARTI.IN)
+    CALL OPF(FN.PARTI.FLD,F.PARTI.FLD)
+    CALL OPF(FN.CALL.REFUND,F.CALL.REFUND)
+    CALL OPF(FN.CALL.BORROW,F.CALL.BORROW)
+    CALL OPF(FN.IB.REPO.MAT,F.IB.REPO.MAT)
+    CALL OPF(FN.IB.REPO,F.IB.REPO)
+    CALL OPF(FN.IB.REV.REPO,F.IB.REV.REPO)
+    CALL OPF(FN.IB.REV.REPO.MAT,F.IB.REV.REPO.MAT)
+    CALL OPF(FN.CALL.LOAN.GIVEN,F.CALL.LOAN.GIVEN)
+    CALL OPF(FN.CALL.LOAN.REFUND,F.CALL.LOAN.REFUND)
+*
+    RETURN
+*-------------------------------------------------------------------------
+* Selection criteria
+SEL.CRITERIA:
+    LOCATE "ENTRY.DATE" IN  D.FIELDS<1> SETTING POS THEN
+        Y.ENT.DATE = D.RANGE.AND.VALUE<POS>
+    END
+
+    RETURN
+*-------------------------------------------------------------------------
+* Main Subroutine processing:
+* Locating the field of Exposure Date in the ENQUIRY which should be a Mandatory input
+MAIN.PROCESS:
+*
+    CALL F.READ(FN.PARTI.FLD,'SYSTEM',R.PARTI.FLD,F.PARTI.FLD,Y.ERR)
+*
+    CALL F.READ(FN.PARTI.OUT,Y.ENT.DATE,R.PARTI.OUT,F.PARTI.OUT,Y.ERR)
+*
+    CALL F.READ(FN.PARTI.IN,Y.ENT.DATE,R.PARTI.IN,F.PARTI.IN,Y.ERR)
+*
+    Y.CNT = DCOUNT(R.PARTI.FLD<BD.PARTI.FLD.PAR.OUT>,VM)
+    FOR I = 1 TO Y.CNT
+        Y.ITEM.NAME = TRIM(FIELD(R.PARTI.FLD<BD.PARTI.FLD.PAR.OUT>,@VM,I,1))
+        Y.ITEM.NAME2 = TRIM(FIELD(R.PARTI.FLD<BD.PARTI.FLD.PAR.IN>,@VM,I,1))
+*
+        BEGIN CASE
+*
+        CASE I = 1
+            Y.OUT.I = R.PARTI.OUT<PCULAR.OUT.I.CRR.SHORT>
+            Y.OUT.A = R.PARTI.OUT<PCULAR.OUT.A.CRR.SHORT>
+            Y.IN.I = R.PARTI.IN<PCULAR.IN.I.CRR.SURPLUS>
+            Y.IN.A = R.PARTI.IN<PCULAR.IN.A.CRR.SURPLUS>
+
+        CASE I = 2
+            Y.OUT.I = R.PARTI.OUT<PCULAR.OUT.I.CRR.INCREASE>
+            Y.OUT.A = R.PARTI.OUT<PCULAR.OUT.A.CRR.INCREASE>
+            Y.IN.I =  R.PARTI.IN<PCULAR.IN.I.CRR.DECREASE>
+            Y.IN.A =  R.PARTI.IN<PCULAR.IN.A.CRR.DECREASE>
+
+        CASE I = 3
+            Y.OUT.I = R.PARTI.OUT<PCULAR.OUT.I.ST.DIFFER>
+            Y.OUT.A = R.PARTI.OUT<PCULAR.OUT.A.ST.DIFFER>
+            Y.IN.I = R.PARTI.IN<PCULAR.IN.I.ST.DIFFER>
+            Y.IN.A = R.PARTI.IN<PCULAR.IN.A.ST.DIFFER>
+*
+        CASE I = 4
+            Y.OUT.I = R.PARTI.OUT<PCULAR.OUT.I.HIGH.CLEARING>
+            Y.OUT.A = R.PARTI.OUT<PCULAR.OUT.A.HIGH.CLEARING>
+            Y.IN.I = R.PARTI.IN<PCULAR.IN.I.HIGH.CLEARING>
+            Y.IN.A = R.PARTI.IN<PCULAR.IN.A.HIGH.CLEARING>
+*
+        CASE I = 5
+            Y.OUT.I = R.PARTI.OUT<PCULAR.OUT.I.REGULAR.CLEARING>
+            Y.OUT.A = R.PARTI.OUT<PCULAR.OUT.A.REGULAR.CLEARING>
+            Y.IN.I = R.PARTI.IN<PCULAR.IN.I.REGULAR.CLEARING>
+            Y.IN.A = R.PARTI.IN<PCULAR.IN.A.REGULAR.CLEARING>
+*
+        CASE I = 6
+            Y.OUT.I = R.PARTI.OUT<PCULAR.OUT.I.TT.KLN.OTHER>
+            Y.OUT.A = R.PARTI.OUT<PCULAR.OUT.A.TT.KLN.OTHER>
+            Y.IN.I = R.PARTI.IN<PCULAR.IN.I.TT.KLN.OTHER>
+            Y.IN.A = R.PARTI.IN<PCULAR.IN.A.TT.KLN.OTHER>
+*
+        CASE I = 7
+            Y.OUT.I = R.PARTI.OUT<PCULAR.OUT.I.CASH.WITHDRAWAL>
+            Y.OUT.A = R.PARTI.OUT<PCULAR.OUT.A.CASH.WITHDRAWAL>
+            Y.IN.I = R.PARTI.IN<PCULAR.IN.I.CASH.DEPOSIT>
+            Y.IN.A = R.PARTI.IN<PCULAR.IN.A.CASH.DEPOSIT>
+*
+        CASE I = 8
+            Y.OUT.I = R.PARTI.OUT<PCULAR.OUT.I.OUTSIDE.DHAKA>
+            Y.OUT.A = R.PARTI.OUT<PCULAR.OUT.A.OUTSIDE.DHAKA>
+            Y.IN.I = R.PARTI.IN<PCULAR.IN.I.OUTSIDE.DHAKA>
+            Y.IN.A = R.PARTI.IN<PCULAR.IN.A.OUTSIDE.DHAKA>
+*
+        CASE I = 9
+            Y.OUT.I = R.PARTI.OUT<PCULAR.OUT.I.FDR.ISSUE>
+            Y.OUT.A = R.PARTI.OUT<PCULAR.OUT.A.FDR.ISSUE>
+            Y.IN.I = R.PARTI.IN<PCULAR.IN.I.FDR.MATURED>
+            Y.IN.A = R.PARTI.IN<PCULAR.IN.A.FDR.MATURED>
+*
+        CASE I = 10
+            Y.OUT.I = R.PARTI.OUT<PCULAR.OUT.I.BGTB.PURCH.BB>
+            Y.OUT.A = R.PARTI.OUT<PCULAR.OUT.A.BGTB.PURCH.BB>
+            Y.IN.I = R.PARTI.IN<PCULAR.IN.I.BGTB.MATUR.BB>
+            Y.IN.A = R.PARTI.IN<PCULAR.IN.A.BGTB.MATUR.BB>
+*
+        CASE I = 11
+            Y.OUT.I = R.PARTI.OUT<PCULAR.OUT.I.BGTB.PURCH.IB>
+            Y.OUT.A = R.PARTI.OUT<PCULAR.OUT.A.BGTB.PURCH.IB>
+            Y.IN.I = R.PARTI.IN<PCULAR.IN.I.BGTB.MATUR.IB>
+            Y.IN.A = R.PARTI.IN<PCULAR.IN.A.BGTB.MATUR.IB>
+*
+        CASE I = 12
+            Y.OUT.I = R.PARTI.OUT<PCULAR.OUT.I.BB.BILL.PURCH>
+            Y.OUT.A = R.PARTI.OUT<PCULAR.OUT.A.BB.BILL.PURCH>
+            Y.IN.I = R.PARTI.IN<PCULAR.IN.I.BB.BILL.MATUR>
+            Y.IN.A = R.PARTI.IN<PCULAR.IN.A.BB.BILL.MATUR>
+*
+        CASE I = 13
+            Y.OUT.I = R.PARTI.OUT<PCULAR.OUT.I.FX.DOLR.PURCH>
+            Y.OUT.A = R.PARTI.OUT<PCULAR.OUT.A.FX.DOLR.PURCH>
+            Y.IN.I = R.PARTI.IN<PCULAR.IN.I.FX.DOLR.SALE>
+            Y.IN.A = R.PARTI.IN<PCULAR.IN.A.FX.DOLR.SALE>
+*
+        CASE I = 14
+            Y.OUT.I = R.PARTI.OUT<PCULAR.OUT.I.ALS.BB.MATURD>
+            Y.OUT.A = R.PARTI.OUT<PCULAR.OUT.A.ALS.BB.MATURD>
+            Y.IN.I = R.PARTI.IN<PCULAR.IN.I.ALS.FROM.BB>
+            Y.IN.A = R.PARTI.IN<PCULAR.IN.A.ALS.FROM.BB>
+*
+        CASE I = 15
+            Y.OUT.I = R.PARTI.OUT<PCULAR.OUT.I.CHEQUE.ISSUE>
+            Y.OUT.A = R.PARTI.OUT<PCULAR.OUT.A.CHEQUE.ISSUE>
+            Y.IN.I = R.PARTI.IN<PCULAR.IN.I.CHEQUE.DEPOSIT>
+            Y.IN.A = R.PARTI.IN<PCULAR.IN.A.CHEQUE.DEPOSIT>
+*
+        CASE I = 16
+            Y.ARR<-1> = "*****"
+            Y.OUT.A = R.PARTI.OUT<PCULAR.OUT.SUB.TOTAL>
+            Y.IN.A = R.PARTI.IN<PCULAR.IN.SUB.TOTAL>
+            Y.GRAND.TT.OUT += Y.OUT.A
+            Y.GRAND.TT.IN += Y.IN.A
+*
+        END CASE
+
+*
+        Y.ARR<-1> = Y.ITEM.NAME:"*":Y.OUT.I:"*":FMT(Y.OUT.A,"R2,#19"):"*":Y.ITEM.NAME2:"*":Y.IN.I:"*":FMT(Y.IN.A,"R2,#19")
+        Y.PARTICULAR.OUT = ''
+        Y.OUT.I = ''
+        Y.OUT.A = ''
+        Y.PARTICULAR.IN = ''
+        Y.IN.I = ''
+        Y.IN.A = ''
+*
+    NEXT I
+*---------------------------------------------------------------------------------------------
+*
+* Call Refund & Call Borrow
+******************************
+*
+    CALL F.READ(FN.CALL.REFUND,Y.ENT.DATE,R.CALL.REFUND,F.CALL.REFUND,Y.ERR)
+    CALL F.READ(FN.CALL.BORROW,Y.ENT.DATE,R.CALL.BORROW,F.CALL.BORROW,Y.ERR)
+    Y.CR.CNT = DCOUNT(R.CALL.REFUND,@VM)
+    Y.CB.CNT = DCOUNT(R.CALL.BORROW,@VM)
+    Y.ARR<-1> = "*****"
+    Y.ARR<-1> = "Call Refund":"***":"Call Borrow":"**"
+    Y.ARR<-1> = "--------------------":"***":"--------------------":"*"
+    Y.ARR<-1> = "*****"
+    IF Y.CR.CNT GE Y.CR.CNT THEN
+        FOR I2 = 1 TO Y.CR.CNT
+*
+            Y.ITEM.NAME = FIELD(R.CALL.REFUND<CL.REFUND.ITEM.NAME>,VM,I2,1)
+            Y.OUT.I = FIELD(R.CALL.REFUND<CL.REFUND.INTEREST.RATE>,VM,I2,1)
+            Y.OUT.A = FIELD(R.CALL.REFUND<CL.REFUND.AMOUNT>,VM,I2,1)
+*
+            IF I2 LE Y.CB.CNT THEN
+                Y.ITEM.NAME2 = FIELD(R.CALL.BORROW<CL.BORROW.ITEM.NAME>,VM,I2,1)
+                Y.IN.I = FIELD(R.CALL.BORROW<CL.BORROW.INTEREST.RATE>,VM,I2,1)
+                Y.IN.A = FIELD(R.CALL.BORROW<CL.BORROW.AMOUNT>,VM,I2,1)
+            END
+*
+            Y.ARR<-1> = Y.ITEM.NAME:"*":Y.OUT.I:"*":FMT(Y.OUT.A,"R2,#19"):"*":Y.ITEM.NAME2:"*":Y.IN.I:"*":FMT(Y.IN.A,"R2,#19")
+            Y.PARTICULAR.OUT = ''
+            Y.OUT.I = ''
+            Y.OUT.A = ''
+            Y.PARTICULAR.IN = ''
+            Y.IN.I = ''
+            Y.IN.A = ''
+*
+        NEXT I2
+    END ELSE
+        FOR I2 = 1 TO Y.CB.CNT
+*
+            IF I2 LE Y.CR.CNT THEN
+                Y.ITEM.NAME = FIELD(R.CALL.REFUND<CL.REFUND.ITEM.NAME>,VM,I2,1)
+                Y.OUT.I = FIELD(R.CALL.REFUND<CL.REFUND.INTEREST.RATE>,VM,I2,1)
+                Y.OUT.A = FIELD(R.CALL.REFUND<CL.REFUND.AMOUNT>,VM,I2,1)
+            END
+*
+            Y.ITEM.NAME2 = FIELD(R.CALL.BORROW<CL.BORROW.ITEM.NAME>,VM,I2,1)
+            Y.IN.I = FIELD(R.CALL.BORROW<CL.BORROW.INTEREST.RATE>,VM,I2,1)
+            Y.IN.A = FIELD(R.CALL.BORROW<CL.BORROW.AMOUNT>,VM,I2,1)
+*
+            Y.ARR<-1> = Y.ITEM.NAME:"*":Y.OUT.I:"*":FMT(Y.OUT.A,"R2,#19"):"*":Y.ITEM.NAME2:"*":Y.IN.I:"*":FMT(Y.IN.A,"R2,#19")
+            Y.PARTICULAR.OUT = ''
+            Y.OUT.I = ''
+            Y.OUT.A = ''
+            Y.PARTICULAR.IN = ''
+            Y.IN.I = ''
+            Y.IN.A = ''
+*
+        NEXT I2
+    END
+    Y.OUT.SUB.TOTAL = R.CALL.REFUND<CL.REFUND.SUB.TOTAL>
+    Y.IN.SUB.TOTAL = R.CALL.BORROW<CL.BORROW.SUB.TOTAL>
+    Y.GRAND.TT.OUT += Y.OUT.SUB.TOTAL
+    Y.GRAND.TT.IN += Y.IN.SUB.TOTAL
+    Y.ARR<-1> = "*****"
+    Y.ARR<-1> = "---Sub Total---":"**":FMT(Y.OUT.SUB.TOTAL,"R2,#19"):"*":"---Sub Total---":"**":FMT(Y.IN.SUB.TOTAL,"R2,#19")
+    Y.ARR<-1> = "*****"
+*
+*---------------------------------------------------------------------------------------------
+*
+* InterBank Repo Matured and InterBank Repo
+********************************************
+*
+    CALL F.READ(FN.IB.REPO.MAT,Y.ENT.DATE,R.IB.REPO.MAT,F.IB.REPO.MAT,Y.ERR)
+    CALL F.READ(FN.IB.REPO,Y.ENT.DATE,R.IB.REPO,F.IB.REPO,Y.ERR)
+    Y.RPOM.CNT = DCOUNT(R.IB.REPO.MAT,@VM)
+    Y.RPO.CNT = DCOUNT(R.IB.REPO,@VM)
+    Y.ARR<-1> = "*****"
+    Y.ARR<-1> = "InterBank Repo Matured":"***":"InterBank Repo":"**"
+    Y.ARR<-1> = "--------------------":"***":"--------------------":"*"
+    Y.ARR<-1> = "*****"
+    IF Y.RPOM.CNT GE Y.RPO.CNT THEN
+        FOR I3 = 1 TO Y.RPOM.CNT
+*
+            Y.ITEM.NAME = FIELD(R.IB.REPO.MAT<REPO.MATUR.ITEM.NAME>,VM,I3,1)
+            Y.OUT.I = FIELD(R.IB.REPO.MAT<REPO.MATUR.INTEREST.RATE>,VM,I3,1)
+            Y.OUT.A = FIELD(R.IB.REPO.MAT<REPO.MATUR.AMOUNT>,VM,I3,1)
+*
+            IF I3 LE Y.RPO.CNT THEN
+                Y.ITEM.NAME2 = FIELD(R.IB.REPO<INTER.REPO.ITEM.NAME>,VM,I3,1)
+                Y.IN.I = FIELD(R.IB.REPO<INTER.REPO.INTEREST.RATE>,VM,I3,1)
+                Y.IN.A = FIELD(R.IB.REPO<INTER.REPO.AMOUNT>,VM,I3,1)
+            END
+*
+            Y.ARR<-1> = Y.ITEM.NAME:"*":Y.OUT.I:"*":FMT(Y.OUT.A,"R2,#19"):"*":Y.ITEM.NAME2:"*":Y.IN.I:"*":FMT(Y.IN.A,"R2,#19")
+            Y.PARTICULAR.OUT = ''
+            Y.OUT.I = ''
+            Y.OUT.A = ''
+            Y.PARTICULAR.IN = ''
+            Y.IN.I = ''
+            Y.IN.A = ''
+*
+        NEXT I3
+    END ELSE
+        FOR I3 = 1 TO Y.RPO.CNT
+*
+            IF I3 LE Y.RPOM.CNT THEN
+                Y.ITEM.NAME = FIELD(R.IB.REPO.MAT<REPO.MATUR.ITEM.NAME>,VM,I3,1)
+                Y.OUT.I = FIELD(R.IB.REPO.MAT<REPO.MATUR.INTEREST.RATE>,VM,I3,1)
+                Y.OUT.A = FIELD(R.IB.REPO.MAT<REPO.MATUR.AMOUNT>,VM,I3,1)
+            END
+*
+            Y.ITEM.NAME2 = FIELD(R.IB.REPO<INTER.REPO.ITEM.NAME>,VM,I3,1)
+            Y.IN.I = FIELD(R.IB.REPO<INTER.REPO.INTEREST.RATE>,VM,I3,1)
+            Y.IN.A = FIELD(R.IB.REPO<INTER.REPO.AMOUNT>,VM,I3,1)
+*
+            Y.ARR<-1> = Y.ITEM.NAME:"*":Y.OUT.I:"*":FMT(Y.OUT.A,"R2,#19"):"*":Y.ITEM.NAME2:"*":Y.IN.I:"*":FMT(Y.IN.A,"R2,#19")
+            Y.PARTICULAR.OUT = ''
+            Y.OUT.I = ''
+            Y.OUT.A = ''
+            Y.PARTICULAR.IN = ''
+            Y.IN.I = ''
+            Y.IN.A = ''
+*
+*
+        NEXT I3
+    END
+    Y.OUT.SUB.TOTAL = R.IB.REPO.MAT<REPO.MATUR.SUB.TOTAL>
+    Y.IN.SUB.TOTAL = R.IB.REPO<INTER.REPO.SUB.TOTAL>
+    Y.GRAND.TT.OUT += Y.OUT.SUB.TOTAL
+    Y.GRAND.TT.IN += Y.IN.SUB.TOTAL
+    Y.ARR<-1> = "*****"
+    Y.ARR<-1> = "---Sub Total---":"**":FMT(Y.OUT.SUB.TOTAL,"R2,#19"):"*":"---Sub Total---":"**":FMT(Y.IN.SUB.TOTAL,"R2,#19")
+    Y.ARR<-1> = "*****"
+*
+*
+*---------------------------------------------------------------------------------------------
+*
+* InterBank Reverse Repo and InterBank Reverse Repo Matured
+********************************************
+*
+    CALL F.READ(FN.IB.REV.REPO,Y.ENT.DATE,R.IB.REV.REPO,F.IB.REV.REPO,Y.ERR)
+    CALL F.READ(FN.IB.REV.REPO.MAT,Y.ENT.DATE,R.IB.REV.REPO.MAT,F.IB.REV.REPO.MAT,Y.ERR)
+    Y.RRPO.CNT = DCOUNT(R.IB.REV.REPO,@VM)
+    Y.RRPOM.CNT = DCOUNT(R.IB.REV.REPO.MAT,@VM)
+    Y.ARR<-1> = "*****"
+    Y.ARR<-1> = "InterBank Reverse Repo":"***":"Reverse Repo Matured":"**"
+    Y.ARR<-1> = "--------------------":"***":"--------------------":"*"
+    Y.ARR<-1> = "*****"
+    IF Y.RRPO.CNT GE Y.RRPOM.CNT THEN
+        FOR I4 = 1 TO Y.RRPO.CNT
+*
+            Y.ITEM.NAME = FIELD(R.IB.REV.REPO<INTER.REV.REPO.ITEM.NAME>,VM,I4,1)
+            Y.OUT.I = FIELD(R.IB.REV.REPO<INTER.REV.REPO.INTEREST.RATE>,VM,I4,1)
+            Y.OUT.A = FIELD(R.IB.REV.REPO<INTER.REV.REPO.AMOUNT>,VM,I4,1)
+*
+            IF I4 LE Y.RPO.CNT THEN
+                Y.ITEM.NAME2 = FIELD(R.IB.REV.REPO.MAT<IB.REV.REPO.MAT.ITEM.NAME>,VM,I4,1)
+                Y.IN.I = FIELD(R.IB.REV.REPO.MAT<IB.REV.REPO.MAT.INTEREST.RATE>,VM,I4,1)
+                Y.IN.A = FIELD(R.IB.REV.REPO.MAT<IB.REV.REPO.MAT.AMOUNT>,VM,I4,1)
+            END
+*
+            Y.ARR<-1> = Y.ITEM.NAME:"*":Y.OUT.I:"*":FMT(Y.OUT.A,"R2,#19"):"*":Y.ITEM.NAME2:"*":Y.IN.I:"*":FMT(Y.IN.A,"R2,#19")
+            Y.PARTICULAR.OUT = ''
+            Y.OUT.I = ''
+            Y.OUT.A = ''
+            Y.PARTICULAR.IN = ''
+            Y.IN.I = ''
+            Y.IN.A = ''
+*
+        NEXT I4
+    END ELSE
+        FOR I4 = 1 TO Y.RRPOM.CNT
+*
+            IF I4 LE Y.RRPOM.CNT THEN
+                Y.ITEM.NAME = FIELD(R.IB.REV.REPO<INTER.REV.REPO.ITEM.NAME>,VM,I4,1)
+                Y.OUT.I = FIELD(R.IB.REV.REPO<INTER.REV.REPO.INTEREST.RATE>,VM,I4,1)
+                Y.OUT.A = FIELD(R.IB.REV.REPO<INTER.REV.REPO.AMOUNT>,VM,I4,1)
+            END
+*
+            Y.ITEM.NAME2 = FIELD(R.IB.REV.REPO.MAT<IB.REV.REPO.MAT.ITEM.NAME>,VM,I4,1)
+            Y.IN.I = FIELD(R.IB.REV.REPO.MAT<IB.REV.REPO.MAT.INTEREST.RATE>,VM,I4,1)
+            Y.IN.A = FIELD(R.IB.REV.REPO.MAT<IB.REV.REPO.MAT.AMOUNT>,VM,I4,1)
+*
+            Y.ARR<-1> = Y.ITEM.NAME:"*":Y.OUT.I:"*":FMT(Y.OUT.A,"R2,#19"):"*":Y.ITEM.NAME2:"*":Y.IN.I:"*":FMT(Y.IN.A,"R2,#19")
+            Y.PARTICULAR.OUT = ''
+            Y.OUT.I = ''
+            Y.OUT.A = ''
+            Y.PARTICULAR.IN = ''
+            Y.IN.I = ''
+            Y.IN.A = ''
+*
+        NEXT I4
+    END
+    Y.OUT.SUB.TOTAL = R.IB.REV.REPO<INTER.REV.REPO.SUB.TOTAL>
+    Y.IN.SUB.TOTAL = R.IB.REV.REPO.MAT<IB.REV.REPO.MAT.SUB.TOTAL>
+    Y.GRAND.TT.OUT += Y.OUT.SUB.TOTAL
+    Y.GRAND.TT.IN += Y.IN.SUB.TOTAL
+    Y.ARR<-1> = "*****"
+    Y.ARR<-1> = "---Sub Total---":"**":FMT(Y.OUT.SUB.TOTAL,"R2,#19"):"*":"---Sub Total---":"**":FMT(Y.IN.SUB.TOTAL,"R2,#19")
+    Y.ARR<-1> = "*****"
+*
+*
+*---------------------------------------------------------------------------------------------
+*
+* Call Loan Given and Call Loan Refund
+********************************************
+*
+    CALL F.READ(FN.CALL.LOAN.GIVEN,Y.ENT.DATE,R.CALL.LOAN.GIVEN,F.CALL.LOAN.GIVEN,Y.ERR)
+    CALL F.READ(FN.CALL.LOAN.REFUND,Y.ENT.DATE,R.CALL.LOAN.REFUND,F.CALL.LOAN.REFUND,Y.ERR)
+    Y.CLG.CNT = DCOUNT(R.CALL.LOAN.GIVEN,@VM)
+    Y.CLR.CNT = DCOUNT(R.CALL.LOAN.REFUND,@VM)
+    Y.ARR<-1> = "*****"
+    Y.ARR<-1> = "Call Loan Given":"***":"Call Loan Refund":"**"
+    Y.ARR<-1> = "--------------------":"***":"--------------------":"*"
+    Y.ARR<-1> = "*****"
+    IF Y.CLG.CNT GE Y.CLR.CNT THEN
+        FOR I5 = 1 TO Y.RRPO.CNT
+*
+            Y.ITEM.NAME = FIELD(R.CALL.LOAN.GIVEN<CL.LN.GN.ITEM.NAME>,VM,I5,1)
+            Y.OUT.I = FIELD(R.CALL.LOAN.GIVEN<CL.LN.GN.INTEREST.RATE>,VM,I5,1)
+            Y.OUT.A = FIELD(R.CALL.LOAN.GIVEN<CL.LN.GN.AMOUNT>,VM,I5,1)
+*
+            IF I5 LE Y.CLR.CNT THEN
+                Y.ITEM.NAME2 = FIELD(R.CALL.LOAN.REFUND<CL.LN.REFUND.ITEM.NAME>,VM,I5,1)
+                Y.IN.I = FIELD(R.CALL.LOAN.REFUND<CL.LN.REFUND.INTEREST.RATE>,VM,I5,1)
+                Y.IN.A = FIELD(R.CALL.LOAN.REFUND<CL.LN.REFUND.AMOUNT>,VM,I5,1)
+            END
+*
+            Y.ARR<-1> = Y.ITEM.NAME:"*":Y.OUT.I:"*":FMT(Y.OUT.A,"R2,#19"):"*":Y.ITEM.NAME2:"*":Y.IN.I:"*":FMT(Y.IN.A,"R2,#19")
+            Y.PARTICULAR.OUT = ''
+            Y.OUT.I = ''
+            Y.OUT.A = ''
+            Y.PARTICULAR.IN = ''
+            Y.IN.I = ''
+            Y.IN.A = ''
+*
+        NEXT I5
+    END ELSE
+        FOR I5 = 1 TO Y.CLR.CNT
+*
+            IF I5 LE Y.CLG.CNT THEN
+                Y.ITEM.NAME = FIELD(R.CALL.LOAN.GIVEN<CL.LN.GN.ITEM.NAME>,VM,I5,1)
+                Y.OUT.I = FIELD(R.CALL.LOAN.GIVEN<CL.LN.GN.INTEREST.RATE>,VM,I5,1)
+                Y.OUT.A = FIELD(R.CALL.LOAN.GIVEN<CL.LN.GN.AMOUNT>,VM,I5,1)
+            END
+*
+            Y.ITEM.NAME2 = FIELD(R.CALL.LOAN.REFUND<CL.LN.REFUND.ITEM.NAME>,VM,I5,1)
+            Y.IN.I = FIELD(R.CALL.LOAN.REFUND<CL.LN.REFUND.INTEREST.RATE>,VM,I5,1)
+            Y.IN.A = FIELD(R.CALL.LOAN.REFUND<CL.LN.REFUND.AMOUNT>,VM,I5,1)
+*
+            Y.ARR<-1> = Y.ITEM.NAME:"*":Y.OUT.I:"*":FMT(Y.OUT.A,"R2,#19"):"*":Y.ITEM.NAME2:"*":Y.IN.I:"*":FMT(Y.IN.A,"R2,#19")
+            Y.PARTICULAR.OUT = ''
+            Y.OUT.I = ''
+            Y.OUT.A = ''
+            Y.PARTICULAR.IN = ''
+            Y.IN.I = ''
+            Y.IN.A = ''
+*
+        NEXT I5
+*
+    END
+    Y.OUT.SUB.TOTAL = R.CALL.LOAN.GIVEN<CL.LN.GN.SUB.TOTAL>
+    Y.IN.SUB.TOTAL = R.CALL.LOAN.REFUND<CL.LN.REFUND.SUB.TOTAL>
+    Y.GRAND.TT.OUT += Y.OUT.SUB.TOTAL
+    Y.GRAND.TT.IN += Y.IN.SUB.TOTAL
+    Y.ARR<-1> = "*****"
+    Y.ARR<-1> = "---Sub Total---":"**":FMT(Y.OUT.SUB.TOTAL,"R2,#19"):"*":"---Sub Total---":"**":FMT(Y.IN.SUB.TOTAL,"R2,#19")
+    Y.ARR<-1> = "*****"
+    Y.ARR<-1> = "--------------------"
+    Y.ARR<-1> = "Grand Total CRR Surplus/Short":"**":FMT(Y.GRAND.TT.OUT,"R2,#19"):"***":FMT(Y.GRAND.TT.IN,"R2,#19")
+    Y.ARR<-1> = "--------------------"
+*
+*
+    RETURN
+*
+*
+*--------------------------------------------------------------------------------------------------
+END

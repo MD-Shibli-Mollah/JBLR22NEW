@@ -1,0 +1,241 @@
+*-----------------------------------------------------------------------------
+* <Rating>656</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.S.SB.CL.CALC.POST
+!------------------------------------------------------
+!Mainline routine to deduct Saving Account Closing charges based on
+!the slab defined in ABL.H.SB.CLCHG Parameter
+!-----------------------------------------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.CUSTOMER
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ABL.H.SB.CLCHG
+    $INSERT I_F.ABL.H.SB.CHRG
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB CALC.CHRG
+    RETURN
+
+INIT:
+
+    IN.DATA=''
+    OUT.DATA=''
+    ST.EN.DATE=''
+
+    FN.SB.CHR='F.ABL.H.SB.CHRG'
+    F.SB.CHR=''
+    REC.SB.CHR=''
+    Y.SB.CHR.ID=''
+
+
+    FN.CUS='F.CUSTOMER'
+    F.CUS=''
+    REC.CUS=''
+    Y.SECTOR=''
+
+    FN.AC="F.ACCOUNT"
+    F.AC=''
+    REC.AC=''
+    Y.AC.ID=''
+
+    FN.SB.CL='F.ABL.H.SB.CLCHG'
+    F.SB.CL=''
+    Y.SB.CL.ID=''
+    REC.SB.CL=''
+    REC.SB.CL.SYS=''
+    Y.SB.CHRG.AMT=''
+    Y.SB.VAT.AMT=''
+
+    Y.AC.WRK.BAL= ''
+    Y.SB.SLAB.AMT=''
+    Y.SB.STAFF.CHRG.AMT= ''
+    Y.SB.OTHER.CHRG.AMT1 =''
+    Y.SB.SLAB.AMT=''
+    Y.SB.OTHER.CHRG.AMT=''
+    Y.SB.STAFF.CHRG.AMT=''
+    Y.EXCLUDE.AC.LIST=''
+    Y.CHRG.SLAB.COUNT=''
+
+    Y.VAT.PERCENTAGE=''
+    Y.FT.COMM=''
+    Y.CHRG.INTERNAL.AC=''
+    CNT=''
+    Y.BALANCE=''
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.CUS,F.CUS)
+    CALL OPF(FN.SB.CL,F.SB.CL)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.SB.CHR,F.SB.CHR)
+
+    RETURN
+
+CALC.CHRG:
+    CALL F.READ(FN.SB.CL,'SYSTEM',REC.SB.CL.SYS,F.SB.CL,ERR.SB.CL)
+    IF REC.SB.CL.SYS EQ '' THEN
+        ETEXT="There must be a record SYSTEM in ABL.H.SB.CLCHG"
+        CALL STORE.END.ERROR
+        RETURN
+    END
+
+    Y.CHRG.SLAB.COUNT=DCOUNT(REC.SB.CL.SYS<SBCL.CHRG.SLAB.FROM>,VM)
+    Y.SB.STAFF.CHRG.AMT=REC.SB.CL.SYS<SBCL.STAFF.CHRG.AMT>
+
+    Y.VAT.PERCENTAGE=REC.SB.CL.SYS<SBCL.VAT.PERCENT>
+    Y.FT.COMM=REC.SB.CL.SYS<SBCL.FT.COMM>
+    Y.CHRG.INTERNAL.AC="PL":REC.SB.CL.SYS<SBCL.CHRG.CATEG>
+
+!    SEL.CMD.SB.CL="SSELECT ":FN.SB.CL:" @ID NE 'SYSTEM'"
+!    CALL EB.READLIST(SEL.CMD.SB.CL,SEL.LIST.SB.CL,'',NO.OF.REC.SB.CL,ERR.SB.CL)
+!    REC.SB.CL=''
+!    J="1"
+
+!    LOOP
+!        REMOVE Y.SB.CL.ID FROM SEL.LIST.SB.CL SETTING Y.SB.CL.POS
+!    WHILE Y.SB.CL.ID:Y.SB.CL.POS
+!        CALL F.READ(FN.SB.CL,Y.SB.CL.ID,REC.SB.CL,F.SB.CL,ERR.SB.CL)
+!        IF  NO.OF.REC.SB.CL EQ '1' OR J EQ '1' THEN
+!            Y.EXCLUDE.AC.LIST = Y.EXCLUDE.AC.LIST:REC.SB.CL<SB.EXCLUDE.ACCT>
+!            J=J+1
+!        END ELSE
+!            Y.EXCLUDE.AC.LIST = Y.EXCLUDE.AC.LIST:"ý":REC.SB.YR<SY.EXCLUDE.ACCT>
+!        END
+!        REC.SB.YR=''
+!    REPEAT
+
+    SEL.CMD.AC="SSELECT ":FN.AC:" WITH MAIN.CHARGE NE 'Waive' AND ( CO.CODE EQ "
+    CNT.CO = DCOUNT(REC.SB.CL.SYS<SBCL.INCLUDE.COMP>,VM)
+    FOR I = 1 TO CNT.CO
+        IF I = CNT.CO THEN
+            SEL.CMD.AC :=  REC.SB.CL.SYS<SBCL.INCLUDE.COMP,I>
+        END ELSE
+            SEL.CMD.AC :=  REC.SB.CL.SYS<SBCL.INCLUDE.COMP,I>:" OR CO.CODE EQ "
+        END
+    NEXT I
+
+    SEL.CMD.AC= SEL.CMD.AC:" ) AND ( CATEGORY EQ "
+    CNT.CATEG = DCOUNT(REC.SB.CL.SYS<SBCL.INCLUDE.CATEG>,VM)
+    FOR I = 1 TO CNT.CATEG
+        IF I = CNT.CATEG THEN
+            SEL.CMD.AC :=  REC.SB.CL.SYS<SBCL.INCLUDE.CATEG,I>
+        END ELSE
+            SEL.CMD.AC :=  REC.SB.CL.SYS<SBCL.INCLUDE.CATEG,I>:" OR CATEGORY EQ "
+        END
+    NEXT I
+
+!    IF Y.EXCLUDE.AC.LIST THEN
+!        SEL.CMD.AC= SEL.CMD.AC:") AND ( @ID NE "
+!
+!        CONVERT FM TO VM IN Y.EXCLUDE.AC.LIST
+!
+!        CNT.EX.ACC = DCOUNT(Y.EXCLUDE.AC.LIST,VM)
+!        FOR I = 1 TO CNT.EX.ACC
+!            IF I = CNT.EX.ACC THEN
+!                SEL.CMD.AC := Y.EXCLUDE.AC.LIST<1,I>
+!            END ELSE
+!                SEL.CMD.AC := Y.EXCLUDE.AC.LIST<1,I>:" AND @ID NE "
+!            END
+!        NEXT I
+
+!        SEL.CMD.AC= SEL.CMD.AC:") AND WORKING.BALANCE GT 0 BY @ID "
+!    END
+!    ELSE
+
+    SEL.CMD.AC= SEL.CMD.AC:") AND WORKING.BALANCE GT 0 BY @ID "
+
+!    END
+
+    CALL EB.READLIST(SEL.CMD.AC,SEL.LIST.AC,'',NO.OF.REC.AC,ERR.AC)
+    CRT" TOTAL RECORDS SELECTED FOR SAVINGS CLOSING CHARGE ......":NO.OF.REC.AC
+    CRT" DO YOU WANT TO START THE PROCESSING OF SAVING CLOSING CHRG Y/N"
+    INPUT USER.CHOICE
+    IF USER.CHOICE EQ 'Y' THEN
+        LOOP
+            REMOVE Y.AC.ID FROM SEL.LIST.AC SETTING AC.POS
+        WHILE Y.AC.ID:AC.POS
+            CALL F.READ(FN.AC,Y.AC.ID,REC.AC,F.AC,ERROR.AC)
+            Y.CUS.ID=REC.AC<AC.CUSTOMER>
+            Y.AC.WRK.BAL = REC.AC<AC.WORKING.BALANCE>
+!------------------------START OF CALCULATION OF CHARGES--------------------------------!
+            FOR I=1 TO Y.CHRG.SLAB.COUNT
+                IF I NE Y.CHRG.SLAB.COUNT THEN
+                    IF Y.AC.WRK.BAL GE REC.SB.CL.SYS<SBCL.CHRG.SLAB.FROM,I> AND Y.AC.WRK.BAL LE REC.SB.CL.SYS<SBCL.CHRG.SLAB.TO,I> THEN
+                        Y.BALANCE = REC.SB.CL.SYS<SBCL.CHRG.AMT,I>
+                        CALL DBR("CUSTOMER":FM:EB.CUS.SECTOR,Y.CUS.ID,Y.SECTOR)
+                        IF Y.SECTOR EQ '1002' THEN
+                            Y.BALANCE = Y.SB.STAFF.CHRG.AMT
+                        END
+                    END
+                END
+                ELSE
+                    IF  Y.AC.WRK.BAL GE REC.SB.CL.SYS<SBCL.CHRG.SLAB.FROM,I> THEN
+                        Y.BALANCE = REC.SB.CL.SYS<SBCL.CHRG.AMT,I>
+                        CALL DBR("CUSTOMER":FM:EB.CUS.SECTOR,Y.CUS.ID,Y.SECTOR)
+                        IF Y.SECTOR EQ '1002' THEN
+                            Y.BALANCE = Y.SB.STAFF.CHRG.AMT
+                        END
+                    END
+                END
+            NEXT
+!-------------------------------END OF CALCULATION OF CHARGES-----------------------------------!
+
+!-------------------------------START OF CHARGE POSTING ----------------------------------------!
+            IF Y.SB.STAFF.CHRG.AMT EQ Y.BALANCE THEN
+                IF Y.AC.WRK.BAL LT Y.SB.STAFF.CHRG.AMT THEN
+                    Y.TRANS.AMT=Y.AC.WRK.BAL
+                END
+                ELSE
+                    Y.TRANS.AMT= Y.BALANCE
+                END
+                Y.MESSAGE="FUNDS.TRANSFER,ED/I/PROCESS,DMUSER.1//":REC.AC<AC.CO.CODE>:",,TRANSACTION.TYPE=ACCY,DEBIT.ACCT.NO=":Y.AC.ID:",CREDIT.ACCT.NO=":Y.CHRG.INTERNAL.AC:",DEBIT.AMOUNT=":Y.TRANS.AMT:",DEBIT.CURRENCY=BDT,ORDERING.BANK=ABL,DR.ADVICE.REQD.Y.N=N,CR.ADVICE.REQD.Y.N=N"
+                GOSUB DO.TRANSACTION
+            END
+
+            ELSE
+                Y.SB.OTHER.CHRG.AMT = Y.BALANCE
+                Y.SB.VAT.AMT = ( Y.SB.OTHER.CHRG.AMT * Y.VAT.PERCENTAGE ) / 100
+                CALL EB.ROUND.AMOUNT(LCCY,Y.SB.VAT.AMT,"","")
+                Y.SB.OTHER.CHRG.AMT1 = Y.SB.OTHER.CHRG.AMT + Y.SB.VAT.AMT
+                IF Y.AC.WRK.BAL LT Y.SB.OTHER.CHRG.AMT1 THEN
+                    Y.TRANS.AMT = ( Y.AC.WRK.BAL * 100 ) / ( Y.VAT.PERCENTAGE + 100 )
+                    CALL EB.ROUND.AMOUNT(LCCY,Y.TRANS.AMT,"","")
+                    Y.SB.VAT.AMT = Y.AC.WRK.BAL - Y.TRANS.AMT
+                END
+                ELSE
+                    Y.TRANS.AMT = Y.SB.OTHER.CHRG.AMT
+                END
+                Y.MESSAGE="FUNDS.TRANSFER,ED/I/PROCESS,DMUSER.1//":REC.AC<AC.CO.CODE>:",,TRANSACTION.TYPE=ACCY,DEBIT.ACCT.NO=":Y.AC.ID:",CREDIT.ACCT.NO=":Y.CHRG.INTERNAL.AC:",DEBIT.AMOUNT=":Y.TRANS.AMT:",DEBIT.CURRENCY=BDT,ORDERING.BANK=ABL,DR.ADVICE.REQD.Y.N=N,CR.ADVICE.REQD.Y.N=N,COMMISSION.CODE=DEBIT PLUS CHARGES,COMMISSION.TYPE=":Y.FT.COMM:",COMMISSION.AMT=BDT ":Y.SB.VAT.AMT
+                GOSUB DO.TRANSACTION
+            END
+
+!------------------------------END OF CHARGE POSTING--------------------------------------------!
+
+            Y.BALANCE =''
+            Y.AC.WRK.BAL=''
+            Y.AC.ID=''
+            REC.AC=''
+        REPEAT
+    END
+    RETURN
+
+DO.TRANSACTION:
+    RUNNING.UNDER.BATCH=1
+    Y.SOURCE="DM.OFS.SRC"
+    CALL OFS.GLOBUS.MANAGER(Y.SOURCE,Y.MESSAGE)
+    RUNNING.UNDER.BATCH=0
+    SENSITIVITY=''
+    Y.STATUS =FIELD(FIELD(Y.MESSAGE,"/",3,1),",",1)
+    Y.MESSAGE = ''
+    IF Y.STATUS EQ '1' THEN
+        CNT =CNT+1
+        CRT" PROCESS................":CNT
+    END
+    RETURN
+
+END

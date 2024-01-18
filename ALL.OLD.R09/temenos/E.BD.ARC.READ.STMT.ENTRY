@@ -1,0 +1,100 @@
+    SUBROUTINE E.BD.ARC.READ.STMT.ENTRY
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.SAFECUSTODY.VALUES
+    $INSERT GLOBUS.BP I_F.COMPANY
+*
+    !DEBUG
+    IF INDEX(O.DATA,"*",1) THEN
+        ENTRY.ID = O.DATA["*",2,1]
+        ACCOUNT.NO = O.DATA["*",1,1]
+    END ELSE
+        ENTRY.ID = O.DATA ; ACCOUNT.NO = ""
+    END
+*
+    YNAME.IN = "F.STMT.ENTRY" ; YNAME.OUT = ""
+    GOSUB OPEN.ENTRY.FILE
+*
+** Read the entry into R.RECORD. If it is not present then add the
+** account currency into field 3 of a dummy R.RECORD
+*
+    R.RECORD = ""
+    CALL OPF(YNAME.IN,YNAME.OUT)
+    CALL F.READ(YNAME.IN,ENTRY.ID,R.RECORD,YNAME.OUT,Y.STMT.ERR)
+!READ R.RECORD FROM YNAME.OUT, ENTRY.ID THEN
+    IF R.RECORD EQ "" THEN
+        YNAME.IN.ARC = "F.STMT.ENTRY$ARC" ; YNAME.OUT.ARC = ""
+        CALL OPF(YNAME.IN.ARC,YNAME.OUT.ARC)
+        GOSUB OPEN.ENTRY.FILE
+        CALL F.READ(YNAME.IN.ARC,ENTRY.ID,R.RECORD,YNAME.OUT.ARC,Y.STMT.ARC.ERR)
+    END
+*
+    IF R.RECORD THEN
+** Return the calculated narrative if requested into the narrative field
+** This can be switched off if the item SHOW.NARRATIVE is set to NO
+*
+        LOCATE "SHOW.NARRATIVE" IN D.FIELDS<1> SETTING SHOW.NARR THEN
+            IF D.RANGE.AND.VALUE<SHOW.NARR> = "NO" THEN SHOW.NARR = ""
+        END ELSE
+            SHOW.NARR = 1     ;* Default is calculate
+        END
+        IF SHOW.NARR THEN
+            ENTRY.REC = R.RECORD ; CALC.NARR = ""
+            CALL BD.ARC.GET.NARRATIVE(ENTRY.ID, ENTRY.REC, CALC.NARR)
+            IF CALC.NARR THEN
+                R.RECORD<AC.STE.NARRATIVE> = CALC.NARR
+            END
+            VM.COUNT = DCOUNT(R.RECORD<AC.STE.NARRATIVE>,VM)
+        END
+*
+** Ensure that currency is populated
+** And put the amount in the foreign field even if local
+*
+** GB9801498S
+
+
+!         IF R.RECORD<AC.STE.CURRENCY> = "" THEN R.RECORD<AC.STE.CURRENCY> = LCCY
+        IF R.RECORD<AC.STE.CURRENCY> = "" THEN
+            F.ACCOUNT = ""
+            CALL OPF("F.ACCOUNT", F.ACCOUNT)
+*
+            CALL F.READ("F.ACCOUNT", R.RECORD<AC.STE.ACCOUNT.NUMBER>, YR.ACCOUNT, F.ACCOUNT, "")
+            R.RECORD<AC.STE.CURRENCY> = YR.ACCOUNT<AC.CURRENCY>
+        END
+** GB9801498E
+
+        IF R.RECORD<AC.STE.AMOUNT.FCY> = "" THEN R.RECORD<AC.STE.AMOUNT.FCY> = R.RECORD<AC.STE.AMOUNT.LCY>
+*
+    END ELSE
+*
+        F.ACCOUNT = ""
+        CALL OPF("F.ACCOUNT", F.ACCOUNT)
+*
+        CALL F.READ("F.ACCOUNT", ACCOUNT.NO, YR.ACCOUNT, F.ACCOUNT, "")
+** GB9801498S
+
+        R.RECORD<AC.STE.CURRENCY> = YR.ACCOUNT<AC.CURRENCY>
+** GB9801498E
+
+    END
+*
+* CI_10018113s
+    IF R.RECORD<AC.STE.SYSTEM.ID> = 'IC1' THEN
+        YLEN.REF = LEN(R.RECORD<AC.STE.TRANS.REFERENCE>)
+        YTRANS.REF = R.RECORD<AC.STE.TRANS.REFERENCE>[1,YLEN.REF-2]
+        R.RECORD<AC.STE.TRANS.REFERENCE> = YTRANS.REF
+    END
+* CI_10018113e
+
+    RETURN
+*---------------------------------------------------------------------------
+OPEN.ENTRY.FILE:
+*===============
+*
+    $INSERT GLOBUS.BP I_OPF   ;* Open Stmt Entry (this is faster)
+*
+END

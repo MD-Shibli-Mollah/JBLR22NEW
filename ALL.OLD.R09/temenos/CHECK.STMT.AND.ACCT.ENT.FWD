@@ -1,0 +1,108 @@
+*-----------------------------------------------------------------------------
+* <Rating>309</Rating>
+*-----------------------------------------------------------------------------
+  SUBROUTINE CHECK.STMT.AND.ACCT.ENT.FWD
+$INSERT I_COMMON
+$INSERT I_EQUATE
+$INSERT I_F.COMPANY
+      GOSUB INITIALISE
+     GOSUB MAIN.PROCESS
+      RETURN
+***********
+INITIALISE:
+***********\
+      FN.ACCT.ENT.FWD = 'F.ACCT.ENT.FWD'
+      F.ACCT.ENT.FWD = ''
+      CALL OPF(FN.ACCT.ENT.FWD,F.ACCT.ENT.FWD)
+      FN.SL = '&SAVEDLISTS&'
+      F.SL = ''
+      OPEN FN.SL TO F.SL ELSE
+         TEXT = 'Unable to Open SAVEDLISTS'
+         CALL REM
+         RETURN
+      END
+      CURR.COMP.MNEM = R.COMPANY(EB.COM.MNEMONIC)
+      COMP.MNEM = '' ; COMP.IDS = '' ; PT = '.'
+      WRITE.ARR = ''
+      WRITE.ARR1 = ''
+      SL.ID = CURR.COMP.MNEM:PT:'MISSING.STMT'
+      RETURN
+****************
+OPEN.STMT.FILE:
+***************
+      FN.STMT.ENTRY = 'F.STMT.ENTRY'
+      F.STMT.ENTRY = ''
+      CALL OPF(FN.STMT.ENTRY,F.STMT.ENTRY)
+      RETURN
+*************
+MAIN.PROCESS:
+*************
+      SEL.CMD = 'SELECT ':FN.ACCT.ENT.FWD
+      PRINT "Selecting ACCT ENT FWD"
+      CALL EB.READLIST(SEL.CMD,ACCT.ENT.FWD.IDS,'',NO.OF.IDS,'')
+      PRINT "No of records Selected : ":NO.OF.IDS
+      LOOP
+         REMOVE ACCT.ENT.FWD.ID FROM ACCT.ENT.FWD.IDS SETTING NEXT.ID
+      WHILE ACCT.ENT.FWD.ID : NEXT.ID DO
+         READ R.ACCT.ENT.FWD FROM F.ACCT.ENT.FWD,ACCT.ENT.FWD.ID THEN
+            NO.OF.STMT.IDS = DCOUNT(R.ACCT.ENT.FWD,@FM)
+            FOR STMT.COUNT = 1 TO NO.OF.STMT.IDS
+               STMT.ID = R.ACCT.ENT.FWD<STMT.COUNT>
+                GOSUB OPEN.STMT.FILE
+               READ R.STMT FROM F.STMT.ENTRY,STMT.ID ELSE
+                  WRITE.LINE = STMT.ID:'-':ACCT.ENT.FWD.ID
+                  WRITE.LINE1 = R.ACCT.ENT.FWD<STMT.COUNT>:'-':ACCT.ENT.FWD.ID
+                  IF WRITE.ARR THEN
+                     WRITE.ARR := @FM :WRITE.LINE
+                     WRITE.ARR1 := @FM :WRITE.LINE1
+                  END ELSE
+                     WRITE.ARR = WRITE.LINE
+                     WRITE.ARR1 = WRITE.LINE1
+                  END
+               END
+            NEXT STMT.COUNT
+         END ELSE
+            PRINT "Missing ACCT ENT FWD record : ":ACCT.ENT.FWD.ID:" from ":FN.ACCT.ENT.FWD
+         END
+      REPEAT
+      IF NOT(WRITE.ARR) THEN WRITE.ARR = 'No Mismatch between STMT.ENTRY and ':FN.ACCT.ENT.FWD
+      IF WRITE.ARR THEN
+         WRITE WRITE.ARR TO F.SL,SL.ID
+         IF WRITE.ARR1 THEN
+            GOSUB DELETE.REC
+         END
+      END
+      RETURN
+
+      DELETE.REC:
+      MNE = FIELD(SL.ID,'.',1)
+      COMO.KEY = MNE : ".ACCT.ENT.DELETED.ITEMS"
+      EXECUTE 'COMO ON ':COMO.KEY
+      FN.ACCT.ENT.FWD = 'F.ACCT.ENT.FWD'
+      FV.ACCT.ENT.FWD = ''
+      CALL OPF(FN.ACCT.ENT.FWD,FV.ACCT.ENT.FWD)
+      I = 1
+      IN.REC.ID = WRITE.ARR1<I,1>
+      LOOP
+      UNTIL IN.REC.ID EQ ''
+         STMT.ID = FIELD(IN.REC.ID,'-',1)
+         ACCT.ENT.FWD.ID = FIELD(IN.REC.ID,'-',2)
+         R.ACCT.ENT.FWD = ''
+         READ R.ACCT.ENT.FWD FROM F.ACCT.ENT.FWD,ACCT.ENT.FWD.ID THEN
+            LOCATE STMT.ID IN R.ACCT.ENT.FWD<1> SETTING POS THEN
+               DEL R.ACCT.ENT.FWD<POS>
+               PRINT "DELETING FROM ":FN.ACCT.ENT.FWD:' ':STMT.ID:' ':ACCT.ENT.FWD.ID
+               IF R.ACCT.ENT.FWD EQ '' THEN
+                  DELETE FV.ACCT.ENT.FWD,ACCT.ENT.FWD.ID
+               END ELSE
+                  WRITE R.ACCT.ENT.FWD TO F.ACCT.ENT.FWD,ACCT.ENT.FWD.ID
+               END
+            END
+         END
+         I = I + 1
+         IN.REC.ID = ''
+         IN.REC.ID = WRITE.ARR1<I,1>
+      REPEAT
+      EXECUTE 'COMO OFF'
+      RETURN
+   END

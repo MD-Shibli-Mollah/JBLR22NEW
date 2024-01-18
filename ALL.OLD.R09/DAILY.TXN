@@ -1,0 +1,391 @@
+*-----------------------------------------------------------------------------
+* <Rating>12</Rating>
+*-----------------------------------------------------------------------------
+****************************************************************************************
+*Developed By: Md. Zakir Hossain(JBL)*
+*Date:18/02/2020*
+****************************************************************************************
+
+! PROGRAM DAILY.TXN
+    SUBROUTINE DAILY.TXN
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CLASS
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT BP I_F.TODAY.ENTRY
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.CATEG.ENTRY
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT GLOBUS.BP I_F.EB.SYSTEM.ID
+    $INSERT GLOBUS.BP I_F.RE.CONSOL.SPEC.ENTRY
+    $INSERT JBL.BP I_F.ABL.H.MUL.MCD
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+*------
+INIT:
+*------
+
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+
+    FN.AC.HIS = 'F.ACCOUNT$HIS'
+    F.AC.HIS = ''
+
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+
+    FN.FT.HIS = 'F.FUNDS.TRANSFER$HIS'
+    F.FT.HIS=''
+
+    FN.AC.CLS='F.ACCOUNT.CLASS'
+    F.AC.CLS=''
+
+    FN.STMT.ENT = "F.STMT.ENTRY"
+    F.STMT.ENT = ""
+
+    FN.STMT.VAL="F.STMT.VAL.ENTRY"
+    F.STMT.VAL=""
+
+    FN.COMP="F.COMPANY"
+    F.COMP=""
+
+    FN.TODAY.ENTRY="F.TODAY.ENTRY"
+    F.TODAY.ENTRY=""
+
+    FN.COMP.MNE="F.MNEMONIC.COMPANY"
+    F.COMP.MNE=""
+
+    FN.ACCT.ENT="F.ACCT.ENT.TODAY"
+    F.ACCT.ENT=""
+
+    FN.STMT.TODAY="FBNK.STMT.TODAY.ID"
+    F.STMT.TODAY=""
+
+    FN.TT = 'F.TELLER'
+    F.TT = ''
+
+    FN.TT.HIS='F.TELLER$HIS'
+    F.TT.HIS=''
+
+    FN.CATEG.ENT = 'F.CATEG.ENTRY'
+    F.CATEG.ENT = ''
+
+    FN.CATEGORY = 'F.CATEGORY'
+    F.CATEGORY = ''
+
+    FN.SYS.ID = 'F.EB.SYSTEM.ID'
+    F.SYS.ID = ''
+
+    FN.MCD='F.ABL.H.MUL.MCD'
+    F.MCD=''
+
+    FN.RE.CONSOL='F.RE.CONSOL.SPEC.ENTRY'
+    F.RE.CONSOL=''
+
+    FN.STMTS.TODAY='FBNK.STMTS.TODAY'
+    F.STMTS.TODAY=''
+    R.STMT.TODAY=''
+
+    Y.CLS=''
+    Y.AC.CLS=''
+    Y.MODE=''
+    Y.TXN.CODE=''
+    Y.IN.SWIFT.MSG=''
+    Y.GL.CATEG=1111:@FM:1112:@FM:1113:@FM:1114
+    Y.CASH.TR.CODE = 5:@FM:10:@FM:14:@FM:32:@FM:33:@FM:16:@FM:109:@FM:110:@FM:111:@FM:112:@FM:113:@FM:114:@FM:151:@FM:15:@FM:152:@FM:4:@FM:6:@FM:9:@FM:24:@FM:23:@FM:162:@FM:163:@FM:164:@FM:22
+    Y.CLEAR.TR.CODE = 28:@FM:29:@FM:30:@FM:34:@FM:41:@FM:42:@FM:43:@FM:44:@FM:45:@FM:46:@FM:49:@FM:92:@FM:93:@FM:95
+    Y.DISALLOWCATEG=10001:@FM:10011:@FM:14016:@FM:14032:@FM:14999:@FM:15201:@FM:12800
+
+    RETURN
+
+*---------
+OPENFILES:
+*---------
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    CALL OPF(FN.AC.CLS,F.AC.CLS)
+    CALL OPF(FN.STMT.ENT,F.STMT.ENT)
+    CALL OPF(FN.STMT.VAL,F.STMT.VAL)
+    CALL OPF(FN.COMP,F.COMP)
+    CALL OPF(FN.TODAY.ENTRY,F.TODAY.ENTRY)
+    CALL OPF(FN.COMP.MNE,F.COMP.MNE)
+    CALL OPF(FN.ACCT.ENT,F.ACCT.ENT)
+    CALL OPF(FN.STMT.TODAY,F.STMT.TODAY)
+    CALL OPF( FN.TT, F.TT)
+    CALL OPF( FN.TT.HIS, F.TT.HIS)
+    CALL OPF( FN.CATEG.ENT, F.CATEG.ENT)
+    CALL OPF( FN.CATEGORY, F.CATEGORY)
+    CALL OPF( FN.SYS.ID, F.SYS.ID)
+    CALL OPF(FN.MCD,F.MCD)
+    CALL OPF(FN.RE.CONSOL,F.RE.CONSOL)
+    CALL OPF(FN.STMTS.TODAY,F.STMTS.TODAY)
+    RETURN
+
+*-------
+PROCESS:
+*-------
+*********************** Read STMT Transaction ****************************
+
+    SEL.CMD = "SELECT ":FN.STMT.TODAY:" WITH @ID LIKE ...*":TODAY
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.ID.VAL FROM SEL.LIST SETTING POS
+    WHILE Y.ID.VAL:POS
+        Y.ENTRY.TYPE=FIELD(Y.ID.VAL,"*",1)
+        Y.ID.STMT=FIELD(Y.ID.VAL,"*",2)
+        Y.AUTH.DATE=FIELD(Y.ID.VAL,"*",3)
+        IF Y.ENTRY.TYPE EQ "STMT" THEN
+            CALL F.READ(FN.STMT.ENT,Y.ID.STMT,R.STMT.REC,F.STMT.ENT,Y.ERR)
+            Y.TXN.ID=R.STMT.REC<AC.STE.TRANS.REFERENCE>
+            Y.VALUE.DATE=R.STMT.REC<AC.STE.VALUE.DATE>
+            Y.ACCT.ID=R.STMT.REC<AC.STE.ACCOUNT.NUMBER>
+            CALL F.READ(FN.AC, Y.ACCT.ID, R.ACCT, F.AC, AC.DR.ERR)
+            IF R.ACCT EQ "" THEN
+                CALL EB.READ.HISTORY.REC(F.AC.HIS, Y.ACCT.ID, R.ACCT,'')
+                Y.ACCT.ID=FIELD(Y.ACCT.ID,';',1)
+            END
+            Y.AC.TITLE=EREPLACE(R.ACCT<AC.SHORT.TITLE>,"*","")
+            Y.LEG.ID=R.ACCT<AC.ALT.ACCT.ID>
+            Y.CHQ.NO=R.STMT.REC<AC.STE.CHEQUE.NUMBER>
+! Y.CATEGORY=R.STMT.REC<AC.STE.PRODUCT.CATEGORY>
+            Y.CATEGORY=R.ACCT<AC.CATEGORY>
+            LOCATE Y.CATEGORY IN Y.DISALLOWCATEG SETTING POS.CAT THEN
+                SEL.DEL="DELETE ":FN.STMT.TODAY:" ":Y.ID.VAL
+                EXECUTE SEL.DEL
+                CONTINUE
+            END
+
+            Y.CURR=R.STMT.REC<AC.STE.CURRENCY>
+            Y.AMT.LCY=R.STMT.REC<AC.STE.AMOUNT.LCY>
+            Y.AMT.FCY=R.STMT.REC<AC.STE.AMOUNT.FCY>
+            Y.TXN.TYPE=R.STMT.REC<AC.STE.TRANSACTION.CODE>
+            Y.INP.BY=FIELD(R.STMT.REC<AC.STE.INPUTTER>,'_',2)
+            Y.AUTH.BY=FIELD(R.STMT.REC<AC.STE.AUTHORISER>,'_',2)
+            Y.SYSTEM.ID=R.STMT.REC<AC.STE.SYSTEM.ID>
+            IF DCOUNT(Y.TXN.ID,'\') GT 1 THEN
+                CALL F.READ(FN.COMP.MNE,FIELD(Y.TXN.ID,'\',2),R.MNE,F.COMP.MNE,MNE.ERROR)
+                Y.TXN.ID=FIELD(Y.TXN.ID,'\',1)
+                Y.ORG.COMP=R.MNE
+                Y.RES.COMP=R.STMT.REC<AC.STE.COMPANY.CODE>
+            END ELSE
+                Y.ORG.COMP=R.STMT.REC<AC.STE.COMPANY.CODE>
+                Y.RES.COMP=R.STMT.REC<AC.STE.COMPANY.CODE>
+            END
+            IF NOT(ISDIGIT(Y.ACCT.ID)) THEN
+                Y.CLS='GL'
+            END ELSE
+                Y.CLS='CU'
+                LOCATE Y.CATEGORY IN Y.GL.CATEG SETTING POS1 THEN
+                    Y.CLS='GL'
+                END
+            END
+            END ELSE IF Y.ENTRY.TYPE EQ 'CATG' THEN
+*******************CATEG.ENTRY START************
+                CALL F.READ(FN.CATEG.ENT,Y.ID.STMT,R.STMT.REC,F.CATEG.ENT,Y.ERR)
+                Y.TXN.ID=R.STMT.REC<AC.CAT.TRANS.REFERENCE>
+                IF Y.TXN.ID EQ '' THEN
+                    Y.TXN.ID=R.STMT.REC<AC.CAT.OUR.REFERENCE>
+                END
+                Y.VALUE.DATE=R.STMT.REC<AC.CAT.VALUE.DATE>
+                Y.ACCT.ID="PL":R.STMT.REC<AC.CAT.PL.CATEGORY>
+                Y.CATEGORY=R.STMT.REC<AC.CAT.PL.CATEGORY>
+
+                CALL F.READ(FN.CATEGORY, Y.CATEGORY, R.ACCT, F.CATEGORY, AC.ERR)
+
+                Y.AC.TITLE=EREPLACE(R.ACCT<EB.CAT.DESCRIPTION>,"*","")
+!Y.CURR=R.STMT.REC<AC.CAT.CURRENCY>
+                Y.CURR='BDT';*For consider PL foreign currency i.e FDD issue
+                Y.AMT.LCY=R.STMT.REC<AC.CAT.AMOUNT.LCY>
+                Y.AMT.FCY=R.STMT.REC<AC.CAT.AMOUNT.FCY>
+                Y.TXN.TYPE=R.STMT.REC<AC.CAT.TRANSACTION.CODE>
+                Y.INP.BY=FIELD(R.STMT.REC<AC.CAT.INPUTTER>,'_',2)
+                Y.AUTH.BY=FIELD(R.STMT.REC<AC.CAT.AUTHORISER>,'_',2)
+                Y.SYSTEM.ID=R.STMT.REC<AC.CAT.SYSTEM.ID>
+                IF DCOUNT(Y.TXN.ID,'\') GT 1 THEN
+                    CALL F.READ(FN.COMP.MNE,FIELD(Y.TXN.ID,'\',2),R.MNE,F.COMP.MNE,MNE.ERROR)
+                    Y.TXN.ID=FIELD(Y.TXN.ID,'\',1)
+                    Y.ORG.COMP=R.MNE
+                    Y.RES.COMP=R.STMT.REC<AC.CAT.COMPANY.CODE>
+                END ELSE
+                    Y.ORG.COMP=R.STMT.REC<AC.CAT.COMPANY.CODE>
+                    Y.RES.COMP=R.STMT.REC<AC.CAT.COMPANY.CODE>
+                END
+                Y.CLS="PL"
+                IF Y.CATEGORY GE 51000 AND Y.CATEGORY  LE 59999 THEN
+                    Y.AC.CLS='IN'
+                END ELSE
+                    Y.AC.CLS='EX'
+                END
+            END  ELSE
+
+                CALL F.READ(FN.RE.CONSOL,Y.ID.STMT,R.STMT.REC,F.RE.CONSOL,Y.ERR)
+                Y.TXN.ID=R.STMT.REC<RE.CSE.TRANS.REFERENCE>
+                Y.VALUE.DATE=R.STMT.REC<RE.CSE.BOOKING.DATE>
+                Y.CURR=R.STMT.REC<RE.CSE.CURRENCY>
+                Y.CATEGORY=R.STMT.REC<RE.CSE.PRODUCT.CATEGORY>
+!IF ISDIGIT(R.STMT.REC<RE.CSE.DEAL.NUMBER>) THEN
+!Y.ACCT.ID=R.STMT.REC<RE.CSE.DEAL.NUMBER>
+!Y.CLS='CU'
+!CALL F.READ(FN.AC, R.STMT.REC<RE.CSE.DEAL.NUMBER>, R.ACCT, F.AC, AC.DR.ERR)
+!IF R.ACCT EQ "" THEN
+! CALL EB.READ.HISTORY.REC(F.AC.HIS, Y.ACCT.ID, R.ACCT,'')
+! Y.ACCT.ID=FIELD(Y.ACCT.ID,';',1)
+!END
+!Y.AC.TITLE=EREPLACE(R.ACCT<AC.SHORT.TITLE>,"*","")
+!LOCATE Y.CATEGORY IN Y.GL.CATEG SETTING POS1 THEN
+!Y.CLS='GL'
+!END
+!END ELSE
+                IF Y.CATEGORY GE 50000 AND Y.CATEGORY  LE 69999 THEN
+                    Y.ACCT.ID="PL":R.STMT.REC<RE.CSE.PRODUCT.CATEGORY>
+                    Y.CLS='CN'
+                    Y.CURR='BDT'
+                    IF Y.CATEGORY GE 51000 AND Y.CATEGORY  LE 59999 THEN
+                        Y.AC.CLS='IN'
+                    END ELSE
+                        Y.AC.CLS='EX'
+                    END
+                    CALL F.READ(FN.CATEGORY, Y.CATEGORY, R.CAT, F.CATEGORY, AC.ERR)
+                    Y.AC.TITLE=EREPLACE(R.CAT<EB.CAT.DESCRIPTION>,"*","")
+                END ELSE
+                    CALL F.READ(FN.AC, R.STMT.REC<RE.CSE.DEAL.NUMBER>, R.ACCT, F.AC, AC.DR.ERR)
+                    IF R.ACCT EQ "" THEN
+                        CALL EB.READ.HISTORY.REC(F.AC.HIS, Y.ACCT.ID, R.ACCT,'')
+                        Y.ACCT.ID=FIELD(Y.ACCT.ID,';',1)
+                    END
+                    IF R.ACCT NE '' THEN
+                        Y.ACCT.ID=R.STMT.REC<RE.CSE.DEAL.NUMBER>
+                        Y.CATEGORY=R.ACCT<AC.CATEGORY>
+                        LOCATE Y.CATEGORY IN Y.DISALLOWCATEG SETTING POS.CAT THEN
+                            SEL.DEL="DELETE ":FN.STMT.TODAY:" ":Y.ID.VAL
+                            EXECUTE SEL.DEL
+                            CONTINUE
+                        END
+
+                        Y.AC.TITLE=EREPLACE(R.ACCT<AC.SHORT.TITLE>,"*","")
+                    END ELSE
+                        Y.ACCT.ID='BDT':Y.CATEGORY
+                        CALL F.READ(FN.CATEGORY, Y.CATEGORY, R.CAT, F.CATEGORY, CAT.ERR)
+                        Y.AC.TITLE=EREPLACE(R.CAT<EB.CAT.DESCRIPTION>,"*","")
+                    END
+                    Y.CLS='CN'
+                END
+
+!END
+
+                Y.AMT.LCY=R.STMT.REC<RE.CSE.AMOUNT.LCY>
+                Y.AMT.FCY=R.STMT.REC<RE.CSE.AMOUNT.FCY>
+                Y.TXN.TYPE=R.STMT.REC<RE.CSE.TRANSACTION.CODE>
+                Y.INP.BY=FIELD(R.STMT.REC<RE.CSE.INPUTTER>,'_',2)
+                Y.AUTH.BY=FIELD(R.STMT.REC<RE.CSE.AUTHORISER>,'_',2)
+                Y.SYSTEM.ID=R.STMT.REC<RE.CSE.SYSTEM.ID>
+                IF DCOUNT(Y.TXN.ID,'\') GT 1 THEN
+                    CALL F.READ(FN.COMP.MNE,FIELD(Y.TXN.ID,'\',2),R.MNE,F.COMP.MNE,MNE.ERROR)
+                    Y.TXN.ID=FIELD(Y.TXN.ID,'\',1)
+                    Y.ORG.COMP=R.MNE
+                    Y.RES.COMP=R.STMT.REC<RE.CSE.COMPANY.CODE>
+                END ELSE
+                    Y.ORG.COMP=R.STMT.REC<RE.CSE.COMPANY.CODE>
+                    Y.RES.COMP=R.STMT.REC<RE.CSE.COMPANY.CODE>
+                END
+
+            END
+            IF Y.ORG.COMP EQ '' OR Y.RES.COMP EQ '' THEN
+                CONTINUE
+            END
+
+            Y.MARKER='CR'
+            IF Y.AMT.LCY LT 0 THEN
+                Y.MARKER='DR'
+            END
+            IF Y.SYSTEM.ID EQ 'TT' OR Y.SYSTEM.ID EQ 'CQ' OR Y.TXN.TYPE EQ 134  THEN
+                CALL F.READ(FN.TT,Y.TXN.ID,R.TT,F.TT,TT.ERROR)
+                IF R.TT EQ '' THEN
+                    CALL EB.READ.HISTORY.REC(F.TT.HIS, Y.TXN.ID, R.TT,'')
+                END
+                IF Y.TXN.TYPE EQ 134 THEN
+                    Y.TXN.ID='AC-CHEQUE RETURN'
+                END
+                Y.TXN.CODE=R.TT<TT.TE.TRANSACTION.CODE>
+                LOCATE  Y.TXN.CODE IN Y.CASH.TR.CODE SETTING Y.POS THEN
+                    Y.MODE="CH"
+                END ELSE
+                    Y.MODE="CL"
+                END
+            END ELSE
+                Y.MODE='FT'
+                IF Y.SYSTEM.ID EQ 'FT' THEN
+                    CALL F.READ(FN.FT,Y.TXN.ID,R.FT,F.FT,FT.ERROR)
+                    IF R.FT EQ '' THEN
+                        CALL EB.READ.HISTORY.REC(F.FT.HIS, Y.TXN.ID, R.FT,'')
+                    END
+                    Y.TRANS.TYPE=R.FT<FT.TRANSACTION.TYPE>
+                    Y.IN.SWIFT.MSG=R.FT<FT.IN.SWIFT.MSG>
+                    IF  Y.IN.SWIFT.MSG NE "" THEN
+                        CALL F.READ(FN.MCD,Y.IN.SWIFT.MSG,R.MCD,F.MCD,MCD.ERROR)
+                        Y.INP.BY=FIELD(R.MCD<MCD.INPUTTER>,'_',2)
+                    END
+
+                END
+            END
+
+            GOSUB ID.GEN
+!WRITE R.STMT.TODAY TO F.STMTS.TODAY,Y.ID.VAL
+            SEL.DEL="DELETE ":FN.STMT.TODAY:" ":Y.ID.VAL
+            EXECUTE SEL.DEL
+        REPEAT
+        RETURN
+ID.GEN:
+        IF Y.AC.CLS EQ "" THEN
+            CALL GET.FT.CLS.FROM.CATEGORY(Y.CATEGORY,Y.AC.CLS)
+            IF Y.AC.CLS EQ '' THEN
+                Y.AC.CLS=Y.CATEGORY
+            END
+        END
+        Y.ID=RIGHT(Y.ORG.COMP,4):"*":RIGHT(Y.RES.COMP,4):"*":Y.MARKER:"*":Y.CURR:"*":Y.CLS:"*":Y.AC.CLS:"*":Y.MODE:"*":Y.CATEGORY:"*":Y.ID.STMT:"*":Y.AUTH.DATE
+        GOSUB WRITE.TXN
+        RETURN
+
+WRITE.TXN:
+        CALL F.READ(FN.TODAY.ENTRY,Y.ID,REC.TXN,F.TODAY.ENTRY,ERR.ENTRY)
+        REC.TXN<ENT.TXN.ID>=Y.TXN.ID
+        REC.TXN<ENT.VALUE.DATE>=Y.VALUE.DATE
+        REC.TXN<ENT.ACCT.ID>=Y.ACCT.ID
+        REC.TXN<ENT.LEGACY.ID>=Y.LEG.ID
+        REC.TXN<ENT.ACCT.TITLE>=Y.AC.TITLE
+        REC.TXN<ENT.INSTRUMENT.NO>=Y.CHQ.NO
+        REC.TXN<ENT.CATEGORY>=Y.CATEGORY
+        REC.TXN<ENT.CURRENCY>=Y.CURR
+        REC.TXN<ENT.AMOUNT>=Y.AMT.LCY
+        REC.TXN<ENT.FCY.AMOUNT>=Y.AMT.FCY
+        IF Y.TXN.CODE NE '' THEN
+            REC.TXN<ENT.TRANSACTION.CODE>=Y.TXN.CODE
+        END
+        IF Y.TRANS.TYPE NE '' THEN
+            REC.TXN<ENT.TRANSACTION.TYPE>= Y.TRANS.TYPE
+        END
+        IF Y.IN.SWIFT.MSG NE '' THEN
+            REC.TXN<ENT.IN.SWIFT.MSG>=Y.IN.SWIFT.MSG
+        END
+        REC.TXN<ENT.INPUT.BY>=Y.INP.BY
+        REC.TXN<ENT.AUTHORISED.BY>=Y.AUTH.BY
+        REC.TXN<ENT.STMT.ENTRY.ID>=Y.ID.VAL
+        REC.TXN<ENT.SYSTEM.ID>=Y.SYSTEM.ID
+        WRITE REC.TXN TO F.TODAY.ENTRY,Y.ID
+
+        Y.CLS=''
+        Y.AC.CLS=''
+        Y.MODE=''
+        Y.TXN.CODE=''
+        Y.TRANS.TYPE=''
+        Y.IN.SWIFT.MSG=''
+        RETURN
+    END
+

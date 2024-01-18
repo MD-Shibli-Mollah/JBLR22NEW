@@ -1,0 +1,58 @@
+*-----------------------------------------------------------------------------
+* <Rating>139</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.JBL.CUSTOMER.SMS(Y.REC.ID)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+
+    $INSERT JBL.BP/REPGEN MT.JBL.CUSTOMER.SMS.VARS
+
+    CALL F.READ(FN.CUS,Y.REC.ID,R.CUS,F.CUS,Y.CUR.ERR)
+
+    Y.SMS.ALERT = R.CUS<EB.CUS.LOCAL.REF,Y.SMS.CONTROL.POS>
+    MOBILE.NO = R.CUS<EB.CUS.SMS.1>
+
+    Y.SMS.TYPE = 'ENG'
+
+    Y.DELIM = '|'
+    Y.PRIORITY = 1:Y.DELIM:8:Y.DELIM:0
+
+    IF Y.SMS.TYPE EQ 'BNG' THEN
+        Y.DELIM = '#'
+        Y.PRIORITY = 1:Y.DELIM:8:Y.DELIM:1
+    END
+
+    IF Y.SMS.ALERT EQ 'Y' AND MOBILE.NO NE '' THEN
+
+!SMS.BUILD = 'প্রিয় গ্রাহক,১৫ই আগস্ট জাতির পিতা বঙ্গবন্ধু শেখ মুজিবুর রহমান এর শাহাদাৎ বার্ষিকী ও জাতীয় শোক দিবসে ১টি গাছ রোপণ করে জাতির পিতার স্বপ্নের সবুজ বাংলাদেশ গড়ি। মোঃ আব্দুছ ছালাম আজাদ এফএফ, এমডি এন্ড সিইও।#1#8#1'
+
+        Y.MOB.LEN = DCOUNT(MOBILE.NO,@VM)
+
+        SMS.BUILD = 'Dear Sir/Madam, Due to Data Center shifting, all banking activities shall remain close on 17-19 March 2022 temporarily. Regards, GM-ICT, JBL'
+
+        FOR Y=1 TO Y.MOB.LEN
+            Y.MOBILE.NO = FIELD(MOBILE.NO,@VM,Y)
+            Y.MOBILE.NO = TRIM(Y.MOBILE.NO," ","A")
+            IF ISDIGIT(Y.MOBILE.NO) AND LEN(Y.MOBILE.NO) EQ 11 THEN
+                Y.VALID.OPRT = Y.MOBILE.NO[0,3]
+                LOCATE Y.VALID.OPRT IN Y.VALID.ARRAY SETTING Y.POS THEN
+
+                    SMS.FILE = SMS.DIR:'/CUS-SMS-':Y.MOBILE.NO:'-':TODAY:'.csv'
+                    Y.SMS.BUILD = Y.MOBILE.NO:'-':TODAY:Y.DELIM:Y.MOBILE.NO:Y.DELIM:SMS.BUILD:Y.DELIM:Y.PRIORITY
+
+                    SMS.FILE.POINT = ''
+                    OPENSEQ SMS.FILE TO SMS.FILE.POINT ELSE
+                    END
+                    IF SMS.FILE.POINT NE '' THEN
+                        WRITESEQ Y.SMS.BUILD TO SMS.FILE.POINT ELSE
+                        END
+                    END
+                END
+            END
+        NEXT Y
+
+    END
+
+    RETURN
+END

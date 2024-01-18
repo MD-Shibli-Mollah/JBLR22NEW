@@ -1,0 +1,43 @@
+*-----------------------------------------------------------------------------
+* <Rating>100</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ACI.UPD.AF.MEND.LOAD
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT JBL.BP I_F.ABL.H.AC.VIOLATION
+    $INSERT GLOBUS.BP I_F.GROUP.CREDIT.INT
+    $INSERT GLOBUS.BP I_F.GROUP.DATE
+    $INSERT GLOBUS.BP I_F.DATES
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT JBL.BP I_ACI.UPD.AF.MEND.COMMON
+
+
+    FN.ABL.VIOL='F.ABL.H.AC.VIOLATION'
+    F.ABL.VIOL=''
+
+    FN.GCI='F.GROUP.CREDIT.INT'
+    F.GCI =''
+
+    FN.GR.DATE='F.GROUP.DATE'
+    F.GR.DATE = ''
+
+    FN.ACI = 'F.ACCOUNT.CREDIT.INT'
+    F.ACI = ''
+
+    FN.AC='F.ACCOUNT'
+    F.AC=''
+
+    Y.DIR = 'ACI.DIR'
+    Y.FILE = 'ACI.ERROR':TODAY:'.':SESSION.NO:'.csv'
+    OPENSEQ Y.DIR,Y.FILE TO F.ACI.DIR THEN NULL
+
+    CALL OPF(FN.ABL.VIOL,F.ABL.VIOL)
+    CALL OPF(FN.GCI,F.GCI)
+    CALL OPF(FN.GR.DATE,F.GR.DATE)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.ACI,F.ACI)
+
+    RETURN
+END

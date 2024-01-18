@@ -1,0 +1,64 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+******************************************************************************
+*
+*Company Name   :
+*Developed By   : Huraira
+*
+*-----------------------------------------------------------------------------
+*Subroutine Type: convertion routine
+*
+*Attached To    : The Enquiry 'E.SG.NOC'
+*
+*Attached As    : Conversion Routine for the field 'BEN.ADDRESS'
+*
+*In Parameter   : 'MD.DEAL' record id
+*
+*Out Parameter  : 'Beneficiary Address'
+*-----------------------------------------------------------------------------
+*Description    : This Routine return Beneficiary Address of Deal Record
+*
+*-----------------------------------------------------------------------------
+*Modification Details:
+*
+*-----------------------------------------------------------------------------
+*Modification History :
+*
+******************************************************************************
+
+    SUBROUTINE BD.BEN.ADDR
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.MD.DEAL
+    $INSERT I_F.COMPANY
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    Y.DEAL.ID = O.DATA
+    FN.MD.DEAL = "F.MD.DEAL"
+    F.MD.DEAL = ""
+
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.MD.DEAL,F.MD.DEAL)
+
+    RETURN
+
+PROCESS:
+
+    CALL F.READ(FN.MD.DEAL,Y.DEAL.ID,R.MD.DEAL.REC,F.MD.DEAL,Y.ERR)
+    Y.BEN.ADD = R.MD.DEAL.REC<MD.DEA.BEN.ADDRESS>
+
+    CONVERT VM TO "*" IN Y.BEN.ADD
+    O.DATA = Y.BEN.ADD
+
+    RETURN

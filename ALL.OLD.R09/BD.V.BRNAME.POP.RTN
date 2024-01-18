@@ -1,0 +1,21 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.BRNAME.POP.RTN
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.DATES
+    $INSERT I_F.COMPANY
+    $INSERT I_F.LETTER.OF.CREDIT
+
+    FN.COM = 'F.COMPANY'
+    F.COM = ''
+    REC.COM = ''
+    ERR.COM = ''
+    CALL OPF(FN.COM,F.COM)
+    Y.BNK.NAME = ''
+    CALL F.READ(FN.COM,ID.COMPANY,REC.COM,F.COM,ERR.COM)
+    Y.BNK.NAME = "Janata Bank Limited":@VM:REC.COM<EB.COM.COMPANY.NAME>
+    R.NEW(TF.LC.DRAWEE) = EREPLACE(Y.BNK.NAME,VM,SM)
+    RETURN
+END

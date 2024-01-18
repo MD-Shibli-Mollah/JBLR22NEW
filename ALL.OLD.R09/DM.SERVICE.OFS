@@ -1,0 +1,744 @@
+*-----------------------------------------------------------------------------
+* <Rating>1484</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE DM.SERVICE.OFS(DM.KEY)
+! Service routine, which will process all the incoming data migration data into
+! T24 by calling OFS.GLOBUS.MANAGER
+
+*-----------------------------------------------------------------------------
+* Modification History
+*
+* 15 NOV 2006 - KK
+*               Delete the DM.KEY immediately after OGM call/WRITE
+*               to avoid any duplicate updates
+* 11 NOV 2007 - SHANMUGAM
+*               ERR.FLAG not set correctly, changed FIELD function to
+*               extract only the 3rd value before the first comma
+*
+* 11 NOV 2007 - SHANMUGAM
+*               Trap pre application update errors as well as errors
+*               not just post application update errors
+*
+* 9 JUL 2008  - PRIYAGAYATHRI
+*               Changes done to call the routine OFS.CALL.BULK.MANAGER when AA.ARRANGEMENT.ACTIVITY
+*               file is updated
+*
+* 23 JUL 2008 - LOKESH
+*               The call to the routine OFS.INTIALISE.SOURCE has been included. The variable which
+*               stores the name of the log file has been passed as the third parameter to the routine
+*               OFS.INITIALISE.SOURCE
+*
+*-----------------------------------------------------------------------------
+
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE GLOBUS.BP I_BATCH.FILES
+    $INCLUDE GLOBUS.BP I_F.PGM.FILE
+    $INCLUDE GLOBUS.BP I_GTS.COMMON
+    $INCLUDE GLOBUS.BP I_F.OFS.SOURCE
+    $INSERT I_DM.SERVICE.COMMON
+    $INSERT I_F.DM.MAPPING.DEFINITION
+    $INSERT I_F.DM.SERVICE.CONTROL
+
+*    GOSUB INITIALISE
+*    GOSUB LOAD.OFS.MSG
+* saurav 08/05/2010 - s
+DEBUG
+    IF DM.SEQUENTIAL.UPLOAD.FLAG EQ 1 THEN
+        GOSUB OPEN.DM.SERVICE.FILE
+    END
+    ELSE
+        GOSUB INITIALISE
+        GOSUB LOAD.OFS.MSG
+    END
+* saurav 08/05/2010 - e
+    GOSUB MNEMONIC.VALIDATION
+    RETURN
+
+* saurav 08/05/2010 - s
+**********************
+OPEN.DM.SERVICE.FILE:
+**********************
+
+    CALL F.READU(FN.DM.SERVICE.DATA.FILE,DM.KEY,FULL.DATA.LINE,F.DM.SERVICE.DATA.FILE,DM.DATA.ERR,'')
+    GROUP.COUNT = DCOUNT(FULL.DATA.LINE,FM)
+
+    FOR TOTAL.GROUP.REC = 1 TO GROUP.COUNT
+        DATA.LINE = FULL.DATA.LINE<TOTAL.GROUP.REC>
+        GOSUB INITIALISE
+        GOSUB LOAD.OFS.MSG
+        BULK.OFS.MESSAGE<-1> = OFS.MESSAGE
+    NEXT TOTAL.GROUP.REC
+
+    GOSUB CALL.OGM
+    RETURN
+* saurav 08/05/2010 - e
+
+
+***********
+INITIALISE:
+***********
+
+    FIELD.DET = ''
+    OFS.SOURCE.ID = ''
+    RESULT.ID = ''
+    RESULT.MSG = ''
+    UPLOAD.COMPANY.FLD.FLG = 0
+    OFS.RESPONSE.MESSAGE = ''
+    SOURCE.ID=''
+    APP.PRODUCT=''
+    R.PGM=''
+!Senthil
+
+    YR.CONCAT = '' ; ID.FILE = '' ; CONCAT.ID = '' ; APP.POS = '' ; MNE.VAL = ''
+    FN.OFSRC='F.OFS.SOURCE'
+    F.OFSRC = ''
+    CALL OPF(FN.OFSRC,F.OFSRC)
+    CALL F.READ(FN.OFSRC,OFS$SOURCE.ID,R.OFSRC,F.OFSRC,OFS.ERR)
+    LOG.STATUS = R.OFSRC<OFS.SRC.LOG.DETAIL.LEVEL>
+    OPEN.ERROR=''
+    FLAT.FILE.DIR=DM.SERVICE.CONTROL.REC<DMS.CONTROL.FLAT.FILE.DIR>
+
+! To check which app at present is being loaded (provided the correct app name is provided
+! in the dmd id
+
+    APP.DMD.ID=FIELD(BATCH.INFO<1>,'-',2)
+    FILE.NAME.ERR = APP.DMD.ID:'.LOG.':SESSION.NO
+
+    OFS$SOURCE.ID=DM.MAPPING.DEFINITION.REC<DM.MD.OFS.SOURCE>
+
+* saurav 08/05/2010 - s
+*! Read the data record from DM.SERVICE.DATA.FILE
+*! Perform a Locked Read
+* CALL F.READU(FN.DM.SERVICE.DATA.FILE,DM.KEY,DATA.LINE,F.DM.SERVICE.DATA.FILE,DM.DATA.ERR,'')
+    IF DM.SEQUENTIAL.UPLOAD.FLAG EQ 0 THEN
+        CALL F.READU(FN.DM.SERVICE.DATA.FILE,DM.KEY,DATA.LINE,F.DM.SERVICE.DATA.FILE,DM.DATA.ERR,'')
+    END
+* saurav 08/05/2010 - e
+
+    IF DATA.LINE THEN
+! Store the original data line for writing out into error file
+        ORIG.DATA.LINE=DATA.LINE
+    END
+
+* PRIYA - S
+
+    FN.PGM = 'F.PGM.FILE' ; F.PGM = ''
+    CALL OPF(FN.PGM,F.PGM)
+
+* PRIYA - E
+
+    RETURN
+
+
+*******************
+UPDATE.RESULT.FILE:
+*******************
+
+* To update the result file DM.UPLOAD.DATA.RESULT, after the data is loaded into GLOBUS
+! Is this required??? Result produces performance details - Which can be obtained from Job Times
+
+    RETURN
+
+*************
+LOAD.OFS.MSG:
+*************
+
+    GOSUB FORM.OFS.MESSAGE
+    GOSUB UPDATE.RESULT.FILE
+
+    RETURN
+
+*****************
+FORM.OFS.MESSAGE:
+*****************
+
+
+    UPLOAD.COMPANY = DM.SERVICE.CONTROL.REC<DMS.CONTROL.UPLOAD.COMPANY>
+
+    MAP.IN.DATA.DEF = DM.MAPPING.DEFINITION.REC<DM.MD.IN.DATA.DEF>
+
+    APP.ID.TYPE = DM.MAPPING.DEFINITION.REC<DM.MD.ID.TYPE>
+    APP.ID.RTN = DM.MAPPING.DEFINITION.REC<DM.MD.ID.ROUTINE>
+    APP.ID.RTN = FIELD(APP.ID.RTN,"@",2)
+    APP.ID.POS = DM.MAPPING.DEFINITION.REC<DM.MD.ID.POSITION>
+    APP.ID.LENGTH = DM.MAPPING.DEFINITION.REC<DM.MD.ID.LENGTH>
+
+
+    ESC.SEQ.FR.LIST = DM.MAPPING.DEFINITION.REC<DM.MD.ESC.SEQ.FR>
+    ESC.SEQ.TO.LIST = DM.MAPPING.DEFINITION.REC<DM.MD.ESC.SEQ.TO>
+
+    APP.FIELD.NAME.ARR = DM.MAPPING.DEFINITION.REC<DM.MD.APPL.FIELD.NAME>
+    APP.FIELD.POS.ARR = DM.MAPPING.DEFINITION.REC<DM.MD.FIELD.POSITION>
+    APP.FIELD.LENGTH.ARR = DM.MAPPING.DEFINITION.REC<DM.MD.FIELD.LENGTH>
+    APP.OFS.VERSION = DM.MAPPING.DEFINITION.REC<DM.MD.OFS.VERSION>
+
+    APP.FIELD.ATTRIB.ARR = DM.MAPPING.DEFINITION.REC<DM.MD.FIELD.ATTRIB>
+    APP.FIELD.ATT.VALUE.ARR = DM.MAPPING.DEFINITION.REC<DM.MD.FIELD.VALUE>
+    APP.FIELD.POST.UPDATE.RTN = DM.MAPPING.DEFINITION.REC<DM.MD.POST.UPDATE.RTN>[2,99]
+
+
+* PRIYA - S
+
+    APP.ID = DM.MAPPING.DEFINITION.REC<DM.MD.APPLICATION.NAME>
+
+    CALL F.READ(FN.PGM,APP.ID,R.PGM,F.PGM,PGM.ERR)
+    APP.PRODUCT = R.PGM<EB.PGM.PRODUCT>
+
+* PRIYA - E
+
+    BEGIN CASE
+
+    CASE MAP.IN.DATA.DEF = 'DELIM'
+        GOSUB MAP.DELIM.DATA
+    CASE MAP.IN.DATA.DEF = 'POSITION'
+        GOSUB MAP.POSITION.DATA
+    CASE MAP.IN.DATA.DEF = 'ROUTINE'
+        GOSUB CALL.MAP.DATA.RTN
+    CASE MAP.IN.DATA.DEF = 'OFS'        ;* New option added to process OFS Messages directly from flat file - By Thiag
+        GOSUB PROCESS.OFS.MSG
+    END CASE
+
+    RETURN
+
+****************
+PROCESS.OFS.MSG:
+****************
+! Store the original line in a variable
+
+    OFS.MESSAGE = DATA.LINE
+    GOSUB CALL.OGM
+    RETURN
+
+***************
+MAP.DELIM.DATA:
+***************
+
+    FM.DELIM = DM.MAPPING.DEFINITION.REC<DM.MD.FM.DELIM>
+    VM.DELIM = DM.MAPPING.DEFINITION.REC<DM.MD.VM.DELIM>
+    SM.DELIM = DM.MAPPING.DEFINITION.REC<DM.MD.SM.DELIM>
+
+    DM$DATA.LINE = DATA.LINE
+
+    APP.FILE.RECORD = ''
+
+    DATA.LINE = CHANGE(DATA.LINE,FM.DELIM,FM)
+    DATA.LINE = CHANGE(DATA.LINE,VM.DELIM,VM)
+    DATA.LINE = CHANGE(DATA.LINE,SM.DELIM,SM)
+
+    IF ESC.SEQ.FR.LIST THEN
+
+        NO.OF.ESC.SEQ.FR = DCOUNT(ESC.SEQ.FR.LIST,VM)
+
+        FOR ESC.SEQ.FR.NO = 1 TO NO.OF.ESC.SEQ.FR
+
+            ESC.SEQ.FR = ESC.SEQ.FR.LIST<1,ESC.SEQ.FR.NO>
+            ESC.SEQ.TO = ESC.SEQ.TO.LIST<1,ESC.SEQ.FR.NO>
+            DATA.LINE = CHANGE(DATA.LINE,ESC.SEQ.FR,ESC.SEQ.TO)
+
+        NEXT ESC.SEQ.FR.NO
+
+    END
+
+    APP.FIELD.NAME.ARR = APP.FIELD.NAME.ARR
+
+    OFS.MESS.HEADER =APP.OFS.VERSION
+    OFS.ACTION = DM.MAPPING.DEFINITION.REC<DM.MD.OFS.ACTION>
+    OFS.FUNCTION = DM.MAPPING.DEFINITION.REC<DM.MD.OFS.FUNCTION>
+
+    IF OFS.FUNCTION THEN
+        OFS.MESS.HEADER := "/":OFS.FUNCTION
+    END ELSE
+        OFS.MESS.HEADER := "/"
+    END
+
+    IF OFS.ACTION THEN
+        OFS.MESS.HEADER := "/":OFS.ACTION
+    END ELSE
+        OFS.MESS.HEADER := "/"
+    END
+
+    IF UPLOAD.COMPANY THEN
+        OFS.MESS.HEADER := ",//":UPLOAD.COMPANY:","
+    END ELSE
+        OFS.MESS.HEADER.TEMP = ",//"
+    END
+
+    OFS.MESS.REC = ''
+    VALUE.NO = 0
+
+    LOOP
+        REMOVE APP.FIELD.NAME FROM APP.FIELD.NAME.ARR SETTING MORE.FIELDNAME.POS
+    WHILE APP.FIELD.NAME:MORE.FIELDNAME.POS
+        VALUE.NO +=1
+
+        FIELD.POS= APP.FIELD.POS.ARR<1,VALUE.NO>
+        APP.FIELD.ATTRIB = APP.FIELD.ATTRIB.ARR<1,VALUE.NO>
+        APP.FIELD.ATT.VALUE = APP.FIELD.ATT.VALUE.ARR<1,VALUE.NO>
+
+        IF FIELD.POS THEN
+            APP.FIELD.VALUE = DATA.LINE<FIELD.POS>
+            APP.FIELD.VALUE = TRIMF(APP.FIELD.VALUE)        ;*NEWLYADDED
+        END ELSE
+            APP.FIELD.VALUE = ''
+        END
+
+
+        IF APP.FIELD.ATTRIB THEN
+            GOSUB PROCESS.ATTRIB
+        END
+
+* Senthil 03/08/2011 -s
+        IF APP.FIELD.NAME EQ 'MNEMONIC' AND OFS.ACTION EQ 'VALIDATE' THEN
+            MNE.VALUE = APP.FIELD.VALUE
+        END
+*Senthil
+
+        IF APP.FIELD.NAME EQ 'MESSAGE.SEPARATOR' THEN       ;! added to processs LD.SCHEDULE.DEFINE
+            OFS.MESS.REC:='###'
+        END ELSE
+            IF APP.FIELD.NAME EQ 'UPLOAD.COMPANY' THEN
+                IF NOT(UPLOAD.COMPANY.FLD.FLG) THEN
+                    OFS.MESS.HEADER := OFS.MESS.HEADER.TEMP:APP.FIELD.VALUE:","
+                    UPLOAD.COMPANY = APP.FIELD.VALUE
+                END
+            END ELSE
+                IF APP.FIELD.VALUE <> '' THEN
+* saurav 18/05/2010 - s
+                    IF APP.FIELD.NAME EQ 'DATA.UPLOAD.GRP' OR APP.FIELD.NAME EQ 'DATA.UPLOAD.SEQ' THEN
+                        Y.TEMP.X = 1    ;* dummy line. do not delete
+                    END
+                    ELSE
+* saurav 18/05/2010 - e
+                        VM.FIELDS.COUNT = DCOUNT(APP.FIELD.VALUE,VM)
+                        FOR FIELD.MVAL.NO = 1 TO VM.FIELDS.COUNT
+                            APP.FIELD.MVALUE = APP.FIELD.VALUE<1,FIELD.MVAL.NO>
+                            SM.FIELDS.COUNT = DCOUNT(APP.FIELD.MVALUE,SM)
+                            FOR FIELD.SVAL.NO = 1 TO SM.FIELDS.COUNT
+                                APP.FIELD.SVALUE =APP.FIELD.MVALUE<1,1,FIELD.SVAL.NO>
+
+                                OFS.MESS.REC:=",":APP.FIELD.NAME:":":FIELD.MVAL.NO:":":FIELD.SVAL.NO:'="':APP.FIELD.SVALUE:'"'
+                            NEXT SM.FIELDS.COUNT
+                        NEXT VM.FIELDS.COUNT
+                    END
+
+                END
+            END
+        END
+
+    REPEAT
+
+    IF FIELD(OFS.MESS.REC,"###",2) THEN
+        OFS.MESS.REC = CHANGE(OFS.MESS.REC,"###,","//")     ;! added to process LD.SCHEDULE.DEFINE through this
+    END ELSE
+        OFS.MESS.REC=CHANGE(OFS.MESS.REC,'###','')
+    END
+
+
+    BEGIN CASE
+    CASE APP.ID.TYPE ='DATA'
+        OFS.ID = DATA.LINE<APP.ID.POS>
+    CASE APP.ID.TYPE = 'ROUTINE'
+        OFS.ID = DATA.LINE<APP.ID.POS>
+        CALL @APP.ID.RTN(OFS.ID,SESSION.NO)
+    CASE APP.ID.TYPE = 'AUTO'
+        OFS.ID =''
+    END CASE
+    OFS.MESSAGE = OFS.MESS.HEADER:OFS.ID:OFS.MESS.REC
+
+*GOSUB CALL.OGM
+* saurav 08/05/2010 - s
+    IF DM.SEQUENTIAL.UPLOAD.FLAG EQ 0 THEN
+        GOSUB CALL.OGM
+    END
+* saurav 08/05/2010 - e
+    RETURN
+
+*********
+CALL.OGM:
+*********
+DEBUG
+* KK
+* Call OFS.PROCESS.MANAGER
+
+* 9 JUL 2008 - PRIYA/S
+*CALL OFS.INITIALISE.SOURCE(OFS$SOURCE.ID,OFS$SOURCE.REC,'')
+*CALL OFS.PROCESS.MANAGER(OFS.MESSAGE,OFS.RESPONSE.MESSAGE)
+
+*CHANGED BY JAMAL FOR ISSUE HD1013408 ON 13/04/10
+*    IF APP.PRODUCT EQ 'AA' OR APP.PRODUCT EQ 'AL' OR APP.PRODUCT EQ 'AD' THEN
+*CHANGED BY JAMAL FOR ISSUE HD1013408 ON 13/04/10
+
+*OFS$SOURCE.ID = ''
+* OFS$SOURCE.REC = ''
+*        SOURCE.ID = OFS$SOURCE.ID
+*        TXN.VAL=''
+*        CALL OFS.CALL.BULK.MANAGER(SOURCE.ID,OFS.MESSAGE,OFS.RESPONSE.MESSAGE,TXN.VAL)
+
+
+*CALL OFS.BULK.MANAGER(OFS.MESSAGE,OFS.RESPONSE.MESSAGE,'')
+* saurav sen 05/08/2010 - s
+    IF DM.SEQUENTIAL.UPLOAD.FLAG EQ 0 THEN
+        CALL OFS.BULK.MANAGER(OFS.MESSAGE,OFS.RESPONSE.MESSAGE,'')
+    END
+    ELSE
+        CALL OFS.BULK.MANAGER(BULK.OFS.MESSAGE,OFS.RESPONSE.MESSAGE,'')
+    END
+* saurav sen 05/08/2010 - s
+
+
+*    END
+*    ELSE
+* PRIYA - S
+*OFS$SOURCE.ID = ''
+*OFS$SOURCE.REC = ''
+*        LOG.NAME=''
+*        LOG.NAME = OFS$SOURCE.ID:".":TNO
+*        CALL OFS.INITIALISE.SOURCE(OFS$SOURCE.ID,OFS$SOURCE.REC,LOG.NAME)
+
+*CHANGED BY JAMAL FOR ISSUE HD1013408 ON 13/04/10
+*       CALL OFS.PROCESS.MANAGER(OFS.MESSAGE,OFS.RESPONSE.MESSAGE)
+*CHANGED BY JAMAL FOR ISSUE HD1013408 ON 13/04/10
+
+* PRIYA - E
+*    END
+
+* 9 JUL 2008 - PRIYA/E
+
+    OFS.MESSAGE=OFS.RESPONSE.MESSAGE
+
+* 15 NOV 2006 - KK/s
+* Delete the DM.KEY here itself to avoid duplicate updates just in case ;)
+
+    CALL F.DELETE(FN.DM.SERVICE.DATA.FILE,DM.KEY)
+
+* 15 NOV 2006 - KK/e
+    AA.RES.MSG = ''
+    IF APP.PRODUCT EQ 'AA' OR APP.PRODUCT EQ 'AL' OR APP.PRODUCT EQ 'AD' THEN
+        ORM.CNT = ''
+* Errors not written in Error log if ORM.CNT EQ 1 since the loop is for ORM.CNT-1 - S (vageesan)
+        ORM.CNT.FINAL = ''
+        AA.RES.MSG = OFS.MESSAGE
+        ORM.CNT = DCOUNT(AA.RES.MSG,"<request>")
+        IF ORM.CNT EQ '1' THEN
+            ORM.CNT.FINAL = ORM.CNT
+        END
+        ELSE
+            ORM.CNT.FINAL = ORM.CNT - 1
+        END
+        FOR I = 1 TO ORM.CNT.FINAL
+            OFS.MESSAGE = ''
+            IF ORM.CNT EQ '1' THEN
+                OFS.MESSAGE = FIELD(AA.RES.MSG,"<request>",I)
+            END
+            ELSE
+                OFS.MESSAGE = FIELD(AA.RES.MSG,"<request>",I+1)
+            END
+* Errors not written in Error log if ORM.CNT EQ 1 since the loop is for ORM.CNT-1 - E (vageesan)
+            OFS.MESSAGE = OFS.MESSAGE[1,LEN(OFS.MESSAGE)-10]
+            TRANS.ID = FIELD(OFS.MESSAGE,'/',1)
+            ERR.FLAG = FIELD(FIELD(OFS.MESSAGE,',',1,1),'/',3,1)
+            IF ERR.FLAG EQ '-1' THEN
+* 20071111 - SHANMUGAM - E
+* PRIYA - S
+                IF LOG.STATUS NE 'NONE' THEN
+                    GOSUB UPDATE.LOG.FILE
+                END
+            END
+
+*Fix for PACS00187579 -s
+            Y.ERR.WRITE.FLAG = ''
+*  OFS.MESSAGE.FINAL = ''
+            IF I EQ ORM.CNT.FINAL THEN
+                Y.ERR.WRITE.FLAG = '1'
+                GOSUB UPDATE.LOG.FILE
+            END
+*Fix for PACS00187579 -E
+        NEXT I
+    END ELSE
+* saurav 05/08/2010
+        IF DM.SEQUENTIAL.UPLOAD.FLAG EQ 1 THEN
+            ORM.CNT = ''
+* Errors not written in Error log if ORM.CNT EQ 1 since the loop is for ORM.CNT-1 - S (vageesan)
+            ORM.CNT.FINAL = ''
+            AA.RES.MSG = FIELD(FIELD(OFS.MESSAGE,"<requests>",2),"</requests>",1)
+            ORM.CNT = DCOUNT(AA.RES.MSG,"<request>")
+            IF ORM.CNT EQ '1' THEN
+                ORM.CNT.FINAL = ORM.CNT
+            END
+            ELSE
+                ORM.CNT.FINAL = ORM.CNT - 1
+            END
+            FOR I = 1 TO ORM.CNT.FINAL
+                OFS.MESSAGE = ''
+                IF ORM.CNT EQ '1' THEN
+                    OFS.MESSAGE = FIELD(AA.RES.MSG,"<request>",I)
+                END
+                ELSE
+                    OFS.MESSAGE = FIELD(AA.RES.MSG,"<request>",I+1)
+                END
+* Errors not written in Error log if ORM.CNT EQ 1 since the loop is for ORM.CNT-1 - E (vageesan)
+                OFS.MESSAGE = OFS.MESSAGE[1,LEN(OFS.MESSAGE)-10]
+                TRANS.ID = FIELD(OFS.MESSAGE,'/',1)
+                ERR.FLAG = FIELD(FIELD(OFS.MESSAGE,',',1,1),'/',3,1)
+                ORIG.DATA.LINE = FULL.DATA.LINE<I>
+
+                IF ERR.FLAG EQ '-1' THEN
+                    IF LOG.STATUS NE 'NONE' THEN
+                        GOSUB UPDATE.LOG.FILE
+                    END
+                END
+*Fix for PACS00187579 -s
+                Y.ERR.WRITE.FLAG = ''
+
+                IF I EQ ORM.CNT.FINAL THEN
+                    Y.ERR.WRITE.FLAG = '1'
+                    GOSUB UPDATE.LOG.FILE
+                END
+*Fix for PACS00187579 -e
+            NEXT I
+* saurav 05/08/2010
+        END
+        ELSE
+            TRANS.ID = FIELD(OFS.MESSAGE,'/',1)
+* 20071111 - SHANMUGAM - S
+*    ERR.FLAG = FIELD(OFS.MESSAGE,'/',3)[0,2]
+            ERR.FLAG = FIELD(FIELD(OFS.MESSAGE,',',1,1),'/',3,1)
+* 20071111 - SHANMUGAM - E
+            IF ERR.FLAG NE '1' THEN
+* 20071111 - SHANMUGAM - E
+* PRIYA - S
+                IF LOG.STATUS NE 'NONE' THEN
+                    GOSUB UPDATE.LOG.FILE
+                END
+            END
+        END
+    END
+
+    R.X.REC = ''
+    ERR.STAT = ''
+! Check if the transaction has failed and if yes then
+! update error file
+
+
+* PRIYA - E
+*GOSUB UPDATE.LOG.FILE
+
+
+    IF APP.FIELD.POST.UPDATE.RTN THEN
+        CALL @APP.FIELD.POST.UPDATE.RTN(OFS.MESSAGE)
+    END
+
+    RETURN
+
+******************
+MAP.POSITION.DATA:
+******************
+
+    APP.FILE.RECORD = ''
+
+    IF ESC.SEQ.FR.LIST THEN
+
+        NO.OF.ESC.SEQ.FR = DCOUNT(ESC.SEQ.FR.LIST,VM)
+
+        FOR ESC.SEQ.FR.NO = 1 TO NO.OF.ESC.SEQ.FR
+
+            ESC.SEQ.FR = ESC.SEQ.FR.LIST<1,ESC.SEQ.FR.NO>
+            ESC.SEQ.TO = ESC.SEQ.FR.LIST<1,ESC.SEQ.FR.NO>
+            DATA.LINE = CHANGE(DATA.LINE,ESC.SEQ.FR,ESC.SEQ.TO)
+
+        NEXT ESC.SEQ.FR.NO
+
+    END
+
+    APP.FIELD.NAME.ARR = APP.FIELD.NAME.ARR
+
+
+    OFS.MESS.HEADER =APP.OFS.VERSION
+    OFS.ACTION = DM.MAPPING.DEFINITION.REC<DM.MD.OFS.ACTION>
+    OFS.FUNCTION = DM.MAPPING.DEFINITION.REC<DM.MD.OFS.FUNCTION>
+
+    IF OFS.FUNCTION THEN
+        OFS.MESS.HEADER := "/":OFS.FUNCTION
+    END ELSE
+        OFS.MESS.HEADER := "/"
+    END
+
+    IF OFS.ACTION THEN
+        OFS.MESS.HEADER := "/":OFS.ACTION
+    END ELSE
+        OFS.MESS.HEADER := "/"
+    END
+
+    IF UPLOAD.COMPANY THEN
+        OFS.MESS.HEADER := ",//":UPLOAD.COMPANY:","
+    END ELSE
+        OFS.MESS.HEADER.TEMP = ",//"
+    END
+
+    OFS.MESS.REC = ''
+    VALUE.NO = 0
+
+    LOOP
+        REMOVE APP.FIELD.NAME FROM APP.FIELD.NAME.ARR SETTING MORE.FIELDNAME.POS
+    WHILE APP.FIELD.NAME:MORE.FIELDNAME.POS
+
+        VALUE.NO +=1
+
+        FIELD.POS= APP.FIELD.POS.ARR<1,VALUE.NO>
+        FIELD.LENGTH= APP.FIELD.LENGTH.ARR<1,VALUE.NO>
+        APP.FIELD.ATTRIB = APP.FIELD.ATTRIB.ARR<1,VALUE.NO>
+        APP.FIELD.ATT.VALUE = APP.FIELD.ATT.VALUE.ARR<1,VALUE.NO>
+
+        IF FIELD.POS THEN
+            APP.FIELD.VALUE = TRIM(DATA.LINE[FIELD.POS,FIELD.LENGTH])
+        END
+
+
+        IF APP.FIELD.ATTRIB THEN
+            GOSUB PROCESS.ATTRIB
+        END
+
+        IF APP.FIELD.NAME EQ 'MESSAGE.SEPARATOR' THEN       ;! added to processs LD.SCHEDULE.DEFINE
+            OFS.MESS.REC:='###'
+        END ELSE
+            IF APP.FIELD.NAME EQ 'UPLOAD.COMPANY' THEN
+                IF NOT(UPLOAD.COMPANY.FLD.FLG) THEN
+                    OFS.MESS.HEADER := OFS.MESS.HEADER.TEMP:APP.FIELD.VALUE:","
+                END
+            END ELSE
+                IF APP.FIELD.VALUE <> '' THEN
+                    VM.FIELDS.COUNT = DCOUNT(APP.FIELD.VALUE,VM)
+                    FOR FIELD.MVAL.NO = 1 TO VM.FIELDS.COUNT
+                        APP.FIELD.MVALUE = TRIM(APP.FIELD.VALUE<1,FIELD.MVAL.NO>)
+                        SM.FIELDS.COUNT = DCOUNT(APP.FIELD.MVALUE,SM)
+                        FOR FIELD.SVAL.NO = 1 TO SM.FIELDS.COUNT
+                            APP.FIELD.SVALUE =TRIM(APP.FIELD.MVALUE<1,1,FIELD.SVAL.NO>)
+
+                            OFS.MESS.REC:=",":APP.FIELD.NAME:":":FIELD.MVAL.NO:":":FIELD.SVAL.NO:'="':APP.FIELD.SVALUE:'"'
+                        NEXT SM.FIELDS.COUNT
+                    NEXT VM.FIELDS.COUNT
+                END
+            END
+        END
+    REPEAT
+
+    BEGIN CASE
+    CASE APP.ID.TYPE ='DATA'
+        OFS.ID = DATA.LINE[APP.ID.POS,APP.ID.LENGTH]
+    CASE APP.ID.TYPE = 'ROUTINE'
+        OFS.ID = DATA.LINE[APP.ID.POS,APP.ID.LENGTH]
+        CALL @APP.ID.RTN(OFS.ID,SESSION.NO)
+    CASE APP.ID.TYPE = 'AUTO'
+        OFS.ID =''
+    END CASE
+
+    OFS.MESSAGE = OFS.MESS.HEADER:OFS.ID:OFS.MESS.REC
+
+*GOSUB CALL.OGM
+* saurav 08/05/2010 - s
+    IF DM.SEQUENTIAL.UPLOAD.FLAG EQ 0 THEN
+
+        GOSUB CALL.OGM
+    END
+* saurav 08/05/2010 - e
+
+    RETURN
+
+******************
+CALL.MAP.DATA.RTN:
+******************
+
+! Routine type not handled
+    RETURN
+
+***************
+PROCESS.ATTRIB:
+***************
+
+    VM.COUNT = DCOUNT(APP.FIELD.VALUE,VM)
+    SM.COUNT = DCOUNT(APP.FIELD.VALUE,SM)
+    IF VM.COUNT = 0 THEN VM.COUNT = 1
+    IF SM.COUNT = 0 THEN SM.COUNT = 1
+    FOR VMC= 1 TO VM.COUNT
+
+        FOR SMC = 1 TO SM.COUNT
+            IF APP.FIELD.ATTRIB EQ 'CONSTANT' THEN
+                APP.FIELD.VALUE<1,VMC,SMC> = APP.FIELD.ATT.VALUE
+            END ELSE
+! The routine call is to be done for every multi value or sub value there off
+
+                ATT.RTN = FIELD(APP.FIELD.ATT.VALUE,"@",2)
+                DATA.FIELD.VAL = APP.FIELD.VALUE<1,VMC,SMC>
+                CALL @ATT.RTN(DATA.FIELD.VAL,SESSION.NO)
+                APP.FIELD.VALUE<1,VMC,SMC> = DATA.FIELD.VAL
+            END
+        NEXT SMC
+    NEXT VMC
+    RETURN
+
+****************
+UPDATE.LOG.FILE:
+****************
+* For consolidating Error Arrangement wise - S (vageesan)
+
+    IF APP.PRODUCT EQ 'AA' OR APP.PRODUCT EQ 'AL' OR APP.PRODUCT EQ 'AD' THEN
+        IF Y.ERR.WRITE.FLAG EQ '' THEN
+            IF OFS.MESSAGE.FINAL EQ '' THEN
+                OFS.MESSAGE.FINAL = OFS.MESSAGE
+            END ELSE
+                OFS.MESSAGE.FINAL = OFS.MESSAGE.FINAL:',':OFS.MESSAGE
+            END
+        END
+*Fix for PACS00187579 -s
+        IF Y.ERR.WRITE.FLAG = '1' AND OFS.MESSAGE.FINAL NE '' THEN
+            LOG.MESSAGE = OFS.MESSAGE.FINAL:'*':ORIG.DATA.LINE
+            WRITESEQ LOG.MESSAGE APPEND TO DM.SEQUENTIAL.FILE ELSE
+                CRT 'Unable to write to the file':SESSION.NO
+            END
+        END
+*Fix for PACS00187579 -e
+    END
+* For consolidating Error Arrangement wise - E (vageesan)
+    ELSE
+        LOG.MESSAGE = OFS.MESSAGE:'*':ORIG.DATA.LINE
+        WRITESEQ LOG.MESSAGE APPEND TO DM.SEQUENTIAL.FILE ELSE
+            CRT 'Unable to write to the file':SESSION.NO
+        END
+    END
+    RETURN
+
+!Senthil
+********************
+MNEMONIC.VALIDATION:
+********************
+!senthil 08/08/2011 Duplicate Mnemonic Validation -S
+    IF MNE.VALUE NE '' THEN
+        LOCATE APP.ID IN MNE.APPS<1,1> SETTING APP.POS THEN
+* form Concat file ID for the file F.MNEMONIC.DUPLICATE
+            CONCAT.ID = MNE.VALUE:'*':UPLOAD.COMPANY
+            ID.FILE = DATA.LINE<APP.ID.POS>
+            READ R.CONCAT FROM F.MNEMONIC.FILE,CONCAT.ID THEN
+                DUP.MESSAGE = ID.FILE:'*':'Duplicate Mnemonic already used in record ':R.CONCAT
+                WRITESEQ DUP.MESSAGE APPEND TO DM.SEQUENTIAL.FILE ELSE
+                    CRT 'Unable to write to the file':SESSION.NO
+                END
+            END ELSE
+                READU YR.CONCAT FROM F.MNEMONIC.FILE,CONCAT.ID ELSE YR.CONCAT = ""
+                YR.CONCAT = ID.FILE
+                WRITE YR.CONCAT TO F.MNEMONIC.FILE,CONCAT.ID ON ERROR
+                    CRT "Not able to write"
+                END
+            END
+        END
+    END
+    RETURN
+!senthil 08/08/2011 Duplicate Mnemonic Validation -E
+
+*********
+PROG.END:
+*********
+END
+
+

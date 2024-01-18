@@ -1,0 +1,38 @@
+*--------------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-10</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VAL.GEN.RTN
+*--------------------------------------------------------------------------------------
+* This generic routine used to invoke two other validation routines which are used for the
+* validation of the field DEBIT.ACCT.NO.
+*--------------------------------------------------------------------------------------
+* Parameter Description
+*--------- -----------
+* NA
+*-------------------------------------------------------------------------
+* Called Subroutines:
+* ------ -----  -------
+* JBL.V.VAL.MODE - To populate mode of operation based on account number.
+* JBL.V.VAL.ACCT.FEATURES - To Populate account additional features in to local ref field
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 02/02/2011 -          New - R Veena
+*                             Thesys Technologies
+**************************************************************************
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+*
+    GOSUB PROCESS
+    
+    RETURN
+*---------------------------------------------------------------------------
+PROCESS:
+*------
+    CALL JBL.V.VAL.MODE
+    CALL JBL.V.VAL.ACCT.FEATURES
+
+    RETURN
+*---------------------------------------------------------------------------
+END

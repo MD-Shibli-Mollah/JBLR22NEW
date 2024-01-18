@@ -1,0 +1,38 @@
+*-------------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-------------------------------------------------------------------------------
+    SUBROUTINE ACC.DETAILS.SELECT
+
+*-------------------------------------------------------------------------------
+*This routine will extract the all the baalcnes from different concat files
+*related to account and compare each balance with balance from STMT.ENTRY file
+*If they do not tally, it is quoted as a problematic account and the output
+*will be saved in ACC.DETAILS.BP
+*-------------------------------------------------------------------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.EB.CONTRACT.BALANCES
+    $INSERT I_F.ACCT.ACTIVITY
+    $INSERT I_F.STMT.ENTRY
+
+    COMMON/CHK/FN.ACC,F.ACC
+    COMMON/CHK/FN.STMT,F.STMT
+    COMMON/CHK/FN.SP,F.SP
+    COMMON/CHK/FN.ECB,F.ECB
+    COMMON/CHK/FN.AA,F.AA
+    COMMON/CHK/FN.ASP,F.ASP
+    COMMON/CHK/FN.BP,F.BP
+
+
+    SEL.CMD = "GET.LIST CONTRACT.ACCOUNTS"
+    EXECUTE SEL.CMD
+    READLIST IDS.TO.PROCESS ELSE
+        IDS.TO.PROCESS = ''
+    END
+    LIST.PARAM = ''
+    CALL BATCH.BUILD.LIST(LIST.PARAM,IDS.TO.PROCESS)
+
+    RETURN
+END

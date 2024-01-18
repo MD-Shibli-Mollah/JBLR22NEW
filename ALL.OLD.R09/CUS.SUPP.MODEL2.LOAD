@@ -1,0 +1,112 @@
+    SUBROUTINE CUS.SUPP.MODEL2.LOAD
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+!----------------------------------------
+    $INSERT GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INSERT GLOBUS.BP I_F.DRAWINGS
+    $INSERT GLOBUS.BP I_F.MD.DEAL
+!---------------------------------------
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT GLOBUS.BP I_F.CHEQUE.COLLECTION
+    $INSERT GLOBUS.BP I_F.DATA.CAPTURE
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CLASS
+    $INSERT GLOBUS.BP I_BATCH.FILES
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT JBL.BP I_F.ABL.H.MUL.CR
+    $INSERT JBL.BP I_F.ABL.H.MUL.DR
+    $INSERT JBL.BP I_F.ABL.H.MUL.MCD
+    $INSERT JBL.BP I_F.CUS.SUPP.MODEL2.COMMON
+
+    FN.AC = "F.ACCOUNT";                    F.AC = ""
+    FN.AC.HIS = "F.ACCOUNT$HIS";            F.AC.HIS = ""
+    FN.AC.ENT = "F.ACCT.ENT.TODAY";         F.AC.ENT = ""
+    FN.STMT.ENT = "F.STMT.ENTRY";           F.STMT.ENT = ""
+    FN.TT = "F.TELLER";                     F.TT = ""
+    FN.TT.HIS = "F.TELLER$HIS";             F.TT.HIS = ""
+    FN.FT = "F.FUNDS.TRANSFER";             F.FT = ""
+    FN.FT.HIS = "F.FUNDS.TRANSFER$HIS";     F.FT.HIS = ""
+    FN.CC = "F.CHEQUE.COLLECTION";          F.CC = ""
+    FN.DC = "F.DATA.CAPTURE";               F.DC = ""
+    FN.AC.CLASS = "F.ACCOUNT.CLASS";        F.AC.CLASS = ""
+    FN.MD = "F.ABL.H.MUL.DR";               F.MD = ""
+    FN.MC = "F.ABL.H.MUL.CR";               F.MC = ""
+    FN.MM = "F.ABL.H.MUL.MCD";              F.MM = ""
+!---------------------------------------------------------------
+    FN.LC = "F.LETTER.OF.CREDIT";            F.LC = ""
+    FN.LC.HIS = "F.LETTER.OF.CREDIT$HIS";    F.LC.HIS = ""
+    FN.DR = "F.DRAWINGS";                    F.DR = ""
+    FN.DR.HIS = "F.DRAWINGS$HIS";            F.DR.HIS = ""
+    FN.MD.DEAL = "F.MD.DEAL";                F.MD.DEAL = ""
+    FN.MD.DEAL.HIS = "F.MD.DEAL$HIS";        F.MD.DEAL.HIS = ""
+!---------------------------------------------------------------
+    Y.ALT.ACCT.ID="";                       Y.T24.LEGACY=""
+    Y.THIS.COMPANY = ID.COMPANY;            Y.COMPANY.CODE = ""
+    Y.AC.TITLE = "";                        Y.CATEGORY = ""
+    Y.INST.NO = "";                         Y.TRAN.TYPE = ""
+    Y.TRANS.AMOUNT = "";                    FALSE = ""
+    Y.CATEG.COUNT = "";                     Y.CATEG.LIST = ""
+    Y.SYSTEM.ID = "";                       Y.STMT.ID.COUNT = ""
+    Y.STMT.REC.ID = "";                     Y.INPUTT = ""
+    Y.INPUTT.VALUE = "";                    Y.AUTHOR = ""
+    Y.D.C.M = "";                           Y.MD.MC.M = ""
+    Y.SWIFT.MSG = "";                       Y.MDC.INPUTT.VALUE = ""
+    Y.MDC.INPUTTER = "";                    Y.REC.STATUS = ""
+    Y.CHEQUE.RETURN = "CHEQUE RETURN";      Y.STMT.TRANS.CODE = ""
+
+    Y.PRODUCT = "";                         Y.DR.CR.MARK = ""
+    Y.INPUTTER = "";                        Y.TR.MODE = ""
+
+
+****!TRANSACTION CODE FOR CASH*************
+    Y.CASH.TR.CODE = 4:@FM:5:@FM:6:@FM:9:@FM:10:@FM:14:@FM:32:@FM:33:@FM:109:@FM:110:@FM:111:@FM:112:@FM:113:@FM:114
+***!TRANSACTION CODE FOR CLEARING**********
+    Y.CLEAR.TR.CODE = 28:@FM:29:@FM:30:@FM:34:@FM:41:@FM:42:@FM:43:@FM:44:@FM:45:@FM:46:@FM:49:@FM:92:@FM:93:@FM:95
+***!TRANSACTION CODE FOR CLEARING WHICH WILL READ FROM STMT.ENTRY---134,135,136*********
+***!SYSTEM ID TO CHECK TRANSACTION TYPE*************
+    Y.SYSTEM.ID.LIST = 'TT':@FM:'FT':@FM:'CC':@FM:'DC'
+
+!Y.REP.CATEGORY = "6001":VM:"6002":VM:"6003":VM:"6004":VM:"6006":VM:"6007":VM:"6010":VM:"6012":VM:"6013":"6014":FM:"1001":VM:"1002":VM:"1003":FM:"6009"
+!Y.REP.CLASS.ID = "U-SB":FM:"U-CD":FM:"U-STD"
+    Y.DR.CR = ""
+
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.AC.ENT,F.AC.ENT)
+    CALL OPF(FN.STMT.ENT,F.STMT.ENT)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.TT.HIS,F.TT.HIS)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.FT.HIS,F.FT.HIS)
+    CALL OPF(FN.CC,F.CC)
+    CALL OPF(FN.DC,F.DC)
+    CALL OPF(FN.AC.CLASS,F.AC.CLASS)
+    CALL OPF(FN.MD,F.MD)
+    CALL OPF(FN.MC,F.MC)
+    CALL OPF(FN.MM,F.MM)
+!------------------------------------------
+    CALL OPF(FN.LC,F.LC)
+    CALL OPF(FN.LC.HIS,F.LC.HIS)
+    CALL OPF(FN.DR,F.DR)
+    CALL OPF(FN.DR.HIS,F.DR.HIS)
+    CALL OPF(FN.MD.DEAL,F.MD.DEAL)
+    CALL OPF(FN.MD.DEAL.HIS,F.MD.DEAL.HIS)
+!------------------------------------------
+    OPEN "CUS.SUPP.DIR" TO F.CUS.SUPP.DIR ELSE
+        CMD = "CREATE.FILE CUS.SUPP.DIR TYPE=UD"
+        EXECUTE CMD
+        OPEN "CUS.SUPP.DIR" TO F.CUS.SUPP.DIR ELSE
+            CRT "OPENING OF CUS.SUPP.DIR FAILED"
+        END
+    END
+
+    Y.FILE.NAME = 'CUS.SUPP.':TODAY:'.':SESSION.NO:'.csv'
+    Y.DIR = 'CUS.SUPP.DIR'
+    OPENSEQ Y.DIR,Y.FILE.NAME TO F.CUS.SUPP.DIR THEN NULL
+    RETURN
+
+END

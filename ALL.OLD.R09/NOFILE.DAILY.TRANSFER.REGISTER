@@ -1,0 +1,677 @@
+*-----------------------------------------------------------------------------
+* <Rating>555</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE NOFILE.DAILY.TRANSFER.REGISTER(Y.ARR)
+!PROGRAM NOFILE.DAILY.TRANSFER.REGISTER
+*-------------------------------------------------------------------------
+* This is a Nofile Enquiry Routine used to Daily Transfer Register for daily basis.
+*
+*@author        manjunath.s@sepit.net
+*Modification By: Towhid Tipu
+*Modification Date: 02 Feb 2018 & 21 Feb 2018
+*Modified By: Kamran Mallick
+*Modification Date: 14 Nov 2018
+*-------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.DATES
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.TAX
+    $INSERT GLOBUS.BP I_F.CATEGORY
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.FT.CHARGE.TYPE
+    $INSERT GLOBUS.BP I_F.FT.COMMISSION.TYPE
+    $INSERT JBL.BP I_F.ABL.H.MUL.CR
+    $INSERT JBL.BP I_F.ABL.H.MUL.DR
+    $INSERT JBL.BP I_F.ABL.H.MUL.MCD
+*-------------------------------------------------------------------------
+* Main controlling section:
+*-------------------------------------------------------------------------
+
+    GOSUB INITIALISATION
+    GOSUB MAIN.PROCESS
+    RETURN
+
+*-------------------------------------------------------------------------
+* Subroutine Section:
+* File Opening and Variable set up
+
+INITIALISATION:
+*-------------------------------------------------------------------------
+    FN.CATEGORY = "F.CATEGORY"
+    F.CATEGORY = ""
+    R.CATEGORY = ''
+    CALL OPF(FN.CATEGORY,F.CATEGORY)
+
+    FN.FUNDS.TRANSFER = "F.FUNDS.TRANSFER"
+    F.FUNDS.TRANSFER = ""
+    R.FUNDS.TRANSFER = ""
+    CALL OPF(FN.FUNDS.TRANSFER,F.FUNDS.TRANSFER)
+
+    FN.COMMISSION.TYPE = "F.FT.COMMISSION.TYPE"
+    F.COMMISSION.TYPE = ""
+    R.COMMISSION.TYPE = ""
+    CALL OPF(FN.COMMISSION.TYPE,F.COMMISSION.TYPE)
+
+    FN.CHARGE.TYPE = "F.FT.CHARGE.TYPE"
+    F.CHARGE.TYPE = ""
+    R.CHARGE.TYPE = ""
+    CALL OPF(FN.CHARGE.TYPE,F.CHARGE.TYPE)
+
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT = ""
+    R.ACCOUNT = ""
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    FN.TAX = "F.TAX"
+    F.TAX = ""
+    R.TAX = ""
+    CALL OPF(FN.TAX,F.TAX)
+
+    FN.MUL.CR = "F.ABL.H.MUL.CR"
+    F.MUL.CR = ""
+    R.MUL.CR = ''
+    CALL OPF(FN.MUL.CR,F.MUL.CR)
+
+    FN.MUL.DR = "F.ABL.H.MUL.DR"
+    F.MUL.DR = ""
+    R.MUL.DR = ''
+    CALL OPF(FN.MUL.DR,F.MUL.DR)
+
+    FN.MUL.MCD = "F.ABL.H.MUL.MCD"
+    F.MUL.MCD = ""
+    R.MUL.MCD = ''
+    CALL OPF(FN.MUL.MCD,F.MUL.MCD)
+
+    RETURN
+*-------------------------------------------------------------------------
+* Main Subroutine processing:
+MAIN.PROCESS:
+    Y.COMPANY = ID.COMPANY
+    Y.VAL = 'BKAC'
+    SEL.CMD = "SELECT ":FN.FUNDS.TRANSFER:" WITH CO.CODE EQ ":Y.COMPANY:" AND IN.SWIFT.MSG UNLIKE ":Y.VAL:"..."
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,NO.OF.RECORDS,'',RETURN.CODE)
+*
+    LOOP
+        REMOVE Y.FT.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.FT.ID:Y.POS
+        Y.FUNDS.ID = Y.FT.ID
+!DEBUG
+!Y.FUNDS.ID = 'FT17080W4Z81'
+        CALL F.READ(FN.FUNDS.TRANSFER,Y.FUNDS.ID,R.FUNDS.TRANSFER,F.FUNDS.TRANSFER,Y.ERR2)
+!----------------------------------------KAMRAN------------------------------
+        Y.TREASURY.RATE = R.FUNDS.TRANSFER<FT.TREASURY.RATE>
+!Y.MKTG.EXCH.PROFIT = R.FUNDS.TRANSFER<FT.MKTG.EXCH.PROFIT>
+!-------------------------------------------END------------------------------
+*To get dedit side data of Funds transfer
+        GOSUB DR.DATA.IN
+
+        Y.TT.CHRG.AMT = R.FUNDS.TRANSFER<FT.TOTAL.CHARGE.AMOUNT>
+
+*To get Credit side data of Funds transfer
+        GOSUB CR.DATA.IN
+
+        IF Y.TT.CHRG.AMT GT "0" THEN
+
+*To Assign the value to the common variables
+            GOSUB CR.VARIABLE
+
+            IF Y.TT.COMMISSION.AMT GT "0" THEN
+
+*To get commission data
+                GOSUB COMMISSION.DATA
+
+            END
+
+            IF Y.TT.CHARGE.AMT GT "0" THEN
+
+*To get charges related data
+                GOSUB CHARGES.DATA
+
+            END
+
+            IF Y.TT.TAX.AMT GT "0" THEN
+
+*To get Tax related data
+                GOSUB TAX.DATA
+
+            END
+        END
+!IF Y.MKTG.EXCH.PROFIT GT "0" THEN
+
+*To get Profit related data
+!GOSUB PROFIT.DATA
+
+!END
+
+*Converting Field marker to value marker
+        GOSUB CONVERT.FM.TO.VM
+
+*Final data displaying as enquiry record
+        Y.ARR<-1> = Y.FINAL.BATCH:" * ": Y.FINAL.ACCOUNT.DR:" * ":Y.FINAL.NAME.DR:" * ":Y.FINAL.CHQ.DR:" * ":ABS(Y.FINAL.AMOUNT.DR):" * ":Y.FINAL.DESCRIPTION.DR:" * ":Y.FINAL.ACCOUNT:" * ":Y.FINAL.NAME:" * ":ABS(Y.FINAL.AMOUNT):" * ":Y.FINAL.DESCRIPTION:" * ":ABS(Y.FINAL.GRAND.TOTAL.DR):" * ": ABS(Y.FINAL.GRAND.TOTAL)
+
+* To refreshing the variable
+        GOSUB VARIABLE.REFRESH
+
+    REPEAT
+
+* single Debit and Multiple Credit
+    GOSUB SDMC
+
+* Multiple Debit and Single Credit
+    GOSUB MDSC
+
+* Multiple Debit and Multiple Credit
+    GOSUB MDMC
+
+
+* main.process gosub return
+*
+    RETURN
+
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+*Gosub's processing start from here...
+*-------------------------------------------------------------------------
+DR.DATA.IN:
+*To get Debit side data's of funds transfer file
+    Y.DR.ACT.NO = R.FUNDS.TRANSFER<FT.DEBIT.ACCT.NO>
+****************Modification History*Towhid Tipu*02 Feb 2018 & 21 Feb 2018**************
+    IF LEFT(R.FUNDS.TRANSFER<FT.DEBIT.ACCT.NO>,8) NE 'BDT14032' AND LEFT(R.FUNDS.TRANSFER<FT.DEBIT.ACCT.NO>,12) NE 'BDT149999999' AND R.FUNDS.TRANSFER<FT.RECORD.STATUS> NE 'MAT' THEN
+**************************************************************************
+        Y.FINAL.BATCH = Y.FUNDS.ID
+        Y.FINAL.ACCOUNT.DR<-1> = Y.DR.ACT.NO
+        CALL F.READ(FN.ACCOUNT,Y.DR.ACT.NO,R.ACC.REC,F.ACCOUNT,Y.ERR3)
+        Y.FINAL.NAME.DR<-1> = R.ACC.REC<AC.ACCOUNT.TITLE.1>
+        Y.FINAL.CHQ.DR<-1> = R.FUNDS.TRANSFER<FT.CHEQUE.NUMBER>
+
+* To get equivalent Local Amount for FCY Debit Account
+!Y.AMT.DR = R.FUNDS.TRANSFER<FT.AMOUNT.DEBITED>
+!Y.LEN.DR = LEN(Y.AMT.DR)
+!Y.AMOUNT.DR = ABS(Y.AMT.DR[4,Y.LEN.DR])
+!Y.DR.CCY = R.FUNDS.TRANSFER<FT.DEBIT.CURRENCY>
+        Y.DR.CCY = R.FUNDS.TRANSFER<FT.DEBIT.CURRENCY>
+        IF Y.DR.CCY NE 'BDT' THEN
+            Y.AMOUNT.DR = R.FUNDS.TRANSFER<FT.LOC.AMT.DEBITED>
+        END ELSE
+            Y.AMT.DR = R.FUNDS.TRANSFER<FT.AMOUNT.DEBITED>
+            Y.LEN.DR = LEN(Y.AMT.DR)
+            Y.AMOUNT.DR = ABS(Y.AMT.DR[4,Y.LEN.DR])
+        END
+*-----------------------------------------------
+
+        Y.FINAL.AMOUNT.DR<-1> = Y.AMOUNT.DR
+        Y.FINAL.GRAND.TOTAL.DR += Y.AMOUNT.DR
+        Y.DES.DR = R.FUNDS.TRANSFER<FT.DEBIT.THEIR.REF>
+        Y.DES.LEN.DR = LEN(Y.DES.DR)
+        IF Y.DES.LEN.DR GT "0" THEN
+            Y.FINAL.DESCRIPTION.DR<-1> = R.FUNDS.TRANSFER<FT.DEBIT.THEIR.REF>
+        END ELSE
+            Y.FINAL.DESCRIPTION.DR<-1> = "-"
+        END
+    END ELSE
+        Y.DR.ACT.NO = ''
+    END
+    RETURN
+
+*-------------------------------------------------------------------------
+CR.DATA.IN:
+*To get Credit side data's of Funds transfer file
+    Y.FINAL.ACCOUNT<-1> = R.FUNDS.TRANSFER<FT.CREDIT.ACCT.NO>
+****************Modification History*Towhid Tipu*02 Feb 2018 & 21 Feb 2018**************
+    IF LEFT(R.FUNDS.TRANSFER<FT.CREDIT.ACCT.NO>,8) NE 'BDT14032' AND LEFT(R.FUNDS.TRANSFER<FT.CREDIT.ACCT.NO>,12) NE 'BDT149999999' AND R.FUNDS.TRANSFER<FT.RECORD.STATUS> NE 'MAT' THEN
+**************************************************************************
+        IF Y.FINAL.BATCH EQ '' THEN
+            Y.FINAL.BATCH = Y.FUNDS.ID
+        END
+        Y.CR.ACT.NO = Y.FINAL.ACCOUNT
+        CALL F.READ(FN.ACCOUNT,Y.CR.ACT.NO,R.ACC.REC,F.ACCOUNT,Y.ERR3)
+        Y.FINAL.NAME<-1> = R.ACC.REC<AC.ACCOUNT.TITLE.1>
+
+* To get equivalent Local Amount for FCY Credit Account
+!Y.AMT = R.FUNDS.TRANSFER<FT.AMOUNT.CREDITED>
+!Y.LEN = LEN(Y.AMT)
+!Y.AMOUNT = ABS(Y.AMT[4,Y.LEN])
+        Y.CR.CCY = R.FUNDS.TRANSFER<FT.CREDIT.CURRENCY>
+        IF Y.CR.CCY NE 'BDT' THEN
+            Y.AMOUNT = R.FUNDS.TRANSFER<FT.LOC.AMT.CREDITED>
+        END ELSE
+            Y.AMT = R.FUNDS.TRANSFER<FT.AMOUNT.CREDITED>
+            Y.LEN = LEN(Y.AMT)
+            Y.AMOUNT = ABS(Y.AMT[4,Y.LEN])
+        END
+*-----------------------------------------------
+
+        Y.FINAL.AMOUNT<-1> = Y.AMOUNT
+        Y.FINAL.GRAND.TOTAL += Y.AMOUNT
+        Y.DES = R.FUNDS.TRANSFER<FT.CREDIT.THEIR.REF>
+        Y.DES.LEN = LEN(Y.DES)
+        IF Y.DES.LEN GT "0" THEN
+            Y.FINAL.DESCRIPTION<-1> = R.FUNDS.TRANSFER<FT.CREDIT.THEIR.REF>
+        END ELSE
+            Y.FINAL.DESCRIPTION<-1> = "-"
+        END
+    END ELSE
+        Y.FINAL.ACCOUNT = ''
+    END
+
+    RETURN
+
+*-------------------------------------------------------------------------
+CR.VARIABLE:
+*To Value fetching for common variables
+    Y.CNT.COMMISSION = DCOUNT(R.FUNDS.TRANSFER<FT.COMMISSION.TYPE>,@VM)
+    Y.CNT.CHARGE = DCOUNT(R.FUNDS.TRANSFER<FT.CHARGE.TYPE>,@VM)
+!---------------------------------KAMRAN------------------------
+    Y.CNT.TAX = DCOUNT(R.FUNDS.TRANSFER<FT.TAX.TYPE>,@VM)
+!---------------------------------------END----------------------
+    Y.COT.ID = R.FUNDS.TRANSFER<FT.COMMISSION.TYPE>
+    Y.CHT.ID = R.FUNDS.TRANSFER<FT.CHARGE.TYPE>
+    Y.TT.COMMISSION.AMT = R.FUNDS.TRANSFER<FT.COMMISSION.AMT>
+***********************************ADDED BY KAMRAN*******************
+    Y.TT.CHARGE.AMT = R.FUNDS.TRANSFER<FT.CHARGE.AMT>
+!Y.TT.TAX.AMT = R.FUNDS.TRANSFER<FT.TOTAL.TAX.AMOUNT>
+    Y.TT.TAX.AMT = R.FUNDS.TRANSFER<FT.TAX.AMT>
+!Y.MKTG.EXCH.PROFIT = R.FUNDS.TRANSFER<FT.MKTG.EXCH.PROFIT>
+
+************************************END******************************
+
+    RETURN
+
+*-------------------------------------------------------------------------
+COMMISSION.DATA:
+*To get commission's for particular type of transaction
+    FOR M = 1 TO Y.CNT.COMMISSION
+        Y.AMT2 = R.FUNDS.TRANSFER<FT.COMMISSION.AMT,M>
+        Y.LEN2 = LEN(Y.AMT2)
+        Y.AMOUNT2 = ABS(Y.AMT2[4,Y.LEN2])
+!-------------------------------------KAMRAN--------------------------
+        IF Y.TREASURY.RATE NE '' THEN
+            Y.AMOUNT2.LOC = Y.AMOUNT2 * Y.TREASURY.RATE
+            Y.FINAL.AMOUNT<-1> = Y.AMOUNT2.LOC
+            Y.FINAL.GRAND.TOTAL += Y.AMOUNT2.LOC
+        END ELSE
+            Y.FINAL.AMOUNT<-1> = Y.AMOUNT2
+            Y.FINAL.GRAND.TOTAL += Y.AMOUNT2
+        END
+        Y.COT.ID = R.FUNDS.TRANSFER<FT.COMMISSION.TYPE,M>
+!-----------------------------------END------------------------------
+        CALL F.READ(FN.COMMISSION.TYPE,Y.COT.ID,R.COMMISSION.TYPE,F.COMMISSION.TYPE,Y.ERR3)
+!Y.FINAL.DESCRIPTION = R.COMMISSION.TYPE<FT4.DESCRIPTION>
+        Y.FINAL.DESCRIPTION<-1> = R.COMMISSION.TYPE<FT4.DESCRIPTION>
+        Y.CATEGORY.ID = R.COMMISSION.TYPE<FT4.CATEGORY.ACCOUNT>
+        IF SUBSTRINGS(Y.CATEGORY.ID,4,5) EQ SUBSTRINGS(Y.CR.ACT.NO,4,5) THEN
+            Y.CATEGORY.ID = Y.CR.ACT.NO
+            CALL F.READ(FN.CATEGORY,Y.CATEGORY.ID,R.CATEGORY,F.CATEGORY,Y.ERR5)
+            Y.FINAL.NAME<-1> = R.CATEGORY<EB.CAT.DESCRIPTION>
+            Y.FINAL.ACCOUNT<-1> = Y.CATEGORY.ID
+        END ELSE
+
+            CALL F.READ(FN.CATEGORY,Y.CATEGORY.ID,R.CATEGORY,F.CATEGORY,Y.ERR5)
+            Y.FINAL.NAME<-1> = R.CATEGORY<EB.CAT.DESCRIPTION>
+            Y.FINAL.ACCOUNT<-1> = Y.CATEGORY.ID
+        END
+    NEXT M
+    RETURN
+
+*-------------------------------------------------------------------------
+CHARGES.DATA:
+*To get charges for particular type of transaction
+    FOR M2 = 1 TO Y.CNT.CHARGE
+****************************************UPDATE BY KAMRAN*************
+        Y.AMT3 = R.FUNDS.TRANSFER<FT.CHARGE.AMT,M2>
+        Y.LEN3 = LEN(Y.AMT3)
+        Y.AMOUNT3 = ABS(Y.AMT3[4,Y.LEN3])
+        IF Y.TREASURY.RATE NE '' THEN
+            Y.AMOUNT3.LOC = Y.AMOUNT3 * Y.TREASURY.RATE
+!Y.AMOUNT3 = R.FUNDS.TRANSFER<FT.LOCAL.CHARGE.AMT>
+            Y.FINAL.AMOUNT<-1> = Y.AMOUNT3.LOC
+            Y.FINAL.GRAND.TOTAL += Y.AMOUNT3.LOC
+        END ELSE
+            Y.FINAL.AMOUNT<-1> = Y.AMOUNT3
+            Y.FINAL.GRAND.TOTAL += Y.AMOUNT3
+        END
+*************************************END******************************
+        CALL F.READ(FN.CHARGE.TYPE,Y.CHT.ID,R.CHARGE.TYPE,F.CHARGE.TYPE,Y.ERR4)
+        Y.FINAL.DESCRIPTION<-1> = R.CHARGE.TYPE<FT5.DESCRIPTION>
+        Y.CATEGORY.AC = R.CHARGE.TYPE<FT5.CATEGORY.ACCOUNT>
+        CALL F.READ(FN.CATEGORY,Y.CATEGORY.AC,R.CATEGORY,F.CATEGORY,Y.ERR5)
+        Y.FINAL.NAME<-1> = R.CATEGORY<EB.CAT.DESCRIPTION>
+        Y.FINAL.ACCOUNT<-1> = Y.CATEGORY.AC
+    NEXT M2
+    RETURN
+
+
+*-------------------------------------------------20190107--------------------------------
+!PROFIT.DATA:
+!Y.AMOUNT5 = R.FUNDS.TRANSFER<FT.MKTG.EXCH.PROFIT>
+!Y.FINAL.AMOUNT<-1> = Y.AMOUNT5
+!Y.FINAL.GRAND.TOTAL += Y.AMOUNT5
+!RETURN
+****************************************************END***********************************
+*-------------------------------------------------------------------------
+TAX.DATA:
+*To get Tax of particular type of transaction
+    FOR M3 = 1 TO Y.CNT.TAX
+        Y.AMT4 = R.FUNDS.TRANSFER<FT.TAX.AMT,M3>
+        Y.LEN4 = LEN(Y.AMT4)
+******************************UPDATE BY KAMRAN*****************
+        Y.AMOUNT4 = ABS(Y.AMT4[4,Y.LEN4])
+        IF Y.TREASURY.RATE NE '' THEN
+            Y.AMOUNT4.LOC = Y.AMOUNT4 * Y.TREASURY.RATE
+!Y.AMOUNT4 = ABS(Y.TT.TAX.AMT)
+            Y.FINAL.AMOUNT<-1> = Y.AMOUNT4.LOC
+            Y.FINAL.GRAND.TOTAL += Y.AMOUNT4.LOC
+        END ELSE
+            Y.FINAL.AMOUNT<-1> = Y.AMOUNT4
+            Y.FINAL.GRAND.TOTAL += Y.AMOUNT4
+        END
+*******************************END****************************
+        Y.COT.ID = R.FUNDS.TRANSFER<FT.COMMISSION.TYPE,M3>
+        CALL F.READ(FN.COMMISSION.TYPE,Y.COT.ID,R.COMMISSION.TYPE,F.COMMISSION.TYPE,Y.ERR6)
+        Y.TAX.CODE = R.COMMISSION.TYPE<FT4.TAX.CODE>
+        SELECT.CMD = "SSELECT ":FN.TAX: " WITH @ID LIKE ":Y.TAX.CODE:"... BY @ID"
+        CALL EB.READLIST(SELECT.CMD,SELECT.LIST,"",NUM.OF.RECORDS,RETRN.CODE)
+        CNT =  DCOUNT(SELECT.LIST,@FM)
+        Y.TAX.ID = FIELD(SELECT.LIST,@FM,CNT,1)
+        CALL F.READ(FN.TAX,Y.TAX.ID,R.TAX,F.TAX,Y.ERR3)
+        Y.CATEGORY.ID = R.TAX<EB.TAX.CATEGORY>
+        IF Y.CATEGORY.ID EQ SUBSTRINGS(Y.CR.ACT.NO,4,5) THEN
+            Y.CATEGORY.ID = Y.CR.ACT.NO
+            Y.FINAL.ACCOUNT<-1> = Y.CATEGORY.ID
+            Y.FINAL.NAME<-1> = R.TAX<EB.TAX.DESCRIPTION>
+            Y.FINAL.DESCRIPTION<-1> = R.TAX<EB.TAX.SHORT.DESCR>
+        END ELSE
+!Y.FINAL.ACCOUNT<-1> = R.TAX<EB.TAX.CATEGORY>
+            Y.FINAL.ACCOUNT<-1> = Y.CATEGORY.ID
+            Y.FINAL.NAME<-1> = R.TAX<EB.TAX.DESCRIPTION>
+            Y.FINAL.DESCRIPTION<-1> = R.TAX<EB.TAX.SHORT.DESCR>
+!Y.AMT4 = R.FUNDS.TRANSFER<FT.TAX.AMT,M3>
+!Y.LEN4 = LEN(Y.AMT4)
+******************************UPDATE BY KAMRAN*****************
+!Y.AMOUNT4 = ABS(Y.TT.TAX.AMT[4,Y.LEN4])
+!Y.AMOUNT4.LOC = Y.AMOUNT4 * Y.TREASURY.RATE
+!Y.AMOUNT4 = ABS(Y.TT.TAX.AMT)
+*****************************END******************************
+!Y.FINAL.AMOUNT<-1> = Y.AMOUNT4.LOC
+!Y.FINAL.GRAND.TOTAL += Y.AMOUNT4.LOC
+        END
+    NEXT M3
+    RETURN
+
+*-------------------------------------------------------------------------
+CONVERT.FM.TO.VM:
+*To get convert field marker to value marker of credit side fields
+    CONVERT FM TO VM IN Y.FINAL.ACCOUNT
+    CONVERT FM TO VM IN Y.FINAL.NAME
+    CONVERT FM TO VM IN Y.FINAL.AMOUNT
+    CONVERT FM TO VM IN Y.FINAL.DESCRIPTION
+    RETURN
+
+*-------------------------------------------------------------------------
+CONVERT.FM.TO.VM2:
+*To get convert field marker to value marker of debit side fields
+    CONVERT FM TO VM IN Y.FINAL.ACCOUNT.DR
+    CONVERT FM TO VM IN Y.FINAL.NAME.DR
+    CONVERT FM TO VM IN Y.FINAL.CHQ.DR
+    CONVERT FM TO VM IN Y.FINAL.AMOUNT.DR
+    CONVERT FM TO VM IN Y.FINAL.DESCRIPTION.DR
+    RETURN
+
+*-------------------------------------------------------------------------
+VARIABLE.REFRESH:
+*To refreshing the inside the array variables
+    Y.FINAL.BATCH = ''
+    Y.FINAL.ACCOUNT.DR = ''
+    Y.FINAL.NAME.DR = ''
+    Y.FINAL.CHQ.DR = ''
+    Y.FINAL.AMOUNT.DR = ''
+    Y.FINAL.DESCRIPTION.DR = ''
+    Y.FINAL.ACCOUNT = ''
+    Y.FINAL.NAME = ''
+    Y.FINAL.AMOUNT = ''
+    Y.FINAL.DESCRIPTION = ''
+    RETURN
+
+*-------------------------------------------------------------------------
+SDMC:
+*-------------------------------------------------------------------------
+*Single Debit Multiple Credit entries [SDMC]
+*
+    Y.COMPANY = ID.COMPANY
+    Y.C = 'BKACC'
+    Y.JUL.DATE = RIGHT(R.DATES(EB.DAT.JULIAN.DATE),5)
+    Y.JUL.C = Y.C:Y.JUL.DATE
+    SEL.CMD = "SELECT ":FN.MUL.CR:" WITH CO.CODE EQ ":Y.COMPANY:" AND @ID LIKE ":Y.JUL.C:"..."
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,NO.OF.RECORDS,'',RETURN.CODE)
+*
+    LOOP
+        REMOVE Y.CR.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.CR.ID:Y.POS
+        Y.ID = Y.CR.ID
+        CALL F.READ(FN.MUL.CR,Y.ID,R.MUL.CR,F.MUL.CR,Y.ERR2)
+*-----------
+*Debit Side
+*
+        Y.FINAL.BATCH = Y.ID
+****************Modification History*Towhid Tipu*02 Feb 2018**************
+        IF R.MUL.CR<MULCR.DEBIT.ACCT.NO> NE 'BDT149999999':RIGHT(ID.COMPANY,4) THEN
+**************************************************************************
+            Y.FINAL.ACCOUNT.DR<-1> = R.MUL.CR<MULCR.DEBIT.ACCT.NO>
+            Y.FINAL.NAME.DR<-1> = R.MUL.CR<MULCR.DR.AC.TITLE>
+            Y.FINAL.CHQ.DR<-1> = R.MUL.CR<MULCR.CHEQUE.NUMBER>
+            Y.AMOUNT.DR = R.MUL.CR<MULCR.DEBIT.AMOUNT>
+            Y.FINAL.AMOUNT.DR<-1> = Y.AMOUNT.DR
+            Y.FINAL.GRAND.TOTAL.DR += Y.AMOUNT.DR
+            Y.DES.DR = R.MUL.CR<MULCR.DR.FT.REF>
+            Y.DES.LEN.DR = LEN(Y.DES.DR)
+            IF Y.DES.LEN.DR GT "0" THEN
+                Y.FINAL.DESCRIPTION.DR<-1> = R.MUL.CR<MULCR.DR.FT.REF>
+            END ELSE
+                Y.FINAL.DESCRIPTION.DR<-1> = "-"
+            END
+        END
+*-----------
+*Credit side
+*
+        Y.CNT.CRACC = DCOUNT(R.MUL.CR<MULCR.CREDIT.ACCT.NO>,@VM)
+        FOR Y.Z1 = 1 TO Y.CNT.CRACC
+****************Modification History*Towhid Tipu*02 Feb 2018**************
+            IF R.MUL.CR<MULCR.CREDIT.ACCT.NO,Y.Z1> NE 'BDT149999999':RIGHT(ID.COMPANY,4) THEN
+**************************************************************************
+                Y.FINAL.ACCOUNT<-1> = R.MUL.CR<MULCR.CREDIT.ACCT.NO,Y.Z1>
+                Y.FINAL.NAME<-1> = R.MUL.CR<MULCR.CR.AC.TITLE,Y.Z1>
+                Y.AMOUNT = R.MUL.CR<MULCR.CREDIT.AMOUNT,Y.Z1>
+                Y.FINAL.AMOUNT<-1> = Y.AMOUNT
+                Y.FINAL.GRAND.TOTAL += Y.AMOUNT
+                Y.DES = R.MUL.CR<MULCR.CR.FT.REF,Y.Z1>
+                Y.DES.LEN = LEN(Y.DES)
+                IF Y.DES.LEN GT "0" THEN
+                    Y.FINAL.DESCRIPTION<-1> = R.MUL.CR<MULCR.CR.FT.REF,Y.Z1>
+                END ELSE
+                    Y.FINAL.DESCRIPTION<-1> = "-"
+                END
+            END
+        NEXT Y.Z1
+*To converting field marker to value marker
+        GOSUB CONVERT.FM.TO.VM
+
+*Final displaying data of SDMC
+        Y.ARR<-1> = Y.FINAL.BATCH:" * ": Y.FINAL.ACCOUNT.DR:" * ":Y.FINAL.NAME.DR:" * ":Y.FINAL.CHQ.DR:" * ":ABS(Y.FINAL.AMOUNT.DR):" * ":Y.FINAL.DESCRIPTION.DR:" * ":Y.FINAL.ACCOUNT:" * ":Y.FINAL.NAME:" * ":ABS(Y.FINAL.AMOUNT):" * ":Y.FINAL.DESCRIPTION:" * ":ABS(Y.FINAL.GRAND.TOTAL.DR):" * ": ABS(Y.FINAL.GRAND.TOTAL)
+
+*To refreshing the variables
+        GOSUB VARIABLE.REFRESH
+
+    REPEAT
+    RETURN
+
+*-------------------------------------------------------------------------
+MDSC:
+*-------------------------------------------------------------------------
+*Multiple Debit Single Credit entries
+*
+    Y.COMPANY = ID.COMPANY
+    Y.D = 'BKACD'
+    Y.JUL.DATE = RIGHT(R.DATES(EB.DAT.JULIAN.DATE),5)
+    Y.JUL.D = Y.D:Y.JUL.DATE
+
+    SEL.CMD = "SELECT ":FN.MUL.DR:" WITH CO.CODE EQ ":Y.COMPANY:" AND @ID LIKE ":Y.JUL.D:"..."
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,NO.OF.RECORDS,'',RETURN.CODE)
+*
+    LOOP
+        REMOVE Y.DR.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.DR.ID:Y.POS
+        Y.ID = Y.DR.ID
+        CALL F.READ(FN.MUL.DR,Y.ID,R.MUL.DR,F.MUL.DR,Y.ERR2)
+*-----------
+*Debit Side
+*
+        Y.CNT.DRACC = DCOUNT(R.MUL.DR<MULDR.DEBIT.ACCT.NO>,@VM)
+        FOR Y.Z1 = 1 TO Y.CNT.DRACC
+            Y.FINAL.BATCH = Y.ID
+****************Modification History*Towhid Tipu*02 Feb 2018**************
+            IF R.MUL.DR<MULDR.DEBIT.ACCT.NO,Y.Z1> NE 'BDT149999999':RIGHT(ID.COMPANY,4) THEN
+**************************************************************************
+                Y.FINAL.ACCOUNT.DR<-1> = R.MUL.DR<MULDR.DEBIT.ACCT.NO,Y.Z1>
+                Y.FINAL.NAME.DR<-1> = R.MUL.DR<MULDR.DR.AC.TITLE,Y.Z1>
+                Y.FINAL.CHQ.DR<-1> = R.MUL.DR<MULDR.CHEQUE.NUMBER,Y.Z1>
+                Y.AMOUNT.DR = R.MUL.DR<MULDR.DEBIT.AMOUNT,Y.Z1>
+                Y.FINAL.AMOUNT.DR<-1> = Y.AMOUNT.DR
+                Y.FINAL.GRAND.TOTAL.DR += Y.AMOUNT.DR
+                Y.DES.DR = R.MUL.DR<MULDR.DR.FT.REF,Y.Z1>
+                Y.DES.LEN.DR = LEN(Y.DES.DR)
+                IF Y.DES.LEN.DR GT "0" THEN
+                    Y.FINAL.DESCRIPTION.DR<-1> = R.MUL.DR<MULDR.DR.FT.REF,Y.Z1>
+                END ELSE
+                    Y.FINAL.DESCRIPTION.DR<-1> = "-"
+                END
+            END
+        NEXT Y.Z1
+
+*-----------
+*Credit side
+*
+****************Modification History*Towhid Tipu*02 Feb 2018**************
+        IF R.MUL.DR<MULDR.CREDIT.ACCT.NO> NE 'BDT149999999':RIGHT(ID.COMPANY,4) THEN
+**************************************************************************
+            Y.FINAL.ACCOUNT<-1> = R.MUL.DR<MULDR.CREDIT.ACCT.NO>
+            Y.FINAL.NAME<-1> = R.MUL.DR<MULDR.CR.AC.TITLE>
+            Y.AMOUNT = R.MUL.DR<MULDR.CREDIT.AMOUNT>
+            Y.FINAL.AMOUNT<-1> = Y.AMOUNT
+            Y.FINAL.GRAND.TOTAL += Y.AMOUNT
+            Y.DES = R.MUL.DR<MULDR.CR.FT.REF>
+            Y.DES.LEN = LEN(Y.DES)
+            IF Y.DES.LEN GT "0" THEN
+                Y.FINAL.DESCRIPTION<-1> = R.MUL.DR<MULDR.CR.FT.REF>
+            END ELSE
+                Y.FINAL.DESCRIPTION<-1> = "-"
+            END
+*To converting field marker to value marker
+            GOSUB CONVERT.FM.TO.VM2
+        END
+*Final displaying data of MDSC
+        Y.ARR<-1> = Y.FINAL.BATCH:" * ": Y.FINAL.ACCOUNT.DR:" * ":Y.FINAL.NAME.DR:" * ":Y.FINAL.CHQ.DR:" * ":ABS(Y.FINAL.AMOUNT.DR):" * ":Y.FINAL.DESCRIPTION.DR:" * ":Y.FINAL.ACCOUNT:" * ":Y.FINAL.NAME:" * ":ABS(Y.FINAL.AMOUNT):" * ":Y.FINAL.DESCRIPTION:" * ":ABS(Y.FINAL.GRAND.TOTAL.DR):" * ": ABS(Y.FINAL.GRAND.TOTAL)
+
+*To refreshing the variables
+        GOSUB VARIABLE.REFRESH
+
+    REPEAT
+    RETURN
+
+*-------------------------------------------------------------------------
+MDMC:
+*-------------------------------------------------------------------------
+*Multiple Debit Multiple Credit entries
+*
+    Y.COMPANY = ID.COMPANY
+    Y.M = 'BKACM'
+    Y.JUL.DATE = RIGHT(R.DATES(EB.DAT.JULIAN.DATE),5)
+    Y.JUL.M = Y.M:Y.JUL.DATE
+
+    SEL.CMD = "SELECT ":FN.MUL.MCD:" WITH CO.CODE EQ ":Y.COMPANY:" AND @ID LIKE ":Y.JUL.M:"..."
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,NO.OF.RECORDS,'',RETURN.CODE)
+*
+    LOOP
+        REMOVE Y.MCD.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.MCD.ID:Y.POS
+        Y.ID = Y.MCD.ID
+        CALL F.READ(FN.MUL.MCD,Y.ID,R.MUL.MCD,F.MUL.MCD,Y.ERR2)
+*-----------
+*Debit Side
+*
+        Y.CNT.DRMCD = DCOUNT(R.MUL.MCD<MCD.DEBIT.ACCT.NO>,@VM)
+
+        FOR Y.Z1 = 1 TO Y.CNT.DRMCD
+            Y.MDMC.DR.FT = R.MUL.MCD<MCD.DR.FT.REF,Y.Z1>
+
+            CALL F.READ(FN.FUNDS.TRANSFER,Y.MDMC.DR.FT,R.MDMC.FT,F.FUNDS.TRANSFER,Y.ERR2)
+
+            IF R.MDMC.FT NE '' THEN
+                Y.FINAL.BATCH = Y.ID
+****************Modification History*Towhid Tipu*02 Feb 2018**************
+                IF R.MUL.MCD<MCD.DEBIT.ACCT.NO,Y.Z1> NE 'BDT149999999':RIGHT(ID.COMPANY,4) THEN
+**************************************************************************
+                    Y.FINAL.ACCOUNT.DR<-1> = R.MUL.MCD<MCD.DEBIT.ACCT.NO,Y.Z1>
+                    Y.FINAL.NAME.DR<-1> = R.MUL.MCD<MCD.DR.AC.TITLE,Y.Z1>
+                    Y.FINAL.CHQ.DR<-1> = R.MUL.MCD<MCD.CHEQUE.NUMBER,Y.Z1>
+                    Y.AMOUNT.DR = R.MUL.MCD<MCD.DEBIT.AMOUNT,Y.Z1>
+                    Y.FINAL.AMOUNT.DR<-1> = Y.AMOUNT.DR
+                    Y.FINAL.GRAND.TOTAL.DR += Y.AMOUNT.DR
+                    Y.DES.DR = R.MUL.MCD<MCD.DR.FT.REF,Y.Z1>
+                    Y.DES.LEN.DR = LEN(Y.DES.DR)
+                    IF Y.DES.LEN.DR GT "0" THEN
+!IF Y.DES.LEN.DR GT "0" AND LEFT(R.MUL.MCD<MCD.DEBIT.ACCT.NO,Y.Z1>,8) NE 'BDT14032' THEN
+                        Y.FINAL.DESCRIPTION.DR<-1> = R.MUL.MCD<MCD.DR.FT.REF,Y.Z1>
+                    END ELSE
+                        Y.FINAL.DESCRIPTION.DR<-1> = "-"
+                    END
+                    R.MDMC.FT = ''
+                END
+            END
+        NEXT Y.Z1
+*-----------
+*Credit side
+*
+        Y.CNT.CRMCD = DCOUNT(R.MUL.MCD<MCD.CREDIT.ACCT.NO>,@VM)
+        FOR Y.Z2 = 1 TO Y.CNT.CRMCD
+            Y.MDMC.CR.FT = R.MUL.MCD<MCD.CR.FT.REF,Y.Z2>
+            CALL F.READ(FN.FUNDS.TRANSFER,Y.MDMC.CR.FT,R.MDMC.FT,F.FUNDS.TRANSFER,Y.ERR2)
+
+            IF R.MDMC.FT NE '' THEN
+****************Modification History*Towhid Tipu*02 Feb 2018**************
+                IF R.MUL.MCD<MCD.CREDIT.ACCT.NO,Y.Z2> NE 'BDT149999999':RIGHT(ID.COMPANY,4) THEN
+**************************************************************************
+                    Y.FINAL.ACCOUNT<-1> = R.MUL.MCD<MCD.CREDIT.ACCT.NO,Y.Z2>
+                    Y.FINAL.NAME<-1> = R.MUL.MCD<MCD.CR.AC.TITLE,Y.Z2>
+                    Y.AMOUNT = R.MUL.MCD<MCD.CREDIT.AMOUNT,Y.Z2>
+                    Y.FINAL.AMOUNT<-1> = Y.AMOUNT
+                    Y.FINAL.GRAND.TOTAL += Y.AMOUNT
+                    Y.DES = R.MUL.MCD<MCD.CR.FT.REF,Y.Z2>
+                    Y.DES.LEN = LEN(Y.DES)
+                    IF Y.DES.LEN GT "0" THEN
+!IF Y.DES.LEN GT "0" AND LEFT(R.MUL.MCD<MCD.CREDIT.ACCT.NO,Y.Z2>,8) NE 'BDT14032' THEN
+                        Y.FINAL.DESCRIPTION<-1> = R.MUL.MCD<MCD.CR.FT.REF,Y.Z2>
+                    END ELSE
+                        Y.FINAL.DESCRIPTION<-1> = "-"
+                    END
+                    R.MDMC.FT = ''
+                END
+            END
+        NEXT Y.Z2
+
+*To converting field marker to value marker
+        GOSUB CONVERT.FM.TO.VM2
+        GOSUB CONVERT.FM.TO.VM
+
+*Final displaying data of MDMC
+        Y.ARR<-1> = Y.FINAL.BATCH:" * ": Y.FINAL.ACCOUNT.DR:" * ":Y.FINAL.NAME.DR:" * ":Y.FINAL.CHQ.DR:" * ":ABS(Y.FINAL.AMOUNT.DR):" * ":Y.FINAL.DESCRIPTION.DR:" * ":Y.FINAL.ACCOUNT:" * ":Y.FINAL.NAME:" * ":ABS(Y.FINAL.AMOUNT):" * ":Y.FINAL.DESCRIPTION:" * ":ABS(Y.FINAL.GRAND.TOTAL.DR):" * ": ABS(Y.FINAL.GRAND.TOTAL)
+
+*To refreshing the variables
+        GOSUB VARIABLE.REFRESH
+
+    REPEAT
+    RETURN
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+END

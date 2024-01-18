@@ -1,0 +1,56 @@
+*-------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.E.BUILD.UPD.SEL(ENQ.DATA)
+*-------------------------------------------------------------------------
+*Subroutine Description:
+*-----------------------
+*Routine is used for updating the selection criteria if AZ.ACCOUNT id is given
+*-------------------------------------------------------------------------
+*Parameter Description:
+*--------- -----------
+*ENQ.DATA : containg the enquriy selection criteria data
+*-------------------------------------------------------------------------
+*Common Variable Description:
+*------  ------- -----------
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:            Description:
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+*    Date            Name                           Description
+*   ------         ------                           -----------
+* 15 FEB 2011   Mohammed Anies K                  Initial Creation
+*               (Thesys Technologies)
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_ENQUIRY.COMMON
+
+*--------------------------------------------------------------------------------
+**********
+MAIN.PARA:
+**********
+    GOSUB PROCESS.PARA
+
+    RETURN
+
+*--------------------------------------------------------------------------------
+************
+PROCESS.PARA:
+************
+
+    LOCATE '@ID' IN ENQ.DATA<2,1> SETTING ID.POS THEN
+        ENQ.DATA<3,ID.POS> = 'LK'
+        ENQ.DATA<4,ID.POS> = ENQ.DATA<4,ID.POS>:'...'
+    END
+
+    RETURN
+
+END

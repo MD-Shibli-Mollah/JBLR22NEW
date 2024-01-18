@@ -1,0 +1,78 @@
+    SUBROUTINE JBL.MICR.MGT.ID
+!PROGRAM JBL.MICR.MGT.ID
+
+*-----
+* Description : Input Unique ID and Account, Category, Branch
+* Author      : AVIJIT SAHA
+* Date        : 21.12.2021
+*-----
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_Table
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CHEQUE.TYPE
+    $INCLUDE BP I_F.JBL.MICR.MGT
+
+    FN.ACCT  = "F.ACCOUNT"
+    F.ACCT   = ''
+
+    FN.CHQ.TYPE='F.CHEQUE.TYPE'
+    F.CHQ.TYPE=''
+
+    FN.ALT.AC='F.ACCOUNT.ALT.ACCT.ID'
+    F.ALT.AC=''
+
+    CALL OPF(FN.ACCT, F.ACCT)
+    CALL OPF(FN.CHQ.TYPE,F.CHQ.TYPE)
+    CALL OPF(FN.ALT.AC,F.ALT.AC)
+
+!DEBUG
+    IF (COMI MATCHES "...'.'13N'.'...") THEN
+        ID.NEW = COMI
+    END
+    ELSE
+
+        CALL F.READ(FN.ALT.AC,COMI,R.ALT.AC,F.ALT.AC,ERR.ALT)
+
+        IF R.ALT.AC NE "" THEN
+            Y.T24.AC=FIELD(R.ALT.AC,"*",2)
+        END
+        ELSE
+            Y.T24.AC = COMI
+        END
+        CALL F.READ(FN.ACCT, Y.T24.AC, ACC.REC, F.ACCT, ERR)
+        Y.CO.CODE = ACC.REC<AC.CO.CODE>
+
+        IF Y.CO.CODE NE ID.COMPANY THEN
+            E = 'Online cheque issue is not allowed here (please try another window)'
+            CALL STORE.END.ERROR
+        END
+        IF V$FUNCTION EQ "I" AND ACC.REC NE '' THEN
+!IF ACC.REC NE '' THEN
+            DATE.STAMP = OCONV(DATE(), 'D4-')
+            TIME.STAMP = TIMEDATE()
+            Y.DATE.TIME = DATE.STAMP[7,4]:DATE.STAMP[1,2]:DATE.STAMP[4,2]: TIME.STAMP[1,2]:TIME.STAMP[4,2]::TIME.STAMP[7,2]
+            IF (ACC.REC<AC.CATEGORY> MATCHES "'6'3N") AND ACC.REC<AC.CATEGORY> NE "6009" THEN
+                Y.CHQ.TYPE = "SB"
+            END
+            ELSE IF (ACC.REC<AC.CATEGORY> MATCHES "'19'2N") THEN
+                Y.CHQ.TYPE = "CC"
+            END
+            ELSE
+                SEL.CMD = "SELECT ":FN.CHQ.TYPE:" WITH CATEGORY EQ ":ACC.REC<AC.CATEGORY>
+                CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+                Y.CHQ.TYPE = SEL.LIST
+
+            END
+
+            ID.NEW = Y.CHQ.TYPE:".":Y.T24.AC:".":Y.DATE.TIME
+            ID.ENRI = ACC.REC<AC.ACCOUNT.TITLE.1>
+        END
+        ELSE IF ACC.REC EQ '' THEN
+            E="INVALID ACCOUNT"
+            CALL STORE.END.ERROR
+        END
+    END
+    RETURN
+END

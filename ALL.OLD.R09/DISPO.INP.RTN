@@ -1,0 +1,147 @@
+*****************************************************************************************
+*This routine is attachted to FUNDS.TRANSFER,AUTH TELLER,LCY.CASHIN TELLER,LCY.CASHCHQ1 *
+*TELLER,BD.LCY.CASHWDL TELLER,IN.CLEAR TELLER,IN.CLEAR.SETTLEMENT                       *
+*TELLER,OUT.CLEAR.SAME.DAY FUNDS.TRANSFER,ACTR.FTHP VERSION as a input ROUTINE          *
+*Purpose: to generate ovverride message                                                 *
+*Developed By: Mohammad Abu Huraira & Md. Aminul Islam(Datasoft Systems)                *
+*Live Date: 20160925                                                                    *
+*****************************************************************************************
+    SUBROUTINE DISPO.INP.RTN
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.OVERRIDE
+    $INSERT GLOBUS.BP I_F.COMPANY
+    $INSERT JBL.BP I_F.DISPO.PARAM
+
+    IF ((V$FUNCTION EQ 'D') OR (V$FUNCTION EQ 'R')) THEN RETURN
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+
+    FN.FT="F.FUNDS.TRANSFER"
+    F.FT=""
+
+    FN.AC="F.ACCOUNT"
+    F.AC=""
+    FN.DP = "F.EB.DISPO.PARAM"
+    F.DP = ""
+    FN.OVR = "F.OVERRIDE"
+    F.OVR = ""
+
+    Y.OVERR.ID=""
+    Y.OVERR.AMT=""
+    Y.BR.EXIST=""
+    DEBAMT=""
+    RETURN
+
+OPENFILES:
+
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.DP,F.DP)
+    CALL OPF(FN.OVR,F.OVR)
+    RETURN
+
+PROCESS:
+    BEGIN CASE
+    CASE APPLICATION EQ 'FUNDS.TRANSFER'
+        ACCT.ID=R.NEW(FT.DEBIT.ACCT.NO)
+        DR.AMT=R.NEW(FT.DEBIT.AMOUNT)
+        IF NOT(DR.AMT) THEN
+            DR.AMT=R.NEW(FT.CREDIT.AMOUNT)
+        END
+        V.NO = DCOUNT(R.NEW(FT.OVERRIDE), VM) + 1
+    CASE APPLICATION EQ 'TELLER'
+        TR.CODE = R.NEW(TT.TE.TRANSACTION.CODE)
+        IF ((TR.CODE NE '101') AND (TR.CODE NE '102')) THEN
+            Y.DR.CR = R.NEW(TT.TE.DR.CR.MARKER)
+            IF Y.DR.CR EQ 'DEBIT' THEN
+                ACCT.ID=R.NEW(TT.TE.ACCOUNT.1)
+                DR.AMT=R.NEW(TT.TE.AMOUNT.LOCAL.1)
+            END ELSE
+                ACCT.ID=R.NEW(TT.TE.ACCOUNT.2)
+                DR.AMT=R.NEW(TT.TE.AMOUNT.LOCAL.2)
+            END
+        END ELSE
+            RETURN
+        END
+        V.NO = DCOUNT(R.NEW(FT.OVERRIDE), VM) + 1
+    END CASE
+
+    CALL F.READ(FN.DP,"SYSTEM",R.DP,F.DP,Y.DP.ERR)
+    Y.OVRRID.CNT = DCOUNT(R.DP<EB.DIS26.OVERR.ID>,@VM)
+
+    FOR I=1 TO Y.OVRRID.CNT
+        Y.BR.CODE = R.DP<EB.DIS26.BRANCH.CODE,I>
+        FINDSTR ID.COMPANY IN Y.BR.CODE SETTING BR.POS THEN
+            Y.BR.EXIST = "TRUE"
+            Y.OVERR.ID = R.DP<EB.DIS26.OVERR.ID,I>
+            Y.OVERR.AMT = R.DP<EB.DIS26.OVERR.AMT,I>
+            CALL F.READ(FN.OVR,Y.OVERR.ID,R.OVR,F.OVR,Y.OVR.ERR)
+            IF NOT(R.OVR) THEN
+                ETEXT="Override Record for Dispo missing in system"
+                CALL STORE.END.ERROR
+                RETURN
+            END
+            BREAK
+        END
+        IF Y.BR.EXIST EQ "TRUE" THEN
+            BREAK
+        END
+    NEXT I
+
+
+    IF Y.BR.EXIST EQ "TRUE" THEN
+        GOTO DISPO.PROCESS
+    END
+!ELSE
+!TEXT="This Branch not Configured for Dispo Processing"
+!V.NO = DCOUNT(R.NEW(FT.OVERRIDE), VM) + 1
+!CALL STORE.OVERRIDE(V.NO)
+!END
+    RETURN
+
+
+DISPO.PROCESS:
+
+    CALL F.READ(FN.AC,ACCT.ID,R.AC,F.AC,Y.ERR)
+    IF (DR.AMT > Y.OVERR.AMT) THEN
+        TEXT=Y.OVERR.ID
+        TEXT<2> = R.AC<AC.CURRENCY>:VM:ABS(DR.AMT):VM:ACCT.ID
+!V.NO = DCOUNT(R.NEW(FT.OVERRIDE), VM) + 1
+        CALL STORE.OVERRIDE(V.NO)
+
+!---------Added Aminul Datasoft -------------
+        IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+            Y.OVERRIDE.DATA = R.NEW(FT.OVERRIDE)
+        END
+        IF APPLICATION EQ 'TELLER' THEN
+            Y.OVERRIDE.DATA = R.NEW(TT.TE.OVERRIDE)
+        END
+        TOT.OVRD.MSG = DCOUNT( Y.OVERRIDE.DATA,@VM)
+        FOR J = 1 TO TOT.OVRD.MSG
+            Y.DISP.OVRRD.MSG = FIELD(Y.OVERRIDE.DATA,@VM,J)
+            TOT.SEP = DCOUNT(Y.DISP.OVRRD.MSG,@SM)
+            Y.DISP.LAST.REC = FIELD(Y.DISP.OVRRD.MSG,@SM,TOT.SEP)
+            IF Y.DISP.LAST.REC EQ 'I' THEN
+                Y.ORIG.DISP.MSG = FIELD(Y.DISP.OVRRD.MSG,@SM,1,TOT.SEP-1)
+                IF APPLICATION EQ 'FUNDS.TRANSFER' THEN
+                    R.NEW(FT.OVERRIDE)<1,J> = Y.ORIG.DISP.MSG
+                END
+                IF APPLICATION EQ 'TELLER' THEN
+                    R.NEW(TT.TE.OVERRIDE)<1,J> = Y.ORIG.DISP.MSG
+                END
+!CALL JOURNAL.UPDATE('TEST')
+            END
+        NEXT
+!------------end-----------
+    END
+    RETURN
+END

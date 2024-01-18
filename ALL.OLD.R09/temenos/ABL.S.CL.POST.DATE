@@ -1,0 +1,16 @@
+ *---------------------------------------------------------------
+* <Rating>0</Rating>
+ *---------------------------------------------------------------
+     SUBROUTINE ABL.S.CL.POST.DATE
+     $INSERT I_COMMON
+     $INSERT I_EQUATE
+     $INSERT I_F.TELLER
+     Y.DATE = ''
+     AF = TT.TE.EXPOSURE.DATE.2
+     Y.DATE = R.NEW(TT.TE.EXPOSURE.DATE.2)
+     IF Y.DATE LT TODAY THEN
+         E='DATE SHOULD NOT BE BACKDATED'
+         CALL ERR
+     END
+     RETURN
+ END

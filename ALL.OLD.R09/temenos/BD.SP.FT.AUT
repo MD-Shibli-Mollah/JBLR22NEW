@@ -1,0 +1,446 @@
+*-----------------------------------------------------------------------------
+* <Rating>1759</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SP.FT.AUT
+
+!    PROGRAM BD.SP.FT.AUT
+
+*Subroutine Description :
+
+***********************ALL INPUT ROUTINE******************
+******1.FUNDS.TRANSFER,SPISSUE (FOR ISSUING SANCHAYPATRA )******************
+******2.FUNDS.TRANSFER,COUPINTT (FOR GIVEN COUPON INTERST )*************
+******3.FUNDS.TRANSFER,SPCLOSE (FOR SANCHAYAPATRA MATURE CLOSE )***************
+******4.FUNDS.TRANSFER,SP.PRECLOSE (FOR SANCHAYAPATRA PRE-MATURE CLOSE )**************
+******5.FUNDS.TRANSFER,COUPON.SET.FINAL (FOR COUPON FINAL SETTLEMENT  )*************
+******6.FUNDS.TRANSFER,SP.FINAL.SET (FOR SANCHAYAPATRA FINAL SETTLEMENT )*************
+******7.BD.H.SP.STOCK.ISSUE,ISSUE (FOR SANCHAYAPATRA ISSUE APPLICATION )**************
+*------------------------
+* This routine is use for default value in FREQUENCY
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20170726 - New - DEVELOPEMENT TEAM
+*                  JBL
+* 20180305 - Add param field for S/D and susp acc
+* 20180313 - Add new version FUNDS.TRANSFER,SP.SALES.SOURCE
+* 20180320 - Add new version FUNDS.TRANSFER,SPMULTI
+* 20180321 - Add new version FUNDS.TRANSFER,SPISSUE1
+* 20180325 - Add new version FUNDS.TRANSFER,SP.COM
+* 20181022 - CHANGE VERSION  FT,SP.COM AND FT,SP.COM1
+*-------------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT SP.BP I_F.BD.H.SP.CATEGORY
+    $INSERT SP.BP I_F.BD.H.SP.STOCK.ISSUE
+    $INSERT SP.BP I_F.BD.H.SP.COUPON
+    $INSERT SP.BP I_F.BD.H.SP.STOCK.BATCH
+
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT SP.BP I_F.BD.H.SP.STK.PARAM
+    $INSERT JBL.BP I_F.PR.H.INSTRUMENT
+    $INSERT GLOBUS.BP I_System
+    GOSUB INIT
+    GOSUB OPENFILE
+    GOSUB PROCESS
+    RETURN
+*** </region>*-----------------------------------------------------------------------------
+***---------------------------------------------------------------
+INIT:
+    FN.SPCATG='F.BD.H.SP.CATEGORY'
+    F.SPCATG=''
+    FN.SP.ISSUE='F.BD.H.SP.STOCK.ISSUE'
+    F.SP.ISSUE=''
+    FN.TT = "F.TELLER"
+    F.TT = ""
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+    FN.SP.ISSUE.AUTH = 'F.BD.H.SP.STOCK.ISSUE$NAU'
+    F.SP.ISSUE.AUTH = ''
+    FN.SP.COUPON = 'F.BD.H.SP.COUPON'
+    F.SP.COUPON = ''
+    FN.SP.PARAM='F.BD.H.SP.STK.PARAM'
+    F.SP.PARAM=''
+    FN.PS.INSTRUMENT = 'F.PR.H.INSTRUMENT'
+    F.PS.INSTRUMENT = ''
+    Y.SP.POS=''
+    FN.BCH='F.BD.H.SP.STOCK.BATCH'
+    F.BCH=''
+    RETURN
+***---------------------------------------------------------------
+***---------------------------------------------------------------
+OPENFILE:
+    CALL OPF(FN.SPCATG,F.SPCATG)
+    CALL OPF(FN.SP.ISSUE,F.SP.ISSUE)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.SP.ISSUE.AUTH,F.SP.ISSUE.AUTH)
+    CALL OPF(FN.SP.COUPON,F.SP.COUPON)
+    CALL OPF(FN.SP.PARAM,F.SP.PARAM)
+    CALL OPF(FN.PS.INSTRUMENT,F.PS.INSTRUMENT)
+    CALL OPF(FN.BCH,F.BCH)
+    RETURN
+***---------------------------------------------------------------
+***---------------------------------------------------------------
+PROCESS:
+    CALL F.READ(FN.SP.PARAM,"SYSTEM",R.SP.PARAM,F.SP.PARAM,Y.PR.ERR)
+    Y.PR.ACC.CATEG = R.SP.PARAM<SP.PRM.ACC.CATEGORY>
+    Y.PR.SALES.CATEG=R.SP.PARAM<SP.PRM.SALES.CATEGORY>
+    Y.PR.INTT.CATEG=R.SP.PARAM<SP.PRM.INTT.CATEGORY>
+    Y.PR.SETTLE.CATEG=R.SP.PARAM<SP.PRM.SETTLE.CATEGORY>
+    Y.PR.REIM.CATEG=R.SP.PARAM<SP.PRM.REIM.CATEGORY>
+    Y.PR.COM.CATEG=R.SP.PARAM<SP.PRM.COMM.CATEGORY>
+    Y.PR.VAT.CATEG=R.SP.PARAM<SP.PRM.VAT.CATEGORY>
+    Y.PR.AGENT = R.SP.PARAM<SP.PRM.AGENT.CODE>
+    Y.PR.BR=R.SP.PARAM<SP.PRM.BR.CODE>
+    Y.PR.BB=R.SP.PARAM<SP.PRM.BB.CATEG>
+    Y.PR.NSPB=R.SP.PARAM<SP.PRM.NSPB.CATEG>
+
+
+    Y.VERSION.ID=APPLICATION:PGM.VERSION
+    IF Y.VERSION.ID EQ "FUNDS.TRANSFER,SPISSUE" THEN
+        IF V$FUNCTION EQ 'I' THEN
+
+            CALL GET.LOC.REF("FUNDS.TRANSFER","SP.INFO",Y.SP.POS)
+            Y.SP.ID=R.NEW(FT.LOCAL.REF)<1,Y.SP.POS>
+            CALL F.READ(FN.SP.ISSUE.AUTH,Y.SP.ID,R.SP.ISSUE,F.SP.ISSUE.AUTH,Y.ER2)
+            Y.ACC.NO=R.SP.ISSUE<SP.STK.ACCOUNT.NO>
+            IF Y.ACC.NO NE '' THEN
+                R.NEW(FT.DEBIT.ACCT.NO)=R.SP.ISSUE<SP.STK.ACCOUNT.NO>
+            END
+            R.NEW(FT.DEBIT.AMOUNT)=R.SP.ISSUE<SP.STK.FACE.VALUE>
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.CR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SP ":Y.SP.ID:" ":Y.ACC.NO
+
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.DR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SP ISSUE ":Y.SP.ID
+
+            Y.BR.CODE=ID.COMPANY
+
+            Y.CO.CODE= RIGHT(Y.BR.CODE,4)
+            R.NEW(FT.CREDIT.ACCT.NO)=Y.PR.SALES.CATEG:Y.CO.CODE
+
+        END
+    END
+    ELSE IF Y.VERSION.ID EQ "FUNDS.TRANSFER,SPISSUE1" THEN
+        IF V$FUNCTION EQ 'I' THEN
+            Y.BR.CODE = ID.COMPANY
+            CALL GET.LOC.REF("FUNDS.TRANSFER","SP.INFO",Y.SP.POS)
+            Y.SP.ID=R.NEW(FT.LOCAL.REF)<1,Y.SP.POS>
+            CALL F.READ(FN.SP.ISSUE.AUTH,Y.SP.ID,R.SP.ISSUE,F.SP.ISSUE.AUTH,Y.ER2)
+            Y.ACC.NO=R.SP.ISSUE<SP.STK.ACCOUNT.NO>
+            R.NEW(FT.DEBIT.ACCT.NO)=Y.PR.ACC.CATEG:RIGHT(Y.BR.CODE,4)
+            R.NEW(FT.DEBIT.AMOUNT)=R.SP.ISSUE<SP.STK.FACE.VALUE>
+
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.CR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SP ISSUE ":Y.SP.ID
+
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.DR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SP ISSUE ":Y.ACC.NO
+
+            Y.CO.CODE= RIGHT(Y.BR.CODE,4)
+            R.NEW(FT.CREDIT.ACCT.NO)=Y.PR.SALES.CATEG:Y.CO.CODE
+        END
+    END
+
+    ELSE IF Y.VERSION.ID EQ "FUNDS.TRANSFER,SP.SETTLEMENT" THEN
+        IF V$FUNCTION EQ 'I' THEN
+
+**********************************
+*  CREDIT ACCOUNT ONLY FOR BB SOURCE
+**********************************
+            Y.BR = ID.COMPANY
+
+            FIND Y.BR IN Y.PR.BR SETTING V1, V2 THEN
+                Y.BRANCH = FIELD(Y.PR.AGENT,@VM,V2)
+                R.NEW(FT.CREDIT.ACCT.NO)=Y.PR.SALES.CATEG:RIGHT(Y.BRANCH,4)
+            END
+            R.NEW(FT.DEBIT.ACCT.NO)=Y.PR.SALES.CATEG:RIGHT(ID.COMPANY,4)
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.DR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="TRANSFER SP SALE AMOUNT TO ":Y.BRANCH
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.CR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SP SALE AMOUNT FROM ":RIGHT(ID.COMPANY,4)
+        END
+    END
+
+    ELSE IF Y.VERSION.ID EQ "FUNDS.TRANSFER,SPMULTI" THEN
+        IF V$FUNCTION EQ 'I' THEN
+
+**********************************
+*  CREDIT ACCOUNT IS USED FOR TEMP TRANSACTION FOR SINGLE CHEQUE FOR MULTI SP
+**********************************
+            Y.BR = ID.COMPANY
+
+            R.NEW(FT.CREDIT.ACCT.NO)=Y.PR.ACC.CATEG:RIGHT(ID.COMPANY,4)
+        END
+    END
+
+    ELSE IF Y.VERSION.ID EQ "FUNDS.TRANSFER,SP.SALES.SOURCE" THEN
+        IF V$FUNCTION EQ 'I' THEN
+            R.NEW(FT.DEBIT.ACCT.NO)=Y.PR.SALES.CATEG:RIGHT(ID.COMPANY,4)
+            Y.BR = ID.COMPANY
+            FIND Y.BR IN Y.PR.AGENT SETTING V1, V2 THEN
+                Y.BB.CODE = FIELD(Y.PR.BB,@VM,V2)
+                Y.NSPB.CODE=FIELD(Y.PR.NSPB,@VM,V2)
+                IF Y.BB.CODE NE '' THEN
+                    Y.SETTLE.CODE=Y.BB.CODE
+                END
+                ELSE
+                    Y.SETTLE.CODE=Y.NSPB.CODE
+                END
+            END
+            R.NEW(FT.CREDIT.ACCT.NO)=Y.SETTLE.CODE
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.DR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SALES SETTLE AFTER SELL ":Y.SETTLE.CODE
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.CR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SALES SETTLE AFTER SELL ":Y.PR.SALES.CATEG
+        END
+    END
+
+    ELSE IF Y.VERSION.ID EQ "FUNDS.TRANSFER,SP.COM" THEN
+        IF V$FUNCTION EQ 'I' THEN
+
+            CALL GET.LOC.REF("FUNDS.TRANSFER","SP.INFO",Y.SP.POS)
+            Y.BATCH.ID=R.NEW(FT.LOCAL.REF)<1,Y.SP.POS>
+
+            CALL F.READ(FN.BCH,Y.BATCH.ID,R.SP.BCH,F.BCH,Y.ER2)
+            Y.COM.AMT = R.SP.BCH<SP.SBC.TOTAL.COM>
+            Y.COM.AMT = Y.COM.AMT * 0.85
+            R.NEW(FT.DEBIT.AMOUNT) = Y.COM.AMT
+
+            R.NEW(FT.CREDIT.ACCT.NO)=Y.PR.COM.CATEG
+
+            Y.BR = ID.COMPANY
+            FIND Y.BR IN Y.PR.AGENT SETTING V1, V2 THEN
+                Y.BB.CODE = FIELD(Y.PR.BB,@VM,V2)
+                Y.NSPB.CODE=FIELD(Y.PR.NSPB,@VM,V2)
+                IF Y.BB.CODE NE '' THEN
+                    Y.SETTLE.CODE=Y.BB.CODE
+                END
+                ELSE
+                    Y.SETTLE.CODE=Y.NSPB.CODE
+                END
+            END
+            R.NEW(FT.DEBIT.ACCT.NO)=Y.SETTLE.CODE
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.CR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SP COM ":Y.SETTLE.CODE
+
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.DR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SP COM ":Y.PR.COM.CATEG
+         *   R.NEW(FT.LOCAL.REF)<1,Y.SP.POS>=""
+        END
+    END
+
+    ELSE IF Y.VERSION.ID EQ "FUNDS.TRANSFER,SP.COM1" THEN
+        IF V$FUNCTION EQ 'I' THEN
+
+            CALL GET.LOC.REF("FUNDS.TRANSFER","SP.INFO",Y.SP.POS)
+            Y.BCH.ID=R.NEW(FT.LOCAL.REF)<1,Y.SP.POS>
+
+            CALL F.READ(FN.BCH,Y.BCH.ID,R.SP.BCH,F.BCH,Y.ER2)
+            Y.COM.AMT = R.SP.BCH<SP.SBC.TOTAL.COM>
+            Y.COM.AMT = Y.COM.AMT * 0.15
+            R.NEW(FT.DEBIT.AMOUNT) = Y.COM.AMT
+
+            R.NEW(FT.DEBIT.ACCT.NO)=Y.PR.VAT.CATEG:RIGHT(ID.COMPANY,4)
+            R.NEW(FT.CREDIT.ACCT.NO)=Y.PR.COM.CATEG
+            Y.BR = ID.COMPANY
+            FIND Y.BR IN Y.PR.AGENT SETTING V1, V2 THEN
+                Y.BB.CODE = FIELD(Y.PR.BB,@VM,V2)
+                Y.NSPB.CODE=FIELD(Y.PR.NSPB,@VM,V2)
+                IF Y.BB.CODE NE '' THEN
+                    Y.SETTLE.CODE=Y.BB.CODE
+                END
+                ELSE
+                    Y.SETTLE.CODE=Y.NSPB.CODE
+                END
+            END
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.CR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SP ADV VAT ":Y.PR.VAT.CATEG:RIGHT(ID.COMPANY,4)
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.DR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SP ADV VAT ":Y.PR.COM.CATEG
+          *  R.NEW(FT.LOCAL.REF)<1,Y.SP.POS>=""
+        END
+    END
+
+    ELSE IF Y.VERSION.ID EQ "FUNDS.TRANSFER,SPCLOSE" THEN
+
+        IF V$FUNCTION EQ 'I' THEN
+            CALL GET.LOC.REF("FUNDS.TRANSFER","SP.INFO",Y.SP.POS)
+            Y.SP.ID=R.NEW(FT.LOCAL.REF)<1,Y.SP.POS>
+            CALL F.READ(FN.SP.ISSUE,Y.SP.ID,R.SP.ISSUE,F.SP.ISSUE,Y.ER7)
+            R.NEW(FT.DEBIT.AMOUNT)=R.SP.ISSUE<SP.STK.FACE.VALUE>
+            R.NEW(FT.DEBIT.ACCT.NO)=Y.PR.INTT.CATEG:RIGHT(ID.COMPANY,4)
+            Y.CR.AC=''
+            Y.CR.AC=R.SP.ISSUE<SP.STK.ACCOUNT.NO>
+            IF Y.CR.AC EQ '' THEN
+                CALL F.READ(FN.PS.INSTRUMENT,ID.COMPANY,R.PAY.SLIP,F.PS.INSTRUMENT,Y.INS.ERR)
+                Y.CR.AC=R.PAY.SLIP<INS.PS.ACCOUNT>
+            END
+            R.NEW(FT.CREDIT.ACCT.NO)=Y.CR.AC
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.DR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SP CLOSE ":Y.CR.AC
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.CR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SP CLOSE ":Y.SP.ID
+        END
+    END
+    ELSE IF Y.VERSION.ID EQ "FUNDS.TRANSFER,SP.PRECLOSE" THEN
+
+        IF V$FUNCTION EQ 'I' THEN
+            CALL GET.LOC.REF("FUNDS.TRANSFER","SP.INFO",Y.SP.POS)
+            Y.SP.ID=R.NEW(FT.LOCAL.REF)<1,Y.SP.POS>
+            CALL F.READ(FN.SP.ISSUE,Y.SP.ID,R.SP.ISSUE,F.SP.ISSUE,Y.ER7)
+            R.NEW(FT.DEBIT.ACCT.NO)=Y.PR.INTT.CATEG:RIGHT(ID.COMPANY,4)
+            Y.CR.AC=''
+
+            Y.CR.AC=R.SP.ISSUE<SP.STK.ACCOUNT.NO>
+            IF Y.CR.AC EQ '' THEN
+                CALL F.READ(FN.PS.INSTRUMENT,ID.COMPANY,R.PAY.SLIP,F.PS.INSTRUMENT,Y.INS.ERR)
+                Y.CR.AC=R.PAY.SLIP<INS.PS.ACCOUNT>
+            END
+            R.NEW(FT.CREDIT.ACCT.NO)=Y.CR.AC
+
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.DR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SP PRECLOSE ":Y.CR.AC
+
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.CR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SP PRECLOSE ":Y.SP.ID
+
+        END
+    END
+
+    ELSE IF Y.VERSION.ID EQ "FUNDS.TRANSFER,SPCLOSE.TYPE" THEN
+
+        IF V$FUNCTION EQ 'I' THEN
+            CALL GET.LOC.REF("FUNDS.TRANSFER","SP.INFO",Y.SP.POS)
+            Y.SP.ID=R.NEW(FT.LOCAL.REF)<1,Y.SP.POS>
+            CALL F.READ(FN.SP.ISSUE,Y.SP.ID,R.SP.ISSUE,F.SP.ISSUE,Y.ER7)
+            R.NEW(FT.DEBIT.ACCT.NO)=Y.PR.INTT.CATEG:RIGHT(ID.COMPANY,4)
+            Y.CR.AC=''
+            Y.CR.AC=R.SP.ISSUE<SP.STK.ACCOUNT.NO>
+            IF Y.CR.AC EQ '' THEN
+                CALL F.READ(FN.PS.INSTRUMENT,ID.COMPANY,R.PAY.SLIP,F.PS.INSTRUMENT,Y.INS.ERR)
+                Y.CR.AC=R.PAY.SLIP<INS.PS.ACCOUNT>
+            END
+            R.NEW(FT.CREDIT.ACCT.NO)=Y.CR.AC
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.DR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SP CLOSE ":Y.CR.AC
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.CR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SP CLOSE ":Y.SP.ID
+
+        END
+    END
+**************02170510*************************************
+    ELSE IF Y.VERSION.ID EQ "FUNDS.TRANSFER,COUPON.SET.FINAL" THEN
+
+        IF V$FUNCTION EQ 'I' THEN
+            CALL GET.LOC.REF("FUNDS.TRANSFER","SP.INFO",Y.SP.POS)
+            Y.COUPON.ID=R.NEW(FT.LOCAL.REF)<1,Y.SP.POS>
+            CALL F.READ(FN.SP.COUPON,Y.COUPON.ID,R.COUPON,F.SP.COUPON,Y.COP.ER1)
+
+            Y.BRANCH=R.COUPON<SP.CP.CO.CODE>
+
+            Y.BR = ID.COMPANY
+            FIND Y.BR IN Y.PR.AGENT SETTING V1, V2 THEN
+                Y.BB.CODE = FIELD(Y.PR.BB,@VM,V2)
+                Y.NSPB.CODE=FIELD(Y.PR.NSPB,@VM,V2)
+                IF Y.BB.CODE NE '' THEN
+                    Y.SETTLE.CODE=Y.BB.CODE
+                END
+                ELSE
+                    Y.SETTLE.CODE=Y.NSPB.CODE
+                END
+            END
+            R.NEW(FT.DEBIT.ACCT.NO)=Y.SETTLE.CODE
+
+            R.NEW(FT.CREDIT.ACCT.NO)=Y.PR.REIM.CATEG:RIGHT(Y.BRANCH,4)
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.DR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="COUPON REIMBURSEMENT ":ID.COMPANY
+
+        END
+    END
+*************************END***************************
+***************************SP SCRIPT FINAL******************
+    ELSE IF Y.VERSION.ID EQ "FUNDS.TRANSFER,SP.FINAL.SET" THEN
+
+        IF V$FUNCTION EQ 'I' THEN
+            CALL GET.LOC.REF("FUNDS.TRANSFER","SP.INFO",Y.SP.POS)
+            Y.SP.ID=R.NEW(FT.LOCAL.REF)<1,Y.SP.POS>
+            CALL F.READ(FN.SP.ISSUE,Y.SP.ID,R.SP.ISSUE,F.SP.ISSUE,Y.ER7)
+
+            Y.BRANCH=R.SP.ISSUE<SP.STK.DIS.BR.CODE>
+            Y.BR = ID.COMPANY
+            FIND Y.BR IN Y.PR.AGENT SETTING V1, V2 THEN
+                Y.BB.CODE = FIELD(Y.PR.BB,@VM,V2)
+                Y.NSPB.CODE=FIELD(Y.PR.NSPB,@VM,V2)
+                IF Y.BB.CODE NE '' THEN
+                    Y.SETTLE.CODE=Y.BB.CODE
+                END
+                ELSE
+                    Y.SETTLE.CODE=Y.NSPB.CODE
+                END
+            END
+            R.NEW(FT.DEBIT.ACCT.NO)=Y.SETTLE.CODE
+
+            R.NEW(FT.CREDIT.ACCT.NO)=Y.PR.REIM.CATEG:RIGHT(Y.BRANCH,4)
+            R.NEW(FT.DEBIT.AMOUNT)=R.SP.ISSUE<SP.STK.APPL.AMT>
+            CALL GET.LOC.REF("FUNDS.TRANSFER","FT.DR.DETAILS",Y.FT.POS)
+            R.NEW(FT.LOCAL.REF)<1,Y.FT.POS>="SCRIPT REIMBURSEMENT ":R.SP.ISSUE<SP.STK.SP.SL.ID>
+
+        END
+    END
+**************************END*************************
+    ELSE IF Y.VERSION.ID EQ "BD.H.SP.STOCK.ISSUE,ISSUE" THEN
+        Y.CATG.ID=R.NEW(SP.STK.TYPE.OF.SP)
+        CALL F.READ(FN.SPCATG,Y.CATG.ID,R.SPCATG,F.SPCATG,Y.ERR)
+        R.NEW(SP.STK.FLAT.INTT.RATE)=R.SPCATG<SP.CATG.FLAT.INTT.RATE>
+        R.NEW(SP.STK.NO.OF.MONTH)=R.SPCATG<SP.CATG.NO.OF.MONTH>
+        R.NEW(SP.STK.FREQ.INTT.RATE)=R.SPCATG<SP.CATG.FREQ.INTT.RATE>
+        R.NEW(SP.STK.SOURCE.TAX)=R.SPCATG<SP.CATG.SOURCE.TAX>
+        R.NEW(SP.STK.COMMISSION.AMT)=R.NEW(SP.STK.FACE.VALUE)*0.005
+
+    END
+
+    ELSE IF Y.VERSION.ID EQ "TELLER,SPISSUE" THEN
+
+        IF V$FUNCTION EQ 'I' THEN
+            CALL GET.LOC.REF("TELLER","SP.INFO",Y.SP.POS)
+            Y.SP.ID=R.NEW(TT.TE.LOCAL.REF)<1,Y.SP.POS>
+            CALL F.READ(FN.SP.ISSUE.AUTH,Y.SP.ID,R.SP.ISSUE,F.SP.ISSUE.AUTH,Y.ER2)
+            R.NEW(TT.TE.AMOUNT.LOCAL.1)<1,1>=R.SP.ISSUE<SP.STK.FACE.VALUE>
+            R.NEW(TT.TE.NARRATIVE.2)<1,1>="SP ISSUE ":ID.COMPANY
+            Y.BR.CODE=ID.COMPANY
+            Y.CO.CODE= RIGHT(Y.BR.CODE,4)
+            R.NEW(TT.TE.ACCOUNT.2)=Y.PR.SALES.CATEG:Y.CO.CODE
+        END
+    END
+!  ELSE IF Y.VERSION.ID EQ "TELLER,SPCLOSE" THEN
+
+!      IF V$FUNCTION EQ 'I' THEN
+!          CALL GET.LOC.REF("TELLER","SP.INFO",Y.SP.POS)
+!          Y.SP.ID=R.NEW(TT.TE.LOCAL.REF)<1,Y.SP.POS>
+!          CALL F.READ(FN.SP.ISSUE,Y.SP.ID,R.SP.ISSUE,F.SP.ISSUE,Y.ER8)
+!          R.NEW(TT.TE.AMOUNT.LOCAL.1)<1,1>=R.COUPON<SP.CP.COUPON.AMT>
+!          R.NEW(TT.TE.ACCOUNT.2)=Y.PR.INTT.CATEG:RIGHT(ID.COMPANY,4)
+!          R.NEW(TT.TE.NARRATIVE.2)<1,1>="COUPON INTEREST ":ID.COMPANY
+
+!      END
+!  END
+!  ELSE IF Y.VERSION.ID EQ "TELLER,COUPINTT" THEN
+
+!      IF V$FUNCTION EQ 'I' THEN
+!          CALL GET.LOC.REF("TELLER","SP.INFO",Y.SP.POS)
+!          Y.COUPON.ID=R.NEW(TT.TE.LOCAL.REF)<1,Y.SP.POS>
+!          CALL F.READ(FN.SP.COUPON,Y.COUPON.ID,R.COUPON,F.SP.COUPON,Y.COP.ER1)
+!          R.NEW(TT.TE.AMOUNT.LOCAL.1)<1,1>=R.COUPON<SP.CP.COUPON.AMT>
+!          R.NEW(TT.TE.ACCOUNT.2)=Y.PR.INTT.CATEG:RIGHT(ID.COMPANY,4)
+!          R.NEW(TT.TE.NARRATIVE.2)<1,1>="COUPON INTEREST ":ID.COMPANY
+
+!      END
+!  END
+    RETURN
+***----------------------------------------------------------------
+END

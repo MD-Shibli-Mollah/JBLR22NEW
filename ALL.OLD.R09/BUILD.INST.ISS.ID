@@ -1,0 +1,104 @@
+*-----------------------------------------------------------------------------
+* <Rating>305</Rating>
+*-----------------------------------------------------------------------------
+!  PROGRAM BUILD.INST.ISS.ID
+    SUBROUTINE BUILD.INST.ISS.ID
+
+    $INSERT I_COMMON
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_EQUATE
+    $INSERT JBL.BP I_F.PR.H.INSTRUMENT
+    $INSERT JBL.BP I_F.PR.H.INSTR.ISSUED
+    $INSERT JBL.BP I_F.BD.H.INSTR.DUPLICATE
+
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+
+    RETURN
+*------
+INIT:
+*-----
+    FN.INST = 'FBNK.PR.H.INSTRUMENT'
+    F.INST = ''
+
+    FN.INST.ISS = 'FBNK.PR.H.INSTR.ISSUED'
+    F.INST.ISS = ''
+
+    Y.CHQ.TYPE = ''
+    Y.ACC.ID = ''
+    Y.CHQ.NO = ''
+
+    Y.INST.ISS.ID = ''
+    E = ''
+
+    RETURN
+*----------
+OPENFILES:
+*-----------
+    CALL OPF(FN.INST.ISS,F.INST.ISS)
+    CALL OPF(FN.INST,F.INST)
+    RETURN
+*---------
+PROCESS:
+*---------
+!    DEBUG
+    R.INST = ''
+    CALL F.READ(FN.INST,ID.COMPANY,R.INST,F.INST,ERR.INST)
+    IF R.INST THEN
+        IF PGM.VERSION EQ ',ISSUE.DUP.PO' OR PGM.VERSION EQ ',ISSUE.DUP.PO1' THEN
+            Y.CHQ.TYPE = 'PO'
+            Y.ACC.ID = R.INST<INS.PO.ACCOUNT>
+        END
+        ELSE
+            IF PGM.VERSION EQ ',ISSUE.DUP.PS' THEN
+                Y.CHQ.TYPE = 'PS'
+                Y.ACC.ID = R.INST<INS.PS.ACCOUNT>
+            END
+            ELSE
+                IF PGM.VERSION EQ ',ISSUE.DUP.SDR' THEN
+                    Y.CHQ.TYPE = 'SDR'
+                    Y.ACC.ID = R.INST<INS.SDR.ACCOUNT>
+                END
+
+            END
+
+        END
+        Y.CHQ.NO = COMI
+        Y.INST.ISS.ID = Y.CHQ.TYPE:'.':Y.ACC.ID:'-':Y.CHQ.NO
+        R.INST.ISS = ''
+        CALL F.READ(FN.INST.ISS,Y.INST.ISS.ID, R.INST.ISS, F.INST.ISS , Y.ERR)
+        IF R.INST.ISS THEN
+            Y.ISS.TXN.COMPANY = R.INST.ISS<INS.TXN.COMPANY>
+            IF Y.ISS.TXN.COMPANY NE ID.COMPANY THEN
+                E = 'Instrument issued in other company'
+                V$ERROR = 1
+                CALL ERR
+                RETURN
+            END
+            ELSE
+                Y.COLL.TXN.REF = R.INST.ISS<INS.COLL.TXN.REF>
+                IF Y.COLL.TXN.REF NE '' THEN
+                    E = 'Instruement Already Collected or Cancelled'
+                    V$ERROR = 1
+                    CALL ERR
+                    RETURN
+                END
+            END
+        END
+        ELSE
+            E = 'Instrument Not Issued'
+            V$ERROR = 1
+            CALL ERR
+            RETURN
+        END
+        COMI = Y.INST.ISS.ID
+        RETURN
+    END
+    ELSE
+        E = 'PR.H.INTRUMENT parameter record not found for the company'
+        V$ERROR = 1
+        CALL ERR
+        RETURN
+    END

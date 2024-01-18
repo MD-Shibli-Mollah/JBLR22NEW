@@ -1,0 +1,21 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.DISPLAY.ERR.MSG
+*-------------------------------------------------------------------------------------------------
+* Author        : Kiran Ghanathe
+* Description   : Field Validtaion Routine to display the error msg when debit account No is Null
+*-------------------------------------------------------------------------------------------------
+!
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.FUNDS.TRANSFER
+
+    IF R.NEW(FT.DEBIT.ACCT.NO) EQ '' THEN
+        AF = FT.DEBIT.ACCT.NO
+        ETEXT = "S/A army pension A/c Not Found For This Company"
+        CALL STORE.END.ERROR
+    END
+!
+    RETURN
+END

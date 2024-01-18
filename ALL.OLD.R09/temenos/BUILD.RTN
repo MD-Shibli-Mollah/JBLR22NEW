@@ -1,0 +1,14 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+SUBROUTINE BUILD.RTN(ENQ.DATA)
+
+$INSERT GLOBUS.BP I_EQUATE
+$INSERT GLOBUS.BP I_COMMON
+$INSERT GLOBUS.BP I_ENQUIRY.COMMON
+!ENQ.DATA<2,-1> = 'REPORT.NAME'
+!ENQ.DATA<3,-1> = 'EQ'
+!ENQ.DATA<4,-1> = 'RC.CUS.SUPP2 RC.CUS.SUPP RC.CUS.SUP.CD.DR RC.CUS.SUP.CD.CR RC.CUS.SUP.SB.DR RC.CUS.SUP.SB.CR RC.CUS.SUP.SND.DR RC.CUS.SUP.SND.CR'
+ENQ.DATA<16> = "YES"
+RETURN
+END

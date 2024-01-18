@@ -1,0 +1,38 @@
+*-------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-10</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.B.BAL.CONF.LTR.LD.RTN(Y.LD.ID)
+*-------------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This subroutine will create a list file with all the ID's which needs to be
+* processed by the job.
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20110210 - New - Shiva Shankar G
+*                  Thesys Technologies
+*-------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.ENQUIRY.REPORT
+    $INCLUDE GLOBUS.BP I_F.LD.LOANS.AND.DEPOSITS
+    $INCLUDE JBL.BP I_BD.B.BAL.CONF.LTR.LD.RTN.COMMON
+*-------------------------------------------------------------------------------
+    GOSUB PROCESS
+
+    RETURN
+*-------------------------------------------------------------------------------
+PROCESS:
+********
+
+    MAT R.NEW = ''
+    ID.NEW    = "JBL.BAL.LD.REP"
+    MATREAD R.NEW FROM F.ENQUIRY.REPORT,ID.NEW THEN
+        R.NEW(ENQ.REP.LIST)<1,1>= Y.LD.ID
+        R.NEW(ENQ.REP.REPORT.CONTROL) = "JBL.BAL.LD.RC"
+        CALL ENQUIRY.REPORT.RUN
+    END
+    RETURN
+END

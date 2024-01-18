@@ -1,0 +1,84 @@
+**************************************************************************
+*-----------------------------------------------------------------------------
+* <Rating>-40</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.VAL.LIMIT.UPD
+**************************************************************************
+*Subroutine Description:
+*-----------------------
+* This validation routine is used to fetch the value from LIMIT.PROD field in ACCOUNT application
+* and update the same in LIMIT.PROD field in PD.CAPTURE application
+*-------------------------------------------------------------------------
+*Parameter Description: Not Applicable
+*--------- -----------
+*
+*-------------------------------------------------------------------------
+*Common Variable Description
+*------  ------- -----------
+*
+*Variable name:   Insert file:          Description:
+* COMI            I_COMMON          Last Entered value
+*
+*
+*-------------------------------------------------------------------------
+*Called Subroutines:
+*------ ------------
+*Routine Name:             Local/Core:     Description:
+*MULTI.GET.LOC.REF          CORE        This routine is used get the positions for local ref fields
+*
+*
+*-------------------------------------------------------------------------
+* Modification History:
+* ------------ --------
+* 04/02/2011 -                            New   - Shiva Shankar G
+*                                                 Thesys Technologies
+**************************************************************************
+
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.PD.CAPTURE
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*--------------------------------------------------------------------------
+INITIALISE:
+*--------
+
+    FN.PD.CAPTURE = 'F.PD.CAPTURE'
+    F.PD.CAPTURE = ''
+    CALL OPF(FN.PD.CAPTURE,F.PD.CAPTURE)
+
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+
+    APPLN = 'PD.CAPTURE':FM:'ACCOUNT'
+    FLD.NAMES = 'ACCOUNT.NO':VM:'LIMIT.PROD':FM:'LIMIT.PROD'
+    FLD.POS = ''
+
+    CALL MULTI.GET.LOC.REF(APPLN,FLD.NAMES,FLD.POS)
+    Y.ACC.NO.POS = FLD.POS<1,1>
+    Y.LIMIT.POS = FLD.POS<1,2>
+    Y.AC.LIMIT.POS = FLD.POS<2,1>
+
+    RETURN
+*---------------------------------------------------------------------------------------
+PROCESS:
+*-------
+
+    Y.ACCOUNT.ID = COMI
+   IF LEN(Y.ACCOUNT.ID) < 13 THEN
+        Y.ACCOUNT.ID = "0":Y.ACCOUNT.ID
+    END
+    CALL F.READ(FN.ACCOUNT,Y.ACCOUNT.ID,R.ACCOUNT,F.ACCOUNT,Y.ACCOUNT.ERR)
+    IF R.ACCOUNT THEN
+        Y.AC.LIMIT = R.ACCOUNT<AC.LOCAL.REF,Y.AC.LIMIT.POS>
+        R.NEW(PD.CAP.LOCAL.REF)<1,Y.LIMIT.POS> = Y.AC.LIMIT
+    END
+    RETURN
+*---------------------------------------------------------------------------------------
+END

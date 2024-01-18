@@ -1,0 +1,25 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE MT.AMF.ELG.SELECT
+
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.ABL.H.SB.CHRG
+
+    $INSERT JBL.BP/REPGEN MT.AMF.ELG.VARS
+
+    SEL.CMD='SELECT ':FN.ACCT
+    CALL EB.READLIST(SEL.CMD,SEL.LIST.ACCT,'',NO.OF.REC,RET.CODE)
+
+
+    CRT 'TOTAL NO OF ACCOUNT SELECTED: ': DCOUNT(SEL.LIST.ACCT,@FM)
+    IF DCOUNT(SEL.LIST.ACCT,@FM) GT 0 THEN
+        CRT 'DO YOU RUN THIS PROCESS? (Y/N)'
+        INPUT USER.CHOICE
+        IF USER.CHOICE EQ 'Y' THEN
+            CALL BATCH.BUILD.LIST('',SEL.LIST.ACCT)
+        END
+    END
+    RETURN
+END

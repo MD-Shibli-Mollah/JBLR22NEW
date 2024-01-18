@@ -1,0 +1,52 @@
+****************************************************************************************
+*Developed By: Md. Aminul Islam(Datasoft Systems)                                      *
+*Date:2016/01/12                                                                       *
+****************************************************************************************
+
+!PROGRAM RTGS.CONSTRAINS
+    SUBROUTINE RTGS.CONSTRAINS
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_F.STMT.ENTRY
+    $INSERT GLOBUS.BP I_F.ACCOUNT.CLOSURE
+
+    GOSUB INIT
+    GOSUB OPEN.FILE
+    GOSUB PROCESS
+INIT:
+
+    FN.FT = 'F.FUNDS.TRANSFER';                   F.FT = ''
+    FN.AC.E.TODAY = 'FBNK.ACCT.ENT.TODAY';        F.AC.E.TODAY = ''
+    FN.STMT = 'F.STMT.ENTRY';                     F.STMT = ''
+    Y.AC.NO = ID.NEW
+    RETURN
+
+OPEN.FILE:
+
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.STMT,F.STMT)
+    CALL OPF(FN.AC.E.TODAY,F.AC.E.TODAY)
+    RETURN
+
+PROCESS:
+
+    CALL F.READ(FN.AC.E.TODAY,Y.AC.NO,R.ACET,F.AC.E.TODAY,Y.ERR.ACET)
+    TOT.STMT = DCOUNT(R.ACET,@FM)
+
+    FOR I = 1 TO TOT.STMT
+        Y.STMT.ID = R.ACET<I>
+        CALL F.READ(FN.STMT.ENTRY,Y.STMT.ID,R.STMT,F.STMT,Y.ERR.STMT)
+        Y.FT.ID = R.STMT<AC.STE.TRANS.REFERENCE>
+        CALL F.READ(FN.FT,Y.FT.ID,R.FT,F.FT,Y.ERR.FT)
+        Y.TXN.TYPE = R.FT<FT.TRANSACTION.TYPE>
+        IF Y.TXN.TYPE EQ 'ACOR' OR Y.TXN.TYPE 'ACIR' THEN
+            ETEXT = 'Account ':Y.AC.NO:' can not close today'
+            CALL STORE.END.ERROR
+            RETURN
+        END
+    NEXT I
+
+    RETURN
+END

@@ -1,0 +1,188 @@
+    SUBROUTINE ABL.S.DDPAY.ADV.N(Y.RETURN)
+***************************
+* UPDATE: 20191114
+* BY ALIN BOBY AND RASEL AND MEHERAZ
+**************************
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT JBL.BP I_F.ABL.H.DD.DETAILS
+    $INSERT GLOBUS.BP I_F.TELLER
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+
+    FN.DD='F.ABL.H.DD.DETAILS'
+    F.DD=''
+    REC.DD=''
+    Y.DD.ID=''
+
+    FN.TT='F.TELLER'
+    F.TT=''
+
+    FN.FT='F.FUNDS.TRANSFER'
+    F.FT=''
+
+    REC.DD.REF=''
+    REC.ADV.REF=''
+    Y.DD.REF.TM=''
+    Y.ADV.REF.TM=''
+    Y.RETURN=''
+
+    Y.RESULT=''
+    CALL OPF(FN.DD,F.DD)
+    CALL OPF(FN.FT,F.FT)
+    CALL OPF(FN.TT,F.TT)
+
+!------Modified By Kamran--------
+    LOCATE 'F.DATE' IN ENQ.SELECTION<2,1> SETTING FROM.DATE.POS THEN
+        Y.FROM.DATE = ENQ.SELECTION<4,FROM.DATE.POS>
+    END
+    LOCATE 'T.DATE' IN ENQ.SELECTION<2,1> SETTING TO.DATE.POS THEN
+        Y.TO.DATE = ENQ.SELECTION<4,TO.DATE.POS>
+    END
+!Y.FROM.DATE='20190101'
+!Y.TO.DATE='20191213'
+!------End Of Modification-------
+
+!SEL.CMD.DD="SELECT ":FN.DD:" WITH CO.CODE EQ ":ID.COMPANY:" AND INS.PAID EQ 'Y' AND ( ADVICE EQ 'N' OR ADVICE EQ 'Y' ) AND INS.DATE.OF.PAY EQ ":TODAY:" BY ISSUE.BR"
+!------Modifield by Aminul----------
+!SEL.CMD.DD='SELECT ':FN.DD:" WITH @ID LIKE ...":ID.COMPANY[6,4]:'...'
+!------Modification end----------
+
+!------Modifield by Meheraz----------
+    SEL.CMD.DD='SELECT ':FN.DD:" WITH @ID LIKE ...":ID.COMPANY[6,4]:'... AND @ID LIKE DD...'
+    F.FT.H=''
+    F.TT.H=''
+    FN.TT.H='F.TELLER$HIS'
+    FN.FT.H='F.FUNDS.TRANSFER$HIS'
+    CALL OPF(FN.FT.H,F.FT.H)
+    CALL OPF(FN.TT.H,F.TT.H)
+!------Modification end----------
+
+    CALL EB.READLIST(SEL.CMD.DD,SEL.LIST.DD,'',NO.OF.REC.DD,ERR.DD)
+    LOOP
+        REMOVE Y.DD.ID FROM SEL.LIST.DD SETTING POS.DD
+!Y.DD.ID='DD.0414.0102.2019.47'
+    WHILE Y.DD.ID:POS.DD
+        CALL F.READ(FN.DD,Y.DD.ID,REC.DD,F.DD,E.DD)
+        Y.RET.VAL=''
+        Y.MARK=''
+!------Added by Aminul----------
+!IF REC.DD<DDT.INS.PAID> EQ 'Y' AND (REC.DD<DDT.ADVICE> EQ 'N' OR REC.DD<DDT.ADVICE> 'Y' ) AND REC.DD<DDT.INS.DATE.OF.PAY> GE Y.FROM.DATE AND REC.DD<DDT.INS.DATE.OF.PAY> LE Y.TO.DATE AND REC.DD<DDT.CO.CODE> EQ ID.COMPANY THEN
+!-------------------------------
+
+!------Modified by Meheraz----------
+        IF REC.DD<DDT.INS.PAID> EQ 'Y' AND (REC.DD<DDT.ADVICE> EQ 'N' OR REC.DD<DDT.ADVICE> EQ 'Y' ) AND REC.DD<DDT.INS.DATE.OF.PAY> GE Y.FROM.DATE AND REC.DD<DDT.INS.DATE.OF.PAY> LE Y.TO.DATE AND REC.DD<DDT.CO.CODE> EQ ID.COMPANY AND COUNT(Y.DD.ID,'.') GE 4 THEN
+!DEBUG
+            BEGIN CASE
+            CASE ( REC.DD<DDT.ADV.DATE.OF.PAY> EQ "" )
+                IF REC.DD<DDT.INS.PAY.REF.NO>[1,2] EQ 'FT' THEN
+                    Y.MARK='TR'
+                END
+                ELSE
+!CHECKING LIVE DATA
+                    IF Y.FROM.DATE=TODAY OR Y.TO.DATE=TODAY THEN
+                        CALL F.READ(FN.TT,REC.DD<DDT.INS.PAY.REF.NO>,REC.DD.REF,F.TT,ERR.TT)
+                        IF REC.DD.REF<TT.TE.TRANSACTION.CODE> EQ '16' THEN
+                            Y.MARK='CA'
+                        END
+                        ELSE
+                            Y.MARK='CL'
+                        END
+                        Y.RESULT<-1>=Y.DD.ID:"*":REC.DD<DDT.INS.PRINTED.NO>:"*":FIELD(Y.DD.ID,".",5):"*":FIELD(Y.DD.ID,".",2):"*":REC.DD<DDT.DATE.OF.ISSUE>:"*":REC.DD<DDT.BENIFICIARY>:"*":REC.DD<DDT.AMOUNT>:"*":REC.DD<DDT.INS.PAY.REF.NO>:"*":REC.DD<DDT.INS.DATE.OF.PAY>:"*":Y.MARK:"*":REC.DD<DDT.PAY.ADVICE.NO>:"*":REC.DD<DDT.ADV.DATE.OF.PAY>
+                    END
+!CHECKING HISTORY DATA
+                    CALL EB.READ.HISTORY.REC(F.TT.H,REC.DD<DDT.INS.PAY.REF.NO>,REC.DD.REF,ERR.TT)
+                    IF REC.DD.REF<TT.TE.TRANSACTION.CODE> EQ '16' THEN
+                        Y.MARK='CA'
+                    END
+                    ELSE
+                        Y.MARK='CL'
+                    END
+                    Y.RESULT<-1>=REC.DD<DDT.INS.DATE.OF.PAY>:"*":REC.DD<DDT.INS.PRINTED.NO>:"*":FIELD(Y.DD.ID,".",5):"*":FIELD(Y.DD.ID,".",2):"*":REC.DD<DDT.DATE.OF.ISSUE>:"*":REC.DD<DDT.BENIFICIARY>:"*":REC.DD<DDT.AMOUNT>:"*":REC.DD<DDT.INS.PAY.REF.NO>:"*":REC.DD<DDT.INS.DATE.OF.PAY>:"*":Y.MARK:"*":REC.DD<DDT.PAY.ADVICE.NO>:"*":REC.DD<DDT.ADV.DATE.OF.PAY>
+                END
+            CASE ( REC.DD<DDT.ADV.DATE.OF.PAY> NE "" )
+!CHECKING LIVE DATA
+                IF Y.FROM.DATE=TODAY OR Y.TO.DATE=TODAY THEN
+                    IF REC.DD<DDT.INS.PAY.REF.NO>[1,2] EQ 'TT' THEN
+                        CALL F.READ(FN.TT,REC.DD<DDT.INS.PAY.REF.NO>,REC.DD.REF,F.TT,ERR.TT)
+                        Y.DD.REF.TM=REC.DD.REF<TT.TE.DATE.TIME>
+                    END
+                    ELSE
+                        CALL F.READ(FN.FT,REC.DD<DDT.INS.PAY.REF.NO>,REC.DD.REF,F.FT,ERR.FT)
+                        Y.DD.REF.TM=REC.DD.REF<FT.DATE.TIME>
+                    END
+
+                    IF REC.DD<DDT.ADV.PAY.REF.NO>[1,2] EQ 'TT' THEN
+                        CALL F.READ(FN.TT,REC.DD<DDT.ADV.PAY.REF.NO>,REC.ADV.REF,F.TT,ERR.TT)
+                        Y.ADV.REF.TM=REC.ADV.REF<TT.TE.DATE.TIME>
+                    END
+                    ELSE
+                        CALL F.READ(FN.FT,REC.DD<DDT.ADV.PAY.REF.NO>,REC.ADV.REF,F.FT,ERR.FT)
+                        Y.ADV.REF.TM=REC.ADV.REF<FT.DATE.TIME>
+                    END
+                    IF Y.DD.REF.TM LT Y.ADV.REF.TM THEN
+                        IF REC.DD<DDT.INS.PAY.REF.NO>[1,2] EQ 'FT' THEN
+                            Y.MARK='TR'
+                        END
+                        ELSE
+                            CALL F.READ(FN.TT,REC.DD<DDT.INS.PAY.REF.NO>,REC.DD.REF,F.TT,ERR.TT)
+                            IF REC.DD.REF<TT.TE.TRANSACTION.CODE> EQ '16' THEN
+                                Y.MARK='CA'
+                            END
+                            ELSE
+                                Y.MARK='CL'
+                            END
+                        END
+                        Y.RESULT<-1>=REC.DD<DDT.INS.DATE.OF.PAY>:"*":REC.DD<DDT.INS.PRINTED.NO>:"*":FIELD(Y.DD.ID,".",5):"*":FIELD(Y.DD.ID,".",2):"*":REC.DD<DDT.DATE.OF.ISSUE>:"*":REC.DD<DDT.BENIFICIARY>:"*":REC.DD<DDT.AMOUNT>:"*":REC.DD<DDT.INS.PAY.REF.NO>:"*":REC.DD<DDT.INS.DATE.OF.PAY>:"*":Y.MARK:"*":REC.DD<DDT.PAY.ADVICE.NO>:"*":REC.DD<DDT.ADV.DATE.OF.PAY>
+                    END
+                END
+!CHECKING HISTORY DATA
+                IF REC.DD<DDT.INS.PAY.REF.NO>[1,2] EQ 'TT' THEN
+                    CALL EB.READ.HISTORY.REC(F.TT.H,REC.DD<DDT.INS.PAY.REF.NO>,REC.DD.REF,ERR.TT)
+                    Y.DD.REF.TM=REC.DD.REF<TT.TE.DATE.TIME>
+                END
+                ELSE
+                    CALL EB.READ.HISTORY.REC(F.FT.H,REC.DD<DDT.INS.PAY.REF.NO>,REC.DD.REF,ERR.TT)
+                    Y.DD.REF.TM=REC.DD.REF<FT.DATE.TIME>
+                END
+
+                IF REC.DD<DDT.ADV.PAY.REF.NO>[1,2] EQ 'TT' THEN
+                    CALL EB.READ.HISTORY.REC(F.TT.H,REC.DD<DDT.ADV.PAY.REF.NO>,REC.ADV.REF,ERR.TT)
+                    Y.ADV.REF.TM=REC.ADV.REF<TT.TE.DATE.TIME>
+                END
+                ELSE
+                    CALL EB.READ.HISTORY.REC(F.FT.H,REC.DD<DDT.ADV.PAY.REF.NO>,REC.ADV.REF,ERR.TT)
+                    Y.ADV.REF.TM=REC.ADV.REF<FT.DATE.TIME>
+                END
+                IF Y.DD.REF.TM LT Y.ADV.REF.TM THEN
+                    IF REC.DD<DDT.INS.PAY.REF.NO>[1,2] EQ 'FT' THEN
+                        Y.MARK='TR'
+                    END
+                    ELSE
+                        CALL EB.READ.HISTORY.REC(F.TT.H,REC.DD<DDT.INS.PAY.REF.NO>,REC.DD.REF,ERR.TT)
+                        IF REC.DD.REF<TT.TE.TRANSACTION.CODE> EQ '16' THEN
+                            Y.MARK='CA'
+                        END
+                        ELSE
+                            Y.MARK='CL'
+                        END
+                    END
+                    Y.RESULT<-1>=REC.DD<DDT.INS.DATE.OF.PAY>:"*":REC.DD<DDT.INS.PRINTED.NO>:"*":FIELD(Y.DD.ID,".",5):"*":FIELD(Y.DD.ID,".",2):"*":REC.DD<DDT.DATE.OF.ISSUE>:"*":REC.DD<DDT.BENIFICIARY>:"*":REC.DD<DDT.AMOUNT>:"*":REC.DD<DDT.INS.PAY.REF.NO>:"*":REC.DD<DDT.INS.DATE.OF.PAY>:"*":Y.MARK:"*":REC.DD<DDT.PAY.ADVICE.NO>:"*":REC.DD<DDT.ADV.DATE.OF.PAY>
+                END
+            END CASE
+        END
+***********MODIFICATION**************
+        REC.DD=''
+        REC.ADV.REF=''
+        REC.DD.REF=''
+        Y.ADV.REF.TM=''
+        Y.DD.REF.TM=''
+        Y.RET.VAL=''
+        Y.MARK=''
+    REPEAT
+
+    Y.RETURN<-1>=Y.RESULT
+    Y.RETURN=SORT(Y.RETURN)
+!PRINT Y.RETURN
+    RETURN
+END

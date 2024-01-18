@@ -1,0 +1,40 @@
+*-----------------------------------------------------------------------------
+* <Rating>-3</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.INSURANCE.COMPANY.FIELDS
+*-----------------------------------------------------------------------------
+*  This file is used to hold the fields of INSURANCE.COMPANY
+*-----------------------------------------------------------------------------
+*<doc>
+* Template for field definitions routine YOURAPPLICATION.FIELDS
+*
+* @author tcoleman@temenos.com
+* @stereotype fields template
+* @uses Table
+* @public Table Creation
+* @package infra.eb
+* </doc>
+*-----------------------------------------------------------------------------
+* Modification History :
+*
+* 27/01/2011 -          New  - Mohan H
+*                               Thesys Technologies
+*
+*-----------------------------------------------------------------------------
+*** <region name= Header>
+*** <desc>Inserts and control logic</desc>
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_DataTypes
+*** </region>
+*-----------------------------------------------------------------------------
+    CALL Table.defineId("ID", T24_String)         ;* Define Table id
+    ID.N = '10'
+*-----------------------------------------------------------------------------
+    CALL Table.addFieldDefinition('DESCRIPTION','65','A','')          ;* Add a new field
+*-----------------------------------------------------------------------------
+    CALL Table.setAuditPosition         ;* Poputale audit information
+*-----------------------------------------------------------------------------
+    RETURN
+*-----------------------------------------------------------------------------
+END

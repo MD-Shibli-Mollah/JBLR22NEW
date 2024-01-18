@@ -1,0 +1,83 @@
+*-----------------------------------------------------------------------------
+* <Rating>-26</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE NOFILE.CUSTWISE.DEPOSITADVAN(Y.ARR)
+*-------------------------------------------------------------------------
+* This is a Nofile Enquiry Routine used to Customer id wise Deposit and Advance.
+* Report is used for Debit and Credit amount of particuar customer's account.
+*
+*@author        manjunath.s@sepit.net
+*-------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.DATES
+    $INSERT GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CUSTOMER.ACCOUNT
+*-------------------------------------------------------------------------
+* Main controlling section:
+*-------------------------------------------------------------------------
+    GOSUB INITIALISATION
+    GOSUB MAIN.PROCESS
+
+    RETURN
+
+*-------------------------------------------------------------------------
+* Subroutine Section:
+* File Opening and Variable set up
+
+INITIALISATION:
+
+*-------------------------------------------------------------------------
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT = ""
+    R.ACCOUNT = ""
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    FN.CUSTOMER.ACCOUNT = "F.CUSTOMER.ACCOUNT"
+    F.CUSTOMER.ACCOUNT = ""
+    R.CUSTOMER.ACCOUNT = ''
+    CALL OPF(FN.CUSTOMER.ACCOUNT,F.CUSTOMER.ACCOUNT)
+
+    RETURN
+*-------------------------------------------------------------------------
+* Main Subroutine processing:
+* Locating the field of Exposure Date in the ENQUIRY which should be a Mandatory input
+*
+MAIN.PROCESS:
+*
+
+    Y.COMPANY = ID.COMPANY
+*    SEL.CMD = "SELECT ":FN.CUSTOMER.ACCOUNT:" WITH CO.CODE EQ ":Y.COMPANY
+    SEL.CMD = "SELECT ":FN.CUSTOMER.ACCOUNT
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORDS,RET.CODE)
+    LOOP
+        REMOVE TRAN.ID FROM SEL.LIST SETTING TXN.POS
+    WHILE TRAN.ID:TXN.POS
+        CALL F.READ(FN.CUSTOMER.ACCOUNT,TRAN.ID,R.CUSTOMER.ACCOUNT,F.CUSTOMER.ACCOUNT,Y.ERR)
+        Y.ACC.CNT = DCOUNT(R.CUSTOMER.ACCOUNT,@FM)
+        FOR Y.II = 1 TO Y.ACC.CNT
+            Y.CUS.CODE = TRAN.ID
+            Y.AC.NO = R.CUSTOMER.ACCOUNT<Y.II>
+            CALL F.READ(FN.ACCOUNT,Y.AC.NO,R.ACCOUNT,F.ACCOUNT,Y.ERR2)
+            Y.AC.NAME = R.ACCOUNT<AC.ACCOUNT.TITLE.1>
+            Y.WORKING.BAL = R.ACCOUNT<AC.WORKING.BALANCE>
+            IF Y.WORKING.BAL LT '0' THEN
+                Y.AC.DEBIT = Y.WORKING.BAL
+                Y.AC.CREDIT = ''
+            END ELSE
+                Y.AC.DEBIT = ''
+                Y.AC.CREDIT = Y.WORKING.BAL
+            END
+            Y.ARR<-1> = Y.CUS.CODE:" * ":Y.AC.NO:" * ":Y.AC.NAME:" * ":Y.AC.DEBIT:" * ":Y.AC.CREDIT
+            Y.CUS.CODE = ''
+            Y.AC.NO = ''
+            Y.AC.NAME = ''
+            Y.AC.DEBIT = ''
+            Y.AC.CREDIT = ''
+            Y.WORKING.BAL = ''
+        NEXT Y.II
+    REPEAT
+*-------------------------------------------------------------------------
+    RETURN
+END

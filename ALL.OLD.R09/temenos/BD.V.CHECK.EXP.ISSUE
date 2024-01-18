@@ -1,0 +1,122 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.V.CHECK.EXP.ISSUE
+*-----------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This routine is
+*-----------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20/04/2012 - New - Rayhan
+*
+*--------------------------------------------------------------------------------------------
+* Modification Date: 26-06-2019
+* Modified By: Kamran Mallick
+* Modification Reason: No error shown when reverse & EXP.FORM.NO remove when reverse happend
+*--------------------------------------------------------------------------------------------
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.LETTER.OF.CREDIT
+    $INSERT GLOBUS.BP I_F.LC.TYPES
+    $INSERT GLOBUS.BP I_F.DRAWINGS
+    $INSERT GLOBUS.BP I_F.FUNDS.TRANSFER
+    $INSERT BP I_F.BD.EXPFORM.REGISTER
+
+    GOSUB INITIALISE
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INITIALISE:
+***********
+
+    FN.LETTER.OF.CREDIT = 'F.LETTER.OF.CREDIT'
+    F.LETTER.OF.CREDIT  = ''
+    CALL OPF(FN.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT)
+    R.LETTER.OF.CREDIT  = ''
+
+
+    FN.DRAWINGS = 'F.DRAWINGS'
+    F.DRAWINGS = ''
+    CALL OPF(FN.DRAWINGS,F.DRAWINGS)
+    R.DRAWINGS = ''
+    Y.DRAWINGS.ERR = ''
+
+    FN.LC.TYPES = 'F.LC.TYPES'
+    F.LC.TYPES = ''
+    CALL OPF(FN.LC.TYPES,F.LC.TYPES)
+    R.LC.TYPES = ''
+    Y.LC.TYPES.ERR = ''
+
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
+    CALL OPF(FN.FT,F.FT)
+    R.FT.REC = ''
+    Y.FT.ERR = ''
+
+    FN.EXPFORM = 'F.BD.EXPFORM.REGISTER'
+    F.EXPFORM = ''
+    CALL OPF(FN.EXPFORM,F.EXPFORM)
+    R.EXPFORM.REC = ''
+    Y.EXPFORM.ERR = ''
+
+    Y.LC.OS.LIAB.AMT = ''
+    Y.EXP.VALUE = ''
+    Y.TOT.TRNS.CNT = 0
+    Y.TOT.TRNS.AMT = ''
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+********
+    GOSUB GET.LOC.REF.POS
+    Y.EXPFORM.NO = R.NEW(FT.LOCAL.REF)<1,Y.FT.EXPNO.POS>
+    Y.LC.NO = R.NEW(FT.LOCAL.REF)<1,Y.FT.TFNO.POS>
+    Y.EXP.VALUE = R.NEW(FT.LOCAL.REF)<1,Y.FT.EXPVALUE.POS>
+    CALL F.READ(FN.EXPFORM,Y.EXPFORM.NO,R.EXPFORM.REC,F.EXPFORM,Y.EXPFORM.ERR)
+
+*********************REMOVE EXP.ISSUE.NO WHEN REVERSE*************************
+    IF R.EXPFORM.REC THEN
+        IF V$FUNCTION NE 'R' THEN
+            AF = FT.LOCAL.REF
+            AV = Y.FT.EXPNO.POS
+            ETEXT ="EXP FORM Number Already Existing"
+            CALL STORE.END.ERROR
+        END
+        IF V$FUNCTION EQ 'R' THEN
+            CALL F.DELETE(FN.EXPFORM,Y.EXPFORM.NO)
+        END
+    END
+*******************************END**************************************
+
+    CALL F.READ(FN.LETTER.OF.CREDIT,Y.LC.NO,R.LETTER.OF.CREDIT,F.LETTER.OF.CREDIT,Y.LETTER.OF.CREDIT.ERR)
+    IF R.LETTER.OF.CREDIT<TF.LC.TRANSFERRED.LC> NE '' THEN
+        Y.TOT.TRNS.CNT = DCOUNT(R.LETTER.OF.CREDIT<TF.LC.TRANSFERRED.LC>,@VM)
+        FOR I = 1 TO Y.TOT.TRNS.CNT
+            Y.TOT.TRNS.AMT += R.LETTER.OF.CREDIT<TF.LC.TRAN.PORT.AMT,I>
+        NEXT I
+        Y.LC.OS.LIAB.AMT = R.LETTER.OF.CREDIT<TF.LC.LIABILITY.AMT> - Y.TOT.TRNS.AMT
+        Y.TOT.TRNS.AMT = ''
+    END ELSE
+        Y.LC.OS.LIAB.AMT = R.LETTER.OF.CREDIT<TF.LC.LIABILITY.AMT>
+    END
+
+    IF Y.EXP.VALUE GT Y.LC.OS.LIAB.AMT THEN
+        AF = FT.LOCAL.REF
+        AV = Y.FT.EXPVALUE.POS
+        ETEXT ="EXP Value GT Export LC Outstanding Value"
+        CALL STORE.END.ERROR
+    END
+    RETURN
+*-----------------------------------------------------------------------------
+GET.LOC.REF.POS:
+*--------------
+    CALL GET.LOC.REF("FUNDS.TRANSFER","LINKED.TF.NO",Y.FT.TFNO.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","EXP.FORM.NO",Y.FT.EXPNO.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","EXP.VALUE",Y.FT.EXPVALUE.POS)
+
+    RETURN
+END

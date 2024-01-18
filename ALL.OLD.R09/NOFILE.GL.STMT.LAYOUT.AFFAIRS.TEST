@@ -1,0 +1,250 @@
+*-----------------------------------------------------------------------------
+* <Rating>529</Rating>
+*-----------------------------------------------------------------------------
+!SUBROUTINE NOFILE.GL.STMT.LAYOUT.AFFAIRS(Y.ARR)
+    PROGRAM NOFILE.GL.STMT.LAYOUT.AFFAIRS.TEST
+*-------------------------------------------------------------------------
+* Report is used for particular branches dayend cash position.
+* Report of Statement of Layout of affairs
+*
+*@author        manjunath.s@sepit.net
+*-------------------------------------------------------------------------
+    $INSERT ../GLOBUS.BP I_COMMON
+    $INSERT ../GLOBUS.BP I_EQUATE
+    $INSERT ../GLOBUS.BP I_F.DATES
+    $INSERT ../GLOBUS.BP I_ENQUIRY.COMMON
+    $INSERT ../GLOBUS.BP I_F.ACCOUNT
+    $INSERT ../GLOBUS.BP I_F.RE.STAT.REP.LINE
+    $INSERT ../GLOBUS.BP I_F.RE.STAT.LINE.CONT
+    $INSERT ../GLOBUS.BP I_F.CONSOLIDATE.ASST.LIAB
+    $INSERT BP I_F.GL.REPORT.PARAMETER
+*-------------------------------------------------------------------------
+* Main controlling section:
+*-------------------------------------------------------------------------
+    GOSUB INITIALISATION
+    GOSUB MAIN.PROCESS
+
+    RETURN
+
+*-------------------------------------------------------------------------
+* Subroutine Section:
+* File Opening and Variable set up
+
+INITIALISATION:
+
+*-------------------------------------------------------------------------
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT = ""
+    R.ACCOUNT = ""
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    FN.STAT.LINE = "F.RE.STAT.REP.LINE"
+    F.STAT.LINE = ""
+    R.STAT.LINE = ''
+    CALL OPF(FN.STAT.LINE, F.STAT.LINE)
+
+    FN.STAT.LINE.CONT = "F.RE.STAT.LINE.CONT"
+    F.STAT.LINE.CONT = ""
+    R.STAT.LINE.CONT = ''
+    CALL OPF(FN.STAT.LINE.CONT, F.STAT.LINE.CONT)
+
+    FN.GL.REPORT = "F.GL.REPORT.PARAMETER"
+    F.GL.REPORT = ""
+    R.GL.REPORT = ""
+    CALL OPF(FN.GL.REPORT,F.GL.REPORT)
+
+    FN.CAL = "F.CONSOLIDATE.ASST.LIAB"
+    F.CAL = ""
+    R.CAL = ""
+    CALL OPF(FN.CAL,F.CAL)
+    RETURN
+
+*-------------------------------------------------------------------------
+* Main Subroutine processing:
+*
+MAIN.PROCESS:
+*
+*-------------------------------------------------------------------------
+*
+!Y.COMPANY = ID.COMPANY
+    Y.COMPANY = 'BD0010902'
+    Y.FLAG = '0'
+    Y.FINAL.COUNT = '1'
+    Y.GL.LIST = 'JBGL.4800':@VM:'JBGL.4900':@VM:'JBGL.5000'
+    SEL.CMD = "SELECT ":FN.GL.REPORT
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORDS,RET.CODE)
+    TRAN.ID = 'SOALA'
+    CALL F.READ(FN.GL.REPORT,TRAN.ID,R.GL.REPORT,F.GL.REPORT,Y.ERR)
+    Y.COUNT = DCOUNT(R.GL.REPORT<GL.ENQ.REP.GL.CODE>,VM)
+    FOR Y.GL = 1 TO Y.COUNT
+        Y.GL.CODE = TRIM(FIELD(R.GL.REPORT<GL.ENQ.REP.GL.CODE>,@VM,Y.GL,1))
+        IF Y.GL.CODE EQ 'JBGL.0165' THEN
+            DEBUG
+            Y.LEGACY.ID = TRIM(FIELD(R.GL.REPORT<GL.ENQ.REP.LEGACY.ID>,@VM,Y.GL,1))
+            Y.GL.TYPE = TRIM(FIELD(R.GL.REPORT<GL.ENQ.REP.GL.TYPE>,@VM,Y.GL,1))
+            Y.GL.DESCR = TRIM(FIELD(R.GL.REPORT<GL.ENQ.REP.DESCRIP>,@VM,Y.GL,1))
+            Y.GL.ACCUMULATOR = TRIM(FIELD(R.GL.REPORT<GL.ENQ.REP.ACCUMULATOR>,@VM,Y.GL,1))
+            Y.GL.ACCUMULATOR = Y.GL.ACCUMULATOR[1,1]
+
+*Validation for to fetching values from the file based on the condition
+            GOSUB DATA.VALIDATION
+            PRINT Y.FINAL.BAL
+        END
+    NEXT Y.GL
+
+    RETURN
+*Main Gosub return
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+
+
+*-------------------------------------------------------------------------
+*Validation for to fetching values from the file
+DATA.VALIDATION:
+  DEBUG
+    Y.GL.COMPANY = Y.GL.CODE:".":Y.COMPANY
+    CALL F.READ(FN.STAT.LINE.CONT,Y.GL.COMPANY,R.STAT.LINE.CONT,F.STAT.LINE.CONT,Y.ERR)
+    Y.CNT.KEY = DCOUNT(R.STAT.LINE.CONT<RE.SLC.ASST.CONSOL.KEY>,VM)
+    FOR Y.M1 = 1 TO Y.CNT.KEY
+
+*To taking multivalue data from the file RE.STAT.LINE.CONT
+        GOSUB DATA.VAL2
+
+    NEXT Y.M1
+
+    Y.TT.BAL += Y.BALANCE
+    Y.GL.VAL = FIELDS(Y.GL.CODE,".",1)
+
+    IF Y.FLAG = '1' THEN
+        Y.FINAL.COUNT = Y.FINAL.COUNT + 1
+        Y.FLAG = '0'
+    END
+
+
+*To assigning the value to data variable based on the condition
+    GOSUB DATA.VAL3
+
+    RETURN
+
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+*Value will getting based on the condition
+DATA.VAL2:
+ DEBUG
+    Y.CONSOL.KEY = FIELD(R.STAT.LINE.CONT<RE.SLC.ASST.CONSOL.KEY>,@VM,Y.M1,1)
+    Y.ASSET.TYPE = TRIM(FIELD(R.STAT.LINE.CONT<RE.SLC.ASSET.TYPE>,@VM,Y.M1,1))
+    CALL F.READ(FN.CAL,Y.CONSOL.KEY,R.CAL,F.CAL,Y.ERR)
+    Y.TYPE.CNT = DCOUNT(R.CAL<RE.ASL.TYPE>,VM)
+    FOR Y.M2 = 1 TO Y.TYPE.CNT
+        Y.ASL.TYPE = TRIM(FIELD(R.CAL<RE.ASL.TYPE>,@VM,Y.M2,1))
+        IF Y.ASSET.TYPE EQ Y.ASL.TYPE THEN
+            Y.BAL = TRIM(ABS(FIELD(R.CAL<RE.ASL.BALANCE>,@VM,Y.M2,1)))
+        END
+        Y.BALANCE += Y.BAL
+        Y.BAL = ''
+    NEXT Y.M2
+
+    RETURN
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+*To assigning the variable of array
+DATA.VAL3:
+   DEBUG
+    IF Y.GL.TYPE EQ 'H' THEN
+        Y.FINAL.AC = Y.LEGACY.ID
+        Y.FINAL.NAME = TRIM(Y.GL.DESCR)
+        Y.FINAL.BAL = Y.BALANCE
+    END ELSE
+        IF Y.GL.TYPE EQ 'D' AND Y.GL.ACCUMULATOR EQ '7' THEN
+            Y.FINAL.AC = Y.LEGACY.ID
+            Y.FINAL.NAME = TRIM(Y.GL.DESCR)
+            Y.FINAL.BAL = Y.BALANCE
+            Y.TT.BAL = ''
+        END ELSE
+            IF Y.GL.TYPE EQ 'T' THEN
+                IF Y.GL.ACCUMULATOR EQ '9' THEN
+                    IF Y.GL.VAL NE 'JBPL' THEN
+                        Y.FINAL.AC = Y.LEGACY.ID
+                        Y.FINAL.NAME = TRIM(Y.GL.DESCR)
+                        Y.FINAL.BAL = Y.TTT.BAL
+                        Y.TTT.BAL = ''
+                        Y.FLAG = '1'
+                    END ELSE
+                        Y.FINAL.AC = Y.LEGACY.ID
+                        Y.FINAL.NAME = TRIM(Y.GL.DESCR)
+                        Y.FINAL.BAL = Y.BALANCE
+                    END
+                END ELSE
+                    IF Y.GL.CODE = 'JBGL.5500' THEN
+                        Y.FINAL.AC = Y.LEGACY.ID
+                        Y.FINAL.NAME = TRIM(Y.GL.DESCR)
+                        Y.FINAL.BAL = Y.LA.TT
+                        Y.LA.TT = ''
+                    END ELSE
+                        Y.FINAL.AC = Y.LEGACY.ID
+                        Y.FINAL.NAME = TRIM(Y.GL.DESCR)
+                        Y.FINAL.BAL = Y.TT.BAL
+                    END
+                    IF Y.GL.VAL NE 'JBPL' THEN
+                        Y.TTT.BAL += Y.TT.BAL     ;*To take the main total
+                        IF Y.GL.CODE MATCHES Y.GL.LIST THEN
+                            Y.LA.TT += Y.TT.BAL
+                        END
+                        Y.TT.BAL = ''
+                    END
+                END
+            END ELSE
+                Y.FINAL.AC = Y.LEGACY.ID
+                Y.FINAL.NAME = TRIM(Y.GL.DESCR)
+                Y.FINAL.BAL = Y.BALANCE
+            END
+        END
+    END
+
+*Array forming final data to display
+    GOSUB FIN.ARRAY
+
+    RETURN
+
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+
+FIN.ARRAY:
+*Final array to displaying the data
+
+    IF Y.FINAL.BAL EQ '' THEN
+        Y.FINAL.BAL = '0.00'
+    END
+
+    IF Y.FINAL.AC NE '' THEN
+        Y.ARR<-1> = Y.FINAL.COUNT:" * ":Y.FINAL.AC:" * ":Y.FINAL.NAME:" * ":Y.FINAL.BAL
+    END
+
+*To clear the variable data
+    GOSUB VAL.CLR
+
+
+    RETURN
+
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+*To clear the variable data
+VAL.CLR:
+
+    Y.FINAL.AC = ''
+    Y.FINAL.NAME = ''
+    Y.FINAL.BAL = ''
+    Y.FINAL.TYPE = ''
+    Y.GL.CODE = ''
+    Y.LEGACY.ID = ''
+    Y.GL.TYPE = ''
+    Y.GL.DESCR = ''
+    Y.GL.ACCUMULATOR = ''
+    Y.BAL = ''
+    Y.BALANCE = ''
+
+    RETURN
+*-------------------------------------------------------------------------
+*-------------------------------------------------------------------------
+
+END

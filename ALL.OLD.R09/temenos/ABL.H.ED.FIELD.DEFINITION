@@ -1,0 +1,64 @@
+*
+*-----------------------------------------------------------------------------
+* <Rating>-33</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ABL.H.ED.FIELD.DEFINITION
+*-----------------------------------------------------------------------------
+* Program Description
+*-----------------------------------------------------------------------------
+* Modification History :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.CATEGORY      ;* Other Inserts required for Checkfiles, etc.
+    $INSERT I_F.ACCOUNT
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+
+    GOSUB DEFINE.FIELDS
+
+    RETURN
+*
+*-----------------------------------------------------------------------------
+DEFINE.FIELDS:
+
+    ID.F = "ACC.ID" ; ID.N = "20" ; ID.T = "A"
+*
+    Z=0
+*
+    Z+=1 ; F(Z) = "HIGHEST.BAL.DATE" ; N(Z) = "8"  ; T(Z) = "D"
+    Z+=1 ; F(Z) = "HIGHEST.BAL.LCY"  ; N(Z) = "19" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "HIGHEST.BAL.FCY"  ; N(Z) = "19" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "EX.DUTY.AMT.LCY"  ; N(Z) = "19" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "EX.DUTY.AMT.FCY"  ; N(Z) = "19" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "EX.DUTY.POST.AMT" ; N(Z) = "19" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "EXCISE.DUTY.POST" ; N(Z) =  "3" ; T(Z)<2> = "YES_NO"
+    Z+=1 ; F(Z) = "POSTING.DATE"     ; N(Z) = "8"  ; T(Z) = "D"
+    Z+=1 ; F(Z) = "REFERNCE"         ; N(Z) = "19" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "TYPE"             ; N(Z) = "19" ; T(Z) = "A"
+    Z+=1 ; F(Z) = "LIQ.HIG.BAL.DAT"  ; N(Z) = "8"  ; T(Z) = "D"
+    Z+=1 ; F(Z) = "LIQ.HIG.BAL.LCY"  ; N(Z) = "19" ; T(Z) = "AMT"
+    Z+=1 ; F(Z) = "INT.LIQ.AC"       ; N(Z) = "19" ; T(Z) = "A"
+REM > Z+=1 ; F(Z) = "XX.XX.FIELD.NAME" ; N(Z) = "35.2" ; T(Z) = "A"
+REM > CHECKFILE(Z) = CHK.ACCOUNT
+*
+    V = Z + 9
+
+    RETURN
+*
+*-----------------------------------------------------------------------------
+INITIALISE:
+
+    MAT F = "" ; MAT N = "" ; MAT T = ""
+    MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+    ID.CHECKFILE = "" ; ID.CONCATFILE = ""
+*
+* Define often used checkfile variables
+*
+    CHK.ACCOUNT = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+END

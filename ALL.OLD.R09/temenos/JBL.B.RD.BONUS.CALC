@@ -1,0 +1,209 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>3</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.B.RD.BONUS.CALC(Y.AC.ID)
+*-----------------------------------------------------------------------------
+*
+* NAME: JBL.B.RD.BONUS.CALC
+*
+* PROGRAMMER: Leelavathi R
+*
+* DESCRIPTION:This is a process routine for updating the Bonus amount for prompt RD's
+* When a RD (Recurring Deposit) gets matured with prompt payment of instalments, the
+* system will automatically credit the Nominated account of the RD record with the
+* respective bonus amount.
+*
+* TECHNICAL DESCRIPTION:
+*
+* Incoming Parameter(s):None
+* Outgoing Parameter(s):None
+* CHANGE REQUEST / DEVELOPMENT REF:
+* CALLED BY: Batch
+* CALLS:
+* CHANGE HISTORY:
+*-----------------------------------------------------------------------------
+*
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.AZ.ACCOUNT
+    $INCLUDE GLOBUS.BP I_F.DATES
+    $INCLUDE GLOBUS.BP I_F.STMT.ENTRY
+    $INCLUDE GLOBUS.BP I_F.CATEG.ENTRY
+    $INCLUDE JBL.BP I_F.EB.RD.BONUS
+    $INCLUDE JBL.BP I_JBL.B.RD.BONUS.CALC.COMMON
+*
+    GOSUB INIT
+    GOSUB PROCESS
+*
+    RETURN
+*----------------------------------------------------------------------------
+INIT:
+*----
+*
+    Y.PRINCIPAL=''
+    Y.APP.AZ.ID=''
+    Y.CUSTOMER.ID=''
+    Y.CR.ACCTID=''
+    Y.AC.CURR =''
+    Y.CR.ACC.CURR =''
+    Y.CR.ACC.OFF = ''
+    Y.CR.AC.CAT = '' 
+    Y.APP.POS = ''
+    Y.INS.POS = ''
+    Y.BONUS.AMT = ''
+    Y.AMT = ''
+    Y.TARGET.CCY = ''
+    Y.CCY =''
+    Y.CCY.MKT = ''
+    FINAL.ENTRY.REC=''
+    STMT.ENTRY.REC = ''
+*
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+*------
+
+    R.AZ.ACCT = '' ; Y.ERR.AZ = ''
+    CALL F.READ(FN.AZ.ACCOUNT,Y.AC.ID,R.AZ.ACCT,F.AZ.ACCOUNT,Y.ERR.AZ)
+    IF R.AZ.ACCT THEN
+        Y.PRINCIPAL = R.AZ.ACCT<AZ.PRINCIPAL>
+        Y.APP.AZ.ID = R.AZ.ACCT<AZ.ALL.IN.ONE.PRODUCT>
+        Y.CUSTOMER.ID = R.AZ.ACCT<AZ.CUSTOMER>
+        Y.CR.ACCTID = R.AZ.ACCT<AZ.NOMINATED.ACCOUNT>
+        Y.AC.CURR = R.AZ.ACCT<AZ.CURRENCY>
+        GOSUB READ.CR.ACCT
+        IF NOT(R.ACCT) THEN RETURN
+        
+        GOSUB LOC.BONUS.AMT
+        IF Y.BONUS.AMT GT 0 THEN 
+          GOSUB RAISE.ENTRIES
+          GOSUB UPD.RD.BONUS
+        END
+    END
+*
+    RETURN
+*---------------------------------------------------------------------------
+READ.CR.ACCT:
+*-----------
+* Reading Credit Account Details
+    R.ACCT='' ; Y.ERR.AC = ''
+    CALL F.READ(FN.ACCOUNT,Y.CR.ACCTID,R.ACCT,F.ACCOUNT,Y.ERR.AC)
+    IF R.ACCT THEN
+        Y.CR.ACC.CURR =R.ACCT<AC.CURRENCY>
+        Y.CR.ACC.OFF = R.ACCT<AC.ACCOUNT.OFFICER>
+        Y.CR.AC.CAT = R.ACCT<AC.CATEGORY>
+    END
+    RETURN
+*----------------------------------------------------------------------------------
+LOC.BONUS.AMT:
+*------------
+*Locating Bonus amount
+    LOCATE Y.APP.AZ.ID IN Y.APP.ID<1,1> SETTING Y.APP.POS THEN
+        LOCATE Y.PRINCIPAL IN Y.APP.INS<1,Y.APP.POS,1> SETTING Y.INS.POS THEN
+            Y.BONUS.AMT= Y.APP.BONUS<1,Y.APP.POS,Y.INS.POS>
+        END
+    END
+    RETURN
+*-----------------------------------------------------------------------------------
+RAISE.ENTRIES:
+*------------
+*Raising Accounting Entries
+    FINAL.ENTRY.REC = ''
+    GOSUB GET.STMT.DETAILS
+    GOSUB GET.CATEG.DETAILS
+    CALL EB.ACCOUNTING('AZ','SAO',FINAL.ENTRY.REC,'')
+*
+    RETURN
+*
+*---------------------------------------------------------------------------
+GET.STMT.DETAILS:
+*---------------
+* Stmt entry for Crediting Nominated Account
+*
+    STMT.ENTRY.REC<AC.STE.ACCOUNT.NUMBER>    = Y.CR.ACCTID
+    STMT.ENTRY.REC<AC.STE.AMOUNT.LCY>        = Y.BONUS.AMT
+    STMT.ENTRY.REC<AC.STE.TRANSACTION.CODE> =  Y.CR.TXCODE
+    STMT.ENTRY.REC<AC.STE.CUSTOMER.ID>       = Y.CUSTOMER.ID
+    STMT.ENTRY.REC<AC.STE.ACCOUNT.OFFICER>   = Y.CR.ACC.OFF
+    STMT.ENTRY.REC<AC.STE.PRODUCT.CATEGORY>  = Y.CR.AC.CAT
+    STMT.ENTRY.REC<AC.STE.VALUE.DATE>        = TODAY
+    STMT.ENTRY.REC<AC.STE.POSITION.TYPE>     = 'TR'
+    STMT.ENTRY.REC<AC.STE.OUR.REFERENCE>     = Y.CR.ACCTID
+    STMT.ENTRY.REC<AC.STE.CURRENCY.MARKET>   = '1'
+    STMT.ENTRY.REC<AC.STE.DEPARTMENT.CODE>   = '1'
+    STMT.ENTRY.REC<AC.STE.TRANS.REFERENCE>   = Y.CR.ACCTID
+    STMT.ENTRY.REC<AC.STE.SYSTEM.ID>         = 'AZ'
+    STMT.ENTRY.REC<AC.STE.BOOKING.DATE>      = TODAY
+    STMT.ENTRY.REC<AC.STE.COMPANY.CODE>      = ID.COMPANY
+    STMT.ENTRY.REC<AC.STE.NARRATIVE>         = "RD BONUS PAYMENT"
+*
+		GOSUB CALC.CR.AC.CURR
+    IF FINAL.ENTRY.REC THEN
+        FINAL.ENTRY.REC := FM:LOWER(STMT.ENTRY.REC)
+    END ELSE
+        FINAL.ENTRY.REC = LOWER(STMT.ENTRY.REC)
+    END
+    RETURN
+*------------------------------------------------------------------------------
+CALC.CR.AC.CURR:
+*--------------
+*Currency conversion of Bonus amount when nominated account is in Foreign currency
+    IF Y.CR.ACC.CURR NE LCCY THEN
+        Y.CCY = LCCY
+        Y.AMT = Y.BONUS.AMT
+        Y.TARGET.CCY = Y.CR.ACC.CURR
+        Y.CCY.MKT = R.ACCT<AC.CURRENCY.MARKET>
+        Y.CONV.AMT = ''
+        CALL EB.CURR.CONV(Y.CCY,Y.AMT,Y.TARGET.CCY,Y.CONV.AMT)
+        STMT.ENTRY.REC<AC.STE.CURRENCY> = Y.CR.ACC.CURR
+        STMT.ENTRY.REC<AC.STE.AMOUNT.FCY> = Y.CONV.AMT
+    END ELSE
+        STMT.ENTRY.REC<AC.STE.CURRENCY> = LCCY
+    END
+    RETURN
+*--------------------------------------------------------------------------------
+GET.CATEG.DETAILS:
+*------------------
+* Bonus will be debited from PL category in Local currency
+    CATEG.ENTRY.REC = ''
+    CATEG.ENTRY.REC<AC.CAT.AMOUNT.LCY>       = -1 * Y.BONUS.AMT
+    CATEG.ENTRY.REC<AC.CAT.TRANSACTION.CODE> = Y.DR.TXCODE
+    CATEG.ENTRY.REC<AC.CAT.PL.CATEGORY>      = Y.PL.CAT
+    CATEG.ENTRY.REC<AC.CAT.CUSTOMER.ID>      = Y.CUSTOMER.ID
+    CATEG.ENTRY.REC<AC.CAT.ACCOUNT.OFFICER>  = Y.CR.ACC.OFF
+    CATEG.ENTRY.REC<AC.CAT.PRODUCT.CATEGORY> = Y.CR.AC.CAT
+    CATEG.ENTRY.REC<AC.CAT.VALUE.DATE>       = TODAY
+    CATEG.ENTRY.REC<AC.CAT.CURRENCY>         = LCCY
+    CATEG.ENTRY.REC<AC.CAT.POSITION.TYPE>    = 'TR'
+    CATEG.ENTRY.REC<AC.CAT.OUR.REFERENCE>    = Y.CR.ACCTID
+    CATEG.ENTRY.REC<AC.CAT.CURRENCY.MARKET>  = '1'
+    CATEG.ENTRY.REC<AC.CAT.DEPARTMENT.CODE>  = '1'
+    CATEG.ENTRY.REC<AC.CAT.TRANS.REFERENCE>  = Y.CR.ACCTID
+    CATEG.ENTRY.REC<AC.CAT.SYSTEM.ID>        = 'AZ'
+    CATEG.ENTRY.REC<AC.CAT.BOOKING.DATE>     = TODAY
+    CATEG.ENTRY.REC<AC.CAT.COMPANY.CODE>     = ID.COMPANY
+    CATEG.ENTRY.REC<AC.CAT.NARRATIVE>        = "RD BONUS PAYMENT"
+*
+    IF FINAL.ENTRY.REC THEN
+        FINAL.ENTRY.REC := FM: LOWER(CATEG.ENTRY.REC)
+    END ELSE
+        FINAL.ENTRY.REC =  LOWER(CATEG.ENTRY.REC)
+    END
+*
+    RETURN
+*--------------------------------------------------------------------------
+UPD.RD.BONUS:
+*----------
+*Updating the RD account with the Bonus Amount Details
+    R.AZ.ACCT<AZ.LOCAL.REF,Y.BONUS.CR.DT.POS> = TODAY
+    R.AZ.ACCT<AZ.LOCAL.REF,Y.BONUS.CR.AMT.POS> = Y.BONUS.AMT
+    CALL F.WRITE(FN.AZ.ACCOUNT,Y.AC.ID,R.AZ.ACCT)
+*
+    RETURN
+*--------------------------------------------------------------------------
+*
+END
+*
+*--------------------------------------------------------------------------

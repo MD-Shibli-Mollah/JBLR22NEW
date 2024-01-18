@@ -1,0 +1,12 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.E.BUILD.ACT.SEL(ENQ.DATA)
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_ENQUIRY.COMMON
+    ENQ.DATA<2,1> = 'CUSTOMER'
+    ENQ.DATA<3,1> = 'EQ'
+    ENQ.DATA<4,1> = FIELD(ID.NEW,'.',1)
+RETURN
+END

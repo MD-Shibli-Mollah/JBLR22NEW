@@ -1,0 +1,93 @@
+*-----------------------------------------------------------------------------
+* <Rating>223</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PR.H.BTB.JOB.REGISTER.FIELD.DEFINITIONS
+
+*-----------------------------------------------------------------------------
+*
+*-----------------------------------------------------------------------------
+* Modification History :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT       ;* Other Inserts required for Checkfiles, etc.
+    $INSERT I_F.CUSTOMER
+    $INSERT I_F.SEC.ACC.MASTER
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB DEFINE.FIELDS
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+DEFINE.FIELDS:
+    ID.F = "JOB.NO" ; ID.N = "32.1" ; ID.T="A"
+
+*
+    Z=0
+*
+    Z+=1 ; F(Z) = "CUSTOMER.NO" ; N(Z) = "10" ; T(Z)<1> = ""
+    CHECKFILE(Z)="CUSTOMER"
+    Z+=1 ; F(Z) = "DATE.OF.CREATION" ; N(Z) = "10" ; T(Z)<1>="D"
+    Z+=1 ; F(Z) = "XX<EXPORT.LC.RF" ; N(Z) = "14" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX-EXPORT.LC.NO" ; N(Z) = "65" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX-EXPORT.LC.ADV.NO" ; N(Z) = "25" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX-EXPORT.LC.CY" ; N(Z) = "3" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX-LC.FOB.VALUE" ; N(Z) = "19" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX-ENTITLMNT.PR" ; N(Z) = "3" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX-ENTITLMNT.VL" ; N(Z) = "19" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX-ENTITLMNT.CY" ; N(Z) = "19" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX>EXPIRY.DATE" ; N(Z) = "20" ; T(Z)<1> = "D" ;T(Z)<4>="DD DDD DDDD"
+    Z+=1 ; F(Z) = "XX<CONTRACT.REF" ; N(Z) = "65" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX-CONTRACT.NO" ; N(Z) = "65" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX-CONTRACT.CCY" ; N(Z) = "3" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX-CON.FOB.VAL" ; N(Z) = "19" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX-CON.ENT.PR" ; N(Z) = "5" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX-CON.ENT.VAL" ; N(Z) = "19" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX>CON.EXP.DATE" ; N(Z) = "11" ; T(Z)<1> = "D" ;T(Z)<4>="DD DDD DDDD"
+    Z+=1 ; F(Z) = "XX<IMPORT.LC.RF" ; N(Z) = "14" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX-IMPORT.LC.ADV.NO" ; N(Z) = "25" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX-IMPORT.LC.CY" ; N(Z) = "3" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX-LC.ID.NO" ; N(Z) = "35" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX-CONTRACT.VAL" ; N(Z) = "16" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX-CONT.VAL.LCY" ; N(Z) = "16" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "XX>CONT.EX.DATE" ; N(Z) = "11" ; T(Z)<1> = "D" ;T(Z)<4>="DD DDD DDDD"
+    Z+=1 ; F(Z) = "TOT.CON.FC" ; N(Z) = "19" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "TOT.CON.LCY" ; N(Z) = "19" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "TOT.ENT.FC" ; N(Z) = "19" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "TOT.ENT.LCY" ; N(Z) = "19" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "TOT.CONT.FC" ; N(Z) = "19" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "TOT.CONT.LCY" ; N(Z) = "19" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "AVL.ENT.FC" ; N(Z) = "19" ; T(Z)<1> = "A"
+    Z+=1 ; F(Z) = "AVL.ENT.LCY" ; N(Z) = "19" ; T(Z)<1> = "A"
+*  Z+=1 ; F(Z) = "RESERVED.5" ; N(Z) = "16" ; T(Z) = "NOINPUT"
+*   Z+=1 ; F(Z) = "RESERVED.4" ; N(Z) = "16" ; T(Z) = "NOINPUT"
+
+* Z+=1 ; F(Z) = "RESERVED.3" ; N(Z) = "16" ; T(Z) = "NOINPUT"
+* Z+=1 ; F(Z) = "RESERVED.2" ; N(Z) = "16" ; T(Z) = "NOINPUT"
+* Z+=1 ; F(Z) = "RESERVED.1" ; N(Z) = "16" ; T(Z) = "NOINPUT"
+
+
+REM > CHECKFILE(Z) = CHK.ACCOUNT
+*
+    V = Z + 9
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+INITIALISE:
+    MAT F = "" ; MAT N = "" ; MAT T = ""
+    MAT CHECKFILE = "" ; MAT CONCATFILE = ""
+    ID.CHECKFILE = "" ; ID.CONCATFILE = ""
+*
+* Define often used checkfile variables
+*
+    CHK.ACCOUNT = "ACCOUNT":FM:AC.SHORT.TITLE:FM:"L"
+    CHK.CUSTOMER = "CUSTOMER":FM:EB.CUS.SHORT.NAME:FM:'.A'
+    CHK.CUSTOMER.SECURITY = "CUSTOMER.SECURITY":FM:0:FM:'':FM:"CUSTOMER":FM:EB.CUS.SHORT.NAME:FM:'..S'
+    CHK.SAM = "SEC.ACC.MASTER":FM:SC.SAM.ACCOUNT.NAME:FM:'..S'
+    RETURN
+*
+*-----------------------------------------------------------------------------
+*
+END

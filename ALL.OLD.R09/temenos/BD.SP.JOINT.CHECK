@@ -1,0 +1,165 @@
+*-----------------------------------------------------------------------------
+* <Rating>1104</Rating>
+*-----------------------------------------------------------------------------
+*DATE:12-09-2017
+* EDIT: 20190310
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.SP.JOINT.CHECK
+!PROGRAM JOINT.CHECK
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT SP.BP I_F.BD.H.SP.CATEGORY
+    $INSERT SP.BP I_F.BD.H.SP.STOCK.ISSUE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+    $INSERT GLOBUS.BP I_F.CUSTOMER
+
+    FN.CAT = 'F.BD.H.SP.CATEGORY'
+    F.CAT = ''
+    FN.SP.ST = 'F.BD.H.SP.STOCK.ISSUE'
+    F.SP.ST = ''
+    FN.AC = 'F.ACCOUNT'
+    F.AC = ''
+    FN.CUS = 'F.CUSTOMER'
+    F.CUS = ''
+    Y.TOT.VALUE = 0
+
+    CALL OPF(FN.CAT,F.CAT)
+    CALL OPF(FN.SP.ST,F.SP.ST)
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.CUS,F.CUS)
+
+    CALL GET.LOC.REF("CUSTOMER","P.AMT",Y.P.AMT.POS)
+
+    Y.CUS.NO = R.NEW(SP.STK.CUSTOMER.NO)
+    Y.JOINT.IND = R.NEW(SP.STK.JOINT.INDIVIDUAL)
+    Y.JHOLD.CUS = R.NEW(SP.STK.JHOLDER.CUS.NO)
+    Y.AC.NO = R.NEW(SP.STK.ACCOUNT.NO)
+    Y.TYPE.SP = R.NEW(SP.STK.TYPE.OF.SP)
+    Y.FACE.VALUE = R.NEW(SP.STK.FACE.VALUE)
+    Y.TOT.VALUE = Y.TOT.VALUE + Y.FACE.VALUE
+
+    IF Y.AC.NO NE '' THEN
+        CALL F.READ(FN.AC,Y.AC.NO,R.AC,F.AC,ERR.AC)
+        Y.CUS = R.AC<AC.CUSTOMER>
+        Y.JOINT.CUS = R.AC<AC.JOINT.HOLDER>
+        Y.CUS.CNT = DCOUNT(Y.JOINT.CUS,@FM)
+
+        IF Y.AC.NO NE '' AND Y.CUS.CNT NE '0' THEN
+            IF Y.CUS.NO NE Y.CUS THEN
+                FOR M = 1 TO Y.CUS.CNT
+                    Y.CUS.JOINT = FIELD(Y.JOINT.CUS,@FM,M)
+                    IF Y.CUS.NO NE Y.CUS.JOINT THEN
+                        AF = SP.STK.ACCOUNT.NO
+                        AV = 1
+                        ETEXT = Y.AC.NO:' Does not Belong to this Customer ':Y.CUS.NO
+                        CALL STORE.END.ERROR
+                    END
+                NEXT M
+            END
+        END
+        ELSE
+            IF Y.CUS.NO NE Y.CUS THEN
+                AF = SP.STK.ACCOUNT.NO
+                AV = 1
+                ETEXT = Y.AC.NO:' Does not Belong to This Customer ':Y.CUS.NO
+                CALL STORE.END.ERROR
+            END
+        END
+    END
+
+
+    SEL.CMD = 'SELECT ':FN.SP.ST:' WITH CUSTOMER.NO EQ ':Y.CUS.NO
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,RET.CODE)
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.ID : Y.POS
+        CALL F.READ(FN.SP.ST,Y.ID,R.SP,F.SP.ST,ERR)
+        Y.IND.JOINT = R.SP<SP.STK.JOINT.INDIVIDUAL>
+        Y.TYPE = R.SP<SP.STK.TYPE.OF.SP>
+        Y.VALUE = R.SP<SP.STK.FACE.VALUE>
+        IF Y.JOINT.IND EQ Y.IND.JOINT AND Y.TYPE.SP EQ Y.TYPE THEN
+            Y.TOT.VALUE = Y.TOT.VALUE + Y.VALUE
+        END
+    REPEAT
+    CALL F.READ(FN.CAT,Y.TYPE.SP,R.CAT,F.CAT,CT.ERR)
+    Y.IND.MAX.AMT = R.CAT<SP.CATG.IND.MAX.INT.LIMIT>
+    Y.JOINT.MAX.AMT = R.CAT<SP.CATG.JNT.MAX.INT.LIMIT>
+    IF Y.TYPE.SP EQ 'SP-0003' THEN
+        CALL F.READ(FN.CUS,Y.CUS.NO,R.CUS,F.CUS,ERR.CUS)
+        Y.P.AMT = R.CUS<EB.CUS.LOCAL.REF,Y.P.AMT.POS>
+    END
+
+    IF V$FUNCTION EQ 'I' THEN
+        IF Y.TOT.VALUE GT Y.P.AMT AND Y.TYPE.SP EQ 'SP-0003' THEN
+            AF = SP.STK.FACE.VALUE
+            AV = 1
+            ETEXT = 'Exceeds Maximum Limit For Pensioner ':Y.TOT.VALUE
+            CALL STORE.END.ERROR
+        END
+        ELSE
+            IF Y.TOT.VALUE GT Y.IND.MAX.AMT AND Y.TYPE.SP EQ 'SP-0003' THEN
+                AF = SP.STK.FACE.VALUE
+                AV = 1
+                ETEXT = 'Exceeds Maximum Limit For Pensioner(Individual) ':Y.TOT.VALUE
+                CALL STORE.END.ERROR
+            END
+            ELSE
+                IF Y.TOT.VALUE GT Y.IND.MAX.AMT AND Y.JOINT.IND EQ 'INDIVIDUAL' THEN
+                    AF = SP.STK.FACE.VALUE
+                    AV = 1
+                    ETEXT = 'Exceeds Maximum Limit For Individual ':Y.TOT.VALUE
+                    CALL STORE.END.ERROR
+                END
+                ELSE
+                    IF Y.JOINT.IND EQ 'INDIVIDUAL' AND Y.JHOLD.CUS NE '' THEN
+                        AF = SP.STK.JHOLDER.CUS.NO
+                        AV = 1
+                        ETEXT = 'Joint Customer ID Not Allow'
+                        CALL STORE.END.ERROR
+                    END
+                    ELSE
+                        IF Y.TOT.VALUE GT Y.JOINT.MAX.AMT AND Y.JOINT.IND EQ 'JOINT' AND Y.TYPE.SP NE 'SP-0003' AND Y.TYPE.SP NE 'SP-0004' THEN
+                            AF = SP.STK.FACE.VALUE
+                            AV = 1
+                            ETEXT = 'Exceeds Maximum Limit For Joint ':Y.TOT.VALUE
+                            CALL STORE.END.ERROR
+                        END
+                        ELSE
+                            IF Y.JOINT.IND EQ 'JOINT' AND Y.TYPE.SP EQ 'SP-0003' THEN
+                                AF = SP.STK.JOINT.INDIVIDUAL
+                                AV = 1
+                                ETEXT = "Pensioner Sanchaya Patra(NSPB) Can Not Be Joint Type."
+                                CALL STORE.END.ERROR
+                            END
+                            ELSE
+                                IF Y.JOINT.IND EQ 'JOINT' AND Y.TYPE.SP EQ 'SP-0004' THEN
+                                    AF = SP.STK.JOINT.INDIVIDUAL
+                                    AV = 1
+                                    ETEXT = "Paribar Sanchaya Patra(PSPB) Can Not Be Joint Type."
+                                    CALL STORE.END.ERROR
+                                END
+                                ELSE
+                                    IF Y.JOINT.IND EQ 'JOINT' AND Y.JHOLD.CUS EQ '' THEN
+                                        AF = SP.STK.JHOLDER.CUS.NO
+                                        AV = 1
+                                        ETEXT = "Please Input Joint Holder Customer."
+                                        CALL STORE.END.ERROR
+                                    END
+                                    ELSE
+                                        IF Y.CUS.NO EQ Y.JHOLD.CUS THEN
+                                            AF = SP.STK.JHOLDER.CUS.NO
+                                            AV = 1
+                                            ETEXT = "Both customer ID can not be Same."
+                                            CALL STORE.END.ERROR
+                                        END
+                                    END
+                                END
+                            END
+                        END
+                    END
+                END
+            END
+        END
+    END
+    RETURN
+END

@@ -1,0 +1,16 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.DEALING.LIMIT.FIELD.CHECK
+
+    $INCLUDE T24.BP I_COMMON
+    $INCLUDE T24.BP I_EQUATE
+    $INCLUDE I_F.OVE.DEALING.LIMIT
+
+    IF R.NEW(EB.OVE45.OVE.LIMIT.CCY.ID) = LCCY THEN
+        AF = EB.OVE45.OVE.LIMIT.CCY.ID
+        ETEXT =   "EB-LCY.NOT.ALLOWED"
+        CALL STORE.END.ERROR
+
+    END
+    RETURN

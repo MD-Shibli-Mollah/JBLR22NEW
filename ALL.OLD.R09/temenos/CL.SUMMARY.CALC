@@ -1,0 +1,113 @@
+******************************************************************************************
+*Purpose: This routine is attachted to NOFILE.CL.SUMMARY.CALC as a USER.FIELD.NO an      *
+*is used to get CL report related data                                                   *
+*Developed By: Md. Shafiul Azam(Datasoft Systems Bangladesh Ltd.)                        *
+*Supervised by : Md. Aminul Islam(Datasoft Systems Bangladesh Ltd.                       *
+*Update Purpose: Adding Short Term Agri Category->1730,1758,1751                         *
+*                        Continuous Loan Category->1757                                   *
+*Updated by: Mohammad Solaiman Hossain                                                   *
+*Updat Date: 2019/04/09                                                                  *
+******************************************************************************************
+    SUBROUTINE CL.SUMMARY.CALC(Y.DATA)
+    $INSERT GLOBUS.BP I_COMMON
+    $INSERT GLOBUS.BP I_EQUATE
+    $INSERT GLOBUS.BP I_F.ACCOUNT
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+*************
+INIT:
+*************
+    FN.ACC = 'F.ACCOUNT'
+    F.ACC = ''
+    Y.PR.ASSET.CLASS.LIST = '':FM:'10':FM:'20':FM:'30':FM:'40':FM:'50'
+
+    Y.DL.CAT.LIST = '1954':FM:'1989':FM:'1990':FM:'1951':FM:'1952':FM:'1953':FM:'1961':FM:'1962':FM:'1948':FM:'1963':FM:'1964':FM:'1966':FM:'1970':FM:'1971':FM:'1972':FM:'1973':FM:'1967':FM:'1974':FM:'1975':FM:'1976':FM:'1981':FM:'1982':FM:'1983':FM:'1984':FM:'1985':FM:'1986':FM:'1987':FM:'1988':FM:
+    CONVERT FM TO VM IN Y.DL.CAT.LIST
+    Y.ST.CAT.LIST = '1719':FM:'1720':FM:'1721':FM:'1722':FM:'1723':FM:'1724':FM:'1725':FM:'1726':FM:'1727':FM:'1729':FM:'1730':FM:'1758':FM:'1751':FM:'1764':FM:'1741':FM:'1742':FM:'1771':FM:'1767':FM:'1768':FM:
+    CONVERT FM TO VM IN Y.ST.CAT.LIST
+    Y.CON.CAT.LIST = '1918':FM:'1919':FM:'1920':FM:'1921':FM:'1922':FM:'1923':FM:'1924':FM:'1925':FM:'1926':FM:'1927':FM:'1928':FM:'1929':FM:'1930':FM:'1931':FM:'1932':FM:'1948':FM:'1933':FM:'1934':FM:'1935':FM:'1936':FM:'1937':FM:'1938':FM:'1939':FM:'1940':FM:'1941':FM:'1942':FM:'1943':FM:'1944':FM:'1945':FM:'1946':FM:'1947':FM:'1948':FM:'1757':FM:'1762':FM:'1763':FM:'1765':FM:'1766':FM:'1772':FM:
+    CONVERT FM TO VM IN Y.CON.CAT.LIST
+    Y.TL.CAT.LIST = '1601':FM:'1602':FM:'1603':FM:'1604':FM:'1605':FM:'1740':FM:'1607':FM:'1608':FM:'1609':FM:'1610':FM:'1611':FM:'1612':FM:'1613':FM:'1614':FM:'1615':FM:'1616':FM:'1738':FM:'1621':FM:'1622':FM:'1623':FM:'1624':FM:'1625':FM:'1626':FM:'1627':FM:'1628':FM:'1629':FM:'1630':FM:'1654':FM:'1632':FM:'1640':FM:'1641':FM:'1642':FM:'1643':FM:'1644':FM:'1645':FM:'1646':FM:'1647':FM:'1648':FM:'1651':FM:'1650':FM:'1665':FM:'1666':FM:'1659':FM:'1660':FM:'1661':FM:'1662':FM:'1652':FM:'1663':FM:'1664':FM:'1653':FM:'1658':FM:'1654':FM:'1655':FM:'1656':FM:'1657':FM:'1667':FM:'1668':FM:'1669':FM:'1670':FM:'1671':FM:'1672':FM:'1673':FM:'1674':FM:'1675':FM:'1676':FM:'1677':FM:'1678':FM:'1679':FM:'1680':FM:'1681':FM:'1731':FM:'1732':FM:'1733':FM:'1734':FM:'1735':FM:'1736':FM:'1716':FM:'1682':FM:'1683':FM:'1684':FM:'1685':FM:'1686':FM:'1687':FM:'1688':FM:'1689':FM:'1690':FM:'1691':FM:'1692':FM:'1693':FM:'1695':FM:'1696':FM:'1697':FM:'1698':FM:'1699':FM:'1700':FM:'1701':FM:'1702':FM:'1703':FM:'1704':FM:'1705':FM:'1706':FM:'1707':FM:'1708':FM:'1709':FM:'1710':FM:'1711':FM:'1712':FM:'1713':FM:'1714':FM:'1715':FM:'1637':FM:'1634':FM:'1728':FM:'1635':FM:'1636':FM:'1747':FM:'1749':FM:'1750':FM:'1752':FM:'1753':FM:'1756':FM:'1754':FM:'1759':FM:'1760':FM:'1761':FM:'1617':FM:'1618':FM:'1991':FM:'1992':FM:'1968':FM:'1969':FM:'1993':FM:'1994':FM:'1955':FM:'1956':FM:'1717':FM:'1718':FM:'1619':FM:'1620':FM:'1633':FM:'1649':FM:'1744':FM:'1745':FM:'1743':FM:'1746':FM:'1769':FM:'1770':FM:'1773':FM:'1774':FM:'1775':FM:
+    CONVERT FM TO VM IN Y.TL.CAT.LIST
+    Y.STAFF.CAT.LIST = '1902':FM:'1901':FM:'1905':FM:'1903':FM:'1904':FM:'1906':FM:'1907':FM:'1908':FM:'1909':FM:'1910':FM:'1911':FM:'1912':FM:'1913':FM:'1914':FM:'1915'
+    CONVERT FM TO VM IN Y.STAFF.CAT.LIST
+    Y.ALL.LN.CAT.LIST =  Y.CON.CAT.LIST:FM:Y.DL.CAT.LIST:FM:Y.TL.CAT.LIST:FM:Y.ST.CAT.LIST:FM:Y.STAFF.CAT.LIST
+    Y.SUB.DESC.LIST = 'Continuous Loan(CL-2)':FM:'Demand Loan(CL-3)':FM:'Fixed Term Loan(CL-4)':FM:'Short Term Agri Credit and Microcredit(CL-5)':FM:'Staff Loan'
+    CALL GET.LOC.REF('ACCOUNT','PR.ASSET.CLASS',Y.PR.ASSET.CLASS.POS)
+    RETURN
+
+*************
+OPENFILES:
+*************
+    CALL OPF(FN.ACC,F.ACC)
+    RETURN
+
+*************
+PROCESS:
+*************
+    SEL.CMD = 'SELECT ':FN.ACC:' WITH CO.CODE EQ ':ID.COMPANY
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,ERR)
+    LOOP
+        REMOVE Y.ACC.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.ACC.ID:Y.POS
+        CALL F.READ(FN.ACC,Y.ACC.ID,R.ACC,F.ACC,ACC.ERR)
+        Y.CATEGORY = R.ACC<AC.CATEGORY>
+        FIND Y.CATEGORY IN Y.ALL.LN.CAT.LIST SETTING Y.CAT.POS,Y.CAT.POS2 THEN NULL
+        IF Y.CAT.POS NE '' AND (R.ACC<AC.WORKING.BALANCE> NE '' OR R.ACC<AC.WORKING.BALANCE> NE 0) THEN
+            Y.PR.ASSET.CLASS = R.ACC<AC.LOCAL.REF,Y.PR.ASSET.CLASS.POS>
+            FIND Y.PR.ASSET.CLASS IN Y.PR.ASSET.CLASS.LIST SETTING Y.PR.POS THEN NULL
+            IF Y.PR.POS NE 0 THEN
+                Y.SUB.HEAD = FIELD(Y.SUB.DESC.LIST,FM,Y.CAT.POS)
+                GOSUB DO.CALC
+            END
+            Y.CAT.POS = ''
+            Y.PR.POS = ''
+        END
+    REPEAT
+    Y.DATA=SORT(Y.DATA)
+    RETURN
+
+**************
+DO.CALC:
+**************
+
+    BEGIN CASE
+    CASE  Y.PR.ASSET.CLASS EQ '10' OR Y.PR.ASSET.CLASS EQ ''
+        Y.STANDARD.AMT = R.ACC<AC.WORKING.BALANCE>
+        Y.DATA<-1> = Y.SUB.HEAD:'*':Y.STANDARD.AMT:'*':Y.SMA.AMT:'*':Y.SS.AMT:'*':Y.DF.AMT:'*':Y.BL.AMT:'*':Y.CATEGORY:'*':Y.ACC.ID:'*':Y.PR.ASSET.CLASS
+        GOSUB REFRESH.DATA
+    CASE   Y.PR.ASSET.CLASS EQ '20'
+        Y.SMA.AMT = R.ACC<AC.WORKING.BALANCE>
+        Y.DATA<-1> = Y.SUB.HEAD:'*':Y.STANDARD.AMT:'*':Y.SMA.AMT:'*':Y.SS.AMT:'*':Y.DF.AMT:'*':Y.BL.AMT:'*':Y.CATEGORY:'*':Y.ACC.ID:'*':Y.PR.ASSET.CLASS
+        GOSUB REFRESH.DATA
+    CASE  Y.PR.ASSET.CLASS EQ '30'
+        Y.SS.AMT = R.ACC<AC.WORKING.BALANCE>
+        Y.DATA<-1> = Y.SUB.HEAD:'*':Y.STANDARD.AMT:'*':Y.SMA.AMT:'*':Y.SS.AMT:'*':Y.DF.AMT:'*':Y.BL.AMT:'*':Y.CATEGORY:'*':Y.ACC.ID:'*':Y.PR.ASSET.CLASS
+        GOSUB REFRESH.DATA
+    CASE Y.PR.ASSET.CLASS EQ '40'
+        Y.DF.AMT = R.ACC<AC.WORKING.BALANCE>
+        Y.DATA<-1> = Y.SUB.HEAD:'*':Y.STANDARD.AMT:'*':Y.SMA.AMT:'*':Y.SS.AMT:'*':Y.DF.AMT:'*':Y.BL.AMT:'*':Y.CATEGORY:'*':Y.ACC.ID:'*':Y.PR.ASSET.CLASS
+        GOSUB REFRESH.DATA
+    CASE Y.PR.ASSET.CLASS EQ '50'
+        Y.BL.AMT = R.ACC<AC.WORKING.BALANCE>
+        Y.DATA<-1> = Y.SUB.HEAD:'*':Y.STANDARD.AMT:'*':Y.SMA.AMT:'*':Y.SS.AMT:'*':Y.DF.AMT:'*':Y.BL.AMT:'*':Y.CATEGORY:'*':Y.ACC.ID:'*':Y.PR.ASSET.CLASS
+        GOSUB REFRESH.DATA
+    END  CASE
+
+    RETURN
+
+REFRESH.DATA:
+
+    Y.STANDARD.AMT = ''
+    Y.SMA.AMT = ''
+    Y.SS.AMT = ''
+    Y.DF.AMT = ''
+    Y.BL.AMT = ''
+
+    RETURN
+
+END

@@ -1,0 +1,112 @@
+*-----------------------------------------------------------------------------
+* <Rating>-32</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE INWARD.CL.REG(Y.RETURN)
+!PROGRAM INWARD.CL.REG
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.TELLER
+    $INSERT I_ENQUIRY.COMMON
+
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+    RETURN
+
+INIT:
+!DEBUG
+    FN.AC = "F.ACCOUNT"
+    F.AC = ""
+    FN.AC.HIS = "F.ACCOUNT$HIS"
+    F.AC.HIS = ""
+    FN.TT = "F.TELLER"
+    F.TT = ""
+    FN.TT.HIS = "F.TELLER$HIS"
+    F.TT.HIS = ""
+    Y.CL.TD.POS = ''
+    CALL GET.LOC.REF("TELLER","TD.OR.NORMAL",Y.CL.TD.POS)
+
+    Y.TODAY = TODAY
+    Y.VALUE.DATE = ENQ.SELECTION<4,1>
+    Y.CUS.ACCOUNT = ""
+    Y.CUS.CHQ.NO = ''
+    Y.AMOUNT = ""
+    Y.INPUTTER = ""
+    Y.AUTHORISER = ""
+    Y.ACCT.TITLE = ""
+    Y.DR.CR.MARK = ""
+    RETURN
+
+OPENFILES:
+    CALL OPF(FN.AC,F.AC)
+    CALL OPF(FN.AC.HIS,F.AC.HIS)
+    CALL OPF(FN.TT,F.TT)
+    CALL OPF(FN.TT.HIS,F.TT.HIS)
+    RETURN
+
+PROCESS:
+
+    IF ((Y.VALUE.DATE EQ Y.TODAY) OR (Y.VALUE.DATE EQ "") OR (Y.VALUE.DATE EQ "NULL")) THEN
+        SEL.CMD = "SELECT ":FN.TT:" WITH ((TRANSACTION.CODE EQ 28) OR (TRANSACTION.CODE EQ 34) OR (TRANSACTION.CODE EQ 44) OR (TRANSACTION.CODE EQ 49) OR (TRANSACTION.CODE EQ 17)) AND CO.CODE EQ ":ID.COMPANY
+    END ELSE
+        SEL.CMD = "SELECT ":FN.TT.HIS:" WITH ((TRANSACTION.CODE EQ 28) OR (TRANSACTION.CODE EQ 34) OR (TRANSACTION.CODE EQ 44) OR (TRANSACTION.CODE EQ 49) OR (TRANSACTION.CODE EQ 17)) AND CO.CODE EQ ":ID.COMPANY:" AND VALUE.DATE.1 EQ ":Y.VALUE.DATE
+    END
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NO.OF.RECORD,RET.CODE)
+    LOOP
+        REMOVE Y.REC.ID FROM SEL.LIST SETTING Y.POS
+    WHILE Y.REC.ID:Y.POS
+
+        CALL F.READ(FN.TT,Y.REC.ID,R.TT.REC,F.TT,Y.ERR)
+        IF R.TT.REC EQ "" THEN
+            CALL F.READ(FN.TT.HIS,Y.REC.ID,R.TT.REC,F.TT.HIS,Y.ERR)
+        END
+!-------faruq 2013-05-12
+        Y.TRAN.CODE = ''
+        Y.TD.CL = ''
+        Y.TRAN.CODE = R.TT.REC<TT.TE.TRANSACTION.CODE>
+
+        Y.TD.CL = R.TT.REC<TT.TE.LOCAL.REF,Y.CL.TD.POS>
+
+!--------------HURAIRA---20140623------------
+!IF (Y.TRAN.CODE EQ 44 OR Y.TRAN.CODE EQ 28 OR Y.TRAN.CODE EQ 34 OR Y.TRAN.CODE EQ 17) OR (Y.TRAN.CODE EQ 49 AND Y.TD.CL EQ 'Clearing') THEN
+        IF (Y.TRAN.CODE EQ 44 OR Y.TRAN.CODE EQ 28 OR Y.TRAN.CODE EQ 34 OR ((Y.TRAN.CODE EQ 17 OR Y.TRAN.CODE EQ 49) AND Y.TD.CL EQ 'Clearing')) THEN
+!--------------------------------------------
+
+            Y.CUS.ACCOUNT = ''
+            Y.CUS.CHQ.NO = ''
+            Y.AMOUNT = ''
+            Y.INPUTTER = ''
+            Y.AUTHORISER = ''
+!----------
+            Y.DR.CR.MARK = R.TT.REC<TT.TE.DR.CR.MARKER>
+            IF Y.DR.CR.MARK EQ "DEBIT" THEN
+                Y.CUS.ACCOUNT = R.TT.REC<TT.TE.ACCOUNT.1>
+                Y.CUS.CHQ.NO =R.TT.REC<TT.TE.CHEQUE.NUMBER>
+                Y.AMOUNT = R.TT.REC<TT.TE.NET.AMOUNT>
+                Y.INPUTTER = FIELD(R.TT.REC<TT.TE.INPUTTER>,"_",2,1)
+                Y.AUTHORISER = FIELD(R.TT.REC<TT.TE.AUTHORISER>,"_",2,1)
+            END ELSE
+                Y.CUS.ACCOUNT = R.TT.REC<TT.TE.ACCOUNT.2>
+                Y.AMOUNT = R.TT.REC<TT.TE.NET.AMOUNT>
+!--------------faruq 2013-05-13
+                Y.CUS.CHQ.NO =R.TT.REC<TT.TE.CHEQUE.NUMBER>
+!--------------------------
+                Y.INPUTTER = FIELD(R.TT.REC<TT.TE.INPUTTER>,"_",2,1)
+                Y.AUTHORISER = FIELD(R.TT.REC<TT.TE.AUTHORISER>,"_",2,1)
+            END
+            CALL F.READ(FN.AC,Y.CUS.ACCOUNT,R.AC.REC,F.AC,Y.ERR)
+            IF R.AC.REC EQ "" THEN
+                CALL F.READ(FN.AC.HIS,Y.CUS.ACCOUNT,R.AC.REC,F.AC.HIS,Y.ERR)
+            END
+            Y.ACCT.TITLE = R.AC.REC<AC.ACCOUNT.TITLE.1>
+
+            Y.RETURN<-1> = Y.CUS.ACCOUNT:"*":Y.ACCT.TITLE:"*":Y.CUS.CHQ.NO : "*": Y.AMOUNT:"*":Y.INPUTTER:"*":Y.AUTHORISER
+!------faruq 2013-05-12
+        END
+!---------
+    REPEAT
+    RETURN
+END

@@ -1,0 +1,40 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE BD.B.BAL.CONF.LTR.ACC.RTN.LOAD
+*-------------------------------------------------------------------------------
+* Subroutine Description:
+*------------------------
+* This subroutine will perform all Initializations and necessary files
+* will be opened here
+*-------------------------------------------------------------------------------
+* Modification History:
+* ---------------------
+* 20110210 - New - Shiva Shankar G
+*                  Thesys Technologies
+*-------------------------------------------------------------------------------
+    $INCLUDE GLOBUS.BP I_COMMON
+    $INCLUDE GLOBUS.BP I_EQUATE
+    $INCLUDE GLOBUS.BP I_F.ENQUIRY.REPORT
+    $INCLUDE GLOBUS.BP I_F.ACCOUNT
+    $INCLUDE JBL.BP I_F.BD.BAL.CONF.LETTER
+    $INCLUDE JBL.BP I_BAL.CONF.LETTER.ACC.COMMON
+
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+    R.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    FN.ENQUIRY.REPORT = 'F.ENQUIRY.REPORT'
+    F.ENQUIRY.REPORT = ''
+    R.ENQUIRY.REPORT = ''
+    CALL OPF(FN.ENQUIRY.REPORT,F.ENQUIRY.REPORT)
+
+    FN.BD.BAL.CONF.LETTER = 'F.BD.BAL.CONF.LETTER'
+    F.BD.BAL.CONF.LETTER = ''
+    R.BD.BAL.CONF.LETTER = ''
+    CALL OPF(FN.BD.BAL.CONF.LETTER,F.BD.BAL.CONF.LETTER)
+
+    RETURN
+END

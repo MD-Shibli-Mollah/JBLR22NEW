@@ -1,0 +1,31 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.V.CHK.INT.ACCT.NUM
+*----------------------------------------------------------------------------------------------
+* Author        : Kiran Ghanathe
+* Description   : Attached as Field Valdiation routine to check Correct
+*                 S/A army pension A/c No has been entered in the field credit account No.
+*
+*----------------------------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+!
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT, F.ACCOUNT)
+!
+    AC.NO = COMI
+    AC.CAT = AC.NO[4,5]
+    INT.AC.CAT = "13020"
+!
+    IF INT.AC.CAT NE AC.CAT THEN
+        ETEXT = "Please Enter S/A Army Pension Internal A/c No"
+        CALL STORE.END.ERROR
+    END ELSE
+        COMI = AC.NO
+    END
+!
+    RETURN
+END

@@ -1,0 +1,30 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE JBL.INDIV.LIMIT.CHECKID
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.INDIV.DEALER.LIMIT
+    $INSERT I_F.OVE.DEALING.LIMIT
+
+    FN.OVE.DEALING.LIMIT = 'F.EB.OVE.DEALING.LIMIT'
+    F.OVE.DEALING.LIMIT = ''
+    CALL OPF(FN.OVE.DEALING.LIMIT,F.OVE.DEALING.LIMIT)
+
+    ID.NEW = COMI
+
+    IF LEN(ID.NEW) NE 7 THEN
+        E = "EB-DEALER.ID.LENGTH"
+    END
+    IF ID.NEW[3,1] NE "-" THEN
+        E = "EB-DEALER.ID"
+    END
+
+    CALL F.READ(FN.OVE.DEALING.LIMIT,ID.NEW[1,2],R.OVE.DEALING.LIMIT,F.OVE.DEALING.LIMIT,R.OVE.ERROR)
+    IF R.OVE.ERROR THEN
+        E = "EB-DEALING.ROOM.NO.EXIST"
+    END ELSE
+        R.NEW(EB.IND48.APPLICATION) = R.OVE.DEALING.LIMIT<EB.OVE45.APPLICATION>
+    END
+    RETURN
