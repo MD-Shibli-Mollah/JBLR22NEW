@@ -139,7 +139,6 @@ SUBROUTINE GB.JBL.BA.CARD.FT.CHK
 
     IF Y.FT.ID NE "" THEN
         EB.DataAccess.FRead(FN.FT.NAU, Y.FT.ID, REC.FT.CHK, F.FT.NAU,ERR.FT)
-
         IF REC.FT.CHK NE "" THEN
             EB.SystemTables.setEtext("CRMS-FUNDS TRANSFER UNAUTHRISED STAGE")
             EB.ErrorProcessing.StoreEndError()
@@ -147,6 +146,8 @@ SUBROUTINE GB.JBL.BA.CARD.FT.CHK
         IF REC.FT.CHK EQ "" THEN
             EB.DataAccess.FRead(FN.FT, Y.FT.ID, REC.FT.CHK, F.FT, ERR.FT.LIVE)
             IF REC.FT.CHK EQ "" THEN
+                EB.SystemTables.setEtext("CRMS-FUNDS TRANSFER is not Available")
+                EB.ErrorProcessing.StoreEndError()
                 EB.DataAccess.ReadHistoryRec(F.FT.HIS,Y.FT.ID,REC.FT.CHK,Y.ERR.FT.HIS)
                 Y.FT.REC.STATUS = REC.FT.CHK<FT.Contract.FundsTransfer.RecordStatus>
                 IF Y.FT.REC.STATUS EQ "REVE" THEN
