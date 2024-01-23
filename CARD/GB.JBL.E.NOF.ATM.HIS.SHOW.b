@@ -18,7 +18,7 @@
 * Developed By: Md. Robiul Islam
 *Deploy Date: 12 JAN 2017
 *-----------------------------------------------------------------------------
-SUBROUTINE GB.JBL.E.NOF.ATM.HIS.SHOW
+SUBROUTINE GB.JBL.E.NOF.ATM.HIS.SHOW(Y.LIST)
         
 * Modification History :
 * 1) *List of ATM HISTORY

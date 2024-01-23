@@ -37,6 +37,9 @@ SUBROUTINE GB.JBL.I.ATM.ACC.CHK
     $USING AC.AccountOpening
 * $INSERT I_F.ATM.CARD.MGT
     $INSERT I_F.EB.JBL.ATM.CARD.MGT
+    $INSERT I_F.EB.JBL.ATM.CARD.PARAMETER
+    $INSERT I_F.EB.JBL.ATM.MAINT.CALC
+    $INSERT I_F.EB.JBL.CARD.OFF.INFO
 * $INSERT I_F.CUSTOMER
     $USING ST.Customer
     $USING EB.SystemTables
@@ -52,36 +55,15 @@ SUBROUTINE GB.JBL.I.ATM.ACC.CHK
     Y.PGM.VERSION = EB.SystemTables.getPgmVersion()
     Y.APPLICATION = EB.SystemTables.getApplication()
     Y.APP.VERSION = Y.APPLICATION:Y.PGM.VERSION
-    Y.FUNC = V$FUNCTION
-    Y.GET.MESSAGE = MESSAGE
-    Y.OFS.OPERATION = OFS$OPERATION
     Y.COMP.OFSOPS = EB.Interface.getOfsOperation()
-    Y.GET.OFS.MESSAGE = OFS$MESSAGE
-    
-    Y.VACTION = EB.SystemTables.getVAction()
     
     Y.CARD.REC.STATUS = EB.SystemTables.getRNew(EB.ATM19.RECORD.STATUS)
-    
-****--------------------------TRACER------------------------------------------------------------------------------
-    WriteData = "GB.JBL.I.ATM.ACC.CHK = Y.VFUNCTION: ":Y.VFUNCTION:" Y.FUNC: ":Y.FUNC:" Y.GET.OFS.MESSAGE: ":Y.GET.OFS.MESSAGE:" Y.OFS.OPERATION: ":Y.OFS.OPERATION:" Y.COMP.OFSOPS: ":Y.COMP.OFSOPS:" Y.CARD.REC.STATUS: ":Y.CARD.REC.STATUS
-    FileName = 'SHIBLI_ATM.txt'
-    FilePath = 'D:/Temenos/t24home/default/DL.BP'
-    OPENSEQ FilePath,FileName TO FileOutput THEN NULL
-    ELSE
-        CREATE FileOutput ELSE
-        END
-    END
-    WRITESEQ WriteData APPEND TO FileOutput ELSE
-        CLOSESEQ FileOutput
-    END
-    CLOSESEQ FileOutput
-********--------------------------TRACER-END--------------------------------------------------------*********************
+
     IF (Y.APP.VERSION EQ "EB.JBL.ATM.CARD.MGT,ISSUE") AND (Y.CARD.REC.STATUS EQ "IHLD") THEN
         EB.SystemTables.setE("Rec in HOLD Status, Please Create a New Deal")
         EB.ErrorProcessing.StoreEndError()
         RETURN
     END
-* IF EB.SystemTables.getVFunction() EQ 'V' THEN RETURN
 
     GOSUB INIT
     GOSUB OPENFILES
@@ -94,9 +76,21 @@ INIT:
     F.AC.HIS = ""
     FN.CUS = "F.CUSTOMER"
     F.CUS = ""
+    FN.CARD.PARAM = "F.EB.JBL.ATM.CARD.PARAMETER"
+    F.CARD.PARAM = ""
+    FN.JBL.ATM.CALC = 'F.EB.JBL.ATM.MAINT.CALC'
+    F.JBL.ATM.CALC = ''
+    FN.CARD.OFF = "F.EB.JBL.CARD.OFF.INFO"
+    F.CARD.OFF = ""
     
+    Y.CARD.PARAM.ID = "SYSTEM"
+    EB.DataAccess.Opf(FN.CARD.PARAM, F.CARD.PARAM)
+    EB.DataAccess.FRead(FN.CARD.PARAM, Y.CARD.PARAM.ID, R.CARD.PARAM.REC, F.CARD.PARAM, Y.CARD.ERR)
+    Y.CATEGORY.ALLOW = R.CARD.PARAM.REC<EB.JBL74.CATEGORY>
+    Y.TITLE.LENGTH = R.CARD.PARAM.REC<EB.JBL74.TITLE.LENGTH>
+        
     Y.ACCOUNT = EB.SystemTables.getRNew(EB.ATM19.ACCT.NO)
-    Y.CATEGORY.ALLOW = 1001:@FM:6001:@FM:6004:@FM:6019
+* Y.CATEGORY.ALLOW = 1001:@FM:6001:@FM:6004:@FM:6019
 
     Y.DR.DT = Y.TODAY
     Y.DEBIT.ACCT.ID = Y.ACCOUNT
@@ -105,6 +99,8 @@ INIT:
 *---- S/D A/C: Fees for ATM Card Vendor --------*
     Y.CR.ACC.NUM.1 = "USD1720800010001"
     Y.D.AMT.1 = "250"
+    Y.FT.COMM.1 = "CARDCRGBR"
+    Y.ATM.COM.AMT.1 = "250"
 *---- Income A/C: Card Maintenance Fee -----*
     Y.CR.ACC.NUM.2 = "PL52047"
     Y.D.AMT.2 = "250"
@@ -127,7 +123,7 @@ INIT:
     
     Y.CARD.TYPE = EB.SystemTables.getRNew(EB.ATM19.CARD.TYPE)
     Y.CARD.NAME = EB.SystemTables.getRNew(EB.ATM19.CARD.NAME)
-    Y.CARD.ATTRIBUTE2 = EB.SystemTables.getRNew(EB.ATM19.ATTRIBUTE2)
+    Y.CARD.ATTRIBUTE5 = EB.SystemTables.getRNew(EB.ATM19.ATTRIBUTE5)
     Y.ID.NEW = EB.SystemTables.getIdNew()
     R.AC.REC = ""
     Y.FLAG = 0
@@ -135,11 +131,13 @@ INIT:
     
 OPENFILES:
 *EB.DataAccess.Opf(YnameIn, YnameOut)
-    EB.DataAccess.Opf(FN.AC,F.AC)
-    EB.DataAccess.Opf(FN.AC.HIS,F.AC.HIS)
-    EB.DataAccess.Opf(FN.CUS,F.CUS)
-    EB.DataAccess.Opf(FN.ATM,F.ATM)
-    EB.DataAccess.Opf(FN.ATM.NAU,F.ATM.NAU)
+    EB.DataAccess.Opf(FN.AC, F.AC)
+    EB.DataAccess.Opf(FN.AC.HIS, F.AC.HIS)
+    EB.DataAccess.Opf(FN.CUS, F.CUS)
+    EB.DataAccess.Opf(FN.ATM, F.ATM)
+    EB.DataAccess.Opf(FN.ATM.NAU, F.ATM.NAU)
+    EB.DataAccess.Opf(FN.JBL.ATM.CALC, F.JBL.ATM.CALC)
+    EB.DataAccess.Opf(FN.CARD.OFF, F.CARD.OFF)
 RETURN
 
 PROCESS:
@@ -205,11 +203,11 @@ PROCESS:
         Y.COM.UPZ = Y.LT.CUS.COMU.UPZ
         Y.COM.DIST = Y.LT.CUS.COMU.DIST
 
-        Y.CATEGORY.COUNT = DCOUNT(Y.CATEGORY.ALLOW, @FM)
+        Y.CATEGORY.COUNT = DCOUNT(Y.CATEGORY.ALLOW, @VM)
         Y.CATE.CHK = 0
         
         FOR I=1 TO Y.CATEGORY.COUNT
-            Y.CATE = FIELD(Y.CATEGORY.ALLOW, @FM, I)
+            Y.CATE = FIELD(Y.CATEGORY.ALLOW, @VM, I)
             
             IF Y.CATE EQ Y.CATEGORY.ACC THEN
                 Y.CATE.CHK = 1
@@ -312,14 +310,14 @@ PROCESS:
             EB.SystemTables.setEtext("INVALID ACCOUNT")
             EB.ErrorProcessing.StoreEndError()
         END
-        ELSE IF Y.AC.MODE NE "" AND Y.MODE.FLAG EQ 0 THEN
-            EB.SystemTables.setEtext("INDIVIDUAL ACCOUNT ALLOW MODE OF OPERATION MUST BE SELF")
-            EB.ErrorProcessing.StoreEndError()
-        END
-        ELSE IF  Y.AC.NATURE NE "" AND Y.AC.NATURE NE "INDIVIDUAL ACCOUNT" THEN
-            EB.SystemTables.setEtext("INDIVIDUAL ACCOUNT ALLOW ACCOUNT NATURE MUST BE INDIVIDUAL ACCOUNT")
-            EB.ErrorProcessing.StoreEndError()
-        END
+*        ELSE IF Y.AC.MODE NE "" AND Y.MODE.FLAG EQ 0 THEN
+*            EB.SystemTables.setEtext("INDIVIDUAL ACCOUNT ALLOW MODE OF OPERATION MUST BE SELF")
+*            EB.ErrorProcessing.StoreEndError()
+*        END
+*        ELSE IF Y.AC.NATURE NE "" AND Y.AC.NATURE NE "INDIVIDUAL ACCOUNT" THEN
+*            EB.SystemTables.setEtext("INDIVIDUAL ACCOUNT ALLOW ACCOUNT NATURE MUST BE INDIVIDUAL ACCOUNT")
+*            EB.ErrorProcessing.StoreEndError()
+*        END
 
 
         ELSE IF Y.POSTING.RESTRICT NE "" AND R.AC.REC NE "" THEN
@@ -362,101 +360,162 @@ PROCESS:
                     BREAK
                 END
             REPEAT
-
         END
 
-        Y.COUNT = DCOUNT(Y.CARD.NAME," ")
+        Y.COUNT = DCOUNT(Y.CARD.NAME, " ")
         FOR I=1 TO Y.COUNT
-            IF NOT(ALPHA(FIELD(Y.CARD.NAME," ",I))) THEN
+            IF NOT(ALPHA(FIELD(Y.CARD.NAME, " ", I))) THEN
                 EB.SystemTables.setEtext("PLEASE REMOVE SPECIAL CHARACTER FROM CARD NAME")
                 EB.ErrorProcessing.StoreEndError()
             END
         NEXT I
+    
+        Y.NAME.COUNT = DCOUNT(Y.CARD.NAME, "") - 1
+        IF Y.NAME.COUNT GT Y.TITLE.LENGTH THEN
+            EB.SystemTables.setE("CARD Name: Length must be less than or equal to ":Y.TITLE.LENGTH:" Characters")
+            EB.ErrorProcessing.StoreEndError()
+        END
+        
+********--------------------------TRACER------------------------------------------------------------------------------
+        WriteData = "GB.JBL.I.ATM.ACC.CHK = Y.CATEGORY.ALLOW: ":Y.CATEGORY.ALLOW:" Y.NAME.CARD.COUNT: ":Y.NAME.COUNT
+        FileName = 'SHIBLI_ATM.txt'
+        FilePath = 'D:/Temenos/t24home/default/DL.BP'
+        OPENSEQ FilePath,FileName TO FileOutput THEN NULL
+        ELSE
+            CREATE FileOutput ELSE
+            END
+        END
+        WRITESEQ WriteData APPEND TO FileOutput ELSE
+            CLOSESEQ FileOutput
+        END
+        CLOSESEQ FileOutput
+********--------------------------TRACER-END--------------------------------------------------------*********************
+    
 
 *----------------DEBIT FROM CUS ACC USING OFS --------------------------------------------------------
         IF (Y.APP.VERSION EQ "EB.JBL.ATM.CARD.MGT,ISSUE") AND (Y.COMP.OFSOPS EQ "PROCESS") AND (Y.VFUNCTION EQ "I") THEN
-            KOfsSource1 = "OFS.LOAD"
+            Y.JBL.ATM.CALC = "ISSUE"
+            EB.DataAccess.FRead(FN.JBL.ATM.CALC, Y.JBL.ATM.CALC, JBL.ATM.CALC.REC, F.JBL.ATM.CALC, JBL.ATM.CALC.ERR)
+            Y.INCLUDE.CATEGORY = JBL.ATM.CALC.REC<EB.ATM.MAINT.INCLUDE.CATEGORY>
+            Y.TRN.TYPE = JBL.ATM.CALC.REC<EB.ATM.MAINT.TRANSACTION.TYPE>
+        
+            FIND Y.CATEGORY.ACC IN Y.INCLUDE.CATEGORY SETTING Y.POS1, Y.POS2 THEN
+                Y.TRN.TYPE = JBL.ATM.CALC.REC<EB.ATM.MAINT.TRANSACTION.TYPE>
+                Y.TR.CODE = Y.TRN.TYPE
+                Y.VEN.ACT = JBL.ATM.CALC.REC<EB.ATM.MAINT.VEN.ACCT, Y.POS2>
+                Y.VEN.AMT = JBL.ATM.CALC.REC<EB.ATM.MAINT.VEN.CHARGE.AMT, Y.POS2>
+                
+                Y.CR.ACC.NUM.1 = Y.VEN.ACT
+                Y.D.AMT.1 = Y.VEN.AMT
+        
+                EB.DataAccess.FRead(FN.CARD.OFF, Y.ACCOUNT, REC.OFF, F.CARD.OFF, ERR.OFF)
+                Y.CARD.OFFER.VAL = REC.OFF<EB.JBL.CARD.OFF.CARD.OFFER>
+                IF Y.CARD.OFFER.VAL NE "50Percent" THEN
+                    Y.CHRG.TYPE = JBL.ATM.CALC.REC<EB.ATM.MAINT.CHARGE.TYPE, Y.POS2>
+                    Y.BR.CHRG.AMT = JBL.ATM.CALC.REC<EB.ATM.MAINT.BRANCH.CHARGE.AMT, Y.POS2>
+                    Y.FT.COMM = JBL.ATM.CALC.REC<EB.ATM.MAINT.FT.COMM.TYPE, Y.POS2>
+                    Y.FT.COMM.1 = Y.FT.COMM
+                    Y.ATM.COM.AMT = JBL.ATM.CALC.REC<EB.ATM.MAINT.FT.COMM.AMT, Y.POS2>
+                    Y.ATM.COM.AMT.1 = Y.ATM.COM.AMT
+                    Y.VAT.PER = JBL.ATM.CALC.REC<EB.ATM.MAINT.VAT.PERCENT, Y.POS2>
+                END
+            END
+    
+            KOfsSource1 = "CARD.OFS"
+            
             OfsMessage<FT.Contract.FundsTransfer.TransactionType> = Y.TR.CODE
             OfsMessage<FT.Contract.FundsTransfer.DebitAcctNo> = Y.DEBIT.ACCT.ID
             OfsMessage<FT.Contract.FundsTransfer.DebitCurrency> = Y.AC.CURR
             OfsMessage<FT.Contract.FundsTransfer.DebitAmount> = Y.D.AMT.1
             OfsMessage<FT.Contract.FundsTransfer.DebitValueDate> = Y.DR.DT
             OfsMessage<FT.Contract.FundsTransfer.CreditAcctNo> = Y.CR.ACC.NUM.1
+            
+            IF Y.ATM.COM.AMT NE "" THEN
+                OfsMessage<FT.Contract.FundsTransfer.CommissionCode> = "DEBIT PLUS CHARGES"
+                OfsMessage<FT.Contract.FundsTransfer.CommissionType> = Y.FT.COMM.1
+                OfsMessage<FT.Contract.FundsTransfer.CommissionAmt> = "USD":Y.ATM.COM.AMT
+            END
+
+*    IF Y.REQUEST.TYPE EQ "PINREISSUE" OR Y.REQUEST.TYPE EQ "CLOSE" THEN
+*        R.NEW(FT.COMMISSION.CODE)="DEBIT PLUS CHARGES"
+*        R.NEW(FT.COMMISSION.TYPE)=Y.FT.COMM
+*    END
+            
 *---------------- OFS for S/D A/C: Fees for ATM Card Vendor --------*
             Ofsrecord = ''
-            EB.Foundation.OfsBuildRecord("FUNDS.TRANSFER", "I", "PROCESS", "FUNDS.TRANSFER,JBL.ATM.OFS.AC", "", 0, "", OfsMessage, Ofsrecord)
+            EB.Foundation.OfsBuildRecord("FUNDS.TRANSFER", "I", "PROCESS", "FUNDS.TRANSFER,JBL.ATM.OFS.AC", "", 1, "", OfsMessage, Ofsrecord)
             EB.Interface.OfsGlobusManager(KOfsSource1, Ofsrecord)
             T24TxnRef = FIELD(Ofsrecord, '/', 1)
             
-********--------------------------TRACER------------------------------------------------------------------------------
-            WriteData = "GB.JBL.I.ATM.ACC.CHK =":" Ofsrecord: ":Ofsrecord:" OfsMessage: ":OfsMessage:" Y.GET.MESSAGE: ":Y.GET.MESSAGE:" Y.VACTION: ":Y.VACTION:" T24TxnRef: ":T24TxnRef:" Y.VFUNCTION: ":Y.VFUNCTION:" Y.GET.OFS.MESSAGE: ":Y.GET.OFS.MESSAGE:" Y.OFS.OPERATION: ":Y.OFS.OPERATION:" Y.COMP.OFSOPS: ":Y.COMP.OFSOPS
-            FileName = 'SHIBLI_ATM.txt'
-            FilePath = 'D:/Temenos/t24home/default/DL.BP'
-            OPENSEQ FilePath,FileName TO FileOutput THEN NULL
-            ELSE
-                CREATE FileOutput ELSE
-                END
-            END
-            WRITESEQ WriteData APPEND TO FileOutput ELSE
-                CLOSESEQ FileOutput
-            END
-            CLOSESEQ FileOutput
-********--------------------------TRACER-END--------------------------------------------------------*********************
-            
-*---------------- Income A/C: Card Maintenance Fee -----*
-            KOfsSource2 = "OFS.LOAD.2"
-            OfsMessage<FT.Contract.FundsTransfer.DebitAmount> = Y.D.AMT.2
-            OfsMessage<FT.Contract.FundsTransfer.CreditAcctNo> = Y.CR.ACC.NUM.2
-* Ofsrecord = ''
-            
-            EB.Foundation.OfsBuildRecord("FUNDS.TRANSFER", "I", "PROCESS", "FUNDS.TRANSFER,JBL.ATM.OFS.AC.2", "", 0, "", OfsMessage, Ofsrecord)
-            EB.Interface.OfsGlobusManager(KOfsSource2, Ofsrecord)
-*            EB.Interface.OfsCallBulkManager(KOfsSource2, OfsMessage, OFS.RES, TXN.VAL)
-        
-********--------------------------TRACER------------------------------------------------------------------------------
-*  WriteData = "GB.JBL.I.ATM.ACC.CHK =":" KOfsSource2: ":KOfsSource2:" OfsMessage: ":OfsMessage:" OFS.RES: ":OFS.RES:" TXN.VAL: ":TXN.VAL:" Y.COMP.OFSOPS: ":Y.COMP.OFSOPS
-            WriteData = "GB.JBL.I.ATM.ACC.CHK =":" Ofsrecord: ":Ofsrecord:" OfsMessage: ":OfsMessage:" Y.GET.MESSAGE: ":Y.GET.MESSAGE:" Y.VACTION: ":Y.VACTION:" T24TxnRef: ":T24TxnRef:" Y.VFUNCTION: ":Y.VFUNCTION:" Y.COMP.OFSOPS: ":Y.COMP.OFSOPS
-            FileName = 'SHIBLI_ATM.txt'
-            FilePath = 'D:/Temenos/t24home/default/DL.BP'
-            OPENSEQ FilePath,FileName TO FileOutput THEN NULL
-            ELSE
-                CREATE FileOutput ELSE
-                END
-            END
-            WRITESEQ WriteData APPEND TO FileOutput ELSE
-                CLOSESEQ FileOutput
-            END
-            CLOSESEQ FileOutput
-********--------------------------TRACER-END--------------------------------------------------------*********************
-            
-*---------------- S/D A/C Comm-VAT on ATM Card Vendor -------*
-            KOfsSource3 = "OFS.LOAD.3"
-            OfsMessage<FT.Contract.FundsTransfer.DebitAmount> = Y.D.AMT.3
-            OfsMessage<FT.Contract.FundsTransfer.CreditAcctNo> = Y.CR.ACC.NUM.3
-* Ofsrecord = ''
-            EB.Foundation.OfsBuildRecord("FUNDS.TRANSFER", "I", "PROCESS", "FUNDS.TRANSFER,JBL.ATM.OFS.AC.3", "", 0, "", OfsMessage, Ofsrecord)
-            EB.Interface.OfsGlobusManager(KOfsSource3, Ofsrecord)
-*            EB.Interface.OfsCallBulkManager(KOfsSource3, OfsMessage, OFS.RES, TXN.VAL)
-        
-********--------------------------TRACER------------------------------------------------------------------------------
-* WriteData = "GB.JBL.I.ATM.ACC.CHK =":" KOfsSource3: ":KOfsSource3:" OfsMessage: ":OfsMessage:" OFS.RES: ":OFS.RES:" TXN.VAL: ":TXN.VAL:" Y.COMP.OFSOPS: ":Y.COMP.OFSOPS
-            WriteData = "GB.JBL.I.ATM.ACC.CHK =":" Ofsrecord: ":Ofsrecord:" OfsMessage: ":OfsMessage:" Y.GET.MESSAGE: ":Y.GET.MESSAGE:" Y.VACTION: ":Y.VACTION:" T24TxnRef: ":T24TxnRef:" Y.VFUNCTION: ":Y.VFUNCTION:" Y.COMP.OFSOPS: ":Y.COMP.OFSOPS
-            FileName = 'SHIBLI_ATM.txt'
-            FilePath = 'D:/Temenos/t24home/default/DL.BP'
-            OPENSEQ FilePath,FileName TO FileOutput THEN NULL
-            ELSE
-                CREATE FileOutput ELSE
-                END
-            END
-            WRITESEQ WriteData APPEND TO FileOutput ELSE
-                CLOSESEQ FileOutput
-            END
-            CLOSESEQ FileOutput
-********--------------------------TRACER-END--------------------------------------------------------*********************
             IF T24TxnRef NE "" THEN
-                EB.SystemTables.setRNew(EB.ATM19.ATTRIBUTE2, T24TxnRef)
+                EB.SystemTables.setRNew(EB.ATM19.ATTRIBUTE5, T24TxnRef)
             END
+
+********--------------------------TRACER------------------------------------------------------------------------------
+            WriteData = "GB.JBL.I.ATM.ACC.CHK =":" Ofsrecord: ":Ofsrecord:" OfsMessage: ":OfsMessage:" T24TxnRef: ":T24TxnRef:" Y.VFUNCTION: ":Y.VFUNCTION:" Y.COMP.OFSOPS: ":Y.COMP.OFSOPS
+            FileName = 'SHIBLI_ATM.txt'
+            FilePath = 'D:/Temenos/t24home/default/DL.BP'
+            OPENSEQ FilePath,FileName TO FileOutput THEN NULL
+            ELSE
+                CREATE FileOutput ELSE
+                END
+            END
+            WRITESEQ WriteData APPEND TO FileOutput ELSE
+                CLOSESEQ FileOutput
+            END
+            CLOSESEQ FileOutput
+********--------------------------TRACER-END--------------------------------------------------------*********************
+            
+**---------------- Income A/C: Card Maintenance Fee -----*
+*            KOfsSource2 = "OFS.LOAD.2"
+*            OfsMessage<FT.Contract.FundsTransfer.DebitAmount> = Y.D.AMT.2
+*            OfsMessage<FT.Contract.FundsTransfer.CreditAcctNo> = Y.CR.ACC.NUM.2
+** Ofsrecord = ''
+*
+*            EB.Foundation.OfsBuildRecord("FUNDS.TRANSFER", "I", "PROCESS", "FUNDS.TRANSFER,JBL.ATM.OFS.AC.2", "", 0, "", OfsMessage, Ofsrecord)
+*            EB.Interface.OfsGlobusManager(KOfsSource2, Ofsrecord)
+**            EB.Interface.OfsCallBulkManager(KOfsSource2, OfsMessage, OFS.RES, TXN.VAL)
+*
+*********--------------------------TRACER------------------------------------------------------------------------------
+**  WriteData = "GB.JBL.I.ATM.ACC.CHK =":" KOfsSource2: ":KOfsSource2:" OfsMessage: ":OfsMessage:" OFS.RES: ":OFS.RES:" TXN.VAL: ":TXN.VAL:" Y.COMP.OFSOPS: ":Y.COMP.OFSOPS
+*            WriteData = "GB.JBL.I.ATM.ACC.CHK =":" Ofsrecord: ":Ofsrecord:" OfsMessage: ":OfsMessage:" Y.GET.MESSAGE: ":Y.GET.MESSAGE:" Y.VACTION: ":Y.VACTION:" T24TxnRef: ":T24TxnRef:" Y.VFUNCTION: ":Y.VFUNCTION:" Y.COMP.OFSOPS: ":Y.COMP.OFSOPS
+*            FileName = 'SHIBLI_ATM.txt'
+*            FilePath = 'D:/Temenos/t24home/default/DL.BP'
+*            OPENSEQ FilePath,FileName TO FileOutput THEN NULL
+*            ELSE
+*                CREATE FileOutput ELSE
+*                END
+*            END
+*            WRITESEQ WriteData APPEND TO FileOutput ELSE
+*                CLOSESEQ FileOutput
+*            END
+*            CLOSESEQ FileOutput
+*********--------------------------TRACER-END--------------------------------------------------------*********************
+            
+**---------------- S/D A/C Comm-VAT on ATM Card Vendor -------*
+*            KOfsSource3 = "OFS.LOAD.3"
+*            OfsMessage<FT.Contract.FundsTransfer.DebitAmount> = Y.D.AMT.3
+*            OfsMessage<FT.Contract.FundsTransfer.CreditAcctNo> = Y.CR.ACC.NUM.3
+** Ofsrecord = ''
+*            EB.Foundation.OfsBuildRecord("FUNDS.TRANSFER", "I", "PROCESS", "FUNDS.TRANSFER,JBL.ATM.OFS.AC.3", "", 0, "", OfsMessage, Ofsrecord)
+*            EB.Interface.OfsGlobusManager(KOfsSource3, Ofsrecord)
+**            EB.Interface.OfsCallBulkManager(KOfsSource3, OfsMessage, OFS.RES, TXN.VAL)
+*
+*********--------------------------TRACER------------------------------------------------------------------------------
+** WriteData = "GB.JBL.I.ATM.ACC.CHK =":" KOfsSource3: ":KOfsSource3:" OfsMessage: ":OfsMessage:" OFS.RES: ":OFS.RES:" TXN.VAL: ":TXN.VAL:" Y.COMP.OFSOPS: ":Y.COMP.OFSOPS
+*            WriteData = "GB.JBL.I.ATM.ACC.CHK =":" Ofsrecord: ":Ofsrecord:" OfsMessage: ":OfsMessage:" Y.GET.MESSAGE: ":Y.GET.MESSAGE:" Y.VACTION: ":Y.VACTION:" T24TxnRef: ":T24TxnRef:" Y.VFUNCTION: ":Y.VFUNCTION:" Y.COMP.OFSOPS: ":Y.COMP.OFSOPS
+*            FileName = 'SHIBLI_ATM.txt'
+*            FilePath = 'D:/Temenos/t24home/default/DL.BP'
+*            OPENSEQ FilePath,FileName TO FileOutput THEN NULL
+*            ELSE
+*                CREATE FileOutput ELSE
+*                END
+*            END
+*            WRITESEQ WriteData APPEND TO FileOutput ELSE
+*                CLOSESEQ FileOutput
+*            END
+*            CLOSESEQ FileOutput
+*********--------------------------TRACER-END--------------------------------------------------------*********************
         END
         RETURN
     END
-

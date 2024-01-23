@@ -27,18 +27,18 @@ SUBROUTINE EB.JBL.ATM.MAINT.CALC.CHECKID
 *-----------------------------------------------------------------------------
 
 *******--------------------------TRACER------------------------------------------------------------------------------
-    WriteData = "EB.JBL.ATM.MAINT.CALC.CHECKID Routine is found Successfully"
-    FileName = 'SHIBLI_ATM.txt'
-    FilePath = 'D:/Temenos/t24home/default/DL.BP'
-    OPENSEQ FilePath,FileName TO FileOutput THEN NULL
-    ELSE
-        CREATE FileOutput ELSE
-        END
-    END
-    WRITESEQ WriteData APPEND TO FileOutput ELSE
-        CLOSESEQ FileOutput
-    END
-    CLOSESEQ FileOutput
+*    WriteData = "EB.JBL.ATM.MAINT.CALC.CHECKID Routine is found Successfully"
+*    FileName = 'SHIBLI_ATM.txt'
+*    FilePath = 'D:/Temenos/t24home/default/DL.BP'
+*    OPENSEQ FilePath,FileName TO FileOutput THEN NULL
+*    ELSE
+*        CREATE FileOutput ELSE
+*        END
+*    END
+*    WRITESEQ WriteData APPEND TO FileOutput ELSE
+*        CLOSESEQ FileOutput
+*    END
+*    CLOSESEQ FileOutput
 
 *******--------------------------TRACER-END--------------------------------------------------------*********************
 
