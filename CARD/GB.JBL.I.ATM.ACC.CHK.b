@@ -152,7 +152,7 @@ PROCESS:
         Y.CUSTOMER = R.AC.REC<AC.AccountOpening.Account.Customer>
 *-----------------------ACCOUNT LT need to check--------------------------------------------*
         EB.Foundation.MapLocalFields('ACCOUNT', 'LT.MODE.OF.OPER', Y.MODE.OF.OPER.POS)
-        EB.Foundation.MapLocalFields('ACCOUNT', 'LT.ACCOUNT.NATURE', Y.ACCOUNT.NATURE.POS)
+        EB.Foundation.MapLocalFields('ACCOUNT', 'LT.AC.NATURE', Y.ACCOUNT.NATURE.POS)
         Y.AC.MODE = UPCASE(R.AC.REC<AC.AccountOpening.Account.LocalRef, Y.MODE.OF.OPER.POS>)
         Y.AC.NATURE = UPCASE(R.AC.REC<AC.AccountOpening.Account.LocalRef, Y.ACCOUNT.NATURE.POS>)
         

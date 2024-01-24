@@ -15,6 +15,9 @@ git branch -D master
 Special ----
 git pull origin main --allow-unrelated-histories
 git push -u origin main
+git push -u main main
+
+git pull main main --allow-unrelated-histories
 
 Authentication helper---
 ### https://stackoverflow.com/questions/74051851/git-keeps-asking-for-authentication
