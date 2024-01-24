@@ -1,0 +1,82 @@
+4,99
+EB.JBL.CARD.BATCH.INFO$NAU
+RECORD.STATUS EQ IHLD
+
+
+
+
+
+
+
+
+
+
+@IDBINCARD NOISSUE DATEEXPIRE DATEREASON
+@IDBINCARD.NOISSUE.DATEEXPIRE.DATEOVERRIDE
+123456
+35L6R20R8R8R35R
+
+
+
+
+T24 AC
+
+
+
+
+
+
+
+
+
+
+
+
+SSSSSM
+EB.JBL.CARD.BATCH.INFO,CARDINFO D @ID
+
+@ID 1
+Delete[txndelete.gif
+6 123456
+
+1 6
+0 
+0 
+0 
+1 1
+
+
+
+
+
+
+
+
+
+FASTPATH
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1
+10_SHIBLI__OFS_BROWSERTC
+2401091704
+10_SHIBLI_OFS_BROWSERTC
+GB0010001
+1

@@ -1,0 +1,82 @@
+2,19
+EB.JBL.ATM.CARD.MGT
+CO.CODE EQ !COMPANYCARD.STATUS EQ APPROVED
+
+
+ACCT.NO@ID
+ACCT.NOREF NO
+EQEQ
+
+
+
+
+@(20,1) ATM CARD APPROVED LIST
+Ref.NoAccount NumberCARD.NAMEREQUEST.TYPECard TYPECard StatusCard NoValid FromValid To
+@IDACCT.NOCARD.NAMEREQUEST.TYPECARD.TYPECARD.STATUSCARD.NOFROM.DATETO.DATE
+123456789
+50L13L19L20L10L30L20L11L11L
+
+
+D/2ED/2E
+
+Ref No
+
+
+
+
+
+
+
+
+
+
+
+
+SSSSSSSSS
+EB.JBL.ATM.CARD.MGT,RECEIVED I Ref.No
+
+Ref.No 1
+SMS Confirmation Detail[edit.gif
+9 123456789
+
+0 
+0 
+0 
+0 
+1 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1
+7_SHIBLI__OFS_BROWSERTC
+2401041203
+7_SHIBLI_OFS_BROWSERTC
+GB0010001
+1
