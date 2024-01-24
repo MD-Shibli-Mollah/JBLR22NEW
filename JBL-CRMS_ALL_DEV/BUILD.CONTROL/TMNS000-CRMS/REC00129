@@ -1,0 +1,82 @@
+4,99
+EB.JBL.ATM.CARD.MGT$NAU
+INPUTTER.CO.CODE EQ BD0012001CARD.STATUS EQ APPROVED DENIED
+ACCT.NO
+
+
+
+
+
+
+
+
+
+HEADER@IDACCT.NOCARD.NAMECARD.TYPEREQUEST.TYPECARD.STATUSCARD.NOValid FromValid ToNARRATIVEDATE.TIMEINPUTTERSTATUSV.DENIEDV.UPDV.CLOSEV.PINVER.DOWN1VER.DOWN2VER.DOWNZERORECORDS
+"Unauthorised CARD REQUEST"@IDACCT.NOCARD.NAMECARD.TYPEREQUEST.TYPECARD.STATUSCARD.NOFROM.DATETO.DATENARRATIVEDATE.TIMEINPUTTERCARD.STATUS"EB.JBL.ATM.CARD.MGT,DENIED""EB.JBL.ATM.CARD.MGT,UPDATE""EB.JBL.ATM.CARD.MGT,CLOSEHO""EB.JBL.ATM.CARD.MGT,PINHO"IF REQUEST.TYPE EQ CLOSE V.CLOSE V.UPDIF REQUEST.TYPE EQ PINREISSUE V.PIN VER.DOWN1IF CARD.STATUS EQ DENIED V.DENIED VER.DOWN2"No Pending REQUEST"
+1,01234567891011121
+20L13L19L10R20L15L20L11L11L100L15R35R30R
+F _,2,1
+
+D/2ED/2ED/2E
+NONE
+ATM RefACCOUNT NUMBERInputter
+CLASS-ENQ.H.TITLECLASS-ENQ.NORECS
+HEADERHEADER
+
+
+
+
+
+
+
+
+
+
+SSSSSSSSSSMMSS
+VER.DOWN A @IDVER.DOWN D @ID
+
+@ID 2@ID 2
+Authorise[txnauthorise.gifDelete[txndelete.gif
+21 123456789101112131415161718192021
+
+2 1213
+0 
+1 22
+0 
+2 212
+
+
+
+
+
+
+
+
+Unauthorised ATM REQUEST
+NO.SELECTIONZERORECORDDISPLAYFASTPATH
+
+Unauthorised ATM REQUEST
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1
+10_SHIBLI__OFS_BROWSERTC
+2401091733
+10_SHIBLI_OFS_BROWSERTC
+GB0010001
+1

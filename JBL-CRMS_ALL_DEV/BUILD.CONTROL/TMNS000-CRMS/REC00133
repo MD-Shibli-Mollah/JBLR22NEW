@@ -1,0 +1,82 @@
+4,99
+FUNDS.TRANSFER$NAU
+RECORD.STATUS NE IHLDTRANSACTION.TYPE EQ 'AC'CO.CODE EQ !COMPANY
+
+
+DEBIT.ACCT.NO
+CARD Account No
+
+Y
+
+
+
+
+@IDHDRTRANSACTION.TYPEDEBIT.ACCT.NOCCY1DEBIT.AMOUNTCREDIT.ACCT.NORECORD.STATUSINPUTTERVER.FINALZERONORECORD
+@ID"Unauthorised - Delete FT for Issue Card"TRANSACTION.TYPEDEBIT.ACCT.NODEBIT.CURRENCYDEBIT.AMOUNTCREDIT.ACCT.NORECORD.STATUSINPUTTER"FUNDS.TRANSFER,JBL.ATM.OFS.AC""No Task Pending"
+11,0234569101
+16L4L16L3L18R,16L5L30L
+F _,2,1
+
+CCY CCY1
+NONE
+Transaction RefTxn TypeDebit AccountDebit CcyDebit AmountCredit AccountStatusInputter
+CLASS-TITLECLASS-ENQ.NORECS
+HEADERHEADER
+
+
+
+
+
+
+
+
+
+
+SSSSSSSMS
+VER.FINAL D @ID
+
+@ID 1
+Delete[txndelete.gif
+10 12345678910
+
+1 9
+0 
+1 11
+0 
+2 101
+
+
+
+
+
+
+
+
+Unauthorised Funds Transfer
+NO.SELECTIONZERORECORDDISPLAY
+
+Unauthorised - Delete FT for Issue Card
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+6
+13_SHIBLI__OFS_BROWSERTC
+2401231857
+13_SHIBLI_OFS_BROWSERTC
+GB0010001
+1

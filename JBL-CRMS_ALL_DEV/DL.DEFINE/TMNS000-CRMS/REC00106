@@ -1,0 +1,82 @@
+4,99
+EB.JBL.ATM.CARD.MGT$NAU
+CO.CODE EQ !COMPANYCARD.STATUS EQ PENDING
+
+
+
+
+
+
+
+
+
+
+HEADER@IDACCT.NOCARD.NAMECARD.TYPERTDATE.TIMEINPUTTERV.ISSV.REISSV.CLOSEV.PINZERORECORDSVER.DOWNVER.DOWN1VER.DOWN2ZERORECORDS
+"Unauthorised CARD REQUEST"@IDACCT.NOCARD.NAMECARD.TYPEREQUEST.TYPEDATE.TIMEINPUTTER"EB.JBL.ATM.CARD.MGT,ISSUE""EB.JBL.ATM.CARD.MGT,REISSUE""EB.JBL.ATM.CARD.MGT,CLOSE""EB.JBL.ATM.CARD.MGT,PINREQ""No record found"IF RT EQ ISSUE V.ISS V.REISSIF RT EQ CLOSE V.CLOSE VER.DOWNIF RT EQ PINREISSUE V.PIN VER.DOWN1"No Pending REQUEST"
+1,0123456711
+50L13L19R10R10R15R35R
+F _,2,1
+
+D/2E
+NONENONE
+ATM RefACCOUNT NUMBERREQUEST TYPE
+CLASS-ENQ.H.TITLECLASS-ENQ.NORECSCLASS-ENQ.NORECS
+HEADERHEADERHEADER
+
+
+
+
+
+
+
+
+
+
+SSSSSMMS
+VER.DOWN2 A @IDVER.DOWN2 D @ID
+
+@ID 2@ID 2
+Authorise[txnauthorise.gifDelete[txndelete.gif
+15 123456789101112141516
+
+2 78
+0 
+2 1317
+0 
+2 162
+
+
+
+
+
+
+
+
+ATM REQUEST LIST
+NO.SELECTIONZERORECORDDISPLAY
+ST
+Unauthorised ATM REQUEST LIST
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+3
+12_SHIBLI2__OFS_BROWSERTC
+2401131839
+12_SHIBLI2_OFS_BROWSERTC
+GB0010001
+1

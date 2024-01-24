@@ -1,0 +1,82 @@
+4,99
+EB.JBL.ATM.CARD.MGT$NAU
+CO.CODE EQ !COMPANYCARD.STATUS EQ DONE RECEIVED
+
+
+
+
+
+
+
+
+
+
+HEADER@IDACCT.NOCARD.NAMEREQUEST.TYPECARD.TYPECARD.NOValid FromValid ToDelivery DateWaive ChargeINPUTTERZERORECORDSVER.DVER.CVER.WVER.RVER.FVER.SVER.LAST
+"Unauthorised CARD REQUEST"@IDACCT.NOCARD.NAMEREQUEST.TYPECARD.TYPECARD.NOFROM.DATETO.DATEDELIVERY.DATEWAIVE.CHARGEINPUTTER"No Pending REQUEST""EB.ATM.CARD.MGT,DELIVERY""EB.ATM.CARD.MGT,CLOSEBR""EB.ATM.CARD.MGT,WAIVE"IF REQUEST.TYPE EQ WAIVE VER.W VER.DIF REQUEST.TYPE EQ CLOSE VER.C VER.R"EB.ATM.CARD.MGT,RECEIVED"IF CARD.STATUS EQ RECEIVED VER.S VER.F
+1,012345678910111
+20L13L19L10L10L20L15L15L15L5L35R
+F _,2,1
+
+D/2ED/2ED/2E
+NONE
+ATM RefACCT.NOInputter
+CLASS-ENQ.H.TITLECLASS-ENQ.NORECS
+HEADERHEADER
+
+
+
+
+
+
+
+
+
+
+SSSSSSSSSSMS
+VER.LAST A @IDVER.LAST D @ID
+
+@ID 2@ID 2
+Authorise[txnauthorise.gifDelete[txndelete.gif
+19 12345678910111214151617181920
+
+1 12
+0 
+1 13
+0 
+2 202
+
+
+
+
+
+
+
+
+Unauthorised ATM REQUEST
+NO.SELECTIONZERORECORDDISPLAY
+
+Unauthorised ATM REQUEST
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1
+7_SHIBLI__OFS_BROWSERTC
+2401041210
+7_SHIBLI_OFS_BROWSERTC
+GB0010001
+1

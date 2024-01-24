@@ -1,0 +1,82 @@
+4,99
+EB.JBL.CARD.BATCH.CRE$NAU
+
+
+
+
+
+
+
+
+
+
+
+HEADER@IDREF NOREQUEST TYPECARD TYPETOTAL CARDREQUEST IDNOTEZERORECORDS
+"Unauthorised Batch List "@IDREF.NOREQUEST.TYPECARD.TYPETOT.CARDREQUEST.IDNOTE"No Pending Batch"
+1,0121416181871081
+20L20L20L20L5L20L50L
+
+
+
+NONE
+Batch Id
+CLASS-ENQ.H.TITLECLASS-ENQ.NORECS
+HEADERHEADER
+
+
+
+
+
+
+
+
+
+
+SSSSSMSS
+EB.JBL.CARD.BATCH.CRE,INPUT A @IDEB.JBL.CARD.BATCH.CRE,INPUT D @ID
+
+@ID 2@ID 2
+Authorise[txnauthorise.gifDelete[txndelete.gif
+8 12345678
+
+1 7
+0 
+1 9
+0 
+1 2
+
+
+
+
+
+
+
+
+Unauthorised Batch List
+NO.SELECTIONZERORECORDDISPLAY
+
+Unauthorised Batch List
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1
+9_SHIBLI__OFS_BROWSERTC
+2401091524
+9_SHIBLI_OFS_BROWSERTC
+GB0010001
+1
