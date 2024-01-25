@@ -1,0 +1,82 @@
+4,99
+NOFILE.JBL.SS.ATM.BR.WISE.REC.SUM
+@ID
+
+
+COMPANY.CODE
+COMPANY CODE
+
+
+
+
+
+
+HD.1ATMONESL.NOCompany.CodeCompany NameCOMPANY ADDRESSNo.of.RequestPendingApprovedDoneDenyTOTAL.SUMGRAND.TOTALGRAND.TOTAL.PendingGRAND.TOTAL.ApprovedGRAND.TOTAL.DoneGRAND.TOTAL.Deny
+"JANATA BANK LIMITED""ATM CARD REQUEST BR WISE SUMMARY LIST""1"CALC SL.NO + ONE0FIELD Company.CodeFIELD Company.Code00000"TOTAL:"TOTAL No.of.RequestTOTAL PendingTOTAL ApprovedTOTAL DoneTOTAL Deny
+1,01,2161768148153158163168130,+1148,+1153,+1158,+1163,+1168,+1
+5L10L50L80L5L5L5L5L5L
+F |,1,1L COMPANY,COMPANY.NAMEL COMPANY,NAME.ADDRESSF |, 2,1F |, 3,1F |,4,1F |,5,1F |,6,1
+
+
+NEWPAGEENDENDENDENDENDEND
+SL NOCompany CodeNO of RequestGRAND TOTAL
+CLASS-ENQ.H.TITLECLASS-ENQ.H.TITLE
+HEADERHEADER
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+11 23456789101112
+
+0 
+0 
+7 1131415161718
+5 1415161718
+
+
+
+
+
+
+
+
+
+ATM REQUEST LIST
+NO.SELECTIONZERORECORDDISPLAY
+ST
+ATM REQUEST LIST
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1
+7_SHIBLI__OFS_BROWSERTC
+2401091719
+7_SHIBLI_OFS_BROWSERTC
+GB0010001
+1
