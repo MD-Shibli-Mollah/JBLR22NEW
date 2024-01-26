@@ -33,6 +33,7 @@ SUBROUTINE GB.JBL.I.ATM.ISSUE.UPDATE
 * TAFC Routine Name : ATM.ISSUE.UPDATE - R09
 *-----------------------------------------------------------------------------
 
+    DEBUG
     $INSERT I_COMMON
     $INSERT I_EQUATE
 * $INSERT GLOBUS.BP I_F.ACCOUNT
