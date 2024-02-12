@@ -23,7 +23,7 @@ SUBROUTINE GB.JBL.I.ATM.ACC.CHK
 * Modification Description :
 * Modified By : MD Shibli Mollah - NITSL
 *-----------------------------------------------------------------------------
-* Subroutine Description: This routine is used for ATM CARD MANAGEMENT SYSTEM
+* Subroutine Description: This routine is used for ATM CARD MANAGEMENT SYSTEM to issue CARD from Branch User.
 * Subroutine Type: INPUT
 * Attached To    : EB.JBL.ATM.CARD.MGT,ISSUE
 * Attached As    : INPUT ROUTINE
@@ -457,7 +457,7 @@ PROCESS:
 ********--------------------------TRACER------------------------------------------------------------------------------
             WriteData = "GB.JBL.I.ATM.ACC.CHK =":" Ofsrecord: ":Ofsrecord:" OfsMessage: ":OfsMessage:" T24TxnRef: ":T24TxnRef:" Y.VFUNCTION: ":Y.VFUNCTION:" Y.COMP.OFSOPS: ":Y.COMP.OFSOPS
             FileName = 'SHIBLI_ATM.txt'
-            FilePath = 'D:/Temenos/t24home/default/DL.BP'
+            FilePath = 'DL.BP'
             OPENSEQ FilePath,FileName TO FileOutput THEN NULL
             ELSE
                 CREATE FileOutput ELSE

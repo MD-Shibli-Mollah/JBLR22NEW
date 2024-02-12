@@ -1,6 +1,14 @@
 git init
 git remote -v
 git remote add main https://github.com/MD-Shibli-Mollah/JBLR22
+git pull main main --allow-unrelated-histories
+git branch main
+git checkout main
+git branch -D master
+git add .
+git commit -m "my commit"
+git push -u main main
+
 git remote add main https://github.com/MD-Shibli-Mollah/JBLR22NEW
 
 git remote add main https://github.com/MD-Shibli-Mollah/JBLR22NEW.git
@@ -16,8 +24,12 @@ Special ----
 git pull origin main --allow-unrelated-histories
 git push -u origin main
 git push -u main main
-
 git pull main main --allow-unrelated-histories
+
+
+git lfs install
+git lfs track "*.war"
+git add .gitattributes
 
 Authentication helper---
 ### https://stackoverflow.com/questions/74051851/git-keeps-asking-for-authentication

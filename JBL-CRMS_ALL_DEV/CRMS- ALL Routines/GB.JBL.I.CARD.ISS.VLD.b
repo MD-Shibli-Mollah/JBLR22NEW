@@ -21,7 +21,7 @@ SUBROUTINE GB.JBL.I.CARD.ISS.VLD
 *-----------------------------------------------------------------------------
 * Subroutine Description: THIS ROUTINE IS USED FOR CRMS - REISSUE AND PIN-REISSUE REASON VALIDATION
 * Subroutine Type: INPUT
-* Attached To    : EB.JBL.ATM.CARD.MGT
+* Attached To    : EB.JBL.ATM.CARD.MGT,REISSUE
 * Attached As    : INPUT ROUTINE
 * TAFC Routine Name : CARD.ISS.VLD - R09
 *-----------------------------------------------------------------------------

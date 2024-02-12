@@ -11,7 +11,7 @@
 * @ValidationInfo : Compiler Version  : DEV_201710.0
 
 *-----------------------------------------------------------------------------
-SUBROUTINE GB.JBL.E.CONV.BD.UPLOAD.ERR
+SUBROUTINE GB.JBL.E.CNV.BD.UPLOAD.ERR
 *-----------------------------------------------------------------------------
 * <Rating>0</Rating>
 *-----------------------------------------------------------------------------
@@ -39,7 +39,7 @@ SUBROUTINE GB.JBL.E.CONV.BD.UPLOAD.ERR
     $USING EB.SystemTables
     
 *******--------------------------TRACER------------------------------------------------------------------------------
-    WriteData = "GB.JBL.E.CONV.BD.UPLOAD.ERR Routine is found Successfully"
+    WriteData = "GB.JBL.E.CNV.BD.UPLOAD.ERR Routine is found Successfully"
     FileName = 'SHIBLI_ATM.txt'
     FilePath = 'D:/Temenos/t24home/default/DL.BP'
     OPENSEQ FilePath,FileName TO FileOutput THEN NULL

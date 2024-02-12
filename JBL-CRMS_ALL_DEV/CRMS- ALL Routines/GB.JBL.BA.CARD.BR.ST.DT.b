@@ -24,7 +24,7 @@ SUBROUTINE GB.JBL.BA.CARD.BR.ST.DT
 *-----------------------------------------------------------------------------
 
 *-----------------------------------------------------------------------------
-* Subroutine Description: THIS ROUTINE IS USED FOR CRMS
+* Subroutine Description: This Routine Sets Card Type, Branch Code, Entry Date.
 * Subroutine Type: BEFORE AUTH
 * Attached To    : EB.JBL.CARD.BATCH.INFO,CARDINFO
 * Attached As    : BEFORE AUTH ROUTINE
@@ -101,3 +101,4 @@ SUBROUTINE GB.JBL.BA.CARD.BR.ST.DT
     END
 RETURN
 END
+

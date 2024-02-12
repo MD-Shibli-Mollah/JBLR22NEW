@@ -18,7 +18,7 @@ SUBROUTINE GB.JBL.V.REISSUE.VLD
 * Modification Description : RETROFIT from TAFC to TAFJ
 * Modified By : MD Shibli Mollah - NITSL
 *-----------------------------------------------------------------------------
-* Subroutine Description: This routine is used for CRMS ISSUE VERSION CUSTOMER INFO SHOW
+* Subroutine Description: This routine is used for CRMS- NOINPUT Attribute4-FT RecId based on Request.
 * Subroutine Type: Validation
 * Attached To    : EB.JBL.ATM.CARD.MGT,UPDATE
 * Attached As    : Validation ROUTINE
@@ -57,12 +57,12 @@ SUBROUTINE GB.JBL.V.REISSUE.VLD
 
     Y.REQUEST = "EB.JBL.ATM.CARD.MGT":Y.PGM.VERSION
     
-    IF Y.REQUEST EQ "EB.JBL.ATM.CARD.MGT,UPDATE"  AND Y.VFUNCTION EQ 'I' AND Y.REQUEST.TYPE EQ "ISSUE" THEN
+    IF Y.REQUEST EQ "EB.JBL.ATM.CARD.MGT,UPDATE" AND Y.VFUNCTION EQ 'I' AND Y.REQUEST.TYPE EQ "ISSUE" THEN
 * T(EB.ATM19.ATTRIBUTE4)<3> = 'NOINPUT'
         EB.SystemTables.setT(EB.ATM19.ATTRIBUTE4, 'NOINPUT')
     END
 
-    IF Y.REQUEST EQ "EB.JBL.ATM.CARD.MGT,UPDATE"  AND Y.VFUNCTION EQ 'I' AND Y.REQUEST.TYPE EQ "REISSUE" THEN
+    IF Y.REQUEST EQ "EB.JBL.ATM.CARD.MGT,UPDATE" AND Y.VFUNCTION EQ 'I' AND Y.REQUEST.TYPE EQ "REISSUE" THEN
         IF Y.CARD.CLOSE.DATE NE "" THEN
             !R.NEW(EB.ATM19.FROM.DATE)=""
 * T(EB.ATM19.ATTRIBUTE4)<3> = 'NOINPUT'

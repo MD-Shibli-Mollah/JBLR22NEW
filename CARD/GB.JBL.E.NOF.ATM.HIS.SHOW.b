@@ -26,7 +26,7 @@ SUBROUTINE GB.JBL.E.NOF.ATM.HIS.SHOW(Y.LIST)
 * Modification Description : RETROFIT from TAFC to TAFJ
 * Modified By : MD Shibli Mollah - NITSL
 *-----------------------------------------------------------------------------
-* Subroutine Description: This routine is used for CRMS
+* Subroutine Description: This routine is used for CRMS to show history Records.
 * Subroutine Type: NOFILE
 * Attached To    : NOFILE.JBL.SS.ATM.HIS.SHOW
 * Attached As    : NOF ENQUIRY ROUTINE

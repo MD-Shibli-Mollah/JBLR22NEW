@@ -18,7 +18,7 @@ SUBROUTINE GB.JBL.E.NOF.CARD.BR.NAU(Y.RETURN)
 * Modification Description : RETROFIT from TAFC to TAFJ
 * Modified By : MD Shibli Mollah - NITSL
 *-----------------------------------------------------------------------------
-* Subroutine Description: This routine is used for ATM CARD MANAGEMENT SYSTEM
+* Subroutine Description: This routine is used for returning FT Record Id's.
 * Subroutine Type: NOFILE
 * Attached To    : NOFILE.JBL.SS.CARD.BR.NAU
 * Attached As    : NOF ENQUIRY ROUTINE

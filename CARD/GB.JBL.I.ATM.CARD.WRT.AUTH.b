@@ -18,9 +18,9 @@ SUBROUTINE GB.JBL.I.ATM.CARD.WRT.AUTH
 * Modification Description :  RETROFIT from TAFC to TAFJ
 * Modified By : MD Shibli Mollah - NITSL
 *-----------------------------------------------------------------------------
-* Subroutine Description: THIS ROUTINE IS USED FOR CRMS
+* Subroutine Description: This Routine Checks the ID
 * Subroutine Type: INPUT
-* Attached To    : EB.JBL.ATM.CARD.MGT
+* Attached To    : EB.JBL.CARD.BATCH.CRE,INPUT
 * Attached As    : INPUT ROUTINE
 * TAFC Routine Name : JBL.ATM.CARD.WRT.AUTH - R09
 *-----------------------------------------------------------------------------
@@ -33,6 +33,7 @@ SUBROUTINE GB.JBL.I.ATM.CARD.WRT.AUTH
     $USING EB.SystemTables
     $USING EB.DataAccess
     $USING EB.ErrorProcessing
+    $USING EB.TransactionControl
     
 *******--------------------------TRACER------------------------------------------------------------------------------
     WriteData = "GB.JBL.I.ATM.CARD.WRT.AUTH Routine is found Successfully"
@@ -72,7 +73,6 @@ SUBROUTINE GB.JBL.I.ATM.CARD.WRT.AUTH
     END
 
     IF Y.VFUNCTION EQ "D" AND Y.IDS NE "" THEN
-
         LOOP
             REMOVE Y.ID FROM Y.IDS SETTING POS
         WHILE Y.ID:POS
@@ -80,9 +80,9 @@ SUBROUTINE GB.JBL.I.ATM.CARD.WRT.AUTH
             REC.ATM<EB.ATM19.ATTRIBUTE1>= ""
 * CALL F.WRITE(FN.ATM,Y.ID,REC.ATM)
             EB.DataAccess.FWrite(FN.ATM, Y.ID, REC.ATM)
+            EB.TransactionControl.JournalUpdate(Y.ID)
         REPEAT
     END
-
 RETURN
 END
 

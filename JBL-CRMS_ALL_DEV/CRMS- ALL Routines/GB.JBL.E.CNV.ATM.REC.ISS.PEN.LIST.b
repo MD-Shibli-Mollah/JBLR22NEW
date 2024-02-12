@@ -23,7 +23,7 @@ SUBROUTINE GB.JBL.E.CNV.ATM.REC.ISS.PEN.LIST
 * Modification Description :
 * Modified By : MD Shibli Mollah - NITSL
 *-----------------------------------------------------------------------------
-* Subroutine Description: This routine is used for ATM CARD MANAGEMENT SYSTEM
+* Subroutine Description: This routine is used to fetch Customer Local Field Data
 * Subroutine Type: Conversion
 * Attached To    : JBL.ENQ.ATM.CARD.ISS.PEN
 * Attached As    : CONVERSION ROUTINE
@@ -113,11 +113,11 @@ SUBROUTINE GB.JBL.E.CNV.ATM.REC.ISS.PEN.LIST
         Y.TIT=6
     END
     
-    EB.LocalReferences.GetLocRef('CUSTOMER', 'LT.CUS.COMU.ADD', Y.COMU.ADD.POS)
-    EB.LocalReferences.GetLocRef('CUSTOMER', 'LT.CUS.COMU.VILL', Y.COMU.VILL.POS)
-    EB.LocalReferences.GetLocRef('CUSTOMER', 'LT.CUS.COMU.PO', Y.COMU.PO.POS)
-    EB.LocalReferences.GetLocRef('CUSTOMER', 'LT.CUS.COMU.UPZ', Y.COMU.UPZ.POS)
-    EB.LocalReferences.GetLocRef('CUSTOMER', 'LT.CUS.COMU.DIST', Y.COMU.DIST.POS)
+    EB.LocalReferences.GetLocRef('CUSTOMER', 'LT.ADDR.TYPE', Y.COMU.ADD.POS)
+    EB.LocalReferences.GetLocRef('CUSTOMER', 'LT.VILLAGE.AREA', Y.COMU.VILL.POS)
+    EB.LocalReferences.GetLocRef('CUSTOMER', 'LT.POST.OFFICE', Y.COMU.PO.POS)
+    EB.LocalReferences.GetLocRef('CUSTOMER', 'LT.THANA', Y.COMU.UPZ.POS)
+    EB.LocalReferences.GetLocRef('CUSTOMER', 'LT.ZILLA', Y.COMU.DIST.POS)
     EB.LocalReferences.GetLocRef('CUSTOMER', 'LT.FATHER.NAME', Y.FATHER.NAME.POS)
     EB.LocalReferences.GetLocRef('CUSTOMER', 'LT.MOTHER.NAME', Y.MOTHER.NAME.POS)
     

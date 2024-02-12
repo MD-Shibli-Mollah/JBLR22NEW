@@ -24,7 +24,7 @@ SUBROUTINE GB.JBL.BA.CARD.UP.ST.CHNG
 *-----------------------------------------------------------------------------
 
 *-----------------------------------------------------------------------------
-* Subroutine Description: THIS ROUTINE IS USED FOR CRMS -CHECK FT BEFORE AUTHRISED THE REQUEST
+* Subroutine Description: THIS ROUTINE IS USED FOR CRMS - Update Info Status
 * Subroutine Type: BEFORE AUTH
 * Attached To    : EB.JBL.ATM.CARD.MGT,UPDATE
 * Attached As    : BEFORE AUTH ROUTINE

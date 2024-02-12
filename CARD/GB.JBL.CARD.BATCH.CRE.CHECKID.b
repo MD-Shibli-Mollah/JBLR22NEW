@@ -20,7 +20,7 @@ SUBROUTINE GB.JBL.CARD.BATCH.CRE.CHECKID
 *-----------------------------------------------------------------------------
 * Subroutine Description: This routine is used for EB.JBL.CARD.BATCH.CRE
 * Subroutine Type: CHECKID
-* Attached To    : EB.JBL.CARD.BATCH.CRE
+* Attached To    : EB.TABLE.PROCEDURES
 * Attached As    : CHECKID
 * TAFC Routine Name : JBL.CARD.BATCH.CRE.ID - R09
 *-----------------------------------------------------------------------------

@@ -25,7 +25,7 @@ SUBROUTINE GB.JBL.E.NOF.ATM.ACC.CUS.VIEW(Y.RETURN)
 * Modification Description : RETROFIT from TAFC to TAFJ
 * Modified By : MD Shibli Mollah - NITSL
 *-----------------------------------------------------------------------------
-* Subroutine Description: This routine is used for CRMS ISSUE VERSION CUSTOMER INFO SHOW
+* Subroutine Description: This routine is used for CRMS to show Customer Details.
 * Subroutine Type: NOFILE
 * Attached To    : NOFILE.JBL.SS.ATM.ACC.CUS.VIEW
 * Attached As    : NOF ENQUIRY ROUTINE

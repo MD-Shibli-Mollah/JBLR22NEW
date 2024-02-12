@@ -23,7 +23,7 @@ SUBROUTINE GB.JBL.I.ATM.VALIDATION.CHK
 *-----------------------------------------------------------------------------
 * Subroutine Description: THIS ROUTINE IS USED FOR CRMS -
 * Subroutine Type: INPUT
-* Attached To    : EB.JBL.ATM.CARD.MGT,DELIVERY ; EB.JBL.ATM.CARD.MGT,RECEIVED
+* Attached To    : EB.JBL.ATM.CARD.MGT,DELIVERY ; EB.JBL.ATM.CARD.MGT,RECEIVED ; EB.JBL.ATM.CARD.MGT,UPDATE
 * Attached As    : INPUT ROUTINE
 * TAFC Routine Name :ATM.VALIDATION.CHK - R09
 *-----------------------------------------------------------------------------

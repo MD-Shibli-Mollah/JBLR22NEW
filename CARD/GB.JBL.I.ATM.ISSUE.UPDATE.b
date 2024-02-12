@@ -27,8 +27,13 @@ SUBROUTINE GB.JBL.I.ATM.ISSUE.UPDATE
 * Modified By : MD Shibli Mollah - NITSL
 *-----------------------------------------------------------------------------
 * Subroutine Description: This routine is used for ATM CARD MANAGEMENT SYSTEM
+*                         to check the FT and CARD Validation in every stage
 * Subroutine Type: INPUT
-* Attached To    : EB.JBL.ATM.CARD.MGT
+* Attached To    : EB.JBL.ATM.CARD.MGT,CLOSE ; EB.JBL.ATM.CARD.MGT,CLOSEBR ; EB.JBL.ATM.CARD.MGT,CLOSEHO
+*				   EB.JBL.ATM.CARD.MGT,DELIVERY ; EB.JBL.ATM.CARD.MGT,DENIED ; EB.JBL.ATM.CARD.MGT,ISSUE
+*				   EB.JBL.ATM.CARD.MGT,PINHO ; EB.JBL.ATM.CARD.MGT,PINREQ ; EB.JBL.ATM.CARD.MGT,RECEIVED
+*				   EB.JBL.ATM.CARD.MGT,REISSUE ; EB.JBL.ATM.CARD.MGT,UPDATE ; EB.JBL.ATM.CARD.MGT,WAIVE
+
 * Attached As    : INPUT ROUTINE
 * TAFC Routine Name : ATM.ISSUE.UPDATE - R09
 *-----------------------------------------------------------------------------

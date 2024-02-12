@@ -25,9 +25,10 @@ SUBROUTINE GB.JBL.ID.ATM.CARD.ALLOW.WITH.ID
 * Modification Description :
 * Modified By : MD Shibli Mollah - NITSL
 *-----------------------------------------------------------------------------
-* Subroutine Description: This routine is used for EB.JBL.ATM.MAINT.CALC
+* Subroutine Description: This routine checks request status and allow input
+*                         based on it either from Branch or from Head Office.
 * Subroutine Type: ID Routine
-* Attached To    : EB.JBL.ATM.CARD.MGT ALL VERSIONS
+* Attached To    : EB.JBL.ATM.CARD.MGT,DENIED
 * Attached As    : ID ROUTINE
 * TAFC Routine Name : ATM.CARD.ALLOW.WITH.ID - R09
 *-----------------------------------------------------------------------------

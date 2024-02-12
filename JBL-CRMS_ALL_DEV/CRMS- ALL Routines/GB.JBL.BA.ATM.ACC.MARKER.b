@@ -25,7 +25,7 @@ SUBROUTINE GB.JBL.BA.ATM.ACC.MARKER
 *-----------------------------------------------------------------------------
 * Subroutine Description: THIS ROUTINE IS USED FOR CRMS
 * Subroutine Type: BEFORE AUTH
-* Attached To    : EB.JBL.ATM.CARD.MGT
+* Attached To    : EB.JBL.ATM.CARD.MGT,REISSUE ; EB.JBL.ATM.CARD.MGT,UPDATE
 * Attached As    : BEFORE AUTH ROUTINE
 * TAFC Routine Name :ATM.ACC.CHK - R09
 *-----------------------------------------------------------------------------

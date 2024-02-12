@@ -22,7 +22,7 @@ SUBROUTINE GB.JBL.E.CNV.ATM.REISSUE.MASK
 * Modification Description :
 * Modified By : MD Shibli Mollah - NITSL
 *-----------------------------------------------------------------------------
-* Subroutine Description: This routine is used for ATM CARD MANAGEMENT SYSTEM
+* Subroutine Description: This routine converts Card Number to Mask.
 * Subroutine Type: Conversion
 * Attached To    : JBL.ENQ.CARD.REISSUE.PEN.LST
 * Attached As    : CONVERSION ROUTINE
