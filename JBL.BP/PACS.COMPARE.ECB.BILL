@@ -1,0 +1,521 @@
+*=======================================================================================================================       -
+*-----------------------------------------------------------------------------
+* <Rating>673</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE PACS.COMPARE.ECB.BILL
+*=======================================================================================================================
+* This routine is developed to trace Bill and ECB balances and raise entry to sync for AA contracts.
+* This will be mainly used to correct AGING entry missing, allocation rule problem
+*
+* We have logic to ignore some balance type in the calculation. Entry will be formed only if some of correction entry is 0
+* This will form AA.ADJ.BAL with correction data, PACS.RAISE.ENTRY has to be run to generate correction entry
+*
+* Three important things to be checked before deliver
+* 1) SP entry will be parked to PL
+* 2) AASUSPENSE can be included for correction
+* 3) TAX property extracted
+*
+* This routine should be used from R12 release - Because BILL.TYPE field is introduced from R12 in OVERDUE condition
+* 
+*=======================================================================================================================
+*** <region name= Modification History>
+**  04 May 2016 - Pandi - Update AA.ADJ.BAL only if correction entry formed (Introduced the condition DIFF.ARR NE arrangementId)
+**
+**  09 Jan 2017 - Pandi - billAgingStatuses<1,billpos> variable replaced with "statusToLocate". To cater the bills that are deliquently settled
+**
+*=======================================================================================================================
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.AA.ARRANGEMENT
+    $INSERT I_F.AA.BILL.DETAILS
+    $INSERT I_F.AA.ACCOUNT.DETAILS
+    $INSERT I_F.EB.CONTRACT.BALANCES
+    $INSERT I_F.AA.OVERDUE
+    $INSERT I_F.ACCT.ACTIVITY
+    $INSERT I_F.AC.BALANCE.TYPE
+*=======================================================================================================================
+        COMO.DATE=TODAY
+    COMO.TIME=TIME()
+    
+    EXECUTE "COMO ON PACS.COMPARE.ECB.BILL_":COMO.DATE:"_":COMO.TIME
+    printDetails = "arrangementId#arrStatus#coCode#accountId#ecbBalanceTypes#ecbBalanceAmounts#billBalanceTypes#billBalanceAmounts#billSuspendAmounts#diffBalanceTypes#diffBalanceAmounts#BALANCE.AMT"
+    GOSUB printData
+    GOSUB initialise
+    LOOP
+        REMOVE arrangementId FROM RREC SETTING POS
+    WHILE arrangementId : POS
+
+        ecbBalanceTypes = ''; ecbBalanceAmounts = ''; billBalanceTypes = ''; billBalanceAmounts = ''; billSuspendAmounts = ''
+        printDetails = ''; diffBalanceTypes = ''; diffBalanceAmounts = '';BALANCE.AMT = 0
+
+        GOSUB getArrangement
+        GOSUB getAccountDetails
+        GOSUB getOverdueCondition
+        GOSUB getEcb
+        GOSUB getBillIds
+        GOSUB getBillAmounts
+        GOSUB CHECK.ASSET
+
+        printDetails = printDetails:"#":diffBalanceTypes:"#":diffBalanceAmounts:"#":BALANCE.AMT
+        GOSUB printData
+        GOSUB RAISE.ENTRY
+    REPEAT
+    GOSUB WRITE.DATA
+    EXECUTE "COMO OFF PACS.COMPARE.ECB.BILL_":COMO.DATE:"_":COMO.TIME
+    RETURN
+*=======================================================================================================================
+printData:
+
+    CRT printDetails
+
+    RETURN
+*=======================================================================================================================
+initialise:
+    UPDATE.STRING = ''
+    F$AA.ARRANGEMENT = ""
+    FN$AA.ARRANGEMENT = 'F.AA.ARRANGEMENT'
+    CALL OPF(FN$AA.ARRANGEMENT, F$AA.ARRANGEMENT)
+*
+    F$ACCOUNT = ""
+    FN$ACCOUNT = 'F.ACCOUNT'
+    CALL OPF(FN$ACCOUNT, F$ACCOUNT)
+*
+    F$AA.ACTIVITY.HISTORY = ''
+    FN$AA.ACTIVITY.HISTORY = "F.AA.ACTIVITY.HISTORY"
+    CALL OPF(FN$AA.ACTIVITY.HISTORY, F$AA.ACTIVITY.HISTORY)
+*
+    fileNameECB = "F.EB.CONTRACT.BALANCES"
+    filePathECB = ""
+    CALL OPF(fileNameECB, filePathECB)
+*
+    fileNameAccountDetails = "F.AA.ACCOUNT.DETAILS"
+    filePathAccountDetails = ""
+    CALL OPF(fileNameAccountDetails, filePathAccountDetails)
+*
+    fileNameBillDetails = "F.AA.BILL.DETAILS"
+    filePathBillDetails = ""
+    CALL OPF(fileNameBillDetails, filePathBillDetails)
+*
+    fileNameScheduledActivity = "F.AA.SCHEDULED.ACTIVITY"
+    filePathScheduledActivity = ""
+    CALL OPF(fileNameScheduledActivity, filePathScheduledActivity)
+*
+    fileNameInterestAccruals = "F.AA.INTEREST.ACCRUALS"
+    filePathInterestAccruals = ""
+    CALL OPF(fileNameInterestAccruals, filePathInterestAccruals)
+*
+    fileNameActivityBalances = "F.AA.ACTIVITY.BALANCES"
+    filePathActivityBalances = ""
+    CALL OPF(fileNameActivityBalances, filePathActivityBalances)
+*
+    fileNameAccountMovement = "F.AA.ACCOUNT.MOVEMENT"
+    filePathAccountMovement = ""
+    CALL OPF(fileNameAccountMovement, filePathAccountMovement)
+*
+    F$SAVEDLISTS = ''
+
+    OPEN '','&SAVEDLISTS&' TO F$SAVEDLISTS ELSE
+        ERR.OPEN ='EB.RTN.CANT.OPEN.&SAVEDLISTS'
+    END
+
+    READ RREC FROM F$SAVEDLISTS, 'SL.ECB.BILL' ELSE NULL
+
+** This can be enable if you want pass correction for SP balance as well
+    SP.FLAG = 0
+    PL.CATEG = "PL51001"
+
+    RETURN
+*=======================================================================================================================
+getArrangement:
+
+    CALL F.READ(FN$AA.ARRANGEMENT, arrangementId, R.ARRANGEMENT, F$AA.ARRANGEMENT, IO.ERR)
+
+    arrStatus = R.ARRANGEMENT<AA.ARR.ARR.STATUS>
+    accountId =  R.ARRANGEMENT<AA.ARR.LINKED.APPL.ID,1>
+    productLine = R.ARRANGEMENT<AA.ARR.PRODUCT.LINE>
+    coCode = R.ARRANGEMENT<AA.ARR.CO.CODE,1>
+    
+    CMP.MNE = coCode[3,7]
+    ARR.CCY = R.ARRANGEMENT<AA.ARR.CURRENCY>
+    INT.ACC = ARR.CCY:'147000':CMP.MNE    
+
+    printDetails = arrangementId:"#":arrStatus:"#":coCode:"#":accountId
+
+    RETURN
+*=======================================================================================================================
+getAccountDetails:
+
+    CALL F.READ(fileNameAccountDetails, arrangementId, AccountDetailsrecord, filePathAccountDetails, "")
+
+    RETURN
+*=======================================================================================================================
+getOverdueCondition:
+
+    CALL AA.GET.ARRANGEMENT.CONDITIONS(arrangementId, "OVERDUE", "", "", returnIds, returnConditions, returnError)
+    overdueCondition = RAISE(returnConditions)
+
+    RETURN
+*=======================================================================================================================
+getBillIds:
+
+    billIds = AccountDetailsrecord<AA.AD.BILL.ID>
+    billTypes = AccountDetailsrecord<AA.AD.BILL.TYPE>
+    billPayMethods = AccountDetailsrecord<AA.AD.PAY.METHOD>
+    billStatuses = AccountDetailsrecord<AA.AD.BILL.STATUS>
+    billAgingStatuses = AccountDetailsrecord<AA.AD.AGING.STATUS>
+
+    CONVERT SM TO VM IN billIds
+    CONVERT SM TO VM IN billTypes
+    CONVERT SM TO VM IN billPayMethods
+    CONVERT SM TO VM IN billStatuses
+    CONVERT SM TO VM IN billAgingStatuses
+
+    RETURN
+*=======================================================================================================================
+getBillAmounts:
+
+    billIdscount = DCOUNT(billIds, VM)
+
+    FOR billpos = 1 TO billIdscount
+        billId = billIds<1, billpos>
+        GOSUB getBillrecord
+        GOSUB checkBillType
+        GOSUB getPropertyAmount
+    NEXT billpos
+
+    printDetails = printDetails:"#":billBalanceTypes:"#":billBalanceAmounts:"#":billSuspendAmounts
+
+    RETURN
+*=======================================================================================================================
+getBillrecord:
+
+    CALL F.READ(fileNameBillDetails, billId, billRecord, filePathBillDetails, "")
+
+    RETURN
+*=======================================================================================================================
+checkBillType:
+
+    ignorebillAmount = 1
+
+    BEGIN CASE
+    CASE billTypes<1,billpos> MATCHES "INFO"
+	CASE billTypes<1,billpos> MATCHES "PAYOFF"
+	CASE billPayMethods<1,billpos> MATCHES "PAYOFF"
+    CASE billStatuses<1,billpos> = "ISSUED"
+    CASE billStatuses<1,billpos> = "CANCELLED"
+    CASE NOT(billRecord<AA.BD.OS.TOTAL.AMOUNT>)
+    CASE 1
+        ignorebillAmount = ""
+    END CASE
+
+    RETURN
+*=======================================================================================================================
+getPropertyAmount:
+
+    IF NOT(ignorebillAmount) THEN
+
+        propertyCount = DCOUNT(billRecord<AA.BD.PROPERTY>, VM)
+
+        FOR propertypos = 1 TO propertyCount
+            property = billRecord<AA.BD.PROPERTY, propertypos>
+            tax.property = FIELD(property,'-',2,1)
+** Checking TAX property
+            IF tax.property THEN
+                property = tax.property
+            END
+            propertyAmount = billRecord<AA.BD.OS.PROP.AMOUNT, propertypos> + 0  ;*to overcome comparing 0 with NULL issue
+            suspendAmount = billRecord<AA.BD.SUS.PROP.AMOUNT, propertypos> + 0  ;*to overcome comparing 0 with NULL issue
+            
+*** If you are checking only specific balance type in checkIgnoreTypes then this portion has to be enabled.                      
+***
+**            IF property = "LIFEINSURFEE" OR property = "PROPINSURFEE" THEN
+                 GOSUB storeStatusAmount
+**            END
+        NEXT propertypos
+    END
+
+    RETURN
+*=======================================================================================================================
+storeStatusAmount:
+
+    BEGIN CASE
+    CASE billAgingStatuses<1,billpos>
+        GOSUB getBalancePrefix
+        checkType = BalancePrefix:property
+    CASE billTypes<1,billpos> = "EXPECTED"
+        checkType = "EXP":property
+    CASE 1
+        checkType = billStatuses<1,billpos>:property
+    END CASE
+
+    LOCATE checkType IN billBalanceTypes<1,1> SETTING checkpos THEN
+        billBalanceAmounts<1,checkpos> += propertyAmount
+        billSuspendAmounts<1,checkpos> += suspendAmount
+    END ELSE
+        lastpos = DCOUNT(billBalanceTypes, VM)+1
+        billBalanceTypes<1,checkpos> = checkType
+        billBalanceAmounts<1,checkpos> = propertyAmount
+        billSuspendAmounts<1,checkpos> = suspendAmount
+    END
+    diffBalanceAmount = propertyAmount
+    diffSuspenseAmount = suspendAmount
+    diffBalanceType = checkType
+    GOSUB formDifference
+
+    RETURN
+*=======================================================================================================================
+getEcb:
+
+    CALL F.READ(fileNameECB, accountId, ECBrecord, filePathECB, "")
+    CALL AA.CONSOLIDATE.ECB.AMOUNTS(ECBrecord)    ;* Add the movements and the opening balance to arrive at the current balance
+
+    totalBalances = DCOUNT(ECBrecord<ECB.CURR.ASSET.TYPE>,VM)
+
+    FOR balanceTypepos = 1 TO totalBalances
+        balanceType = ECBrecord<ECB.TYPE.SYSDATE,balanceTypepos>
+        reqdBalanceType = balanceType
+        GOSUB getbalanceAmount
+        balanceAmount = returnAmount + 0
+        IF balanceAmount THEN
+            GOSUB getBalanceType
+            GOSUB checkIgnoreTypes
+            IF NOT(IgnoreType) THEN
+                GOSUB checkbalanceType
+                IF NOT(tableError) THEN
+                    LOCATE balanceType IN ecbBalanceTypes<1,1> SETTING checkpos THEN
+                        ecbBalanceAmounts<1,checkpos> += balanceAmount
+                    END ELSE
+                        lastpos = DCOUNT(ecbBalanceTypes, VM)+1
+                        ecbBalanceTypes<1,checkpos> = balanceType
+                        ecbBalanceAmounts<1,checkpos> = balanceAmount
+                    END
+                    diffBalanceAmount = balanceAmount
+                    diffBalanceType = balanceType
+                    diffSuspenseAmount = ""
+                    GOSUB formDifference
+                END
+            END
+        END
+    NEXT balanceTypepos
+
+    printDetails = printDetails:"#":ecbBalanceTypes:"#":ecbBalanceAmounts
+
+    RETURN
+*=======================================================================================================================
+formDifference:
+
+    LOCATE diffBalanceType IN diffBalanceTypes<1,1> SETTING checkpos THEN
+        diffBalanceAmounts<1,checkpos> += diffBalanceAmount
+    END ELSE
+        lastpos = DCOUNT(diffBalanceTypes, VM)+1
+        diffBalanceTypes<1,checkpos> = diffBalanceType
+        diffBalanceAmounts<1,checkpos> = diffBalanceAmount
+    END
+
+    IF diffSuspenseAmount THEN
+        LOCATE diffBalanceType:"SP" IN diffBalanceTypes<1,1> SETTING checkpos THEN
+            diffBalanceAmounts<1,checkpos> -= diffSuspenseAmount
+        END ELSE
+            lastpos = DCOUNT(diffBalanceTypes, VM)+1
+            diffBalanceTypes<1,checkpos> = diffBalanceType:"SP"
+            diffBalanceAmounts<1,checkpos> = 0
+            diffBalanceAmounts<1,checkpos> -= diffSuspenseAmount
+        END
+    END
+
+    RETURN
+*=======================================================================================================================
+getBalanceType:
+
+    tableError = ""
+    CALL CACHE.READ("F.AC.BALANCE.TYPE", balanceType, balanceRecord, tableError)
+
+    RETURN
+*=======================================================================================================================
+checkIgnoreTypes:
+
+    IgnoreType = 1
+
+    BEGIN CASE
+    CASE RIGHT(balanceType,2) = 'BL'
+    CASE balanceType[1,3] = "TOT"
+    CASE balanceType[1,3] = "ACC"
+    CASE balanceType[1,3] = "CUR"
+    CASE balanceType[1,3] = "UNC"
+    CASE balanceType[1,3] = "UND"
+    CASE balanceRecord<AC.BT.REPORTING.TYPE> = "INTERNAL"
+***You can decide whether to include AASUSPENSE or not
+    CASE balanceType = "AASUSPENSE"
+*        IgnoreType = ""
+    CASE 1
+        IgnoreType = ""
+    END CASE
+*  
+**    
+***********If you want to check specific balance type then you need use the below logic and need to enable a portion of logic in bill too
+**
+*    BEGIN CASE
+*    CASE balanceType = "AASUSPENSE"
+*        IgnoreType = ""
+*    CASE balanceType = "DUELIFEINSURFEE"
+*        IgnoreType = ""
+*    CASE balanceType = "DUEPROPINSURFEE"
+*        IgnoreType = ""            
+*    CASE 1
+*    END CASE
+
+    RETURN
+*=======================================================================================================================
+checkbalanceType:
+
+    BEGIN CASE
+    CASE productLine = "ACCOUNTS" AND balanceType MATCHES "CREDIT":VM:"DEBIT"
+        tableError = ''
+    CASE balanceType MATCHES "CONTDB":VM:"CONTCR"
+        tableError = ''
+    END CASE
+
+    RETURN
+*=======================================================================================================================
+getBalancePrefix:
+
+    BalancePrefix = ""
+
+    statusToLocate = billAgingStatuses<1,billpos>
+
+    IF statusToLocate AND statusToLocate = 'SETTLED' THEN   ;* O/s amount exists, but ageing is SETTLED. So, bill is deemed settled. Balances are residing elsewhere!
+        LOCATE "SETTLED" IN billRecord<AA.BD.AGING.STATUS,1> SETTING agePos THEN
+            statusToLocate = billRecord<AA.BD.AGING.STATUS,agePos+1>  ;* First status is SETTLED, so, the amounts should be residing in this OD balance.
+        END
+    END
+
+    totalBillType = DCOUNT(overdueCondition<AA.OD.BILL.TYPE>,VM)
+
+    FOR billCnt = 1 TO totalBillType UNTIL BalancePrefix    ;*Check for each multi-value to find correct balance prefix
+        LOCATE billTypes<1,billpos> IN overdueCondition<AA.OD.BILL.TYPE,billCnt,1> SETTING billAgePos THEN
+            billAgePos = billCnt        ;*Assign the multi-value position
+** For BILL.SETTLEMENT setup, if any bill has deliquently settled but bill has OS balance. We need to locate the variable statusToLocate,
+** This has the right balance prefix
+*
+            LOCATE statusToLocate IN overdueCondition<AA.OD.OVERDUE.STATUS,billAgePos,1> SETTING agingPos THEN
+                IF overdueCondition<AA.OD.MOVE.BALANCE,billAgePos,agingPos> EQ "YES" THEN ;*if the aging status has MOVE.BALANCE set to YES,
+                    BalancePrefix = overdueCondition<AA.OD.OVERDUE.STATUS,billAgePos,agingPos>      ;*compare against that aging status
+                END
+            END ELSE
+                agingPos = 0
+            END
+        END
+    NEXT billCnt
+
+* Check if any aging status prior to this has MOVE.BALANCE set to YES
+    LOOP
+        agingPos -= 1
+    WHILE agingPos GT 0 AND NOT(BalancePrefix)
+        IF overdueCondition<AA.OD.MOVE.BALANCE,billAgePos,agingPos> EQ "YES" THEN         ;*if the aging status has MOVE.BALANCE set to YES,
+            BalancePrefix = overdueCondition<AA.OD.OVERDUE.STATUS,billAgePos,agingPos>    ;*compare against that aging status
+        END
+    REPEAT
+
+    IF NOT(BalancePrefix) THEN          ;*Still no balance found - take DUE as the default status
+        BalancePrefix = "DUE"
+    END
+
+    RETURN
+*=======================================================================================================================
+getbalanceAmount:
+
+    returnAmount = 0
+    requestType = ""
+    requestType<2> = "ALL"
+    requestType<4> = "ECB"
+    balanceDetails = ""
+    CALL AA.GET.PERIOD.BALANCES(accountId, reqdBalanceType, requestType, TODAY, "", "", balanceDetails, retErr)
+
+    returnAmount = balanceDetails<IC.ACT.BALANCE>
+
+    RETURN
+*=======================================================================================================================
+CHECK.ASSET:
+
+    BAL.CNT = DCOUNT(diffBalanceAmounts<1>,VM)
+    totDiffSuspAmt = 0
+    FOR I = 1 TO BAL.CNT
+        IS.SP = diffBalanceTypes<1,I>[2]
+        IF IS.SP = "SP" THEN
+            totDiffSuspAmt = totDiffSuspAmt + diffBalanceAmounts<1,I>
+        END
+		balanceType1 = diffBalanceTypes<1,I>
+		 tableError = ""
+		 balanceRecord1 = ""
+		CALL CACHE.READ("F.AC.BALANCE.TYPE", balanceType1, balanceRecord1, tableError)
+	
+        BALANCE.AMT +=  diffBalanceAmounts<1,I>
+    NEXT I
+
+    RETURN
+*=======================================================================================================================
+RAISE.ENTRY:
+    DIFF.ARR = ''
+    IF BALANCE.AMT EQ 0 THEN
+        BAL.CNT = DCOUNT(diffBalanceAmounts<1>,VM)
+        DIFF.ARR = arrangementId
+
+        FOR J = 1 TO BAL.CNT
+
+            IF diffBalanceAmounts<1,J> NE 0 THEN
+                IF diffBalanceTypes<1,J>[1,8] EQ 'WRITEOFF' THEN
+                    CRT arrangementId:'-WRITEOFF ENTRIES are there - Check Manually'
+                    DIFF.ARR = ''
+                    BREAK
+                END ELSE
+                    BAL.TYPE = diffBalanceTypes<1,J>:"*":diffBalanceAmounts<1,J>
+                    IF DIFF.ARR NE '' THEN
+                        DIFF.ARR = DIFF.ARR:'#':BAL.TYPE
+                    END
+                END
+            END
+        NEXT J
+    END ELSE
+        IF SP.FLAG THEN
+            IF (BALANCE.AMT - totDiffSuspAmt) = 0 THEN
+                BAL.CNT = DCOUNT(diffBalanceAmounts<1>,VM)
+                DIFF.ARR = arrangementId
+                FOR J = 1 TO BAL.CNT
+                    IF diffBalanceAmounts<1,J> NE 0 THEN
+                        IF diffBalanceTypes<1,J>[1,8] EQ 'WRITEOFF' THEN
+                            CRT arrangementId:'-WRITEOFF ENTRIES are there - Check Manually'
+                            DIFF.ARR = ''
+                            BREAK
+                        END ELSE
+                            IF diffBalanceTypes<1,J>[2] EQ 'SP' THEN
+                                BAL.TYPE = PL.CATEG:"*":diffBalanceAmounts<1,J>*(-1)
+                                IF DIFF.ARR NE '' THEN
+                                    DIFF.ARR = DIFF.ARR:'#':BAL.TYPE
+                                END
+                            END
+                            BAL.TYPE = diffBalanceTypes<1,J>:"*":diffBalanceAmounts<1,J>
+                            IF DIFF.ARR NE '' THEN
+                                DIFF.ARR = DIFF.ARR:'#':BAL.TYPE
+                            END
+                        END
+                    END
+                NEXT J
+            END ELSE
+                CRT arrangementId:'-ROUTINE FORMED ENTRIES ARE NOT BALANCED - Check Manually'
+            END
+        END
+    END
+    IF DIFF.ARR NE '' AND DIFF.ARR NE arrangementId THEN
+        UPDATE.STRING<-1> = DIFF.ARR
+    END
+
+    RETURN
+*=======================================================================================================================
+WRITE.DATA:
+
+    OPEN "&SAVEDLISTS&" TO VV.SAVELISTS ELSE STOP "Unable to open SaveLists File"
+    WRITE UPDATE.STRING TO VV.SAVELISTS, "AA.ADJ.BAL"
+    RETURN
+*=======================================================================================================================
+END
+

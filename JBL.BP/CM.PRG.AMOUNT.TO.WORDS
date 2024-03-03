@@ -1,0 +1,107 @@
+*-----------------------------------------------------------------------------
+* <Rating>249</Rating>
+*-----------------------------------------------------------------------------
+SUBROUTINE CM.PRG.AMOUNT.TO.WORDS
+*-----------------------------------------------------------------------------
+* This is a main line routine to upload central bank codes data
+*-----------------------------------------------------------------------------
+* Modification History :
+*-----------------------------------------------------------------------------
+$INSERT I_COMMON
+$INSERT I_EQUATE
+$INSERT I_F.FUNDS.TRANSFER
+$INSERT I_F.FT.BULK.CREDIT.AC
+*-----------------------------------------------------------------------------
+
+	GOSUB INIT
+	GOSUB PROCESS
+	GOSUB WRITE.FILE
+	RETURN
+*-----
+INIT:
+*-----
+   
+	Y.OFS.SOURCE    = 'BULK.OFS'
+	Y.APP.NAM.FT       = 'FUNDS.TRANSFER,'
+		Y.APP.NAM.BULK       = 'FT.BULK.CREDIT.AC,TEST'
+    Y.FUNC          = 'I'
+    Y.PROCESS       = 'PROCESS'
+    Y.GTSMODE       = ''
+    Y.NO.OF.AUTH    = 0
+	  Y.TXN.ID        = ''
+    ERR.OFS         = ''
+    Y.INSERT.R.ADD  = 'ADD'
+    Y.OFS.RECORD    = ''
+    Y.TXN.VALUES    = ''
+    
+RETURN	
+
+PROCESS:
+*-------  
+    Y.OPTIONS<1>  = Y.OFS.SOURCE
+    Y.OPTIONS<2>  = ''
+    Y.OPTIONS<3>  = ''
+    Y.OPTIONS<4>  = ''
+    Y.OFS.TXN.CMT = '' ; Y.RES.OFS = ''
+    R.REC<FT.TRANSACTION.TYPE> = AC
+    R.REC<FT.DEBIT.ACCT.NO> = 0101000005925
+    R.REC<FT.DEBIT.CURRENCY> = Y.DR.CCY 
+    R.REC<FT.DEBIT.AMOUNT> = Y.DR.AMT 
+    R.REC<FT.CREDIT.ACCT.NO> = 0101000006018
+    R.REC<FT.ORDERING.BANK> = 'JBL' 
+    R.REC<FT.DR.ADVICE.REQD.Y.N> = 'N' 
+    R.REC<FT.CR.ADVICE.REQD.Y.N> = 'N'
+    CALL OFS.BUILD.RECORD(Y.APP.NAM,Y.FUNC,Y.PROCESS,Y.OFS.VERSION,Y.GTSMODE,Y.NO.OF.AUTH,Y.TXN.ID,R.REC,Y.OFS.RECORD)
+    CALL OFS.CALL.BULK.MANAGER(Y.OPTIONS,Y.OFS.RECORD,Y.RES.OFS,Y.OFS.TXN.CMT)
+    SENSITIVITY = ''
+    CRT 'RESPONSE MSG =': Y.RES.OFS:' TX CNT =':Y.OFS.TXN.CMT
+    Y.STATUS = FIELD(FIELD(Y.RES.OFS,'/',3),',',1)
+    Y.TXN.ID = FIELD(Y.RES.OFS,'/',1)
+    Y.ARRAY<-1> = Y.TXN.ID:",":Y.STATUS
+    R.REC.BULK<FT.BKCRAC.TRANSACTION.TYPE> = AC
+    R.REC.BULK<FT.BKCRAC.DR.CURRENCY> = 0101000006018
+    R.REC.BULK<FT.BKCRAC.DR.ACCOUNT> = Y.DR.CCY 
+    R.REC.BULK<FT.BKCRAC.DR.AMOUNT> = Y.DR.AMT 
+    R.REC.BULK<FT.BKCRAC.CR.CURRENCY> = Y.DR.CCY
+    R.REC.BULK<FT.BKCRAC.CR.ACCOUNT><1,1> = 0101000005950
+    R.REC.BULK<FT.BKCRAC.CR.AMOUNT> = 250
+    R.REC.BULK<FT.BKCRAC.CR.ACCOUNT> = 0101000005968 
+    R.REC.BULK<FT.BKCRAC.CR.AMOUNT> = 37.5
+    R.REC.BULK<FT.BKCRAC.CR.ACCOUNT> = 0101000005941
+    R.REC.BULK<FT.BKCRAC.CR.AMOUNT> = 250
+    R.REC.BULK<FT.BKCRAC.CR.ACCOUNT> = 0101000005933
+    R.REC.BULK<FT.BKCRAC.CR.AMOUNT> = 37.5
+    CALL OFS.BUILD.RECORD(Y.APP.NAM,Y.FUNC,Y.PROCESS,Y.OFS.VERSION,Y.GTSMODE,Y.NO.OF.AUTH,Y.TXN.ID,R.REC.BULK,Y.OFS.RECORD.BULK)
+    CALL OFS.CALL.BULK.MANAGER(Y.OPTIONS,Y.OFS.RECORD.BULK,Y.RES.OFS.BULK,Y.OFS.TXN.CMT.BULK)
+    SENSITIVITY = ''
+    CRT 'RESPONSE MSG =': Y.RES.OFS.BULK:' TX CNT =':Y.OFS.TXN.CMT
+    Y.STATUS = FIELD(FIELD(Y.RES.OFS.BULK,'/',3),',',1)
+    Y.TXN.ID = FIELD(Y.RES.OFS,'/',1)
+    Y.ARRAY<-1> = Y.TXN.ID:",":Y.STATUS 
+    RETURN
+    
+    
+*=========
+WRITE.FILE:
+*=========
+*-------------------------------
+    Y.DIR = '/Temenos/T24/UD/JBL.BP'
+    Y.FILENAME = "TEST.BULK.FT"
+    OPEN Y.DIR TO C.OUT ELSE
+        EXECUTE 'CREATE.FILE ':Y.DIR:' TYPE=UD'
+        OPEN Y.DIR TO C.OUT ELSE
+            CRT "OPENING OF ":Y.DIR:" FAILDED"
+            RETURN
+        END
+    END
+    IF NOT(Y.FILENAME) THEN
+        CRT "No file name found to write data"
+    END
+    ELSE
+    WRITE Y.ARRAY TO C.OUT,Y.FILENAME
+        CRT "Please get your data in directory ":Y.DIR:" and file name :":Y.FILENAME
+    END
+*-------------------------------
+
+    RETURN
+END

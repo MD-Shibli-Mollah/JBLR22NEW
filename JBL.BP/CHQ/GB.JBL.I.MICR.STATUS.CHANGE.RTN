@@ -1,0 +1,33 @@
+SUBROUTINE GB.JBL.I.MICR.STATUS.CHANGE.RTN
+
+    $INSERT  I_COMMON
+    $INSERT  I_EQUATE
+    $INSERT  I_ENQUIRY.COMMON
+    $INSERT  I_F.EB.JBL.MICR.MGT
+
+    $USING EB.DataAccess
+    $USING EB.SystemTables
+
+    FN.MICR.MGT = 'F.JBL.MICR.MGT'
+    F.MICR.MGT = ''
+    MICR.STATUS=''
+
+    Y.MICR.ID = ID.NEW
+
+    EB.DataAccess.Opf(FN.MICR.MGT, F.MICR.MGT)
+
+    EB.DataAccess.FRead(FN.MICR.MGT,Y.MICR.ID,REC.MICR,F.MICR.MGT,ERR.REQ)
+    IF EB.SystemTables.getVFunction() EQ "I" THEN
+        REC.MICR<MICR.STATUS> = "PROCESSING"
+
+        CALL F.WRITE(FN.MICR.MGT,Y.MICR.ID,REC.MICR)
+    END
+
+    IF EB.SystemTables.getVFunction() EQ "D" THEN
+        REC.MICR<MICR.STATUS> = "PENDING"
+
+        EB.DataAccess.FWrite(FN.MICR.MGT,Y.MICR.ID,REC.MICR)
+    END
+
+    RETURN
+END
