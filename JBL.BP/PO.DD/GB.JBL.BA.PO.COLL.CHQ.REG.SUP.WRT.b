@@ -1,10 +1,5 @@
-SUBROUTINE GB.JBL.A.DD.COLL.CHQ.REG.SUP.WRT
-*-----------------------------------------------------------------------------
-*
-*-----------------------------------------------------------------------------
-* Modification History :
-*-----------------------------------------------------------------------------
- 
+SUBROUTINE GB.JBL.BA.PO.COLL.CHQ.REG.SUP.WRT
+
 *-----------------------------------------------------------------------------
     $INSERT I_COMMON
     $INSERT I_EQUATE
@@ -35,7 +30,7 @@ RETURN
 *** </region>
 
 
-*-----------------------------------------------------------------------------*
+*-----------------------------------------------------------------------------
 
 *** <region name= OPENFILE>
 OPENFILE:
@@ -46,12 +41,11 @@ OPENFILE:
 RETURN
 *** </region>
 
-*-----------------------------------------------------------------------------*
+*-----------------------------------------------------------------------------
 
 *** <region name= PROCESS>
 PROCESS:
 *** <desc> </desc>
-    
     Y.APP.NAME ="CHEQUE.REGISTER.SUPPLEMENT" :FM: 'TELLER':FM:'FUNDS.TRANSFER'
     LOCAL.FIELDS = "LT.CRS.COLL.DAT":VM:"LT.CRS.COLL.REF":VM:"LT.CRS.COLL.CO":VM:"LT.CRS.PUR.NAME":VM:'NEW.STATUS':VM:'LT.CRS.OLD.PO':VM:'LT.CRS.ALL.COM':FM:'LT.PUR.NAME':FM:'LT.TT.PO.CANCEL':VM:'LT.OLD.PO.NO'
     FLD.POS = ""
@@ -106,16 +100,16 @@ PROCESS:
     
     IF EB.SystemTables.getApplication() EQ 'TELLER' THEN
         Y.PO.NO = EB.SystemTables.getRNew(TT.Contract.Teller.TeStockNumber)
-        Y.PO.ACC = EB.SystemTables.getRNew(TT.Contract.Teller.TeAccountOne)
+        Y.PO.ACC = EB.SystemTables.getRNew(TT.Contract.Teller.TeAccountTwo)
         Y.PO.TT.COLL.DAT = EB.SystemTables.getRNew(TT.Contract.Teller.TeValueDateOne)
         Y.TT.ISS.CHQ = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
         Y.PO.COLL.REF.TT = EB.SystemTables.getIdNew()
         Y.PO.COLL.CO.CODE = EB.SystemTables.getIdCompany()
-*--------------------------------PUR NAME --------------------------------*
+*--------------------------------PUR NAME ------------------------------
         Y.TT.LOC.REF= EB.SystemTables.getRNew(TT.Contract.Teller.TeLocalRef)
         Y.TT.PUR.NAME = Y.TT.LOC.REF<1,Y.LT.PUR.NAME.POS>
         
-*--------------------------------------------------------------------------*
+*------------------------------------------------------------------------
 * Y.ID='PO.':Y.PO.ACC:'.':Y.PO.NO
         Y.ID = Y.TT.ISS.CHQ:'.':Y.PO.ACC:'.':Y.PO.NO
         EB.DataAccess.FRead(FN.CHQ.REG.SUP, Y.ID, Rec.CHQ.REG.SUP, F.CHQ.REG.SUP, Y.Err)
@@ -137,5 +131,4 @@ PROCESS:
     END
     
 RETURN
-
 END

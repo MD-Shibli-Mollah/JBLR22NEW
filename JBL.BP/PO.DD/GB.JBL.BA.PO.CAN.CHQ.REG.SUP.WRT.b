@@ -1,11 +1,10 @@
-SUBROUTINE GB.JBL.A.CAN.CHQ.REG.SUP.WRT
-*-----------------------------------------------------------------------------
-*
+SUBROUTINE GB.JBL.BA.PO.CAN.CHQ.REG.SUP.WRT
 *-----------------------------------------------------------------------------
 * Modification History :
 *-----------------------------------------------------------------------------
 
 *-----------------------------------------------------------------------------
+
     $INSERT I_COMMON
     $INSERT I_EQUATE
     $USING FT.Contract
@@ -51,7 +50,7 @@ RETURN
 *** <region name= PROCESS>
 PROCESS:
 *** <desc> </desc>
-
+     
     Y.APP.NAME ="CHEQUE.REGISTER.SUPPLEMENT": FM:'FUNDS.TRANSFER':FM:'TELLER'
     LOCAL.FIELDS = "LT.CRS.COLL.DAT":VM:"LT.CRS.COLL.REF":VM:"LT.CRS.COLL.CO":VM:'LT.CRS.PUR.NAME':VM:'NEW.STATUS':FM:'LT.TT.PO.CANCEL':FM:'LT.PUR.NAME':VM:'LT.TT.PO.CANCEL'
     FLD.POS = ""
@@ -130,6 +129,5 @@ PROCESS:
 * EB.DataAccess.FLiveWrite(F.CHQ.REG.SUP, Y.PO.ID, Rec.CHQ.REG.SUP)
     END
 RETURN
-
 
 END

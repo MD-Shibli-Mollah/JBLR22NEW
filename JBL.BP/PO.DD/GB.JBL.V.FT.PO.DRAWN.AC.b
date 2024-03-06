@@ -5,7 +5,7 @@ SUBROUTINE GB.JBL.V.FT.PO.DRAWN.AC
 * Modification History :
 *-----------------------------------------------------------------------------
 * Subroutine Description:
-* THIS ROUTINE FOR GET DEBIT FT ACCOUNT FOR PO FT ISSUE
+* THIS ROUTINE is used to GET DEBIT FT ACCOUNT FOR PO FT ISSUE
 * Attach To: VERSION(FUNDS.TRANSFER,MBL.PO.ISSUE)
 * Attach As: VALIDATION ROUTINE
 *-----------------------------------------------------------------------------

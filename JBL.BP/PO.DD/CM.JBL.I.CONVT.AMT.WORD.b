@@ -9,7 +9,8 @@
 * @ValidationInfo : Strict flag       : N/A
 * @ValidationInfo : Bypass GateKeeper : false
 * @ValidationInfo : Compiler Version  : DEV_201710.0
-SUBROUTINE CM.JBL.CONVT.AMT.WORD
+
+SUBROUTINE CM.JBL.I.CONVT.AMT.WORD
 *-----------------------------------------------------------------------------
 *
 *-----------------------------------------------------------------------------
