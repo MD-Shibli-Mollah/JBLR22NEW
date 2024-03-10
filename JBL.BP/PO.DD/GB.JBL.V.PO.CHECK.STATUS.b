@@ -33,12 +33,14 @@ PROCESS:
     EB.DataAccess.Opf(FN.FT, F.FT)
     EB.DataAccess.Opf(FN.TEL, F.TEL)
 *  EB.DataAccess.Opf(FN.FT.HIS, F.FT.HIS)
-    Y.APP.NAME ='CHEQUE.REGISTER.SUPPLEMENT':FM:'TELLER':FM:'FUNDS.TRANSFER'
-    LOCAL.FIELDS = 'NEW.STATUS':FM:'LT.PUR.NAME':VM:'LT.ISS.OLD.CHQ':FM:'LT.ISS.OLD.CHQ'
+
+    Y.APP.NAME ='CHEQUE.REGISTER.SUPPLEMENT':@FM:'TELLER':@FM:'FUNDS.TRANSFER'
+    LOCAL.FIELDS = 'NEW.STATUS':@FM:'LT.PUR.NAME':@VM:'LT.ISS.OLD.CHQ':@FM:'LT.ISS.OLD.CHQ'
     FLD.POS = ""
-    EB.Updates.MultiGetLocRef(Y.APP.NAME,LOCAL.FIELDS,FLD.POS)
-    Y.NEW.STATUS.POS=FLD.POS<1,1>
-    Y.LT.PUR.NAME.POS=FLD.POS<2,1>
+    
+    EB.Updates.MultiGetLocRef(Y.APP.NAME, LOCAL.FIELDS, FLD.POS)
+    Y.NEW.STATUS.POS = FLD.POS<1,1>
+    Y.LT.PUR.NAME.POS = FLD.POS<2,1>
     Y.LT.TT.ISS.OLD.CHQ.POS = FLD.POS<2,2>
     Y.LT.ISS.OLD.CHQ.POS = FLD.POS<3,1>
     
@@ -51,9 +53,9 @@ PROCESS:
         Y.OLD.ISS.CHQ.TYP = Y.TEMP<1,Y.LT.TT.ISS.OLD.CHQ.POS>
     END
 *********************GET OLD PO/STOCK REGISTER NUMBER***************************
-    Y.PO.LEF =EB.SystemTables.getComi()
+    Y.PO.LEF = EB.SystemTables.getComi()
 *******************************************************************************
-    Y.PO.ID=Y.OLD.ISS.CHQ.TYP:'.':'BDT1526100010001':'.': Y.PO.LEF
+    Y.PO.ID = Y.OLD.ISS.CHQ.TYP:'.':'BDT1770600010001':'.': Y.PO.LEF
     
     EB.DataAccess.FRead(FN.CHQ.REG.SUP, Y.PO.ID, Rec.PO, F.CHQ.REG.SUP, Y.Err)
     IF Rec.PO EQ '' THEN
@@ -67,7 +69,7 @@ PROCESS:
 *    EB.DataAccess.FRead(FN.FT, Y.FT.ID, Rec.FT, F.FT, Y.Err)
 *    FT.REC.STATUS = Rec.FT<FT.Contract.FundsTransfer.RecordStatus>
     IF Y.PO.STATUS EQ 'ISSUED' OR Y.PO.STATUS EQ 'CANCELLED' THEN
-        EB.SystemTables.setEtext('Leaf Not Cleared')
+        EB.SystemTables.setEtext('PayOrder Leaf is Not Cleared')
         EB.ErrorProcessing.StoreEndError()
         !RETURN
     END
@@ -76,7 +78,7 @@ PROCESS:
     Y.NEW.STATUS = Y.LOC.CHQ<1,Y.NEW.STATUS.POS>
     
     IF Y.NEW.STATUS EQ 'CANCELLED' THEN
-        EB.SystemTables.setEtext('Status is Cancelled')
+        EB.SystemTables.setEtext('PayOrder Status is Cancelled')
         EB.ErrorProcessing.StoreEndError()
         !RETURN
     END

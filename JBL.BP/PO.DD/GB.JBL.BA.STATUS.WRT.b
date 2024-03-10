@@ -1,12 +1,14 @@
+
 SUBROUTINE GB.JBL.BA.STATUS.WRT
 *-----------------------------------------------------------------------------
 * Develop by NILOY SARKAR ; NITSL
-* Description: Use a Write routin to read data from Funds Transfer and Write in to cheque register supplyment
-* Use in (FUNDS.TRANSFER,JBL.DUP.PO.ISSUE) and (TELLER,JBL.PO.DUP.SELL.CASH) Version as a before auth routine
+* Description: This routine is written to read data from Funds Transfer and Write in to cheque register supplyment
+* Written in (FUNDS.TRANSFER,JBL.DUP.PO.ISSUE) and (TELLER,JBL.PO.DUP.SELL.CASH) Version as a before auth routine.
 *-----------------------------------------------------------------------------
 * Modification History :
 *-----------------------------------------------------------------------------
-  
+* 09/03/2024 - UPDATED BY                         UPDATE - MD SHIBLI MOLLAH
+*                                                 NITSL
 *-----------------------------------------------------------------------------
 
     $INSERT I_COMMON
@@ -39,9 +41,10 @@ INITIALISE:
     Y.APP.NAME = 'CHEQUE.REGISTER.SUPPLEMENT':@FM:'FUNDS.TRANSFER':@FM:'TELLER'
     LOCAL.FIELDS = 'NEW.STATUS':@VM:'LT.CRS.OLD.PO':@VM:'LT.CRS.ALL.COM':@FM:'LT.TT.PO.CANCEL':@VM:'LT.OLD.PO.NO':@VM:'LT.ISS.OLD.CHQ':@VM:'LT.ALLOW.PO.COM':@FM:'LT.TT.PO.CANCEL':@VM:'LT.OLD.PO.NO':@VM:'LT.ISS.OLD.CHQ':@VM:'LT.ALLOW.PO.COM'
     FLD.POS = ""
+    
     EB.Updates.MultiGetLocRef(Y.APP.NAME,LOCAL.FIELDS,FLD.POS)
-    Y.NEW.STATUS.POS=FLD.POS<1,1>
-    Y.LT.CRS.OLD.PO.POS=FLD.POS<1,2>
+    Y.NEW.STATUS.POS = FLD.POS<1,1>
+    Y.LT.CRS.OLD.PO.POS = FLD.POS<1,2>
     Y.LT.CRS.ALL.COM.POS = FLD.POS<1,3>
     LT.TT.PO.CANCEL.POS = FLD.POS<2,1>
     LT.OLD.PO.NO.POS = FLD.POS<2,2>
@@ -65,10 +68,9 @@ RETURN
 *-------------
 PROCESS:
 *--------------
-*  DEBUG
     IF EB.SystemTables.getApplication() EQ 'FUNDS.TRANSFER' THEN
-        Y.PO.AC=EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditAcctNo)
-        Y.PO.NO=EB.SystemTables.getRNew(FT.Contract.FundsTransfer.StockNumber)
+        Y.PO.AC = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditAcctNo)
+        Y.PO.NO = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.StockNumber)
         Y.FT.ISS.CHQ.TYP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
         Y.STATUS = Y.FT.LOC.REF<1,LT.TT.PO.CANCEL.POS>
         Y.OLD.PO.NO = Y.FT.LOC.REF<1,LT.OLD.PO.NO.POS>

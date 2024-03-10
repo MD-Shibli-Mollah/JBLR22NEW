@@ -15,9 +15,12 @@ SUBROUTINE GB.JBL.V.GET.PO.COLL.TT.FT
 * Modification History :
 * 21/08/2022 - CREATED BY                         NEW - NILOY SARKAR
 *                                                 NITSL
+* 09/03/2024 - UPDATED BY                         UPDATE - MD SHIBLI MOLLAH
+*                                                 NITSL
 
 * UPDATE REQUIRED --TT -- LT.TT.ISS.DATE, LT.BRANCH, LT.TT.REF.NUM ; FT -- LT.FT.CONT.DATE, LT.ISSUE.BRANCH, LT.FT.REF.NO
 * FROM CRS -- ISSUE.DATE, ORIGIN.REF, CO.CODE
+* UPDATE REQUIRED -- Considering Internal Ac
 *-----------------------------------------------------------------------------
     $INSERT I_COMMON
     $INSERT I_EQUATE
@@ -39,27 +42,28 @@ RETURN
 *** <region name= INITIALISE>
 INITIALISE:
 *** <desc> </desc>
-    FN.CHQ.REG.SUP='FBNK.CHEQUE.REGISTER.SUPPLEMENT'
-    F.CHQ.REG.SUP=''
-    FN.TELLER='FBNK.TELLER'
+    FN.CHQ.REG.SUP = 'F.CHEQUE.REGISTER.SUPPLEMENT'
+    F.CHQ.REG.SUP = ''
+    FN.TELLER = 'F.TELLER'
     F.TELLER=''
-    FN.FT='FBNK.FUNDS.TRANSFER'
-    F.FT=''
+    FN.FT = 'F.FUNDS.TRANSFER'
+    F.FT = ''
 *------------------------------------
-    Y.APP.NAME ="CHEQUE.REGISTER.SUPPLEMENT"
+    Y.APP.NAME = "CHEQUE.REGISTER.SUPPLEMENT"
     LOCAL.FIELDS = ""
     LOCAL.FIELDS = "LT.CRS.PUR.NAME"
     FLD.POS = ""
-    EB.Foundation.MapLocalFields(Y.APP.NAME,LOCAL.FIELDS,FLD.POS)
+    EB.Foundation.MapLocalFields(Y.APP.NAME, LOCAL.FIELDS, FLD.POS)
     FLD.POS = ""
     Y.CRS.PUR.NAME.POS=FLD.POS<1,1>
 *
 *----------------------------------------------------------------
 
-    APPLICATION.NAMES = 'TELLER':FM:'FUNDS.TRANSFER':FM:'CHEQUE.REGISTER.SUPPLEMENT'
+    APPLICATION.NAMES = 'TELLER':@FM:'FUNDS.TRANSFER':@FM:'CHEQUE.REGISTER.SUPPLEMENT'
     LOCAL.FIELDS = ""
-    LOCAL.FIELDS = 'LT.TT.ISS.DATE':VM:'LT.BRANCH':VM:'LT.TT.REF.NUM':VM:'LT.PUR.NAME':VM:'LT.AMT.WORD':VM:'LT.CRS.ALL.COM':FM:'LT.FT.CONT.DATE':VM:'LT.ISSUE.BRANCH':VM:'LT.FT.REF.NO':VM:'LT.CHQ.COM.CODE':VM:'LT.CRS.ALL.COM':FM:'LT.CRS.PUR.NAME':VM:'LT.FT.CONT.DATE':VM:'LT.ISSUE.BRANCH':VM:'LT.FT.REF.NO':VM:'LT.CRS.ALL.COM'
+    LOCAL.FIELDS = 'LT.TT.ISS.DATE':@VM:'LT.BRANCH':@VM:'LT.TT.REF.NUM':@VM:'LT.PUR.NAME':@VM:'LT.AMT.WORD':@VM:'LT.CRS.ALL.COM':@FM:'LT.FT.CONT.DATE':@VM:'LT.ISSUE.BRANCH':@VM:'LT.FT.REF.NO':@VM:'LT.CHQ.COM.CODE':@VM:'LT.CRS.ALL.COM':@FM:'LT.CRS.PUR.NAME':@VM:'LT.FT.CONT.DATE':@VM:'LT.ISSUE.BRANCH':@VM:'LT.FT.REF.NO':@VM:'LT.CRS.ALL.COM'
     FLD.POS = ""
+    
     EB.Updates.MultiGetLocRef(APPLICATION.NAMES, LOCAL.FIELDS, FLD.POS)
     Y.LT.TT.ISS.DATE.POS = FLD.POS<1,1>
     Y.TT.LT.BRANCH.POS = FLD.POS<1,2>
@@ -111,9 +115,9 @@ PROCESS:
             Y.ID.COMPANY = EB.SystemTables.getIdCompany()
             Y.FT.ISS.TYP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
             Y.PO.NO = EB.SystemTables.getComi()
-           * Y.PO.ID = Y.FT.ISS.TYP:'.':'USD1526100010001':'.':Y.PO.NO
-             Y.PO.ID = Y.FT.ISS.TYP:'.':'BDT152610001':'.':Y.PO.NO
-        CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.PAY.CASH') 
+* Y.PO.ID = Y.FT.ISS.TYP:'.':'USD1526100010001':'.':Y.PO.NO
+            Y.PO.ID = Y.FT.ISS.TYP:'.':'BDT177060001':'.':Y.PO.NO
+        CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.PAY.CASH')
             Y.TT.ISS.TYP = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
             Y.PO.NO = EB.SystemTables.getComi()
             Y.PO.ID = Y.TT.ISS.TYP:'.':'USD1526100010001':'.':Y.PO.NO
