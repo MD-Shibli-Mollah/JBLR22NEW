@@ -109,65 +109,67 @@ PROCESS:
 *** <desc> </desc>
  
     Y.ID.COMPANY = EB.SystemTables.getIdCompany()
+    Y.COMPANY = Y.ID.COMPANY[6,4]
+    Y.APP = EB.SystemTables.getApplication()
    
     BEGIN CASE
         CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.COLLECTION')
-            Y.ID.COMPANY = EB.SystemTables.getIdCompany()
             Y.FT.ISS.TYP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
             Y.PO.NO = EB.SystemTables.getComi()
 * Y.PO.ID = Y.FT.ISS.TYP:'.':'USD1526100010001':'.':Y.PO.NO
-            Y.PO.ID = Y.FT.ISS.TYP:'.':'BDT177060001':'.':Y.PO.NO
+            Y.PO.ID = Y.FT.ISS.TYP:'.':'BDT177060001':Y.COMPANY:'.':Y.PO.NO
         CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.PAY.CASH')
             Y.TT.ISS.TYP = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
             Y.PO.NO = EB.SystemTables.getComi()
-            Y.PO.ID = Y.TT.ISS.TYP:'.':'USD1526100010001':'.':Y.PO.NO
+            Y.PO.ID = Y.TT.ISS.TYP:'.':'BDT177060001':Y.COMPANY:'.':Y.PO.NO
         CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.CANCELLATION')
             Y.FT.ISS.TYP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
             Y.PO.NO = EB.SystemTables.getComi()
-            Y.PO.ID = Y.FT.ISS.TYP:'.':'USD1526100010001':'.':Y.PO.NO
+            Y.PO.ID = Y.FT.ISS.TYP:'.':'BDT177060001':Y.COMPANY:'.':Y.PO.NO
         CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.CANCEL.CASH')
             Y.TT.ISS.TYP = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
             Y.PO.NO = EB.SystemTables.getComi()
-            Y.PO.ID = Y.TT.ISS.TYP:'.':'USD1526100010001':'.':Y.PO.NO
+            Y.PO.ID = Y.TT.ISS.TYP:'.':'BDT177060001':Y.COMPANY:'.':Y.PO.NO
         CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.COLLECTION')
             Y.FT.ISS.TYP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
             Y.PO.NO = EB.SystemTables.getComi()
-            Y.PO.ID = Y.FT.ISS.TYP:'.':'USD1526100010001':'.':Y.PO.NO
+            Y.PO.ID = Y.FT.ISS.TYP:'.':'BDT177080001':Y.COMPANY:'.':Y.PO.NO
         CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.PAY.CASH')
             Y.TT.ISS.TYP = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
             Y.PO.NO = EB.SystemTables.getComi()
-            Y.PO.ID = Y.TT.ISS.TYP:'.':'USD1526100010001':'.':Y.PO.NO
+            Y.PO.ID = Y.TT.ISS.TYP:'.':'BDT177080001':Y.COMPANY:'.':Y.PO.NO
     END CASE
+    
     EB.DataAccess.FRead(FN.CHQ.REG.SUP, Y.PO.ID, Rec.PO, F.CHQ.REG.SUP, Y.Err)
 *--------------------------------CHQ REGISTER SUPPLIMENT------------------------*
     IF Rec.PO THEN
-        Y.PO.STATUS=Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsStatus>
-        Y.PO.CURRENCY=Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsCurrency>
-        Y.PO.AMT=Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsAmount>
-        Y.PO.PAYEE.NAME=Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsPayeeName>
-        Y.PO.ISS.DATE=Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsIssueDate>
-        Y.PO.ORGIN=Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsOrigin>
-        Y.CRS.LOC.REF= Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsLocalRef>
+        Y.PO.STATUS = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsStatus>
+        Y.PO.CURRENCY = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsCurrency>
+        Y.PO.AMT = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsAmount>
+        Y.PO.PAYEE.NAME = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsPayeeName>
+        Y.PO.ISS.DATE = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsIssueDate>
+        Y.PO.ORGIN = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsOrigin>
+        Y.CRS.LOC.REF = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsLocalRef>
         Y.PO.ALLOW.COMP = Y.CRS.LOC.REF<1,Y.LT.CRS.ALL.COM.POS>
         Y.CRS.CO.CODE = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsCoCode>
   
         IF Y.PO.ORGIN EQ 'TELLER' THEN
-            Y.ORG.TT.REF=Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsOriginRef>
+            Y.ORG.TT.REF = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsOriginRef>
         END
         EB.DataAccess.FRead(FN.TELLER,Y.ORG.TT.REF, R.TT, F.TELLER,Y.TT.Err)
         Y.TT.LOC.REF= R.TT<TT.Contract.Teller.TeLocalRef>
 *-------------------------------purchaser Name for TT --------------------
         Y.TT.PUR.NAME = Y.TT.LOC.REF<1,Y.LT.PUR.NAME.POS>
         Y.TT.AMT.WORD = Y.TT.LOC.REF<1, Y.LT.AMT.WORD.POS>
-        Y.PO.ORGIN.REF=Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsOriginRef>
+        Y.PO.ORGIN.REF = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsOriginRef>
 *-------------------------------------END--------------------------------------
 *----------------------------------purchaser name-----------------------
         EB.DataAccess.FRead(FN.FT, Y.PO.ORGIN.REF, R.FT, F.FT, Y.FT.Err)
-        Y.PUR.NAME= R.FT<FT.Contract.FundsTransfer.PaymentDetails>
+        Y.PUR.NAME = R.FT<FT.Contract.FundsTransfer.PaymentDetails>
 *-------------------------------------end--------------------------------
-        Y.PO.CHQ.TYP=Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsIdCompOne>
+        Y.PO.CHQ.TYP = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsIdCompOne>
 *----PO FROM OTHER BRANCH--- ID COMP--ACC NUM---------*
-        Y.PO.AC.NO=Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsIdCompTwo>
+        Y.PO.AC.NO = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsIdCompTwo>
        
 *Y.PUR.NAME=Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsLocalRef,Y.CRS.PUR.NAME.POS>
 
@@ -189,14 +191,14 @@ PROCESS:
     BEGIN CASE
         CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.CANCELLATION') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.CANCEL.CASH')
             IF (Y.CRS.CO.CODE NE Y.ID.COMPANY) THEN
-                EB.SystemTables.setEtext('Can not cancel from another Branch')
+                EB.SystemTables.setEtext('PayOrder can NOT be CANCELLED from another Branch')
                 EB.ErrorProcessing.StoreEndError()
             END
     END CASE
 *------------------------------Allow Company validation End------------------*
 *------------------TT---------------------*
     IF Y.PO.ALLOW.COMP EQ 'YES' OR (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.COLLECTION') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.PAY.CASH') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.CANCELLATION') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.CANCEL.CASH') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.COLLECTION') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.PAY.CASH')  THEN
-        IF EB.SystemTables.getApplication() EQ 'TELLER' THEN
+        IF Y.APP EQ 'TELLER' THEN
             EB.SystemTables.setRNew(TT.Contract.Teller.TePayeeName, Y.PO.PAYEE.NAME)
             EB.SystemTables.setRNew(TT.Contract.Teller.TeCurrencyOne, Y.PO.CURRENCY)
             EB.SystemTables.setRNew(TT.Contract.Teller.TeAmountLocalOne, Y.PO.AMT)
@@ -223,7 +225,7 @@ PROCESS:
     
 *    IF EB.SystemTables.getApplication() EQ 'FUNDS.TRANSFER' AND Y.PO.ORGIN EQ 'FUNDS.TRANSFER' THEN
  
-        IF EB.SystemTables.getApplication() EQ 'FUNDS.TRANSFER' THEN
+        IF Y.APP EQ 'FUNDS.TRANSFER' THEN
             EB.SystemTables.setRNew(FT.Contract.FundsTransfer.DebitAcctNo, Y.PO.AC.NO)
             EB.SystemTables.setRNew(FT.Contract.FundsTransfer.CreditCurrency, Y.PO.CURRENCY)
             EB.SystemTables.setRNew(FT.Contract.FundsTransfer.CreditAmount, Y.PO.AMT)

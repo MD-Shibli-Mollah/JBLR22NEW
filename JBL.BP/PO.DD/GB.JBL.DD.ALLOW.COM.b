@@ -141,7 +141,4 @@ PROCESS:
         EB.DataAccess.FLiveWrite(F.CHQ.REG.SUP, Y.PO.ID, Rec.CHQ.REG.SUP)
     END
 RETURN
-        
-
-
 END

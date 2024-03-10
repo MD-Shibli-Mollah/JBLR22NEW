@@ -4,8 +4,18 @@ SUBROUTINE GB.JBL.V.TT.DD.DRAW.AC
 *-----------------------------------------------------------------------------
 * Modification History :
 *-----------------------------------------------------------------------------
-
+* Subroutine Description:
+* THIS ROUTINE is used to GET DEBIT FT ACCOUNT FOR DD TT ISSUE
+* Attach To: VERSION(TELLER,JBL.DD.SELL.CASH)
+* Attach As: VALIDATION ROUTINE
 *-----------------------------------------------------------------------------
+* Modification History :
+* 10/08/2020 -                             NEW   -NILOY SARKAR
+*                                                 NITSL Limited
+* 09/03/2024 -                             UPDATE - MD SHIBLI MOLLAH
+*                                                   NITSL Limited
+*-----------------------------------------------------------------------------
+ 
     $INSERT I_COMMON
     $INSERT I_EQUATE
     $USING FT.Contract
@@ -30,12 +40,12 @@ INITIALISE:
     F.FT = ''
     FN.COM = 'F.COMPANY'
     F.COM =''
-    FN.TELLER='F.TELLER'
+    FN.TELLER = 'F.TELLER'
     F.TELLER = ''
     
-    Y.APP.NAME ="FUNDS.TRANSFER":FM:"TELLER"
+    Y.APP.NAME = "FUNDS.TRANSFER":@FM:"TELLER"
     LOCAL.FIELDS = ""
-    LOCAL.FIELDS = "LT.COMPANY":FM:"LT.COMPANY"
+    LOCAL.FIELDS = "LT.COMPANY":@FM:"LT.COMPANY"
     FLD.POS = ""
     EB.Updates.MultiGetLocRef(Y.APP.NAME, LOCAL.FIELDS,FLD.POS)
     Y.LT.COMPANY.POS = FLD.POS<1,1>
@@ -63,19 +73,19 @@ PROCESS:
 *** <desc> </desc>
     
     Y.CATEG.AC=""
-    Y.CATEG.AC = 'BDT140460001'
-    *Y.TT.LOC.REF = EB.SystemTables.getRNew(TT.Contract.Teller.TeLocalRef)
+    Y.CATEG.AC = 'BDT177080001'
+*Y.TT.LOC.REF = EB.SystemTables.getRNew(TT.Contract.Teller.TeLocalRef)
 *----get value from DD issue version Dropdawn -------*
-    *Y.TT.PAYEE.COM = Y.TT.LOC.REF<1,Y.TT.COMPANY.POS>
-    *Y.TT.COM = RIGHT(Y.TT.PAYEE.COM,4)
+*Y.TT.PAYEE.COM = Y.TT.LOC.REF<1,Y.TT.COMPANY.POS>
+*Y.TT.COM = RIGHT(Y.TT.PAYEE.COM,4)
     ! if any company have sub devision code then it will take the sub devision code!
-    *EB.DataAccess.FRead(FN.COM, Y.TT.PAYEE.COM, Rec.Com, F.COM, Y.ERR)
-    *Y.SUB.DEV.CODE = Rec.Com<ST.CompanyCreation.Company.EbComSubDivisionCode>
-    *IF Y.SUB.DEV.CODE NE '' THEN
-     *   EB.SystemTables.setComi(Y.CATEG.AC:Y.SUB.DEV.CODE)
-    *END
-    *ELSE
-     *   EB.SystemTables.setComi(Y.CATEG.AC:Y.TT.COM)
-       EB.SystemTables.setComi(Y.CATEG.AC)
-    *END
+*EB.DataAccess.FRead(FN.COM, Y.TT.PAYEE.COM, Rec.Com, F.COM, Y.ERR)
+*Y.SUB.DEV.CODE = Rec.Com<ST.CompanyCreation.Company.EbComSubDivisionCode>
+*IF Y.SUB.DEV.CODE NE '' THEN
+*   EB.SystemTables.setComi(Y.CATEG.AC:Y.SUB.DEV.CODE)
+*END
+*ELSE
+*   EB.SystemTables.setComi(Y.CATEG.AC:Y.TT.COM)
+    EB.SystemTables.setComi(Y.CATEG.AC)
+*END
 END
