@@ -33,12 +33,7 @@ RETURN
 *** <region name= INITIALISE>
 INITIALISE:
 *** <desc> </desc>
-    FN.FT = "F.FUNDS.TRANSFER"
-    F.FT = ""
-    FN.TELLER = "F.TELLER"
-    F.TELLER = ""
-    
-    FN.CHEQUE.TYPE = "CHEQUE.TYPE"
+    FN.CHEQUE.TYPE = "F.CHEQUE.TYPE"
     F.CHEQUE.TYPE = ""
 RETURN
 *** </region>
@@ -48,8 +43,7 @@ RETURN
 *** <region name= OPENFILE>
 OPENFILE:
 *** <desc> </desc>
-    EB.DataAccess.Opf(FN.FT, F.FT)
-    EB.DataAccess.Opf(FN.TELLER, F.TELLER)
+    EB.DataAccess.Opf(FN.CHEQUE.TYPE, F.CHEQUE.TYPE)
 RETURN
 *** </region>
 
@@ -80,6 +74,22 @@ PROCESS:
         Y.CATEG.AC = "BDT":Y.CAT
         EB.SystemTables.setComi(Y.CATEG.AC)
     END
+    
+*******--------------------------TRACER------------------------------------------------------------------------------
+    WriteData = "Y.ISS.CHQ.TYPE: ": Y.ISS.CHQ.TYPE:" Y.CAT: ":Y.CAT:" Y.CATEG.AC : ":Y.CATEG.AC
+    FileName = 'SHIBLI_PO_ISSUE.txt'
+    FilePath = 'DL.BP'
+    OPENSEQ FilePath,FileName TO FileOutput THEN NULL
+    ELSE
+        CREATE FileOutput ELSE
+        END
+    END
+    WRITESEQ WriteData APPEND TO FileOutput ELSE
+        CLOSESEQ FileOutput
+    END
+    CLOSESEQ FileOutput
+*******--------------------------TRACER-END--------------------------------------------------------*********************
+   
 RETURN
 *** </region>
 END
