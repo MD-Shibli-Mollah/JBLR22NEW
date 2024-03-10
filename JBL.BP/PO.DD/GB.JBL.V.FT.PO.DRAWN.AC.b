@@ -43,7 +43,6 @@ INITIALISE:
 RETURN
 *** </region>
 
-
 *-----------------------------------------------------------------------------
 
 *** <region name= OPENFILE>
@@ -62,19 +61,10 @@ PROCESS:
     Y.CATEG.AC = ""
 * Y.CATEG.AC = 'BDT177060001'
 * Y.CATEG.AC = 'BDT17706'
-    
-* Y.COM = EB.SystemTables.getIdCompany()
-*Y.COMPANY=EB.SystemTables.getIdCompany()[6,4]
-*EB.DataAccess.FRead(FN.COM, Y.COM, Rec.Com, F.COM, Y.ERR)
-*Y.SUB.DEV.CODE = Rec.Com<ST.CompanyCreation.Company.EbComSubDivisionCode>
-*IF Y.SUB.DEV.CODE NE '' THEN
-*   EB.SystemTables.setComi(Y.CATEG.AC:Y.SUB.DEV.CODE)
-*END
-*ELSE
-*EB.SystemTables.setComi(Y.CATEG.AC:Y.COMPANY)
+
     Y.APP = EB.SystemTables.getApplication()
     
-    IF Y.APP EQ 'FUNDS.TRANSFER' THEN
+    IF Y.APP EQ "FUNDS.TRANSFER" THEN
         Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
         
         EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, Rec.PO, F.CHEQUE.TYPE, ERR)
@@ -83,7 +73,7 @@ PROCESS:
         EB.SystemTables.setComi(Y.CATEG.AC)
     END
     
-    IF Y.APP EQ 'TELLER' THEN
+    IF Y.APP EQ "TELLER" THEN
         Y.TT.ISS.CHQ.TYP = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
         EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, Rec.PO, F.CHEQUE.TYPE, ERR)
         Y.CAT = Rec.PO<CQ.ChqConfig.ChequeType.ChequeTypeCategory>
