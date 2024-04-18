@@ -38,7 +38,6 @@ SUBROUTINE GB.JBL.I.ATM.ISSUE.UPDATE
 * TAFC Routine Name : ATM.ISSUE.UPDATE - R09
 *-----------------------------------------------------------------------------
 
-    DEBUG
     $INSERT I_COMMON
     $INSERT I_EQUATE
 * $INSERT GLOBUS.BP I_F.ACCOUNT
@@ -53,6 +52,12 @@ SUBROUTINE GB.JBL.I.ATM.ISSUE.UPDATE
     $USING EB.ErrorProcessing
     $USING EB.TransactionControl
     $USING EB.API
+       
+*    Y.COMP.OFSOPS = EB.Interface.getOfsOperation()
+    
+*    IF Y.COMP.OFSOPS EQ "VALIDATE" THEN
+*        RETURN
+*    END
     
     FN.AC = "F.ACCOUNT"
     F.AC = ""

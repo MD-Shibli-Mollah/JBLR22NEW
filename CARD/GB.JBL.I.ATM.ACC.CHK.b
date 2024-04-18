@@ -50,6 +50,7 @@ SUBROUTINE GB.JBL.I.ATM.ACC.CHK
     $USING FT.Contract
     
     Y.ID.COMPANY = EB.SystemTables.getIdCompany()
+    Y.CO.CODE = Y.ID.COMPANY[6,4]
     Y.TODAY = EB.SystemTables.getToday()
     Y.VFUNCTION = EB.SystemTables.getVFunction()
     Y.PGM.VERSION = EB.SystemTables.getPgmVersion()
@@ -97,7 +98,8 @@ INIT:
     
     Y.TR.CODE = "AC"
 *---- S/D A/C: Fees for ATM Card Vendor --------*
-    Y.CR.ACC.NUM.1 = "USD1720800010001"
+
+    Y.CR.ACC.NUM.1 = "BDT172080001":Y.CO.CODE
     Y.D.AMT.1 = "250"
     Y.FT.COMM.1 = "CARDCRGBR"
     Y.ATM.COM.AMT.1 = "250"
@@ -105,7 +107,7 @@ INIT:
     Y.CR.ACC.NUM.2 = "PL52047"
     Y.D.AMT.2 = "250"
 *---- S/D A/C Comm-VAT on ATM Card Vendor -------*
-    Y.CR.ACC.NUM.3 = "USD1725700010001"
+    Y.CR.ACC.NUM.3 = "BDT172570001":Y.CO.CODE
     Y.D.AMT.3 = "75"
 
     Y.CELLPHONE = ""
@@ -141,7 +143,7 @@ OPENFILES:
 RETURN
 
 PROCESS:
-  
+    
     IF Y.ACCOUNT NE "" THEN
         EB.DataAccess.FRead(FN.AC,Y.ACCOUNT,R.AC.REC,F.AC,Y.ERR)
         Y.AC.CURR = R.AC.REC<AC.AccountOpening.Account.Currency>
@@ -344,7 +346,7 @@ PROCESS:
                 REMOVE Y.ATM.ID FROM SEL.LIST SETTING Y.POS
             WHILE Y.ATM.ID:Y.POS
                 EB.DataAccess.FRead(FN.ATM,Y.ATM.ID,R.ATM.REC,F.ATM,Y.ERR)
-                IF R.ATM.REC<EB.ATM19.CARD.TYPE> EQ Y.CARD.TYPE AND Y.ATM.ID NE Y.ID.NEW THEN
+                IF (R.ATM.REC<EB.ATM19.CARD.TYPE> EQ Y.CARD.TYPE) AND (Y.ATM.ID NE Y.ID.NEW) THEN
                     EB.SystemTables.setEtext(Y.ACCOUNT: " IS ALREADY ASSIGN THIS TYPE CARD")
                     EB.ErrorProcessing.StoreEndError()
                     BREAK
@@ -357,7 +359,7 @@ PROCESS:
                 REMOVE Y.ATM.ID FROM SEL.LIST SETTING Y.POS
             WHILE Y.ATM.ID:Y.POS
                 EB.DataAccess.FRead(FN.ATM.NAU,Y.ATM.ID,R.ATM.REC,F.ATM.NAU,Y.ERR)
-                IF R.ATM.REC<EB.ATM19.CARD.TYPE> EQ Y.CARD.TYPE AND Y.ATM.ID NE Y.ID.NEW THEN
+                IF (R.ATM.REC<EB.ATM19.CARD.TYPE> EQ Y.CARD.TYPE) AND (Y.ATM.ID NE Y.ID.NEW) THEN
                     EB.SystemTables.setEtext(Y.ACCOUNT: " IS ALREADY ASSIGN THIS TYPE CARD")
                     EB.ErrorProcessing.StoreEndError()
                     BREAK
@@ -380,9 +382,9 @@ PROCESS:
         END
         
 ********--------------------------TRACER------------------------------------------------------------------------------
-        WriteData = "GB.JBL.I.ATM.ACC.CHK = Y.CATEGORY.ALLOW: ":Y.CATEGORY.ALLOW:" Y.NAME.CARD.COUNT: ":Y.NAME.COUNT
+        WriteData = "GB.JBL.I.ATM.ACC.CHK = Y.COMP.OFSOPS: ":Y.COMP.OFSOPS
         FileName = 'SHIBLI_ATM.txt'
-        FilePath = 'D:/Temenos/t24home/default/DL.BP'
+        FilePath = 'DL.BP'
         OPENSEQ FilePath,FileName TO FileOutput THEN NULL
         ELSE
             CREATE FileOutput ELSE
@@ -393,7 +395,10 @@ PROCESS:
         END
         CLOSESEQ FileOutput
 ********--------------------------TRACER-END--------------------------------------------------------*********************
-    
+
+*IF Y.COMP.OFSOPS EQ "VALIDATE" THEN
+*        RETURN
+*    END
 
 *----------------DEBIT FROM CUS ACC USING OFS --------------------------------------------------------
         IF (Y.APP.VERSION EQ "EB.JBL.ATM.CARD.MGT,ISSUE") AND (Y.COMP.OFSOPS EQ "PROCESS") AND (Y.VFUNCTION EQ "I") THEN
@@ -436,8 +441,22 @@ PROCESS:
             IF Y.ATM.COM.AMT NE "" THEN
                 OfsMessage<FT.Contract.FundsTransfer.CommissionCode> = "DEBIT PLUS CHARGES"
                 OfsMessage<FT.Contract.FundsTransfer.CommissionType> = Y.FT.COMM.1
-                OfsMessage<FT.Contract.FundsTransfer.CommissionAmt> = "USD":Y.ATM.COM.AMT
+                OfsMessage<FT.Contract.FundsTransfer.CommissionAmt> = "BDT":Y.ATM.COM.AMT
             END
+********--------------------------TRACER------------------------------------------------------------------------------
+            WriteData = "GB.JBL.I.ATM.ACC.CHK = INSIDE OFS BLOCK: Y.VFUNCTION: ":Y.VFUNCTION:" Y.COMP.OFSOPS: ":Y.COMP.OFSOPS
+            FileName = 'SHIBLI_ATM.txt'
+            FilePath = 'DL.BP'
+            OPENSEQ FilePath,FileName TO FileOutput THEN NULL
+            ELSE
+                CREATE FileOutput ELSE
+                END
+            END
+            WRITESEQ WriteData APPEND TO FileOutput ELSE
+                CLOSESEQ FileOutput
+            END
+            CLOSESEQ FileOutput
+********--------------------------TRACER-END--------------------------------------------------------*********************
 
 *    IF Y.REQUEST.TYPE EQ "PINREISSUE" OR Y.REQUEST.TYPE EQ "CLOSE" THEN
 *        R.NEW(FT.COMMISSION.CODE)="DEBIT PLUS CHARGES"

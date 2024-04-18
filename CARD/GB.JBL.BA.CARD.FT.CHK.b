@@ -132,7 +132,8 @@ SUBROUTINE GB.JBL.BA.CARD.FT.CHK
     Y.FT.ID = EB.SystemTables.getRNew(EB.ATM19.ATTRIBUTE5)
     TransactionId = Y.FT.ID
     KOfsSource1 = "CARD.OFS"
-    EB.Foundation.OfsBuildRecord("FUNDS.TRANSFER", "A", "PROCESS", "FUNDS.TRANSFER,JBL.ATM.OFS.AC", "", 1, TransactionId, "", Ofsrecord)
+    EB.Foundation.OfsBuildRecord("FUNDS.TRANSFER", "A", "PROCESS", "FUNDS.TRANSFER,JBL.ATM.OFS.AC", "", 0, TransactionId, "", Ofsrecord)
+* EB.Foundation.OfsBuildRecord(AppName, Ofsfunct, Process, Ofsversion, Gtsmode, NoOfAuth, TransactionId, Record, Ofsrecord)
     EB.Interface.OfsGlobusManager(KOfsSource1, Ofsrecord)
 
 *--------------------------- OFS AUTHORISE FT ----------------- END ------------------------*
@@ -140,7 +141,7 @@ SUBROUTINE GB.JBL.BA.CARD.FT.CHK
     IF Y.FT.ID NE "" THEN
         EB.DataAccess.FRead(FN.FT.NAU, Y.FT.ID, REC.FT.CHK, F.FT.NAU,ERR.FT)
         IF REC.FT.CHK NE "" THEN
-            EB.SystemTables.setEtext("CRMS-FUNDS TRANSFER UNAUTHRISED STAGE")
+            EB.SystemTables.setEtext("CRMS-FUNDS TRANSFER UNAUTHORISED STAGE")
             EB.ErrorProcessing.StoreEndError()
         END
         IF REC.FT.CHK EQ "" THEN
@@ -205,7 +206,7 @@ SUBROUTINE GB.JBL.BA.CARD.FT.CHK
                 Y.TAX.AMT = (Y.ATM.COM.AMT*15)/100
                 EB.API.RoundAmount(Y.LCCY, Y.TAX.AMT, "", "")
             
-                Y.TAX.AMT = "USD":Y.TAX.AMT
+                Y.TAX.AMT = "BDT":Y.TAX.AMT
                 
                 IF (Y.TAX.CODE NE "") AND (Y.FT.TAX.AMT NE Y.TAX.AMT) THEN
                     EB.SystemTables.setEtext("CRMS-INVALID TAX AMT")
@@ -222,7 +223,7 @@ SUBROUTINE GB.JBL.BA.CARD.FT.CHK
                 Y.FT.AMT = (Y.FT.DR.AMT*15)/100
             
                 EB.API.RoundAmount(Y.LCCY, Y.FT.AMT, "", "")
-                Y.FT.AMT = "USD":Y.FT.AMT
+                Y.FT.AMT = "BDT":Y.FT.AMT
 
 *IF REC.FT.CHK<FT.COMMISSION.AMT> NE Y.FT.AMT  THEN
                 IF Y.FT.COM.AMT NE Y.FT.AMT THEN
@@ -234,7 +235,8 @@ SUBROUTINE GB.JBL.BA.CARD.FT.CHK
 *******--------------------------TRACER------------------------------------------------------------------------------
         WriteData = "GB.JBL.BA.CARD.FT.CHK - Y.TRN.TYPE: ":Y.TRN.TYPE: " Y.VEN.ACT: ":Y.VEN.ACT:" Y.VEN.AMT: ":Y.VEN.AMT:" Y.FT.DR.AMT: ":Y.FT.DR.AMT:" Y.FT.COMM: ":Y.FT.COMM:" Y.POS1: ":Y.POS1:" Y.POS2: ":Y.POS2:" Y.CATEGORY: ":Y.CATEGORY:" Y.LCCY: ":Y.LCCY:" Y.TAX.AMT: ":Y.TAX.AMT:" Y.FT.TAX.AMT: ":Y.FT.TAX.AMT:" Y.TAX.CODE: ":Y.TAX.CODE
         FileName = 'SHIBLI_ATM.txt'
-        FilePath = 'D:/Temenos/t24home/default/DL.BP'
+* FilePath = 'D:/Temenos/t24home/default/DL.BP'
+        FilePath = 'DL.BP'
         OPENSEQ FilePath,FileName TO FileOutput THEN NULL
         ELSE
             CREATE FileOutput ELSE

@@ -1,0 +1,8 @@
+* File Layout for EB.BD.STATEMENT.COUNT Created 27 MAR 24 at 11:53AM by t24dev
+*      PREFIX[EB.BD.24.]   
+EQU EB.BD.24.STATEMENT.COUNT TO 1,            EB.BD.24.OVERRIDE TO 2, 
+      EB.BD.24.RECORD.STATUS TO 3,             EB.BD.24.CURR.NO TO 4, 
+           EB.BD.24.INPUTTER TO 5,           EB.BD.24.DATE.TIME TO 6, 
+         EB.BD.24.AUTHORISER TO 7,             EB.BD.24.CO.CODE TO 8, 
+          EB.BD.24.DEPT.CODE TO 9,       EB.BD.24.AUDITOR.CODE TO 10, 
+   EB.BD.24.AUDIT.DATE.TIME TO 11
