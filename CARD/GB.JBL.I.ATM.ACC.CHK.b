@@ -346,8 +346,24 @@ PROCESS:
                 REMOVE Y.ATM.ID FROM SEL.LIST SETTING Y.POS
             WHILE Y.ATM.ID:Y.POS
                 EB.DataAccess.FRead(FN.ATM,Y.ATM.ID,R.ATM.REC,F.ATM,Y.ERR)
-                IF (R.ATM.REC<EB.ATM19.CARD.TYPE> EQ Y.CARD.TYPE) AND (Y.ATM.ID NE Y.ID.NEW) THEN
-                    EB.SystemTables.setEtext(Y.ACCOUNT: " IS ALREADY ASSIGN THIS TYPE CARD")
+                IF ((R.ATM.REC<EB.ATM19.CARD.TYPE> EQ Y.CARD.TYPE) AND (Y.ATM.ID NE Y.ID.NEW)) THEN
+                    
+********--------------------------TRACER------------------------------------------------------------------------------
+                    WriteData = "GB.JBL.I.ATM.ACC.CHK = TRIGGERED"
+                    FileName = 'SHIBLI_ATM.txt'
+                    FilePath = 'DL.BP'
+                    OPENSEQ FilePath,FileName TO FileOutput THEN NULL
+                    ELSE
+                        CREATE FileOutput ELSE
+                        END
+                    END
+                    WRITESEQ WriteData APPEND TO FileOutput ELSE
+                        CLOSESEQ FileOutput
+                    END
+                    CLOSESEQ FileOutput
+********--------------------------TRACER-END--------------------------------------------------------*********************
+
+                    EB.SystemTables.setEtext(Y.ACCOUNT: " IS ALREADY ASSIGNED THIS TYPE OF CARD")
                     EB.ErrorProcessing.StoreEndError()
                     BREAK
                 END
@@ -359,14 +375,31 @@ PROCESS:
                 REMOVE Y.ATM.ID FROM SEL.LIST SETTING Y.POS
             WHILE Y.ATM.ID:Y.POS
                 EB.DataAccess.FRead(FN.ATM.NAU,Y.ATM.ID,R.ATM.REC,F.ATM.NAU,Y.ERR)
-                IF (R.ATM.REC<EB.ATM19.CARD.TYPE> EQ Y.CARD.TYPE) AND (Y.ATM.ID NE Y.ID.NEW) THEN
-                    EB.SystemTables.setEtext(Y.ACCOUNT: " IS ALREADY ASSIGN THIS TYPE CARD")
+                IF ((R.ATM.REC<EB.ATM19.CARD.TYPE> EQ Y.CARD.TYPE) AND (Y.ATM.ID NE Y.ID.NEW)) THEN
+                    EB.SystemTables.setEtext(Y.ACCOUNT: " IS ALREADY ASSIGNED THIS TYPE OF CARD")
                     EB.ErrorProcessing.StoreEndError()
                     BREAK
                 END
             REPEAT
         END
-
+        
+********--------------------------TRACER------------------------------------------------------------------------------
+        WriteData = "GB.JBL.I.ATM.ACC.CHK = R.ATM.REC: ":R.ATM.REC:" Y.CARD.TYPE: ":Y.CARD.TYPE:" Y.ATM.ID: ":Y.ATM.ID:" Y.ID.NEW :":Y.ID.NEW
+        FileName = 'SHIBLI_ATM.txt'
+        FilePath = 'DL.BP'
+        OPENSEQ FilePath,FileName TO FileOutput THEN NULL
+        ELSE
+            CREATE FileOutput ELSE
+            END
+        END
+        WRITESEQ WriteData APPEND TO FileOutput ELSE
+            CLOSESEQ FileOutput
+        END
+        CLOSESEQ FileOutput
+********--------------------------TRACER-END--------------------------------------------------------*********************
+        
+        
+        
         Y.COUNT = DCOUNT(Y.CARD.NAME, " ")
         FOR I=1 TO Y.COUNT
             IF NOT(ALPHA(FIELD(Y.CARD.NAME, " ", I))) THEN
