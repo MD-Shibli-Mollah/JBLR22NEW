@@ -1,0 +1,49 @@
+SUBROUTINE JBL.EKYC.AUTH.RTN
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.EB.JBL.EKYC.INFO
+    
+    $USING EB.DataAccess
+    $USING ST.Customer
+    $USING EB.SystemTables
+    $USING EB.Foundation
+    $USING EB.Interface
+       
+    GOSUB INIT
+    GOSUB OPENFILES
+    GOSUB PROCESS
+RETURN
+INIT:
+    FN.EKYC = 'F.EB.JBL.EKYC.INFO'  ;  F.EKYC    = ''
+RETURN
+
+OPENFILES:
+    EB.DataAccess.Opf(FN.EKYC, F.EKYC)
+RETURN
+
+PROCESS:
+    LT.FLDS = 'MESSAGE.ID' :VM: 'LT.CUS.AML'
+    EB.Foundation.MapLocalFields('CUSTOMER', LT.FLDS, LT.FLDS.POS)
+    MESSAGE.ID.POS = LT.FLDS.POS<1, 1>
+    LT.CUS.AML.POS = LT.FLDS.POS<1, 2>
+    
+    KYC.ID      = EB.SystemTables.getRNew(ST.Customer.Customer.EbCusLocalRef)<1, MESSAGE.ID.POS>
+    CUS.AML.RES = EB.SystemTables.getRNew(ST.Customer.Customer.EbCusLocalRef)<1, LT.CUS.AML.POS>
+    
+    IF KYC.ID NE '' AND CUS.AML.RES EQ 'NEGATIVE' THEN
+        EB.DataAccess.FRead(FN.EKYC, KYC.ID, REC.EKYC, F.EKYC, ERR)
+        REC.EKYC<EB.EKYC.PROCESS.STATUS>    = 'INIT'
+        REC.EKYC<EB.EKYC.CUS.AML.RESULT>    = 'NEGATIVE'
+        WRITE REC.EKYC ON F.EKYC, KYC.ID
+        
+    END ELSE IF CUS.AML.RES EQ 'POSITIVE' THEN
+        EB.DataAccess.FRead(FN.EKYC, KYC.ID, REC.EKYC, F.EKYC, ERR)
+        REC.EKYC<EB.EKYC.PROCESS.STATUS>    = 'FAILED'
+        REC.EKYC<EB.EKYC.CUS.AML.RESULT>    = 'POSITIVE'
+        WRITE REC.EKYC ON F.EKYC, KYC.ID
+    END ELSE
+        RETURN
+    END
+RETURN
+
