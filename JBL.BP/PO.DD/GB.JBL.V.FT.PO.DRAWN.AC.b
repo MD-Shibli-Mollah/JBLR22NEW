@@ -58,8 +58,8 @@ RETURN
 PROCESS:
 *** <desc> </desc>
     Y.CATEG.AC = ""
-* Y.CATEG.AC = 'BDT177060001'
-* Y.CATEG.AC = 'BDT17706' , BDT1770600019999 -- TEST
+* Y.CATEG.AC = 'USD177060001'
+* Y.CATEG.AC = 'USD17706' , USD1770600019999 -- TEST
     
     Y.COMPANY = EB.SystemTables.getIdCompany()[6,4]
 
@@ -75,7 +75,7 @@ PROCESS:
         Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
         EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, Rec.PO, F.CHEQUE.TYPE, ERR)
         Y.CAT = Rec.PO<CQ.ChqConfig.ChequeType.ChequeTypeAssignedCategory>
-        Y.CATEG.AC = "BDT":Y.CAT:"0001":Y.COMPANY
+        Y.CATEG.AC = "USD":Y.CAT:"0001":Y.COMPANY
         EB.SystemTables.setComi(Y.CATEG.AC)
     END
     
@@ -83,7 +83,7 @@ PROCESS:
         Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
         EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, Rec.PO, F.CHEQUE.TYPE, ERR)
         Y.CAT = Rec.PO<CQ.ChqConfig.ChequeType.ChequeTypeAssignedCategory>
-        Y.CATEG.AC = "BDT":Y.CAT:"0001":Y.COMPANY
+        Y.CATEG.AC = "USD":Y.CAT:"0001":Y.COMPANY
         EB.SystemTables.setComi(Y.CATEG.AC)
     END
     
