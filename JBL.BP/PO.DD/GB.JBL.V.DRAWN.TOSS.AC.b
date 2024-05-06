@@ -1,9 +1,6 @@
 
 SUBROUTINE GB.JBL.V.DRAWN.TOSS.AC
-*-----------------------------------------------------------------------------
-*
-*-----------------------------------------------------------------------------
-* Modification History :
+    
 *-----------------------------------------------------------------------------
 * Subroutine Description:
 * THIS ROUTINE is used to SET CREDIT.ACCOUNT as a Parking Ac for CHEQUE.TYPE like PO, PS, SDR
@@ -15,6 +12,7 @@ SUBROUTINE GB.JBL.V.DRAWN.TOSS.AC
 *                                                 NITSL Limited
 *
 *-----------------------------------------------------------------------------
+
     $INSERT I_COMMON
     $INSERT I_EQUATE
     $USING FT.Contract
