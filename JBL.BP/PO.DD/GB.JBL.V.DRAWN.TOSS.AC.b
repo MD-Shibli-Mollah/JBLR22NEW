@@ -1,20 +1,19 @@
 
-SUBROUTINE GB.JBL.V.FT.PO.DRAWN.AC
+SUBROUTINE GB.JBL.V.DRAWN.TOSS.AC
 *-----------------------------------------------------------------------------
 *
 *-----------------------------------------------------------------------------
 * Modification History :
 *-----------------------------------------------------------------------------
 * Subroutine Description:
-* THIS ROUTINE is used to SET CREDIT.ACCOUNT for ALL types of CHEQUE.TYPE like PO, DD, PS, SDR
-* Attach To: VERSION(FUNDS.TRANSFER,MBL.PO.ISSUE)
+* THIS ROUTINE is used to SET CREDIT.ACCOUNT as a Parking Ac for CHEQUE.TYPE like PO, PS, SDR
+* Attach To: VERSION(TELLER,JBL.PO.LCY.CASHIN)
 * Attach As: VALIDATION ROUTINE
 *-----------------------------------------------------------------------------
 * Modification History :
-* 10/08/2020 -                             NEW   -NILOY SARKAR
+* 06/05/2024 -                             NEW -  MD SHIBLI MOLLAH
 *                                                 NITSL Limited
-* 09/03/2024 -                             UPDATE - MD SHIBLI MOLLAH
-*                                                   NITSL Limited
+*
 *-----------------------------------------------------------------------------
     $INSERT I_COMMON
     $INSERT I_EQUATE
@@ -34,8 +33,8 @@ RETURN
 *** <region name= INITIALISE>
 INITIALISE:
 *** <desc> </desc>
-    FN.CHEQUE.TYPE = "F.CHEQUE.TYPE"
-    F.CHEQUE.TYPE = ""
+*    FN.CHEQUE.TYPE = "F.CHEQUE.TYPE"
+*    F.CHEQUE.TYPE = ""
     
     FN.COM = "F.COMPANY"
     F.COM = ""
@@ -47,7 +46,7 @@ RETURN
 *** <region name= OPENFILE>
 OPENFILE:
 *** <desc> </desc>
-    EB.DataAccess.Opf(FN.CHEQUE.TYPE, F.CHEQUE.TYPE)
+* EB.DataAccess.Opf(FN.CHEQUE.TYPE, F.CHEQUE.TYPE)
     EB.DataAccess.Opf(FN.COM, F.COM)
 RETURN
 *** </region>
@@ -58,8 +57,6 @@ RETURN
 PROCESS:
 *** <desc> </desc>
     Y.CATEG.AC = ""
-* Y.CATEG.AC = 'BDT177060001'
-* Y.CATEG.AC = 'BDT17706' , BDT1770600019999 -- TEST
     
     Y.COMPANY = EB.SystemTables.getIdCompany()[6,4]
 
@@ -73,24 +70,46 @@ PROCESS:
     
     IF Y.APP EQ "FUNDS.TRANSFER" THEN
         Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
-        EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, Rec.PO, F.CHEQUE.TYPE, ERR)
-        Y.CAT = Rec.PO<CQ.ChqConfig.ChequeType.ChequeTypeAssignedCategory>
-        Y.CATEG.AC = "BDT":Y.CAT:"0001":Y.COMPANY
+        
+        IF Y.ISS.CHQ.TYPE EQ "PO" THEN
+            Y.CAT = "17721"
+        END
+    
+        IF Y.ISS.CHQ.TYPE EQ "PS" THEN
+            Y.CAT = "17722"
+        END
+    
+        IF Y.ISS.CHQ.TYPE EQ "SDR" THEN
+            Y.CAT = "17723"
+        END
+        
+        Y.CATEG.AC = "USD":Y.CAT:"0001":Y.COMPANY
         EB.SystemTables.setComi(Y.CATEG.AC)
     END
     
     IF Y.APP EQ "TELLER" THEN
         Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
-        EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, Rec.PO, F.CHEQUE.TYPE, ERR)
-        Y.CAT = Rec.PO<CQ.ChqConfig.ChequeType.ChequeTypeAssignedCategory>
-        Y.CATEG.AC = "BDT":Y.CAT:"0001":Y.COMPANY
+        
+        IF Y.ISS.CHQ.TYPE EQ "PO" THEN
+            Y.CAT = "17721"
+        END
+        IF Y.ISS.CHQ.TYPE EQ "PS" THEN
+            Y.CAT = "17722"
+        END
+    
+        IF Y.ISS.CHQ.TYPE EQ "SDR" THEN
+            Y.CAT = "17723"
+        END
+    
+        Y.CATEG.AC = "USD":Y.CAT:"0001":Y.COMPANY
         EB.SystemTables.setComi(Y.CATEG.AC)
     END
     
 *******--------------------------TRACER------------------------------------------------------------------------------
     WriteData = "Y.ISS.CHQ.TYPE: ": Y.ISS.CHQ.TYPE:" Y.CAT: ":Y.CAT:" Y.CATEG.AC : ":Y.CATEG.AC
     FileName = 'SHIBLI_PO_ISSUE.txt'
-    FilePath = 'DL.BP'
+* FilePath = 'DL.BP'
+    FilePath = 'D:\Temenos\t24home\default\SHIBLI.BP'
     OPENSEQ FilePath,FileName TO FileOutput THEN NULL
     ELSE
         CREATE FileOutput ELSE

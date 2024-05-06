@@ -36,7 +36,7 @@ SUBROUTINE GB.JBL.A.DD.ISSUE.RTN
     Y.SCROLL.POS.TT = Y.FIELDS.POS<2,4>
     
     IF EB.SystemTables.getApplication() EQ 'TELLER' THEN
-        Y.DD.DETAILS.ID =EB.SystemTables.getRNew(TT.Contract.Teller.TeLocalRef)<1,Y.DD.TT.MT.POS.TT>:".":RIGHT(EB.SystemTables.getIdCompany(),4):".":RIGHT(EB.SystemTables.getRNew(TT.Contract.Teller.TeLocalRef)<1,Y.BR.CODE.POS.TT>,4):".":EB.SystemTables.getToday()[1,4]:".":EB.SystemTables.getRNew(TT.Contract.Teller.TeLocalRef)<1,Y.SCROLL.POS.TT>
+        Y.DD.DETAILS.ID = EB.SystemTables.getRNew(TT.Contract.Teller.TeLocalRef)<1,Y.DD.TT.MT.POS.TT>:".":RIGHT(EB.SystemTables.getIdCompany(),4):".":RIGHT(EB.SystemTables.getRNew(TT.Contract.Teller.TeLocalRef)<1,Y.BR.CODE.POS.TT>,4):".":EB.SystemTables.getToday()[1,4]:".":EB.SystemTables.getRNew(TT.Contract.Teller.TeLocalRef)<1,Y.SCROLL.POS.TT>
         
         REC.DD.DETAILS<EB.JBL32.DATE.OF.ISSUE>=EB.SystemTables.getRNew(TT.Contract.Teller.TeValueDateOne)
         REC.DD.DETAILS<EB.JBL32.INS.PRINTED.NO>=EB.SystemTables.getRNew(TT.Contract.Teller.TeLocalRef)<1,Y.PR.CHQ.POS.TT>
@@ -52,7 +52,7 @@ SUBROUTINE GB.JBL.A.DD.ISSUE.RTN
 
 
     IF EB.SystemTables.getApplication() EQ 'FUNDS.TRANSFER' THEN
-        Y.DD.DETAILS.ID =EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)<1,Y.DD.TT.MT.POS.FT>:".":RIGHT(EB.SystemTables.getIdCompany(),4):".":RIGHT(EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)<1,Y.BR.CODE.POS.FT>,4):".":EB.SystemTables.getToday()[1,4]:".":EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)<1,Y.SCROLL.POS.FT>
+        Y.DD.DETAILS.ID = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)<1,Y.DD.TT.MT.POS.FT>:".":RIGHT(EB.SystemTables.getIdCompany(),4):".":RIGHT(EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)<1,Y.BR.CODE.POS.FT>,4):".":EB.SystemTables.getToday()[1,4]:".":EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)<1,Y.SCROLL.POS.FT>
 
         REC.DD.DETAILS<EB.JBL32.DATE.OF.ISSUE> =EB.SystemTables.getRNew(FT.Contract.FundsTransfer.DebitValueDate)
         REC.DD.DETAILS<EB.JBL32.INS.PRINTED.NO> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)<1,Y.PR.CHQ.POS.FT>
