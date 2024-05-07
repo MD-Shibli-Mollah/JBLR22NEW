@@ -12,15 +12,15 @@ SUBROUTINE GB.JBL.A.CASH.INSTR.INFO
 *
 *-----------------------------------------------------------------------------
 
-    $INSERT  I_COMMON
-    $INSERT  I_EQUATE
-    $INSERT  I_F.EB.JBL.INSTRUMENTS.INFO
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.EB.JBL.INSTRUMENTS.INFO
     
-    $USING   FT.Contract
-    $USING   TT.Contract
-    $USING   EB.SystemTables
-    $USING   EB.DataAccess
-    $USING   EB.Foundation
+    $USING FT.Contract
+    $USING TT.Contract
+    $USING EB.SystemTables
+    $USING EB.DataAccess
+    $USING EB.Foundation
     
     Y.FT.REC.STATUS = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.RecordStatus)
     Y.TT.REC.STATUS = EB.SystemTables.getRNew(TT.Contract.Teller.TeRecordStatus)

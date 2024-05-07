@@ -28,8 +28,6 @@ SUBROUTINE GB.JBL.V.STOCK.SERIES
     $USING EB.DataAccess
     $USING CQ.ChqStockControl
 
-    
-    
     GOSUB INITIALISE ; *
     GOSUB OPENFILE ; *
     GOSUB PROCESS ; *
@@ -37,6 +35,7 @@ RETURN
 *-------------------------------------------------------------------
 INITIALISE:
 *** <desc> </desc>
+    
     FN.FT = 'F.FUNDS.TRANSFER'
     F.FT = ''
     FN.TEL = 'F.TELLER' ; F.TEL = ''
@@ -52,7 +51,8 @@ PROCESS:
     Y.APP = EB.SystemTables.getApplication()
     IF Y.APP EQ 'FUNDS.TRANSFER' THEN
         Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
-        Y.STOCK.SERIES = 'PO*'
+* Y.STOCK.SERIES = 'PO*'
+        Y.STOCK.SERIES = Y.ISS.CHQ.TYPE:'*'
     
         Y.SERIES.ID = Y.ISS.CHQ.TYPE:'*':Y.STOCK.SERIES
         EB.SystemTables.setComi(Y.SERIES.ID)
@@ -60,7 +60,8 @@ PROCESS:
     
     IF Y.APP EQ 'TELLER' THEN
         Y.TT.ISS.CHQ.TYP = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
-        Y.STOCK.SERIES = 'PO*'
+* Y.STOCK.SERIES = 'PO*'
+        Y.STOCK.SERIES = Y.ISS.CHQ.TYPE:'*'
         Y.SERIES.ID = Y.TT.ISS.CHQ.TYP:'*':Y.STOCK.SERIES
         EB.SystemTables.setComi(Y.SERIES.ID)
     END

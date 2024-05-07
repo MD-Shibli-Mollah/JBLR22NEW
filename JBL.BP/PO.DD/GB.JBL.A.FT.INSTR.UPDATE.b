@@ -12,15 +12,16 @@ SUBROUTINE GB.JBL.A.FT.INSTR.UPDATE
 *
 *-----------------------------------------------------------------------------
 
-    $INSERT  I_COMMON
-    $INSERT  I_EQUATE
-    $INSERT  I_F.EB.JBL.INSTRUMENTS.INFO
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.EB.JBL.INSTRUMENTS.INFO
     
-    $USING   FT.Contract
-    $USING   TT.Contract
-    $USING   EB.SystemTables
-    $USING   EB.DataAccess
-    $USING   EB.Updates
+    $USING FT.Contract
+    $USING TT.Contract
+    $USING EB.SystemTables
+    $USING EB.DataAccess
+    $USING EB.Updates
+    $USING EB.Foundation
     
     Y.FT.REC.STATUS = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.RecordStatus)
     Y.VFUNCTION = EB.SystemTables.getVFunction()
@@ -36,6 +37,13 @@ INIT:
 *----
     FN.INSTRUMENT.INFO = 'F.EB.JBL.INSTRUMENTS.INFO'
     F.INSTRUMENT.INFO = ''
+    
+    EB.Foundation.MapLocalFields("FUNDS.TRANSFER", "LT.TT.REF.NO", FLD.POS)
+    Y.LT.TT.REF.NO.POS = FLD.POS<1,1>
+    Y.TOTAL.LT = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
+    Y.LT.TT.REF.NO = Y.TOTAL.LT<1, Y.LT.TT.REF.NO.POS>
+    
+    Y.INSTR.ID = Y.LT.TT.REF.NO
      
 RETURN
 
