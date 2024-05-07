@@ -22,9 +22,9 @@ SUBROUTINE GB.JBL.A.CASH.INSTR.INFO
     $USING EB.DataAccess
     $USING EB.Foundation
     
-    Y.FT.REC.STATUS = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.RecordStatus)
-    Y.TT.REC.STATUS = EB.SystemTables.getRNew(TT.Contract.Teller.TeRecordStatus)
-    Y.VFUNCTION = EB.SystemTables.getVFunction()
+* Y.FT.REC.STATUS = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.RecordStatus)
+* Y.TT.REC.STATUS = EB.SystemTables.getRNew(TT.Contract.Teller.TeRecordStatus)
+* Y.VFUNCTION = EB.SystemTables.getVFunction()
     Y.INSTR.ID = EB.SystemTables.getIdNew()
     Y.APPLICATION = EB.SystemTables.getApplication()
     
@@ -74,6 +74,10 @@ PROCESS:
     IF Y.APPLICATION EQ 'FUNDS.TRANSFER' THEN
         REC.INSTR<EB.JBL37.INSTRUMENT.TYPE>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
         REC.INSTR<EB.JBL37.AMOUNT> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.DebitAmount)
+* Purchaser -- LT.PUR.NAME
+        REC.INSTR<EB.JBL37.PURCHASER.NAME>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.PaymentDetails)
+* PAYEE.NAME is Beneficiary
+        REC.INSTR<EB.JBL37.PAYEE.NAME> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.PayeeName)
         REC.INSTR<EB.JBL37.ISSUED.BRANCH>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CoCode)
         REC.INSTR<EB.JBL37.STATUS>= "CASH DEPOSITED"
     END

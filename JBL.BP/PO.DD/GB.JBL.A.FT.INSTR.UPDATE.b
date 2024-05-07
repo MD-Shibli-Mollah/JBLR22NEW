@@ -25,7 +25,6 @@ SUBROUTINE GB.JBL.A.FT.INSTR.UPDATE
     
     Y.FT.REC.STATUS = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.RecordStatus)
     Y.VFUNCTION = EB.SystemTables.getVFunction()
-    Y.INSTR.ID = EB.SystemTables.getIdNew()
     
     GOSUB INIT
     GOSUB OPENFILES
@@ -38,7 +37,7 @@ INIT:
     FN.INSTRUMENT.INFO = 'F.EB.JBL.INSTRUMENTS.INFO'
     F.INSTRUMENT.INFO = ''
     
-    EB.Foundation.MapLocalFields("FUNDS.TRANSFER", "LT.TT.REF.NO", FLD.POS)
+    EB.Foundation.MapLocalFields("FUNDS.TRANSFER", "LT.TT.FT.REF.NO", FLD.POS)
     Y.LT.TT.REF.NO.POS = FLD.POS<1,1>
     Y.TOTAL.LT = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
     Y.LT.TT.REF.NO = Y.TOTAL.LT<1, Y.LT.TT.REF.NO.POS>
@@ -56,6 +55,13 @@ RETURN
 *-------
 PROCESS:
 *-------
+    REC.INSTR<EB.JBL37.INSTRUMENT.TYPE>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
+    REC.INSTR<EB.JBL37.AMOUNT> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.DebitAmount)
+* Purchaser -- LT.PUR.NAME
+    REC.INSTR<EB.JBL37.PURCHASER.NAME>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.PaymentDetails)
+* PAYEE.NAME is Beneficiary
+    REC.INSTR<EB.JBL37.PAYEE.NAME> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.PayeeName)
+    REC.INSTR<EB.JBL37.ISSUED.BRANCH>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CoCode)
     REC.INSTR<EB.JBL37.PAYEE.BRANCH>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CoCode)
     REC.INSTR<EB.JBL37.STATUS>= "LEAF ISSUED"
     
