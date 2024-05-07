@@ -2,7 +2,7 @@
 SUBROUTINE GB.JBL.A.FT.INSTR.UPDATE
 
 * Subroutine Description:
-* THIS ROUTINE is used to UPDATE the EB.JBL.INSTRUMENT.INFO Template
+* THIS ROUTINE is used to UPDATE the EB.JBL.INSTRUMENTS.INFO Template
 * Attach To: VERSION(FUNDS.TRANSFER,JBL.PO.ISSUE.2)
 * Attach As: AUTH ROUTINE
 *-----------------------------------------------------------------------------
@@ -14,7 +14,7 @@ SUBROUTINE GB.JBL.A.FT.INSTR.UPDATE
 
     $INSERT  I_COMMON
     $INSERT  I_EQUATE
-    $INSERT  I_F.EB.JBL.INSTRUMENT.INFO
+    $INSERT  I_F.EB.JBL.INSTRUMENTS.INFO
     
     $USING   FT.Contract
     $USING   TT.Contract
@@ -34,7 +34,7 @@ RETURN
 *----
 INIT:
 *----
-    FN.INSTRUMENT.INFO = 'F.EB.JBL.INSTRUMENT.INFO'
+    FN.INSTRUMENT.INFO = 'F.EB.JBL.INSTRUMENTS.INFO'
     F.INSTRUMENT.INFO = ''
      
 RETURN
@@ -48,13 +48,11 @@ RETURN
 *-------
 PROCESS:
 *-------
-    REC.INSTR.TYPE<EB.JBL37.INSTRUMENT.TYPE>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
-    REC.INSTR.TYPE<EB.JBL37.AMOUNT> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.DebitAmount)
-    REC.INSTR.TYPE<EB.JBL37.ISSUED.BRANCH>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CoCode)
-    REC.INSTR.TYPE<EB.JBL37.STATUS>= "LEAF ISSUED"
+    REC.INSTR<EB.JBL37.PAYEE.BRANCH>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CoCode)
+    REC.INSTR<EB.JBL37.STATUS>= "LEAF ISSUED"
     
 *******--------------------------TRACER------------------------------------------------------------------------------
-    WriteData = "Y.INSTR.ID: ": Y.INSTR.ID :" REC.INSTR.TYPE: ": REC.INSTR.TYPE
+    WriteData = "Y.INSTR.ID: ": Y.INSTR.ID :" REC.INSTR: ": REC.INSTR
     FileName = 'SHIBLI_INSTR.INFO.FT.txt'
 * FilePath = 'DL.BP'
     FilePath = 'D:\Temenos\t24home\default\SHIBLI.BP'
@@ -69,7 +67,7 @@ PROCESS:
     CLOSESEQ FileOutput
 *******--------------------------TRACER-END--------------------------------------------------------*********************
     
-    WRITE REC.INSTR.TYPE TO F.INSTRUMENT.INFO, Y.INSTR.ID
+    WRITE REC.INSTR TO F.INSTRUMENT.INFO, Y.INSTR.ID
     
 RETURN
 END
