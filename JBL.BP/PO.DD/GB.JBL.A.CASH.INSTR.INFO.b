@@ -91,7 +91,8 @@ PROCESS:
     CLOSESEQ FileOutput
 *******--------------------------TRACER-END--------------------------------------------------------*********************
     
-    WRITE REC.INSTR.TYPE TO F.INSTRUMENT.INFO, Y.INSTR.ID
+* WRITE REC.INSTR.TYPE TO F.INSTRUMENT.INFO, Y.INSTR.ID
+    EB.DataAccess.FLiveWrite(F.INSTRUMENT.INFO, Y.INSTR.ID, REC.INSTR.TYPE)
     
 RETURN
 END
