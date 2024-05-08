@@ -58,6 +58,7 @@ RETURN
 *** <region name= PROCESS>
 PROCESS:
 *** <desc> </desc>
+*
     Y.CATEG.AC = ""
     Y.COMPANY = EB.SystemTables.getIdCompany()[6,4]
 
@@ -68,7 +69,7 @@ PROCESS:
     END
     
     Y.APP = EB.SystemTables.getApplication()
-    
+*
     IF Y.APP EQ "FUNDS.TRANSFER" THEN
         Y.PGM.VERSION = EB.SystemTables.getPgmVersion()
         Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
@@ -78,10 +79,10 @@ PROCESS:
             EB.Foundation.MapLocalFields("FUNDS.TRANSFER", "LT.ISS.OLD.CHQ", FLD.POS)
             Y.LT.ISS.OLD.CHQ.POS = FLD.POS<1,1>
             Y.TOTAL.LT = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
-            Y.LT.ISS.OLD.CHQ = Y.TOTAL.LT<1.Y.LT.ISS.OLD.CHQ.POS>
+            Y.LT.ISS.OLD.CHQ = Y.TOTAL.LT<1,Y.LT.ISS.OLD.CHQ.POS>
             Y.ISS.CHQ.TYPE = Y.LT.ISS.OLD.CHQ
         END
-    
+*
         IF Y.ISS.CHQ.TYPE EQ "PO" THEN
             Y.CAT = "17721"
         END
@@ -117,8 +118,8 @@ PROCESS:
     END
     
 *******--------------------------TRACER------------------------------------------------------------------------------
-    WriteData = "Y.ISS.CHQ.TYPE: ": Y.ISS.CHQ.TYPE:" Y.CAT: ":Y.CAT:" Y.CATEG.AC : ":Y.CATEG.AC
-    FileName = 'SHIBLI_PO_ISSUE.txt'
+    WriteData = "Y.PGM.VERSION: ": Y.PGM.VERSION : " Y.ISS.CHQ.TYPE: ": Y.ISS.CHQ.TYPE:" Y.CAT: ":Y.CAT:" Y.CATEG.AC : ":Y.CATEG.AC
+    FileName = 'SHIBLI_PO_PS_SDR_ISSUE.txt'
 * FilePath = 'DL.BP'
     FilePath = 'D:\Temenos\t24home\default\SHIBLI.BP'
     OPENSEQ FilePath,FileName TO FileOutput THEN NULL
