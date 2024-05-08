@@ -95,7 +95,7 @@ PROCESS:
             Y.CAT = "17723"
         END
         
-        Y.CATEG.AC = "USD":Y.CAT:"0001":Y.COMPANY
+        Y.CATEG.AC = "BDT":Y.CAT:"0001":Y.COMPANY
         EB.SystemTables.setComi(Y.CATEG.AC)
     END
     
@@ -113,7 +113,7 @@ PROCESS:
             Y.CAT = "17723"
         END
     
-        Y.CATEG.AC = "USD":Y.CAT:"0001":Y.COMPANY
+        Y.CATEG.AC = "BDT":Y.CAT:"0001":Y.COMPANY
         EB.SystemTables.setComi(Y.CATEG.AC)
     END
     
