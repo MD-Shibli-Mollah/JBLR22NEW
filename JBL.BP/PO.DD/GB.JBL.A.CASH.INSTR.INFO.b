@@ -87,13 +87,13 @@ PROCESS:
         Y.LT.ISS.OLD.CHQ.POS = FLD.POS<1,2>
         Y.TOTAL.LT = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
         Y.LT.PAYEE.NAME = Y.TOTAL.LT<1,Y.LT.PAYEE.NAME.POS>
-        Y.LT.ISS.OLD.CHQ = Y.TOTAL.LT<1.Y.LT.ISS.OLD.CHQ.POS>
+        Y.LT.ISS.OLD.CHQ = Y.TOTAL.LT<1,Y.LT.ISS.OLD.CHQ.POS>
         
         
         REC.INSTR<EB.JBL37.INSTRUMENT.TYPE>= Y.LT.ISS.OLD.CHQ
         REC.INSTR<EB.JBL37.PAYEE.NAME> = Y.LT.PAYEE.NAME
         
-        REC.INSTR<EB.JBL37.AMOUNT> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.AmountDebited)
+        REC.INSTR<EB.JBL37.AMOUNT> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditAmount)
         REC.INSTR<EB.JBL37.PURCHASER.NAME>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.PaymentDetails)
         REC.INSTR<EB.JBL37.ISSUED.BRANCH>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CoCode)
         REC.INSTR<EB.JBL37.STATUS>= "CASH DEPOSITED"
