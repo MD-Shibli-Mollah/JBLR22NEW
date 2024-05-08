@@ -71,6 +71,7 @@ PROCESS:
     
     IF Y.APP EQ "FUNDS.TRANSFER" THEN
         Y.PGM.VERSION = EB.SystemTables.getPgmVersion()
+        Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
         
         IF Y.PGM.VERSION EQ ",JBL.INSTR.ISSUE" THEN
             FLD.POS = ""
@@ -78,11 +79,8 @@ PROCESS:
             Y.LT.ISS.OLD.CHQ.POS = FLD.POS<1,1>
             Y.TOTAL.LT = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
             Y.LT.ISS.OLD.CHQ = Y.TOTAL.LT<1.Y.LT.ISS.OLD.CHQ.POS>
-                   
             Y.ISS.CHQ.TYPE = Y.LT.ISS.OLD.CHQ
         END
-    
-        Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
     
         IF Y.ISS.CHQ.TYPE EQ "PO" THEN
             Y.CAT = "17721"
