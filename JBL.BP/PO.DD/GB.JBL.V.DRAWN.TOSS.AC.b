@@ -59,7 +59,6 @@ RETURN
 PROCESS:
 *** <desc> </desc>
     Y.CATEG.AC = ""
-    
     Y.COMPANY = EB.SystemTables.getIdCompany()[6,4]
 
     EB.DataAccess.FRead(FN.COM, Y.COM, Rec.Com, F.COM, Y.ERR)
@@ -71,14 +70,20 @@ PROCESS:
     Y.APP = EB.SystemTables.getApplication()
     
     IF Y.APP EQ "FUNDS.TRANSFER" THEN
-        FLD.POS = ""
-        EB.Foundation.MapLocalFields("FUNDS.TRANSFER", "LT.ISS.OLD.CHQ", FLD.POS)
-        Y.LT.ISS.OLD.CHQ.POS = FLD.POS<1,1>
-        Y.TOTAL.LT = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
-        Y.LT.ISS.OLD.CHQ = Y.TOTAL.LT<1.Y.LT.ISS.OLD.CHQ.POS>
+        Y.PGM.VERSION = EB.SystemTables.getPgmVersion()
         
-        Y.ISS.CHQ.TYPE = Y.LT.ISS.OLD.CHQ
-        
+        IF Y.PGM.VERSION EQ ",JBL.INSTR.ISSUE" THEN
+            FLD.POS = ""
+            EB.Foundation.MapLocalFields("FUNDS.TRANSFER", "LT.ISS.OLD.CHQ", FLD.POS)
+            Y.LT.ISS.OLD.CHQ.POS = FLD.POS<1,1>
+            Y.TOTAL.LT = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
+            Y.LT.ISS.OLD.CHQ = Y.TOTAL.LT<1.Y.LT.ISS.OLD.CHQ.POS>
+                   
+            Y.ISS.CHQ.TYPE = Y.LT.ISS.OLD.CHQ
+        END
+    
+        Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
+    
         IF Y.ISS.CHQ.TYPE EQ "PO" THEN
             Y.CAT = "17721"
         END
