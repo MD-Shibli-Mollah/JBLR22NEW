@@ -1,6 +1,7 @@
 git init
 git remote -v
 git remote add main https://github.com/MD-Shibli-Mollah/JBLR22
+git remote add main https://github.com/MD-Shibli-Mollah/JBL-L3JAVA
 git pull main main --allow-unrelated-histories
 git branch main
 git checkout main
@@ -22,6 +23,13 @@ git branch -D master
 
 Special ----
 git pull origin main --allow-unrelated-histories
+git pull main main --allow-unrelated-histories
+Delete the most recent commit, keeping the work you've done:
+git reset --soft HEAD~1
+
+Delete the most recent commit, destroying the work you've done:
+git reset --hard HEAD~1
+
 git push -u origin main
 git push -u main main
 git pull main main --allow-unrelated-histories

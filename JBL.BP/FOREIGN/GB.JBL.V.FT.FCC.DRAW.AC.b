@@ -1,3 +1,4 @@
+
 SUBROUTINE GB.JBL.V.FT.FCC.DRAW.AC
 *-----------------------------------------------------------------------------
 *
@@ -53,14 +54,14 @@ PROCESS:
     Y.COM = EB.SystemTables.getIdCompany()
     Y.COMPANY=EB.SystemTables.getIdCompany()[6,4]
     EB.DataAccess.FRead(FN.COM, Y.COM, Rec.Com, F.COM, Y.ERR)
-   ! Y.SUB.DEV.CODE = Rec.Com<ST.CompanyCreation.Company.EbComSubDivisionCode>
+    ! Y.SUB.DEV.CODE = Rec.Com<ST.CompanyCreation.Company.EbComSubDivisionCode>
     !IF Y.SUB.DEV.CODE NE '' THEN
     !    EB.SystemTables.setComi(Y.CATEG.AC:Y.SUB.DEV.CODE)
-   ! END
-   ! ELSE
-      !  EB.SystemTables.setComi(Y.CATEG.AC:Y.COMPANY)
+    ! END
+    ! ELSE
+    !  EB.SystemTables.setComi(Y.CATEG.AC:Y.COMPANY)
 	EB.SystemTables.setComi(Y.CATEG.AC)
-   ! END
+    ! END
 RETURN
 *** </region>
 
