@@ -9,8 +9,14 @@ SUBROUTINE GB.JBL.A.FT.INSTR.UPDATE
 * Modification History :
 * 06/05/2024 -                             NEW -  MD SHIBLI MOLLAH
 *                                                 NITSL Limited
+* Modification History :
+* 06/05/2024 -                             NEW -  MD SHIBLI MOLLAH
+*                                                 NITSL Limited
 *
-*-----------------------------------------------------------------------------
+* 08/05/2024 -                             MODIIFY -  MD SHIBLI MOLLAH
+*                                                     NITSL Limited
+* LT.TT.FT.REF.NO is discouraged, DEBIT.THEIR.REF will be considered to keep it.
+*--------------------------------------------------------------------------------
 
     $INSERT I_COMMON
     $INSERT I_EQUATE
@@ -21,7 +27,7 @@ SUBROUTINE GB.JBL.A.FT.INSTR.UPDATE
     $USING EB.SystemTables
     $USING EB.DataAccess
     $USING EB.Updates
-    $USING EB.Foundation
+*   $USING EB.Foundation
     
     Y.FT.REC.STATUS = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.RecordStatus)
     Y.VFUNCTION = EB.SystemTables.getVFunction()
@@ -37,12 +43,14 @@ INIT:
     FN.INSTRUMENT.INFO = 'F.EB.JBL.INSTRUMENTS.INFO'
     F.INSTRUMENT.INFO = ''
     
-    EB.Foundation.MapLocalFields("FUNDS.TRANSFER", "LT.TT.FT.REF.NO", FLD.POS)
-    Y.LT.TT.REF.NO.POS = FLD.POS<1,1>
-    Y.TOTAL.LT = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
-    Y.LT.TT.REF.NO = Y.TOTAL.LT<1, Y.LT.TT.REF.NO.POS>
+*    EB.Foundation.MapLocalFields("FUNDS.TRANSFER", "LT.TT.FT.REF.NO", FLD.POS)
+*    Y.LT.TT.REF.NO.POS = FLD.POS<1,1>
+*    Y.TOTAL.LT = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
+*    Y.LT.TT.REF.NO = Y.TOTAL.LT<1, Y.LT.TT.REF.NO.POS>
     
-    Y.INSTR.ID = Y.LT.TT.REF.NO
+    Y.INSTR.ID.REF = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.DebitTheirRef)
+* Y.INSTR.ID.REF = "REFTT21105W5VDG"
+    Y.INSTR.ID = Y.INSTR.ID.REF[4,13]
      
 RETURN
 

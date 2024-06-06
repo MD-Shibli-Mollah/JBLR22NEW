@@ -11,6 +11,8 @@ SUBROUTINE GB.JBL.A.CASH.INSTR.INFO
 *                                                 NITSL Limited
 *
 * Modification History : *LT.PAYEE.NAME & LT.ISS.OLD.CHQ is required to avoid CORE Validation in FT...
+*
+*
 * 08/05/2024 -                             MODIIFY -  MD SHIBLI MOLLAH
 *                                                     NITSL Limited
 
