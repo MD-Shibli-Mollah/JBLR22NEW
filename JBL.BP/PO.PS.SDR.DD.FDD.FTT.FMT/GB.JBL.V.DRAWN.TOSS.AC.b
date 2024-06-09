@@ -80,17 +80,17 @@ PROCESS:
 *
     IF Y.APP EQ "FUNDS.TRANSFER" THEN
         Y.PGM.VERSION = EB.SystemTables.getPgmVersion()
-        Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
+* Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
         Y.CURRENCY = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditCurrency)
         
-        IF Y.PGM.VERSION EQ ",JBL.INSTR.ISSUE" THEN
-            FLD.POS = ""
-            EB.Foundation.MapLocalFields("FUNDS.TRANSFER", "LT.ISS.OLD.CHQ", FLD.POS)
-            Y.LT.ISS.OLD.CHQ.POS = FLD.POS<1,1>
-            Y.TOTAL.LT = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
-            Y.LT.ISS.OLD.CHQ = Y.TOTAL.LT<1,Y.LT.ISS.OLD.CHQ.POS>
-            Y.ISS.CHQ.TYPE = Y.LT.ISS.OLD.CHQ
-        END
+* IF Y.PGM.VERSION EQ ",JBL.INSTR.ISSUE" THEN
+        FLD.POS = ""
+        EB.Foundation.MapLocalFields("FUNDS.TRANSFER", "LT.ISS.OLD.CHQ", FLD.POS)
+        Y.LT.ISS.OLD.CHQ.POS = FLD.POS<1,1>
+        Y.TOTAL.LT = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
+        Y.LT.ISS.OLD.CHQ = Y.TOTAL.LT<1,Y.LT.ISS.OLD.CHQ.POS>
+        Y.ISS.CHQ.TYPE = Y.LT.ISS.OLD.CHQ
+* END
     
         APPLICATION.NAME = 'CHEQUE.TYPE'
         Y.FILED.NAME = 'LT.PARKING.AC'
@@ -98,6 +98,11 @@ PROCESS:
         EB.LocalReferences.GetLocRef(APPLICATION.NAME,Y.FILED.NAME,Y.FIELD.POS)
         EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, REC.CHQ.TYPE, F.CHEQUE.TYPE, Y.ERR)
         Y.CAT = REC.CHQ.TYPE<CQ.ChqConfig.ChequeType.ChequeTypeLocalRef,Y.FIELD.POS>
+        
+*------ credit the FTT main GL head account ---------*
+        IF Y.ISS.CHQ.TYPE EQ "FTT" THEN
+            Y.CAT = REC.CHQ.TYPE<CQ.ChqConfig.ChequeType.ChequeTypeAssignedCategory>
+        END
            
         Y.CATEG.AC = Y.CURRENCY:Y.CAT:"0001":Y.COMPANY
         EB.SystemTables.setComi(Y.CATEG.AC)
@@ -113,6 +118,11 @@ PROCESS:
         EB.LocalReferences.GetLocRef(APPLICATION.NAME,Y.FILED.NAME,Y.FIELD.POS)
         EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, REC.CHQ.TYPE, F.CHEQUE.TYPE, Y.ERR)
         Y.CAT = REC.CHQ.TYPE<CQ.ChqConfig.ChequeType.ChequeTypeLocalRef,Y.FIELD.POS>
+        
+*------ credit the FTT main GL head account ---------*
+        IF Y.ISS.CHQ.TYPE EQ "FTT" THEN
+            Y.CAT = REC.CHQ.TYPE<CQ.ChqConfig.ChequeType.ChequeTypeAssignedCategory>
+        END
     
         Y.CATEG.AC = Y.CURRENCY:Y.CAT:"0001":Y.COMPANY
         EB.SystemTables.setComi(Y.CATEG.AC)
