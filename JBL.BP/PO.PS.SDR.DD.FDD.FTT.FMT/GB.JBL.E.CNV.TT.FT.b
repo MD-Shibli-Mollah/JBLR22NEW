@@ -34,7 +34,7 @@ SUBROUTINE GB.JBL.E.CNV.TT.FT
     ELSE
         EB.DataAccess.Opf(FN.TT, F.TT)
         EB.DataAccess.FRead(FN.TT, Y.ID, REC.TT, F.TT, ERR.TT)
-        Y.CREDIT.ACC.NO = REC.FT<TT.Contract.Teller.TeAccountTwo>
+        Y.CREDIT.ACC.NO = REC.TT<TT.Contract.Teller.TeAccountTwo>
     END
 
     Y.DEBIT.ACC.NO = Y.CREDIT.ACC.NO
