@@ -2,7 +2,7 @@
 SUBROUTINE GB.JBL.E.CNV.TT.FT
 *
 *Developed By:
-*    Date         : 06/09/2024
+*    Date         : 09/06/2024
 *    Developed By : MD Shibli Mollah
 *    Designation  : Technical Analyst
 *    Email        : shibli@nazihargroup.com
@@ -21,7 +21,7 @@ SUBROUTINE GB.JBL.E.CNV.TT.FT
 
     FN.TT = "F.TELLER"
     F.TT = ""
-******************IMAGE FOR FT*****************************
+
     Y.ID = EB.Reports.getOData()
     Y.ID.LEN = Y.ID[1,2]
     

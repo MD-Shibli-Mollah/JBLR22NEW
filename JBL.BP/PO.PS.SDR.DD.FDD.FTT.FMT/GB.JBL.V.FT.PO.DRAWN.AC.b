@@ -6,8 +6,10 @@ SUBROUTINE GB.JBL.V.FT.PO.DRAWN.AC
 * Modification History :
 *-----------------------------------------------------------------------------
 * Subroutine Description:
-* THIS ROUTINE is used to SET CREDIT.ACCOUNT for ALL types of CHEQUE.TYPE like PO, DD, PS, SDR
-* Attach To: VERSION(FUNDS.TRANSFER,MBL.PO.ISSUE)
+* THIS ROUTINE is used to SET CREDIT.ACCOUNT for ALL types of CHEQUE.TYPE like PO, DD, PS, SDR, FDD, FTT, FMT
+* Attach To: VERSION(FUNDS.TRANSFER,JBL.FDD.ISSUE, FUNDS.TRANSFER,JBL.FTT.ISSUE ,FUNDS.TRANSFER,JBL.FMT.ISSUE
+*                    FUNDS.TRANSFER,JBL.PO.ISSUE.2, FUNDS.TRANSFER,JBL.PS.ISSUE.2, FUNDS.TRANSFER,JBL.SDR.ISSUE.2
+*
 * Attach As: VALIDATION ROUTINE
 *-----------------------------------------------------------------------------
 * Modification History :
@@ -75,7 +77,8 @@ PROCESS:
         Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
         EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, Rec.PO, F.CHEQUE.TYPE, ERR)
         Y.CAT = Rec.PO<CQ.ChqConfig.ChequeType.ChequeTypeAssignedCategory>
-        Y.CATEG.AC = "BDT":Y.CAT:"0001":Y.COMPANY
+        Y.CURRENCY = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditCurrency)
+        Y.CATEG.AC = Y.CURRENCY:Y.CAT:"0001":Y.COMPANY
         EB.SystemTables.setComi(Y.CATEG.AC)
     END
     
@@ -83,13 +86,14 @@ PROCESS:
         Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
         EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, Rec.PO, F.CHEQUE.TYPE, ERR)
         Y.CAT = Rec.PO<CQ.ChqConfig.ChequeType.ChequeTypeAssignedCategory>
-        Y.CATEG.AC = "BDT":Y.CAT:"0001":Y.COMPANY
+        Y.CURRENCY = EB.SystemTables.getRNew(TT.Contract.Teller.TeCurrencyTwo)
+        Y.CATEG.AC = Y.CURRENCY:Y.CAT:"0001":Y.COMPANY
         EB.SystemTables.setComi(Y.CATEG.AC)
     END
     
 *******--------------------------TRACER------------------------------------------------------------------------------
     WriteData = "Y.ISS.CHQ.TYPE: ": Y.ISS.CHQ.TYPE:" Y.CAT: ":Y.CAT:" Y.CATEG.AC : ":Y.CATEG.AC
-    FileName = 'SHIBLI_PO_ISSUE.txt'
+    FileName = 'SHIBLI_FDD_ISSUE_24.txt'
     FilePath = 'DL.BP'
     OPENSEQ FilePath,FileName TO FileOutput THEN NULL
     ELSE
