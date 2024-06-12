@@ -107,11 +107,12 @@ PROCESS:
    
 *** <desc> </desc>
     Y.ID.COMPANY = EB.SystemTables.getIdCompany()
+    Y.VERSION = EB.SystemTables.getPgmVersion()
     BEGIN CASE
-        CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.COLLECTION') OR  (EB.SystemTables.getPgmVersion() EQ ',JBL.FDD.COLLECTION') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.FTT.COLLECTION') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.CANCELLATION')
+        CASE (Y.VERSION EQ ',JBL.DD.COLLECTION') OR  (Y.VERSION EQ ',JBL.FDD.COLLECTION') OR (Y.VERSION EQ ',JBL.FTT.COLLECTION') OR (Y.VERSION EQ ',JBL.DD.CANCELLATION')
             Y.FT.ISS.TYP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
             Y.PO.NO = EB.SystemTables.getComi()
-        CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.PAY.CASH') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.CANCEL.CASH')
+        CASE (Y.VERSION EQ ',JBL.DD.PAY.CASH') OR (Y.VERSION EQ ',JBL.DD.CANCEL.CASH')
             Y.TT.ISS.TYP = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
             Y.PO.NO = EB.SystemTables.getComi()
     END CASE
@@ -175,12 +176,12 @@ PROCESS:
     END
     
     BEGIN CASE
-        CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.CANCELLATION') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.CANCEL.CASH')
+        CASE (Y.VERSION EQ ',JBL.PO.CANCELLATION') OR (Y.VERSION EQ ',JBL.PO.CANCEL.CASH')
             IF (Y.CRS.CO.CODE NE Y.ID.COMPANY) THEN
                 EB.SystemTables.setEtext('Can not cancle from another Branch')
                 EB.ErrorProcessing.StoreEndError()
             END
-        CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.CANCELLATION') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.CANCEL.CASH')
+        CASE (Y.VERSION EQ ',JBL.DD.CANCELLATION') OR (Y.VERSION EQ ',JBL.DD.CANCEL.CASH')
             IF (Y.CRS.CO.CODE EQ Y.ID.COMPANY) THEN
                 EB.SystemTables.setEtext('Can not cancle from Current Branch')
                 EB.ErrorProcessing.StoreEndError()
@@ -189,7 +190,7 @@ PROCESS:
      
 *------------------------------Allow Company validation End------------------*
 *------------------TT---------------------*
-    IF Y.PO.ALLOW.COMP EQ 'YES' OR (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.COLLECTION') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.PAY.CASH') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.FDD.COLLECTION') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.FTT.COLLECTION') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.CANCELLATION') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.CANCEL.CASH') THEN
+    IF Y.PO.ALLOW.COMP EQ 'YES' OR (Y.VERSION EQ ',JBL.DD.COLLECTION') OR (Y.VERSION EQ ',JBL.DD.PAY.CASH') OR (Y.VERSION EQ ',JBL.FDD.COLLECTION') OR (Y.VERSION EQ ',JBL.FTT.COLLECTION') OR (Y.VERSION EQ ',JBL.DD.CANCELLATION') OR (Y.VERSION EQ ',JBL.DD.CANCEL.CASH') THEN
         IF EB.SystemTables.getApplication() EQ 'TELLER' THEN
             EB.SystemTables.setRNew(TT.Contract.Teller.TePayeeName, Y.PO.PAYEE.NAME)
             EB.SystemTables.setRNew(TT.Contract.Teller.TeCurrencyOne, Y.PO.CURRENCY)

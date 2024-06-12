@@ -111,30 +111,31 @@ PROCESS:
     Y.ID.COMPANY = EB.SystemTables.getIdCompany()
     Y.COMPANY = Y.ID.COMPANY[6,4]
     Y.APP = EB.SystemTables.getApplication()
+    Y.VERSION = EB.SystemTables.getPgmVersion()
    
     BEGIN CASE
-        CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.COLLECTION')
+        CASE (Y.VERSION EQ ',JBL.PO.COLLECTION')
             Y.FT.ISS.TYP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
             Y.PO.NO = EB.SystemTables.getComi()
 * Y.PO.ID = Y.FT.ISS.TYP:'.':'USD1526100010001':'.':Y.PO.NO
             Y.PO.ID = Y.FT.ISS.TYP:'.':'BDT177060001':Y.COMPANY:'.':Y.PO.NO
-        CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.PAY.CASH')
+        CASE (Y.VERSION EQ ',JBL.PO.PAY.CASH')
             Y.TT.ISS.TYP = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
             Y.PO.NO = EB.SystemTables.getComi()
             Y.PO.ID = Y.TT.ISS.TYP:'.':'BDT177060001':Y.COMPANY:'.':Y.PO.NO
-        CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.CANCELLATION')
+        CASE (Y.VERSION EQ ',JBL.PO.CANCELLATION')
             Y.FT.ISS.TYP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
             Y.PO.NO = EB.SystemTables.getComi()
             Y.PO.ID = Y.FT.ISS.TYP:'.':'BDT177060001':Y.COMPANY:'.':Y.PO.NO
-        CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.CANCEL.CASH')
+        CASE (Y.VERSION EQ ',JBL.PO.CANCEL.CASH')
             Y.TT.ISS.TYP = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
             Y.PO.NO = EB.SystemTables.getComi()
             Y.PO.ID = Y.TT.ISS.TYP:'.':'BDT177060001':Y.COMPANY:'.':Y.PO.NO
-        CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.COLLECTION')
+        CASE (Y.VERSION EQ ',JBL.DD.COLLECTION')
             Y.FT.ISS.TYP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
             Y.PO.NO = EB.SystemTables.getComi()
             Y.PO.ID = Y.FT.ISS.TYP:'.':'BDT177080001':Y.COMPANY:'.':Y.PO.NO
-        CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.PAY.CASH')
+        CASE (Y.VERSION EQ ',JBL.DD.PAY.CASH')
             Y.TT.ISS.TYP = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
             Y.PO.NO = EB.SystemTables.getComi()
             Y.PO.ID = Y.TT.ISS.TYP:'.':'BDT177080001':Y.COMPANY:'.':Y.PO.NO
@@ -189,7 +190,7 @@ PROCESS:
     END
     
     BEGIN CASE
-        CASE (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.CANCELLATION') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.CANCEL.CASH')
+        CASE (Y.VERSION EQ ',JBL.PO.CANCELLATION') OR (Y.VERSION EQ ',JBL.PO.CANCEL.CASH')
             IF (Y.CRS.CO.CODE NE Y.ID.COMPANY) THEN
                 EB.SystemTables.setEtext('PayOrder can NOT be CANCELLED from another Branch')
                 EB.ErrorProcessing.StoreEndError()
@@ -197,7 +198,7 @@ PROCESS:
     END CASE
 *------------------------------Allow Company validation End------------------*
 *------------------TT---------------------*
-    IF Y.PO.ALLOW.COMP EQ 'YES' OR (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.COLLECTION') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.PAY.CASH') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.CANCELLATION') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.PO.CANCEL.CASH') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.COLLECTION') OR (EB.SystemTables.getPgmVersion() EQ ',JBL.DD.PAY.CASH')  THEN
+    IF Y.PO.ALLOW.COMP EQ 'YES' OR (Y.VERSION EQ ',JBL.PO.COLLECTION') OR (Y.VERSION EQ ',JBL.PO.PAY.CASH') OR (Y.VERSION EQ ',JBL.PO.CANCELLATION') OR (Y.VERSION EQ ',JBL.PO.CANCEL.CASH') OR (Y.VERSION EQ ',JBL.DD.COLLECTION') OR (Y.VERSION EQ ',JBL.DD.PAY.CASH')  THEN
         IF Y.APP EQ 'TELLER' THEN
             EB.SystemTables.setRNew(TT.Contract.Teller.TePayeeName, Y.PO.PAYEE.NAME)
             EB.SystemTables.setRNew(TT.Contract.Teller.TeCurrencyOne, Y.PO.CURRENCY)

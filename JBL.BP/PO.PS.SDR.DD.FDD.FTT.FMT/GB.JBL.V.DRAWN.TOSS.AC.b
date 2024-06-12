@@ -4,7 +4,8 @@ SUBROUTINE GB.JBL.V.DRAWN.TOSS.AC
 *-----------------------------------------------------------------------------
 * Subroutine Description:
 * THIS ROUTINE is used to SET CREDIT.ACCOUNT as a Parking Ac for CHEQUE.TYPE like PO, PS, SDR
-* Attach To: VERSION(TELLER,JBL.PO.LCY.CASHIN) & TELLER,JBL.INS.PAY.CASH.FOREIGN
+* Attach To: VERSION(TELLER,JBL.PO.LCY.CASHIN) , TELLER,JBL.INS.PAY.CASH.FOREIGN
+*                    FUNDS.TRANSFER,JBL.INSTR.ISSUE.FOREIGN , FUNDS.TRANSFER,JBL.INSTR.ISSUE
 * Attach As: VALIDATION ROUTINE
 *-----------------------------------------------------------------------------
 * Modification History :
@@ -68,6 +69,7 @@ PROCESS:
 *** <desc> </desc>
 *
     Y.CATEG.AC = ""
+    Y.COM = EB.SystemTables.getIdCompany()
     Y.COMPANY = EB.SystemTables.getIdCompany()[6,4]
 
     EB.DataAccess.FRead(FN.COM, Y.COM, Rec.Com, F.COM, Y.ERR)

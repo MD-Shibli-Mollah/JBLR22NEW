@@ -6,7 +6,7 @@ SUBROUTINE GB.JBL.E.CNV.TT.FT
 *    Developed By : MD Shibli Mollah
 *    Designation  : Technical Analyst
 *    Email        : shibli@nazihargroup.com
-*    Attached To  : ENQUIRY - JBL.ENQ.INSTR.INFO.DETAILS
+*    Attached To  : ENQUIRY - JBL.ENQ.INSTR.INFO.DETAILS , JBL.ENQ.INSTR.INFO.FOREIGN.DETAILS
 *
     $INSERT I_COMMON
     $INSERT I_EQUATE
