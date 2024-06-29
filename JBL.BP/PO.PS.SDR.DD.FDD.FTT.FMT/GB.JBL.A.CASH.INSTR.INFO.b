@@ -3,7 +3,7 @@ SUBROUTINE GB.JBL.A.CASH.INSTR.INFO
 
 * Subroutine Description:
 * THIS ROUTINE is used to UPDATE the EB.JBL.INSTRUMENTS.INFO Template
-* Attach To: VERSION(TELLER,JBL.PO.LCY.CASHIN)
+* Attach To: VERSION(TELLER,JBL.PO.LCY.CASHIN, TELLER,JBL.INS.PAY.CASH.FOREIGN)
 * Attach As: AUTH ROUTINE
 *-----------------------------------------------------------------------------
 * Modification History :
@@ -33,7 +33,7 @@ SUBROUTINE GB.JBL.A.CASH.INSTR.INFO
 * Y.VFUNCTION = EB.SystemTables.getVFunction()
     Y.INSTR.ID = EB.SystemTables.getIdNew()
     Y.APPLICATION = EB.SystemTables.getApplication()
-    
+    Y.VER = EB.SystemTables.getPgmVersion()
 *    IF Y.VFUNCTION EQ 'R' OR Y.FT.REC.STATUS EQ 'RNAU' OR Y.TT.REC.STATUS EQ 'RNAU' THEN
 *        RETURN
 *    END
@@ -70,6 +70,12 @@ PROCESS:
         
         REC.INSTR<EB.JBL37.INSTRUMENT.TYPE>= EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
         REC.INSTR<EB.JBL37.AMOUNT> = EB.SystemTables.getRNew(TT.Contract.Teller.TeAmountLocalTwo)
+        
+* Check for Foreign Currency
+        IF Y.VER EQ ",JBL.INS.PAY.CASH.FOREIGN" THEN
+            REC.INSTR<EB.JBL37.AMOUNT> = EB.SystemTables.getRNew(TT.Contract.Teller.TeAmountFcyOne)
+        END
+        
 * Purchaser -- LT.PUR.NAME
         REC.INSTR<EB.JBL37.PURCHASER.NAME>= Y.LT.PUR.NAME
 * PAYEE.NAME is Beneficiary

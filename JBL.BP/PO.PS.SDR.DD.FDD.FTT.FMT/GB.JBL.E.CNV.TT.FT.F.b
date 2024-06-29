@@ -1,12 +1,12 @@
 
-SUBROUTINE GB.JBL.E.CNV.TT.FT
+SUBROUTINE GB.JBL.E.CNV.TT.FT.F
 *
 *Developed By:
-*    Date         : 09/06/2024
+*    Date         : 29/06/2024
 *    Developed By : MD Shibli Mollah
 *    Designation  : Technical Analyst
 *    Email        : shibli@nazihargroup.com
-*    Attached To  : ENQUIRY - JBL.ENQ.INSTR.INFO.DETAILS
+*    Attached To  : ENQUIRY - JBL.ENQ.INSTR.INFO.FOREIGN.DETAILS
 *
     $INSERT I_COMMON
     $INSERT I_EQUATE
@@ -34,7 +34,8 @@ SUBROUTINE GB.JBL.E.CNV.TT.FT
     ELSE
         EB.DataAccess.Opf(FN.TT, F.TT)
         EB.DataAccess.FRead(FN.TT, Y.ID, REC.TT, F.TT, ERR.TT)
-        Y.CREDIT.ACC.NO = REC.TT<TT.Contract.Teller.TeAccountTwo>
+* Y.CREDIT.ACC.NO = REC.TT<TT.Contract.Teller.TeAccountTwo>
+        Y.CREDIT.ACC.NO = REC.TT<TT.Contract.Teller.TeAccountOne>
     END
 
     Y.DEBIT.ACC.NO = Y.CREDIT.ACC.NO
@@ -42,7 +43,7 @@ SUBROUTINE GB.JBL.E.CNV.TT.FT
 
 *******--------------------------TRACER------------------------------------------------------------------------------
     WriteData = Y.ID:" Y.DEBIT.ACC.NO: ": Y.DEBIT.ACC.NO
-    FileName = 'SHIBLI_FT.TT.txt'
+    FileName = 'SHIBLI_FT.TT.NEW.txt'
 * FilePath = 'DL.BP'
     FilePath = 'DL.BP'
     OPENSEQ FilePath,FileName TO FileOutput THEN NULL
