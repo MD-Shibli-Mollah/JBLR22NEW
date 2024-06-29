@@ -11,10 +11,10 @@ SUBROUTINE GB.JBL.V.DRAWN.TOSS.AC
 * Modification History :
 * 06/05/2024 -                             NEW -  MD SHIBLI MOLLAH
 *                                                 NITSL Limited
-* 06/06/2024 -                              UPDATE -  MD SHIBLI MOLLAH
+* 06/06/2024 -                             UPDATE -  MD SHIBLI MOLLAH
 *                                                 NITSL Limited
 * ADD Foreign Part
-* Parking AC Creation - CURRENCY will be fetched from CURRENCY2 in TT
+* Parking AC Creation - CURRENCY will be fetched from CURRENCY1 in TT
 *                      - CREDIT CURRENCY FOR FT.
 * Fetch LT.PARKING.AC from CHEQUE.TYPE for Parking AC CATEGORY
 *-----------------------------------------------------------------------------
@@ -112,7 +112,9 @@ PROCESS:
     
     IF Y.APP EQ "TELLER" THEN
         Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
-        Y.CURRENCY = EB.SystemTables.getRNew(TT.Contract.Teller.TeCurrencyTwo)
+* Y.CURRENCY = EB.SystemTables.getRNew(TT.Contract.Teller.TeCurrencyTwo)
+*---- After Reverse ------------*
+        Y.CURRENCY = EB.SystemTables.getRNew(TT.Contract.Teller.TeCurrencyOne)
         
         APPLICATION.NAME = 'CHEQUE.TYPE'
         Y.FILED.NAME = 'LT.PARKING.AC'
@@ -132,9 +134,9 @@ PROCESS:
     
 *******--------------------------TRACER------------------------------------------------------------------------------
     WriteData = "Y.PGM.VERSION: ": Y.PGM.VERSION : " Y.ISS.CHQ.TYPE: ": Y.ISS.CHQ.TYPE:" Y.CAT: ":Y.CAT:" Y.CATEG.AC : ":Y.CATEG.AC
-    FileName = 'SHIBLI_FDD_FTT_FMT_ISSUE.txt'
-* FilePath = 'DL.BP'
-    FilePath = 'D:\Temenos\t24home\default\SHIBLI.BP'
+    FileName = 'SHIBLI_ISSUE_TOSS_AC.txt'
+    FilePath = 'DL.BP'
+*   FilePath = 'D:\Temenos\t24home\default\SHIBLI.BP'
     OPENSEQ FilePath,FileName TO FileOutput THEN NULL
     ELSE
         CREATE FileOutput ELSE

@@ -29,7 +29,15 @@ SUBROUTINE GB.JBL.V.CONVT.AMT.WORD
     END
     
     IF AppName EQ 'TELLER' THEN
-        LNGVAR = EB.SystemTables.getRNew(TT.Contract.Teller.TeAmountLocalOne)
+        LNGVAR = EB.SystemTables.getRNew(TT.Contract.Teller.TeNetAmount)
+        
+        IF LNGVAR EQ "" OR LNGVAR EQ 0 THEN
+            LNGVAR = EB.SystemTables.getRNew(TT.Contract.Teller.TeAmountLocalOne)
+        END
+        
+        IF LNGVAR EQ "" OR LNGVAR EQ 0 THEN
+            LNGVAR = EB.SystemTables.getRNew(TT.Contract.Teller.TeAmountLocalTwo)
+        END
     END
     
     TXTOUT = ''

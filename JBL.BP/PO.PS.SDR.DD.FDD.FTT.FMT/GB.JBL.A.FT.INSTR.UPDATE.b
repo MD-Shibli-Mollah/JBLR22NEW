@@ -93,9 +93,9 @@ PROCESS:
     
 *******--------------------------TRACER------------------------------------------------------------------------------
     WriteData = "Y.INSTR.ID: ": Y.INSTR.ID :" REC.INSTR: ": REC.INSTR
-    FileName = 'SHIBLI_INSTR.INFO.FT.txt'
-* FilePath = 'DL.BP'
-    FilePath = 'D:\Temenos\t24home\default\SHIBLI.BP'
+    FileName = 'SHIBLI_INSTR.INFO.FT.update.txt'
+    FilePath = 'DL.BP'
+* FilePath = 'D:\Temenos\t24home\default\SHIBLI.BP'
     OPENSEQ FilePath,FileName TO FileOutput THEN NULL
     ELSE
         CREATE FileOutput ELSE

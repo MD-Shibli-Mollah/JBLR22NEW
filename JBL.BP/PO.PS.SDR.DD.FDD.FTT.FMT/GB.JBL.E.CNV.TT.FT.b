@@ -40,6 +40,24 @@ SUBROUTINE GB.JBL.E.CNV.TT.FT
     Y.DEBIT.ACC.NO = Y.CREDIT.ACC.NO
     EB.Reports.setOData(Y.DEBIT.ACC.NO)
 
+*******--------------------------TRACER------------------------------------------------------------------------------
+    WriteData = Y.ID:" Y.DEBIT.ACC.NO: ": Y.DEBIT.ACC.NO
+    FileName = 'SHIBLI_FT.TT.txt'
+* FilePath = 'DL.BP'
+    FilePath = 'DL.BP'
+    OPENSEQ FilePath,FileName TO FileOutput THEN NULL
+    ELSE
+        CREATE FileOutput ELSE
+        END
+    END
+    WRITESEQ WriteData APPEND TO FileOutput ELSE
+        CLOSESEQ FileOutput
+    END
+    CLOSESEQ FileOutput
+*******--------------------------TRACER-END--------------------------------------------------------*********************
+  
+
+
 RETURN
 END
 
