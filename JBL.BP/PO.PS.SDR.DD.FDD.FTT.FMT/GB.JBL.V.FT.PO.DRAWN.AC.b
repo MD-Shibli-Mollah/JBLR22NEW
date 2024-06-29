@@ -13,9 +13,8 @@ SUBROUTINE GB.JBL.V.FT.PO.DRAWN.AC
 * Attach As: VALIDATION ROUTINE
 *-----------------------------------------------------------------------------
 * Modification History :
-* 10/08/2020 -                             NEW   -NILOY SARKAR
-*                                                 NITSL Limited
-* 09/03/2024 -                             UPDATE - MD SHIBLI MOLLAH
+
+* 29/06/2024 -                             NEW - MD SHIBLI MOLLAH
 *                                                   NITSL Limited
 *-----------------------------------------------------------------------------
     $INSERT I_COMMON
@@ -63,11 +62,15 @@ PROCESS:
 * Y.CATEG.AC = 'BDT177060001'
 * Y.CATEG.AC = 'BDT17706' , BDT1770600019999 -- TEST
     
+    Y.VER = EB.SystemTables.getPgmVersion()
     Y.COM = EB.SystemTables.getIdCompany()
     Y.COMPANY = EB.SystemTables.getIdCompany()[6,4]
 
     EB.DataAccess.FRead(FN.COM, Y.COM, Rec.Com, F.COM, Y.ERR)
     Y.SUB.DEV.CODE = Rec.Com<ST.CompanyCreation.Company.EbComSubDivisionCode>
+* Financial Com : BD-001-9999
+    Y.FIN.CODE = Rec.Com<ST.CompanyCreation.Company.EbComFinanFinanCom>
+    Y.HO.CODE = Y.FIN.CODE[6,4]
     IF Y.SUB.DEV.CODE NE '' THEN
         Y.COMPANY = Y.SUB.DEV.CODE
     END
@@ -79,6 +82,11 @@ PROCESS:
         EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, REC.CHQ.TYPE, F.CHEQUE.TYPE, ERR)
         Y.CAT = REC.CHQ.TYPE<CQ.ChqConfig.ChequeType.ChequeTypeAssignedCategory>
         Y.CURRENCY = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditCurrency)
+        
+        IF Y.VER EQ ",JBL.FDD.ISSUE" OR Y.VER EQ ",JBL.FMT.ISSUE" OR Y.VER EQ ",JBL.FDD.FMT.ISSUE" THEN
+            Y.COMPANY = Y.HO.CODE
+        END
+        
         Y.CATEG.AC = Y.CURRENCY:Y.CAT:"0001":Y.COMPANY
         EB.SystemTables.setComi(Y.CATEG.AC)
     END
