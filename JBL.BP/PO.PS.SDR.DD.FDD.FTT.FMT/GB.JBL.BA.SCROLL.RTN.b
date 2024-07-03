@@ -9,7 +9,7 @@ SUBROUTINE GB.JBL.BA.SCROLL.RTN
 *Subroutine Description:
 * THIS ROUTINE IS USED to update SCROLL for DD/TT/MT in EB.JBL.H.SCROLL
 *
-*Attached To    : VERSION(TELLER,JBL.INSTR.LCY.CASHIN.TT.MT)
+*Attached To    : VERSION(TELLER,JBL.INSTR.LCY.CASHIN.TT.MT, FUNDS.TRANSFER,JBL.DD.ISSUE.2)
 *Attached As    : BEFORE AUTH ROUTINE
 *-----------------------------------------------------------------------------
 * Modification History :
@@ -69,6 +69,11 @@ PROCESS:
     Y.COMPANY = EB.SystemTables.getIdCompany()
     Y.TODAY = EB.SystemTables.getToday()
     Y.APP = EB.SystemTables.getApplication()
+    
+    Y.SCROLL.DD.NO = 0
+    Y.SCROLL.TT.NO = 0
+    Y.SCROLL.MT.NO = 0
+    
     
     IF Y.APP EQ "TELLER" THEN
         Y.CHEQUE.TYPE = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)

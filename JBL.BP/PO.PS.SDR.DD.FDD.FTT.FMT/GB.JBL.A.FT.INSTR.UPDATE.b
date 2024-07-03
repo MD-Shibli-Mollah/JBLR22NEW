@@ -3,7 +3,7 @@ SUBROUTINE GB.JBL.A.FT.INSTR.UPDATE
 
 * Subroutine Description:
 * THIS ROUTINE is used to UPDATE the EB.JBL.INSTRUMENTS.INFO Template
-* Attach To: VERSION(FUNDS.TRANSFER,JBL.PO.ISSUE.2)
+* Attach To: VERSION(FUNDS.TRANSFER,JBL.PO.ISSUE.2 & ALL FOREIGN & LOCAL Remittance (Double Phase)
 * Attach As: AUTH ROUTINE
 *-----------------------------------------------------------------------------
 * Modification History :

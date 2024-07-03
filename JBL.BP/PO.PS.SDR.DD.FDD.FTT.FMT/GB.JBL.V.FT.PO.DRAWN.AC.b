@@ -9,6 +9,8 @@ SUBROUTINE GB.JBL.V.FT.PO.DRAWN.AC
 * THIS ROUTINE is used to SET CREDIT.ACCOUNT for ALL types of CHEQUE.TYPE like PO, DD, PS, SDR, FDD, FTT, FMT
 * Attach To: VERSION(FUNDS.TRANSFER,JBL.FDD.ISSUE, FUNDS.TRANSFER,JBL.FTT.ISSUE ,FUNDS.TRANSFER,JBL.FMT.ISSUE
 *                    FUNDS.TRANSFER,JBL.PO.ISSUE.2, FUNDS.TRANSFER,JBL.PS.ISSUE.2, FUNDS.TRANSFER,JBL.SDR.ISSUE.2
+*                    FUNDS.TRANSFER,JBL.DD.ISSUE.2, FUNDS.TRANSFER,JBL.TT.ISSUE.2, FUNDS.TRANSFER,JBL.MT.ISSUE.2
+
 *
 * Attach As: VALIDATION ROUTINE
 *-----------------------------------------------------------------------------
@@ -25,6 +27,7 @@ SUBROUTINE GB.JBL.V.FT.PO.DRAWN.AC
     $USING EB.SystemTables
     $USING CQ.ChqConfig
     $USING ST.CompanyCreation
+    $USING EB.LocalReferences
 *-----------------------------------------------------------------------------
     GOSUB INITIALISE ; *
     GOSUB OPENFILE ; *
@@ -59,8 +62,6 @@ RETURN
 PROCESS:
 *** <desc> </desc>
     Y.CATEG.AC = ""
-* Y.CATEG.AC = 'BDT177060001'
-* Y.CATEG.AC = 'BDT17706' , BDT1770600019999 -- TEST
     
     Y.VER = EB.SystemTables.getPgmVersion()
     Y.COM = EB.SystemTables.getIdCompany()
@@ -85,6 +86,15 @@ PROCESS:
         
         IF Y.VER EQ ",JBL.FDD.ISSUE" OR Y.VER EQ ",JBL.FMT.ISSUE" OR Y.VER EQ ",JBL.FDD.FMT.ISSUE" THEN
             Y.COMPANY = Y.HO.CODE
+        END
+        IF Y.VER EQ "JBL.DD.ISSUE.2" OR Y.VER EQ ",JBL.TT.ISSUE.2" OR Y.VER EQ ",JBL.MT.ISSUE.2" THEN
+            APPLICATION.NAME = "FUNDS.TRANSFER"
+            Y.FILED.NAME = "LT.BRANCH"
+            Y.FIELD.POS.FT = ""
+            EB.LocalReferences.GetLocRef(APPLICATION.NAME, Y.FILED.NAME, Y.FIELD.POS.FT)
+            Y.COMPANY.NO = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
+            Y.COMPANY = Y.COMPANY.NO<1,Y.FIELD.POS.FT>
+            Y.COMPANY = Y.COMPANY[6,4]
         END
         
         Y.CATEG.AC = Y.CURRENCY:Y.CAT:"0001":Y.COMPANY
