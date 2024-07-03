@@ -9,7 +9,7 @@ SUBROUTINE GB.JBL.V.GET.FOREIGN.DRAFT
 *-----------------------------------------------------------------------------
 *-----------------------------------------------------------------------------
 *Subroutine Description:
-* THIS ROUTINE IS USED FOR GETTING FDD/FTT/FMT INFORMATION FORM CHEQUE.REGISTER.SUPPLEMENT
+* THIS ROUTINE IS USED FOR GETTING FDD/FTT/FMT INFORMATION FROM CHEQUE.REGISTER.SUPPLEMENT
 * BASE ON GIVEN ISSUED DRAFT ORDER NO
 *Attached To    : VERSION(FUNDS.TRANSFER,JBL.FOREIGN.CANCELLATION)
 *Attached As    : VALIDATION ROUTINE
@@ -20,6 +20,9 @@ SUBROUTINE GB.JBL.V.GET.FOREIGN.DRAFT
 
 * UPDATE REQUIRED FT -- LT.FT.CONT.DATE, LT.ISSUE.BRANCH, LT.FT.REF.NO
 * FROM CRS -- ISSUE.DATE, ORIGIN.REF, CO.CODE
+* 01/07/2024 - CREATED BY                         Modification - MD Shibli Mollah
+*                                                 NITSL
+* Cancellation must be done from the HEAD OFFICE Branch.
 *-----------------------------------------------------------------------------
     $INSERT I_COMMON
     $INSERT I_EQUATE
@@ -70,9 +73,9 @@ INITIALISE:
 *
 *----------------------------------------------------------------
 
-    APPLICATION.NAMES = 'TELLER':@FM:'FUNDS.TRANSFER':@FM:'CHEQUE.REGISTER.SUPPLEMENT'
+    APPLICATION.NAMES = "TELLER":@FM:"FUNDS.TRANSFER":@FM:"CHEQUE.REGISTER.SUPPLEMENT"
     LOCAL.FIELDS = ""
-    LOCAL.FIELDS = 'LT.TT.ISS.DATE':@VM:'LT.BRANCH':@VM:'LT.TT.REF.NUM':@VM:'LT.PUR.NAME':@VM:'LT.AMT.WORD':@VM:'LT.CRS.ALL.COM':@FM:'LT.FT.CONT.DATE':@VM:'LT.ISSUE.BRANCH':@VM:'LT.FT.REF.NO':@VM:'LT.CHQ.COM.CODE':@VM:'LT.CRS.ALL.COM':@FM:'LT.CRS.PUR.NAME':@VM:'LT.FT.CONT.DATE':@VM:'LT.ISSUE.BRANCH':@VM:'LT.FT.REF.NO':@VM:'LT.CRS.ALL.COM'
+    LOCAL.FIELDS = "LT.TT.ISS.DATE":@VM:"LT.BRANCH":@VM:"LT.TT.REF.NUM":@VM:"LT.PUR.NAME":@VM:"LT.AMT.WORD":@VM:"LT.CRS.ALL.COM":@FM:"LT.FT.CONT.DATE":@VM:"LT.ISSUE.BRANCH":@VM:"LT.FT.REF.NO":@VM:"LT.CHQ.COM.CODE":@VM:"LT.CRS.ALL.COM":@FM:"LT.CRS.PUR.NAME":@VM:"LT.FT.CONT.DATE":@VM:"LT.ISSUE.BRANCH":@VM:"LT.FT.REF.NO":@VM:"LT.CRS.ALL.COM"
     FLD.POS = ""
     EB.Updates.MultiGetLocRef(APPLICATION.NAMES, LOCAL.FIELDS, FLD.POS)
     Y.LT.TT.ISS.DATE.POS = FLD.POS<1,1>
@@ -116,34 +119,39 @@ PROCESS:
    
 *** <desc> </desc>
     Y.COM = EB.SystemTables.getIdCompany()
-    Y.ID.COMPANY = EB.SystemTables.getIdCompany()[6,4]
-    
-    EB.DataAccess.FRead(FN.COM, Y.COM, Rec.Com, F.COM, Y.ERR)
-    Y.SUB.DEV.CODE = Rec.Com<ST.CompanyCreation.Company.EbComSubDivisionCode>
-    IF Y.SUB.DEV.CODE NE '' THEN
-        Y.ID.COMPANY = Y.SUB.DEV.CODE
+* Y.ID.COMPANY = EB.SystemTables.getIdCompany()[6,4]
+
+*---------------------------Allow Company Validation-----------------------*
+    IF Y.COM NE "BD0019999" THEN
+        EB.SystemTables.setEtext("Can not be Cancelled other than Head Office")
+        EB.ErrorProcessing.StoreEndError()
     END
+*---------------------------Allow Company Validation--- END --------------------*
+    EB.DataAccess.FRead(FN.COM, Y.COM, Rec.Com, F.COM, Y.ERR)
+    Y.FIN.CODE = Rec.Com<ST.CompanyCreation.Company.EbComFinanFinanCom>
+    Y.HO.CODE = Y.FIN.CODE[6,4]
+    Y.ID.COMPANY = Y.HO.CODE
     
     Y.VERSION = EB.SystemTables.getPgmVersion()
     Y.APPLICATION = EB.SystemTables.getApplication()
     Y.DRAFT.NO = EB.SystemTables.getComi()
 
-    IF Y.APPLICATION EQ 'FUNDS.TRANSFER' THEN
+    IF Y.APPLICATION EQ "FUNDS.TRANSFER" THEN
         Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
         Y.CURRENCY = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.DebitCurrency)
     
         EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, REC.CHQ.TYPE, F.CHEQUE.TYPE, Y.ERR)
         Y.CAT = REC.CHQ.TYPE<CQ.ChqConfig.ChequeType.ChequeTypeAssignedCategory>
-        Y.DRAFT.ID = Y.ISS.CHQ.TYPE:'.':Y.CURRENCY:Y.CAT:"0001":Y.ID.COMPANY:'.':Y.DRAFT.NO
+        Y.DRAFT.ID = Y.ISS.CHQ.TYPE:".":Y.CURRENCY:Y.CAT:"0001":Y.ID.COMPANY:".":Y.DRAFT.NO
     END
 
-    IF Y.APPLICATION EQ 'TELLER' THEN
+    IF Y.APPLICATION EQ "TELLER" THEN
         Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
         Y.CURRENCY = EB.SystemTables.getRNew(TT.Contract.Teller.TeCurrencyTwo)
         
         EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, REC.CHQ.TYPE, F.CHEQUE.TYPE, Y.ERR)
         Y.CAT = REC.CHQ.TYPE<CQ.ChqConfig.ChequeType.ChequeTypeAssignedCategory>
-        Y.DRAFT.ID = Y.ISS.CHQ.TYPE:'.':Y.CURRENCY:Y.CAT:"0001":Y.ID.COMPANY:'.':Y.DRAFT.NO
+        Y.DRAFT.ID = Y.ISS.CHQ.TYPE:".":Y.CURRENCY:Y.CAT:"0001":Y.ID.COMPANY:".":Y.DRAFT.NO
     END
     
 *--------------------------------CHQ REGISTER SUPPLIMENT------------------------*
@@ -161,7 +169,7 @@ PROCESS:
 *----PO FROM OTHER BRANCH--- ID COMP--ACC NUM---------*
     Y.PO.AC.NO = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsIdCompTwo>
   
-    IF Y.PO.ORGIN EQ 'TELLER' THEN
+    IF Y.PO.ORGIN EQ "TELLER" THEN
         Y.ORG.TT.REF = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsOriginRef>
     END
     
@@ -184,29 +192,31 @@ PROCESS:
     Y.CO.CODE = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsCoCode>
 
 *---------------------------Allow Company Validation-----------------------*
-* IF Y.PO.ALLOW.COMP EQ 'NO' AND (Y.CRS.CO.CODE NE Y.ID.COMPANY) THEN
-    IF Y.CRS.CO.CODE NE Y.COM THEN
-        EB.SystemTables.setEtext('Payorder Is Not Issued/Wrong Issue Branch')
-        EB.ErrorProcessing.StoreEndError()
-    END
+
+* IF Y.PO.ALLOW.COMP EQ "NO" AND (Y.CRS.CO.CODE NE Y.ID.COMPANY) THEN
+* 30/6/2024 --- NO NEED TO CHECK CO.CODE AS The cancellation will only be done from HO
+*    IF Y.CRS.CO.CODE NE Y.COM THEN
+*        EB.SystemTables.setEtext("Payorder Is Not Issued/Wrong Issue Branch")
+*        EB.ErrorProcessing.StoreEndError()
+*    END
     
 *    BEGIN CASE
-*        CASE (Y.VERSION EQ ',JBL.PO.CANCELLATION') OR (Y.VERSION EQ ',JBL.PO.CANCEL.CASH')
+*        CASE (Y.VERSION EQ ",JBL.PO.CANCELLATION") OR (Y.VERSION EQ ",JBL.PO.CANCEL.CASH")
 *            IF (Y.CRS.CO.CODE NE Y.ID.COMPANY) THEN
-*                EB.SystemTables.setEtext('Can not cancle from another Branch')
+*                EB.SystemTables.setEtext("Can not cancle from another Branch")
 *                EB.ErrorProcessing.StoreEndError()
 *            END
-*        CASE (Y.VERSION EQ ',JBL.DD.CANCELLATION') OR (Y.VERSION EQ ',JBL.DD.CANCEL.CASH')
+*        CASE (Y.VERSION EQ ",JBL.DD.CANCELLATION") OR (Y.VERSION EQ ",JBL.DD.CANCEL.CASH")
 *            IF (Y.CRS.CO.CODE EQ Y.ID.COMPANY) THEN
-*                EB.SystemTables.setEtext('Can not cancle from Current Branch')
+*                EB.SystemTables.setEtext("Can not cancle from Current Branch")
 *                EB.ErrorProcessing.StoreEndError()
 *            END
 *    END CASE
      
 *------------------------------Allow Company validation End------------------*
 *------------------TT---------------------*
-* IF Y.PO.ALLOW.COMP EQ 'YES' OR (Y.VERSION EQ ',JBL.DD.COLLECTION') OR (Y.VERSION EQ ',JBL.DD.PAY.CASH') OR (Y.VERSION EQ ',JBL.FDD.COLLECTION') OR (Y.VERSION EQ ',JBL.FTT.COLLECTION') OR (Y.VERSION EQ ',JBL.DD.CANCELLATION') OR (Y.VERSION EQ ',JBL.DD.CANCEL.CASH') THEN
-    IF Y.APPLICATION EQ 'TELLER' THEN
+* IF Y.PO.ALLOW.COMP EQ "YES" OR (Y.VERSION EQ ",JBL.DD.COLLECTION") OR (Y.VERSION EQ ",JBL.DD.PAY.CASH") OR (Y.VERSION EQ ",JBL.FDD.COLLECTION") OR (Y.VERSION EQ ",JBL.FTT.COLLECTION") OR (Y.VERSION EQ ",JBL.DD.CANCELLATION") OR (Y.VERSION EQ ",JBL.DD.CANCEL.CASH") THEN
+    IF Y.APPLICATION EQ "TELLER" THEN
         EB.SystemTables.setRNew(TT.Contract.Teller.TePayeeName, Y.PO.PAYEE.NAME)
         EB.SystemTables.setRNew(TT.Contract.Teller.TeCurrencyOne, Y.PO.CURRENCY)
         EB.SystemTables.setRNew(TT.Contract.Teller.TeAmountLocalOne, Y.PO.AMT)
@@ -231,13 +241,12 @@ PROCESS:
 *--------------------UPDATE for INVALID FUNC KEY--END------------------------------------------*
     END
 *---------------TT END---------------------------------------------------*
-    
-*    IF EB.SystemTables.getApplication() EQ 'FUNDS.TRANSFER' AND Y.PO.ORGIN EQ 'FUNDS.TRANSFER' THEN
+*    IF EB.SystemTables.getApplication() EQ "FUNDS.TRANSFER" AND Y.PO.ORGIN EQ "FUNDS.TRANSFER" THEN
  
-    IF Y.APPLICATION EQ 'FUNDS.TRANSFER' THEN
+    IF Y.APPLICATION EQ "FUNDS.TRANSFER" THEN
         EB.SystemTables.setRNew(FT.Contract.FundsTransfer.DebitAcctNo, Y.PO.AC.NO)
-        EB.SystemTables.setRNew(FT.Contract.FundsTransfer.CreditCurrency, Y.PO.CURRENCY)
-        EB.SystemTables.setRNew(FT.Contract.FundsTransfer.CreditAmount, Y.PO.AMT)
+        EB.SystemTables.setRNew(FT.Contract.FundsTransfer.DebitCurrency, Y.PO.CURRENCY)
+        EB.SystemTables.setRNew(FT.Contract.FundsTransfer.DebitAmount, Y.PO.AMT)
 * EB.SystemTables.setRNew(FT.Contract.FundsTransfer.IssueChequeType, Y.PO.CHQ.TYP)
         EB.SystemTables.setRNew(FT.Contract.FundsTransfer.PayeeName, Y.PO.PAYEE.NAME)
         EB.SystemTables.setRNew(FT.Contract.FundsTransfer.PaymentDetails, Y.PUR.NAME)
@@ -258,8 +267,8 @@ PROCESS:
 ****************************
 *******--------------------------TRACER------------------------------------------------------------------------------
     WriteData = "Y.ISS.CHQ.TYPE: ": Y.ISS.CHQ.TYPE:" Y.VERSION: ":Y.VERSION:" Y.DRAFT.ID : ":Y.DRAFT.ID
-    FileName = 'SHIBLI_FDD_CANCEL_24.txt'
-    FilePath = 'DL.BP'
+    FileName = "SHIBLI_FDD_CANCEL_24.txt"
+    FilePath = "DL.BP"
     OPENSEQ FilePath,FileName TO FileOutput THEN NULL
     ELSE
         CREATE FileOutput ELSE

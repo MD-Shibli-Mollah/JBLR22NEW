@@ -13,9 +13,10 @@ SUBROUTINE GB.JBL.V.STOCK.SERIES
 * Modification History :
 * 21/08/2022 - CREATED BY                         NEW - NILOY SARKAR
 *                                                 NITSL
-* 07/03/2024 - CREATED BY                         UPDATE - MD SHIBLI MOLLAH
-*                                                 NITSL
 *
+* 07/03/2024 - MODIFICATION                       UPDATE - MD SHIBLI MOLLAH
+*                                                 NITSL
+* FUNDS.TRANSFER,JBL.PO.ISSUE.2 --- SERIES will be fixed by "PO" -- FT only Now
 *-----------------------------------------------------------------------------
 *-----------------------------------------------------------------------------
 
@@ -36,9 +37,9 @@ RETURN
 INITIALISE:
 *** <desc> </desc>
     
-    FN.FT = 'F.FUNDS.TRANSFER'
-    F.FT = ''
-    FN.TEL = 'F.TELLER' ; F.TEL = ''
+    FN.FT = "F.FUNDS.TRANSFER"
+    F.FT = ""
+    FN.TEL = "F.TELLER" ; F.TEL = ""
 RETURN
 *-------------------------------------------------------------------
 OPENFILE:
@@ -49,20 +50,26 @@ RETURN
 *---------------------------------------------------------------
 PROCESS:
     Y.APP = EB.SystemTables.getApplication()
-    IF Y.APP EQ 'FUNDS.TRANSFER' THEN
-        Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
-* Y.STOCK.SERIES = 'PO*'
-        Y.STOCK.SERIES = Y.ISS.CHQ.TYPE:'*'
+    Y.VER = EB.SystemTables.getPgmVersion()
     
-        Y.SERIES.ID = Y.ISS.CHQ.TYPE:'*':Y.STOCK.SERIES
+    IF Y.APP EQ "FUNDS.TRANSFER" THEN
+        Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
+    
+        Y.STOCK.SERIES = Y.ISS.CHQ.TYPE:"*"
+        
+        IF Y.VER EQ ",JBL.PO.ISSUE.2" THEN
+            Y.STOCK.SERIES = "PO*"
+        END
+    
+        Y.SERIES.ID = Y.ISS.CHQ.TYPE:"*":Y.STOCK.SERIES
         EB.SystemTables.setComi(Y.SERIES.ID)
     END
     
-    IF Y.APP EQ 'TELLER' THEN
+    IF Y.APP EQ "TELLER" THEN
         Y.TT.ISS.CHQ.TYP = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
-* Y.STOCK.SERIES = 'PO*'
-        Y.STOCK.SERIES = Y.ISS.CHQ.TYPE:'*'
-        Y.SERIES.ID = Y.TT.ISS.CHQ.TYP:'*':Y.STOCK.SERIES
+* Y.STOCK.SERIES = "PO*"
+        Y.STOCK.SERIES = Y.ISS.CHQ.TYPE:"*"
+        Y.SERIES.ID = Y.TT.ISS.CHQ.TYP:"*":Y.STOCK.SERIES
         EB.SystemTables.setComi(Y.SERIES.ID)
     END
 RETURN
