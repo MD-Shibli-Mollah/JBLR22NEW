@@ -1,5 +1,5 @@
 
-SUBROUTINE GB.JBL.V.GET.FOREIGN.DRAFT
+SUBROUTINE GB.JBL.V.GET.LOCAL.DRAFT
 *-----------------------------------------------------------------------------
 *
 *-----------------------------------------------------------------------------
@@ -7,11 +7,11 @@ SUBROUTINE GB.JBL.V.GET.FOREIGN.DRAFT
 *-----------------------------------------------------------------------------
 
 *-----------------------------------------------------------------------------
-*-----------------------------------------------------------------------------
 *Subroutine Description:
-* THIS ROUTINE IS USED FOR GETTING FDD/FTT/FMT INFORMATION FROM CHEQUE.REGISTER.SUPPLEMENT
+* THIS ROUTINE IS USED FOR GETTING PO/PS/SDR INFORMATION FROM CHEQUE.REGISTER.SUPPLEMENT
 * BASE ON GIVEN ISSUED DRAFT ORDER NO
-*Attached To    : VERSION(FUNDS.TRANSFER,JBL.FOREIGN.CANCELLATION)
+*Attached To    : VERSION(FUNDS.TRANSFER,JBL.LOCAL.CANCELLATION, FUNDS.TRANSFER,JBL.DD.CANCELLATION
+*                         FUNDS.TRANSFER,JBL.LOCAL.COLLECTION, FUNDS.TRANSFER,JBL.DD.COLLECTION)
 *Attached As    : VALIDATION ROUTINE
 *-----------------------------------------------------------------------------
 * Modification History :
@@ -22,7 +22,9 @@ SUBROUTINE GB.JBL.V.GET.FOREIGN.DRAFT
 * FROM CRS -- ISSUE.DATE, ORIGIN.REF, CO.CODE
 * 01/07/2024 - CREATED BY                         Modification - MD Shibli Mollah
 *                                                 NITSL
-* Cancellation must be done from the HEAD OFFICE Branch.
+* Cancellation must be done from PAYEE Branch for DD.
+*
+* POS/PS/SDR collection will be done from any Branch - LT.BRANCH
 *-----------------------------------------------------------------------------
     $INSERT I_COMMON
     $INSERT I_EQUATE
@@ -61,16 +63,6 @@ INITIALISE:
     
     FN.FT = "F.FUNDS.TRANSFER"
     F.FT = ""
-*------------------------------------
-    Y.APP.NAME = "CHEQUE.REGISTER.SUPPLEMENT"
-    LOCAL.FIELDS = ""
-    LOCAL.FIELDS = "LT.CRS.PUR.NAME"
-    FLD.POS = ""
-    
-    EB.Foundation.MapLocalFields(Y.APP.NAME,LOCAL.FIELDS,FLD.POS)
-    FLD.POS = ""
-    Y.CRS.PUR.NAME.POS = FLD.POS<1,1>
-*
 *----------------------------------------------------------------
 
     APPLICATION.NAMES = "TELLER":@FM:"FUNDS.TRANSFER":@FM:"CHEQUE.REGISTER.SUPPLEMENT"
@@ -89,7 +81,7 @@ INITIALISE:
     Y.LT.FT.REF.NO.POS = FLD.POS<2,3>
     Y.ISS.BR.CODE.POS = FLD.POS<2,4>
     Y.FT.LT.CRS.ALL.COM.POS = FLD.POS<2,5>
-    Y.CRS.PUR.NAME.POS=FLD.POS<3,1>
+    Y.CRS.PUR.NAME.POS = FLD.POS<3,1>
     Y.LT.CQ.CONT.DATE.POS= FLD.POS<3,2>
     Y.LT.CQ.ISSUE.BRANCH.POS= FLD.POS<3,3>
     Y.LT.CQ.REF.NO.POS= FLD.POS<3,4>
@@ -118,19 +110,9 @@ RETURN
 PROCESS:
    
 *** <desc> </desc>
-    Y.COM = EB.SystemTables.getIdCompany()
-* Y.ID.COMPANY = EB.SystemTables.getIdCompany()[6,4]
-
-*---------------------------Allow Company Validation-----------------------*
-    IF Y.COM NE "BD0019999" THEN
-        EB.SystemTables.setEtext("Can not be Cancelled other than Head Office")
-        EB.ErrorProcessing.StoreEndError()
-    END
-*---------------------------Allow Company Validation--- END --------------------*
-    EB.DataAccess.FRead(FN.COM, Y.COM, Rec.Com, F.COM, Y.ERR)
-    Y.FIN.CODE = Rec.Com<ST.CompanyCreation.Company.EbComFinanFinanCom>
-    Y.HO.CODE = Y.FIN.CODE[6,4]
-    Y.ID.COMPANY = Y.HO.CODE
+    Y.CO.CODE = ""
+    Y.COMPANY = EB.SystemTables.getIdCompany()
+    Y.ID.COMPANY = EB.SystemTables.getIdCompany()[6,4]
     
     Y.VERSION = EB.SystemTables.getPgmVersion()
     Y.APPLICATION = EB.SystemTables.getApplication()
@@ -139,6 +121,13 @@ PROCESS:
     IF Y.APPLICATION EQ "FUNDS.TRANSFER" THEN
         Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
         Y.CURRENCY = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.DebitCurrency)
+        
+*-------------- LT.BRANCH need to be considered for PO/PS/SDR Collection --------------------*
+        IF Y.VERSION EQ ",JBL.LOCAL.COLLECTION" THEN
+            Y.ISS.BR.CODE.TEMP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
+            Y.ISS.BR.CODE = Y.ISS.BR.CODE.TEMP<1,Y.ISS.BR.CODE.POS>
+            Y.ID.COMPANY = Y.ISS.BR.CODE[6,4]
+        END
     
         EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, REC.CHQ.TYPE, F.CHEQUE.TYPE, Y.ERR)
         Y.CAT = REC.CHQ.TYPE<CQ.ChqConfig.ChequeType.ChequeTypeAssignedCategory>
@@ -155,58 +144,83 @@ PROCESS:
     END
     
 *--------------------------------CHQ REGISTER SUPPLIMENT------------------------*
-    EB.DataAccess.FRead(FN.CHQ.REG.SUP, Y.DRAFT.ID, Rec.PO, F.CHQ.REG.SUP, Y.Err)
-    Y.PO.STATUS = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsStatus>
-    Y.PO.CURRENCY = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsCurrency>
-    Y.PO.AMT = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsAmount>
-    Y.PO.PAYEE.NAME = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsPayeeName>
-    Y.PO.ISS.DATE = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsIssueDate>
-    Y.PO.ORGIN = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsOrigin>
-    Y.CRS.LOC.REF = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsLocalRef>
+    EB.DataAccess.FRead(FN.CHQ.REG.SUP, Y.DRAFT.ID, REC.PO, F.CHQ.REG.SUP, Y.Err)
+    
+    IF (REC.PO EQ "") AND (Y.VERSION EQ ",JBL.DD.CANCELLATION") THEN
+        EB.SystemTables.setEtext("Draft can be Cancelled from Payee Branch Only")
+        EB.ErrorProcessing.StoreEndError()
+    END
+    
+    IF REC.PO EQ "" THEN
+        EB.SystemTables.setEtext("Draft Is Not Issued/Wrong Issued Branch")
+        EB.ErrorProcessing.StoreEndError()
+    END
+    
+    Y.PO.STATUS = REC.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsStatus>
+    Y.PO.CURRENCY = REC.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsCurrency>
+    Y.PO.AMT = REC.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsAmount>
+    Y.PO.PAYEE.NAME = REC.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsPayeeName>
+    Y.PO.ISS.DATE = REC.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsIssueDate>
+    Y.PO.ORGIN = REC.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsOrigin>
+    Y.CRS.LOC.REF = REC.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsLocalRef>
     Y.PO.ALLOW.COMP = Y.CRS.LOC.REF<1,Y.LT.CRS.ALL.COM.POS>
-    Y.CRS.CO.CODE = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsCoCode>
-    Y.PO.CHQ.TYP = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsIdCompOne>
+    Y.CRS.CO.CODE = REC.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsCoCode>
+    Y.PO.CHQ.TYP = REC.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsIdCompOne>
 *----PO FROM OTHER BRANCH--- ID COMP--ACC NUM---------*
-    Y.PO.AC.NO = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsIdCompTwo>
+    Y.PO.AC.NO = REC.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsIdCompTwo>
   
     IF Y.PO.ORGIN EQ "TELLER" THEN
-        Y.ORG.TT.REF = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsOriginRef>
+        Y.ORG.TT.REF = REC.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsOriginRef>
     END
     
     EB.DataAccess.FRead(FN.TT,Y.ORG.TT.REF, R.TT, F.TT,Y.TT.ERR)
     Y.TT.LOC.REF = R.TT<TT.Contract.Teller.TeLocalRef>
+    
 *-------------------------------purchaser Name for TT ------------------------*
     Y.TT.PUR.NAME = Y.TT.LOC.REF<1,Y.LT.PUR.NAME.POS>
     Y.TT.AMT.WORD = Y.TT.LOC.REF<1, Y.LT.AMT.WORD.POS>
 *-------------------------------------END--------------------------------------*
 
 *----------------------------------purchaser name for FT-------------------------------*
-    Y.PO.ORGIN.REF = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsOriginRef>
+    Y.PO.ORGIN.REF = REC.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsOriginRef>
     EB.DataAccess.FRead(FN.FT, Y.PO.ORGIN.REF, R.FT, F.FT, Y.FT.Err)
     Y.PUR.NAME = R.FT<FT.Contract.FundsTransfer.PaymentDetails>
 *-------------------------------------end---------------------------------------*
 
 *-----------------ADD ISSUE.DATE, ORIGIN.REF & CO.CODE --------------*
-    Y.ISSUE.DATE = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsIssueDate>
-    Y.ORIGIN.REF = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsOriginRef>
-    Y.CO.CODE = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsCoCode>
+    Y.ISSUE.DATE = REC.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsIssueDate>
+    Y.ORIGIN.REF = REC.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsOriginRef>
+    Y.CO.CODE = REC.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsCoCode>
 
+*---------------------------Allow Company Validation-----------------------*
+    BEGIN CASE
+        CASE (Y.VERSION EQ ",JBL.LOCAL.CANCELLATION")
+            IF (Y.CRS.CO.CODE NE Y.COMPANY) THEN
+                EB.SystemTables.setEtext("Draft can be Cancelled from Issued Branch Only")
+                EB.ErrorProcessing.StoreEndError()
+            END
+        CASE (Y.VERSION EQ ",JBL.DD.CANCELLATION")
+            IF (Y.CRS.CO.CODE EQ Y.COMPANY) THEN
+                EB.SystemTables.setEtext("Draft can not be Cancelled from Current Branch")
+                EB.ErrorProcessing.StoreEndError()
+            END
+    END CASE
+*------------------------------Allow Company validation End------------------*
 *------------------TT---------------------*
-
     IF Y.APPLICATION EQ "TELLER" THEN
         EB.SystemTables.setRNew(TT.Contract.Teller.TePayeeName, Y.PO.PAYEE.NAME)
         EB.SystemTables.setRNew(TT.Contract.Teller.TeCurrencyOne, Y.PO.CURRENCY)
         EB.SystemTables.setRNew(TT.Contract.Teller.TeAmountLocalOne, Y.PO.AMT)
-*----PO FROM OTHER BRANCH--- ID COMP--ACC NUM--Y.PO.AC.NO-------modified on 24th feb 2021 - SHIBLI FDS-
-* EB.SystemTables.setRNew(TT.Contract.Teller.TeAccountTwo, Y.PO.AC.NO)
         EB.SystemTables.setRNew(TT.Contract.Teller.TeAccountOne, Y.PO.AC.NO)
 * EB.SystemTables.setRNew(TT.Contract.Teller.TeIssueChequeType,Y.PO.CHQ.TYP)
         
 *-----PO ISSUE DATE -- TT -- LT.TT.ISS.DATE, LT.BRANCH, LT.TT.REF.NUM, LT.PUR.NAME -------UPDATE for INVALID FUNC KEY-----
         Y.TEMP = EB.SystemTables.getRNew(TT.Contract.Teller.TeLocalRef)
         Y.TEMP<1,Y.LT.TT.ISS.DATE.POS> = Y.ISSUE.DATE
-*-------LT TT BRANCH----------------------------------------*
-        Y.TEMP<1,Y.TT.LT.BRANCH.POS> = Y.CO.CODE
+*-------LT TT BRANCH FOR PO/PS/SDR CANCELLATION Only ----------------------------------------*
+        IF Y.VERSION EQ ",JBL.LOCAL.CANCELLATION" THEN
+            Y.TEMP<1,Y.TT.LT.BRANCH.POS> = Y.CO.CODE
+        END
 *-------TT FT REF NO-----------------------------------------*
         Y.TEMP<1,Y.LT.TT.REF.NUM.POS> = Y.ORIGIN.REF
 *-------PURCHASER NAME---------------------------------------*
@@ -231,19 +245,20 @@ PROCESS:
         Y.FT.TEMP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
 *--------------------LT.ISSUE.DATE----------------------------------------------------------*
         Y.FT.TEMP<1,Y.LT.FT.CONT.DAT.POS> = Y.ISSUE.DATE
-*--------------------LT.ISSUE.BR----------------------------------------------------------*
-        Y.FT.TEMP<1,Y.LT.FT.ISSUE.BR.POS> = Y.CO.CODE
+*-------LT.BRANCH FOR PO/PS/SDR CANCELLATION Only ----------------------------------------*
+        IF Y.VERSION EQ ",JBL.LOCAL.CANCELLATION" THEN
+            Y.FT.TEMP<1,Y.LT.FT.ISSUE.BR.POS> = Y.CO.CODE
+        END
 *--------------------LT.ISSUE.ORIGIN.REF----------------------------------------------------------*
         Y.FT.TEMP<1,Y.LT.FT.REF.NO.POS> = Y.ORIGIN.REF
         Y.FT.TEMP<1,Y.FT.LT.CRS.ALL.COM.POS> = Y.PO.ALLOW.COMP
         EB.SystemTables.setRNew(FT.Contract.FundsTransfer.LocalRef, Y.FT.TEMP)
 *-------------------------UPDATE for INVALID FUNC KEY-----END------------------------------------------*
     END
-* END
 ****************************
 *******--------------------------TRACER------------------------------------------------------------------------------
     WriteData = "Y.ISS.CHQ.TYPE: ": Y.ISS.CHQ.TYPE:" Y.VERSION: ":Y.VERSION:" Y.DRAFT.ID : ":Y.DRAFT.ID
-    FileName = "SHIBLI_FDD_CANCEL_24.txt"
+    FileName = "SHIBLI_LOCAL_CANCEL_24.txt"
     FilePath = "DL.BP"
     OPENSEQ FilePath,FileName TO FileOutput THEN NULL
     ELSE

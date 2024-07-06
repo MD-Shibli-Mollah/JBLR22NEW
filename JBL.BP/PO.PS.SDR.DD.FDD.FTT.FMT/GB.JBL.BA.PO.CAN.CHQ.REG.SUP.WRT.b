@@ -3,7 +3,7 @@ SUBROUTINE GB.JBL.BA.PO.CAN.CHQ.REG.SUP.WRT
 *-----------------------------------------------------------------------------
 * Subroutine Description:
 * THIS ROUTINE is used to UPDATE CHEQUE.REGISTER.SUPPLEMENT
-* Attach To: VERSION(FUNDS.TRANSFER,JBL.FOREIGN.CANCELLATION)
+* Attach To: VERSION(FUNDS.TRANSFER,JBL.FOREIGN.CANCELLATION , FUNDS.TRANSFER,JBL.LOCAL.CANCELLATION)
 * Attach As: BEFORE AUTH ROUTINE
 *-----------------------------------------------------------------------------
 * Modification History :
@@ -102,7 +102,7 @@ PROCESS:
 
 *******--------------------------TRACER------------------------------------------------------------------------------
         WriteData = Y.ID: "LT.TT.PO.CANCEL.POS: ":LT.TT.PO.CANCEL.POS:" -- LT.FT.PO.CANCEL: ":LT.TT.PO.CANCEL: " Y.CQ.TEMP: ":Y.CQ.TEMP
-        FileName = "FDD_FMT_CANCEL_24.txt"
+        FileName = "PO_PS_SDR_Auth_CANCEL_24.txt"
         FilePath = "DL.BP"
 * FilePath = 'D:\Temenos\t24home\default\SHIBLI.BP'
         OPENSEQ FilePath,FileName TO FileOutput THEN NULL
@@ -131,7 +131,7 @@ PROCESS:
         Y.PO.COLL.CO.CODE = EB.SystemTables.getIdCompany()
         
 *--------------------------------PUR NAME FROM TT APPLICATION ------------------------------
-        Y.TT.LOC.REF= EB.SystemTables.getRNew(TT.Contract.Teller.TeLocalRef)
+        Y.TT.LOC.REF = EB.SystemTables.getRNew(TT.Contract.Teller.TeLocalRef)
         Y.TT.PUR.NAME = Y.TT.LOC.REF<1,Y.LT.TT.PUR.NAME.POS>
         Y.TT.PO.STATUS = Y.TT.LOC.REF<1,Y.LT.TT.POS.STATUS.POS>
 *------------------------------------------------------------------------
