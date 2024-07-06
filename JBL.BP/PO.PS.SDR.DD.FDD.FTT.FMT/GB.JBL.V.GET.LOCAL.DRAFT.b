@@ -125,7 +125,7 @@ PROCESS:
 *-------------- LT.BRANCH need to be considered for PO/PS/SDR Collection --------------------*
         IF Y.VERSION EQ ",JBL.LOCAL.COLLECTION" THEN
             Y.ISS.BR.CODE.TEMP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
-            Y.ISS.BR.CODE = Y.ISS.BR.CODE.TEMP<1,Y.ISS.BR.CODE.POS>
+            Y.ISS.BR.CODE = Y.ISS.BR.CODE.TEMP<1,Y.LT.FT.ISSUE.BR.POS>
             Y.ID.COMPANY = Y.ISS.BR.CODE[6,4]
         END
     
