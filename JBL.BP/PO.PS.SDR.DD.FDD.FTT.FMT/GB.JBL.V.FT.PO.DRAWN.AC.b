@@ -10,7 +10,7 @@ SUBROUTINE GB.JBL.V.FT.PO.DRAWN.AC
 * Attach To: VERSION(FUNDS.TRANSFER,JBL.FDD.ISSUE, FUNDS.TRANSFER,JBL.FTT.ISSUE ,FUNDS.TRANSFER,JBL.FMT.ISSUE
 *                    FUNDS.TRANSFER,JBL.PO.ISSUE.2, FUNDS.TRANSFER,JBL.PS.ISSUE.2, FUNDS.TRANSFER,JBL.SDR.ISSUE.2
 *                    FUNDS.TRANSFER,JBL.DD.ISSUE.2, FUNDS.TRANSFER,JBL.TT.ISSUE.2, FUNDS.TRANSFER,JBL.MT.ISSUE.2
-*                    FUNDS.TRANSFER,JBL.DD.ISSUE
+*                    FUNDS.TRANSFER,JBL.DD.ISSUE , FUNDS.TRANSFER,JBL.DD.COLLECTION , FUNDS.TRANSFER,JBL.DD.CANCELLATION
 
 *
 * Attach As: VALIDATION ROUTINE
@@ -19,6 +19,12 @@ SUBROUTINE GB.JBL.V.FT.PO.DRAWN.AC
 
 * 29/06/2024 -                             NEW - MD SHIBLI MOLLAH
 *                                                   NITSL Limited
+*
+*07/07/2024 - Modification                 Modify - MD SHIBLI MOLLAH
+*                                                   NITSL Limited
+*
+*
+*
 *-----------------------------------------------------------------------------
     $INSERT I_COMMON
     $INSERT I_EQUATE
@@ -28,7 +34,7 @@ SUBROUTINE GB.JBL.V.FT.PO.DRAWN.AC
     $USING EB.SystemTables
     $USING CQ.ChqConfig
     $USING ST.CompanyCreation
-    $USING EB.LocalReferences
+    $USING EB.Updates
 *-----------------------------------------------------------------------------
     GOSUB INITIALISE ; *
     GOSUB OPENFILE ; *
@@ -90,12 +96,17 @@ PROCESS:
         END
         IF (Y.VER EQ ",JBL.DD.COLLECTION") OR (Y.VER EQ ",JBL.DD.CANCELLATION") OR (Y.VER EQ ",JBL.DD.ISSUE") OR (Y.VER EQ ",JBL.DD.ISSUE.2") OR Y.VER EQ (",JBL.TT.ISSUE.2") OR (Y.VER EQ ",JBL.MT.ISSUE.2") THEN
             APPLICATION.NAME = "FUNDS.TRANSFER"
-            Y.FILED.NAME = "LT.BRANCH"
-            Y.FIELD.POS.FT = ""
-            EB.LocalReferences.GetLocRef(APPLICATION.NAME, Y.FILED.NAME, Y.FIELD.POS.FT)
-            Y.COMPANY.NO = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
-            Y.COMPANY = Y.COMPANY.NO<1,Y.FIELD.POS.FT>
+            Y.FILED.NAMES = "LT.BRANCH":@VM:"LT.ISSUE.BRANCH"
+            FLD.POS = ""
+            EB.Updates.MultiGetLocRef(APPLICATION.NAME, Y.FILED.NAMES, FLD.POS)
+            Y.LT.BRANCH.POS = FLD.POS<1,1>
+            Y.LT.ISSUE.BRANCH.POS = FLD.POS<1,2>
+            Y.TEMP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
+            Y.COMPANY = Y.TEMP<1,Y.LT.BRANCH.POS>
             Y.COMPANY = Y.COMPANY[6,4]
+*---------- Payee Branch for DD Cancellation (IF REQUIRED) ----------------------- *
+            Y.ISSUE.BRANCH = Y.TEMP<1,Y.LT.ISSUE.BRANCH.POS>
+            Y.ISSUE.BRANCH = Y.ISSUE.BRANCH[6,4]
         END
         
         Y.CATEG.AC = Y.CURRENCY:Y.CAT:"0001":Y.COMPANY

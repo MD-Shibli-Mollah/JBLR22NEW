@@ -22,7 +22,9 @@ SUBROUTINE GB.JBL.V.GET.LOCAL.DRAFT
 * FROM CRS -- ISSUE.DATE, ORIGIN.REF, CO.CODE
 * 01/07/2024 - CREATED BY                         Modification - MD Shibli Mollah
 *                                                 NITSL
-* Cancellation must be done from PAYEE Branch for DD.
+*
+* For DD cancellation only from Issuing branch - LT.ISSUE.BRANCH is allowed.
+* Other instrument like PO/SDR/PS cancellation will also be from issued branch only.
 *
 * POS/PS/SDR collection will be done from any Branch - LT.BRANCH
 *-----------------------------------------------------------------------------
@@ -67,7 +69,7 @@ INITIALISE:
 
     APPLICATION.NAMES = "TELLER":@FM:"FUNDS.TRANSFER":@FM:"CHEQUE.REGISTER.SUPPLEMENT"
     LOCAL.FIELDS = ""
-    LOCAL.FIELDS = "LT.TT.ISS.DATE":@VM:"LT.BRANCH":@VM:"LT.TT.REF.NUM":@VM:"LT.PUR.NAME":@VM:"LT.AMT.WORD":@VM:"LT.CRS.ALL.COM":@FM:"LT.FT.CONT.DATE":@VM:"LT.BRANCH":@VM:"LT.FT.REF.NO":@VM:"LT.CHQ.COM.CODE":@VM:"LT.CRS.ALL.COM":@FM:"LT.CRS.PUR.NAME":@VM:"LT.FT.CONT.DATE":@VM:"LT.BRANCH":@VM:"LT.FT.REF.NO":@VM:"LT.CRS.ALL.COM"
+    LOCAL.FIELDS = "LT.TT.ISS.DATE":@VM:"LT.BRANCH":@VM:"LT.TT.REF.NUM":@VM:"LT.PUR.NAME":@VM:"LT.AMT.WORD":@VM:"LT.CRS.ALL.COM":@FM:"LT.FT.CONT.DATE":@VM:"LT.BRANCH":@VM:"LT.FT.REF.NO":@VM:"LT.CHQ.COM.CODE":@VM:"LT.CRS.ALL.COM":@VM:"LT.ISSUE.BRANCH":@FM:"LT.CRS.PUR.NAME":@VM:"LT.FT.CONT.DATE":@VM:"LT.BRANCH":@VM:"LT.FT.REF.NO":@VM:"LT.CRS.ALL.COM"
     FLD.POS = ""
     EB.Updates.MultiGetLocRef(APPLICATION.NAMES, LOCAL.FIELDS, FLD.POS)
     Y.LT.TT.ISS.DATE.POS = FLD.POS<1,1>
@@ -77,10 +79,11 @@ INITIALISE:
     Y.LT.AMT.WORD.POS = FLD.POS<1,5>
     Y.TT.LT.CRS.ALL.COM.POS = FLD.POS<1,6>
     Y.LT.FT.CONT.DAT.POS = FLD.POS<2,1>
-    Y.LT.FT.ISSUE.BR.POS = FLD.POS<2,2>
+    Y.LT.FT.BRANCH.POS = FLD.POS<2,2>
     Y.LT.FT.REF.NO.POS = FLD.POS<2,3>
     Y.ISS.BR.CODE.POS = FLD.POS<2,4>
     Y.FT.LT.CRS.ALL.COM.POS = FLD.POS<2,5>
+    Y.FT.LT.ISSUE.BRANCH.POS = FLD.POS<2,6>
     Y.CRS.PUR.NAME.POS = FLD.POS<3,1>
     Y.LT.CQ.CONT.DATE.POS= FLD.POS<3,2>
     Y.LT.CQ.ISSUE.BRANCH.POS= FLD.POS<3,3>
@@ -125,7 +128,14 @@ PROCESS:
 *-------------- LT.BRANCH need to be considered for PO/PS/SDR Collection --------------------*
         IF Y.VERSION EQ ",JBL.LOCAL.COLLECTION" THEN
             Y.ISS.BR.CODE.TEMP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
-            Y.ISS.BR.CODE = Y.ISS.BR.CODE.TEMP<1,Y.LT.FT.ISSUE.BR.POS>
+            Y.ISS.BR.CODE = Y.ISS.BR.CODE.TEMP<1,Y.LT.FT.BRANCH.POS>
+            Y.ID.COMPANY = Y.ISS.BR.CODE[6,4]
+        END
+         
+*-------------- Payee Branch - LT.ISSUE.BRANCH need to be considered for DD Cancellation --------------------*
+        IF Y.VERSION EQ ",JBL.DD.CANCELLATION" THEN
+            Y.ISS.BR.CODE.TEMP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
+            Y.ISS.BR.CODE = Y.ISS.BR.CODE.TEMP<1,Y.FT.LT.ISSUE.BRANCH.POS>
             Y.ID.COMPANY = Y.ISS.BR.CODE[6,4]
         END
     
@@ -145,12 +155,6 @@ PROCESS:
     
 *--------------------------------CHQ REGISTER SUPPLIMENT------------------------*
     EB.DataAccess.FRead(FN.CHQ.REG.SUP, Y.DRAFT.ID, REC.PO, F.CHQ.REG.SUP, Y.Err)
-    
-    IF (REC.PO EQ "") AND (Y.VERSION EQ ",JBL.DD.CANCELLATION") THEN
-        EB.SystemTables.setEtext("Draft can be Cancelled from Payee Branch Only")
-        EB.ErrorProcessing.StoreEndError()
-    END
-    
     IF REC.PO EQ "" THEN
         EB.SystemTables.setEtext("Draft Is Not Issued/Wrong Issued Branch")
         EB.ErrorProcessing.StoreEndError()
@@ -200,8 +204,8 @@ PROCESS:
                 EB.ErrorProcessing.StoreEndError()
             END
         CASE (Y.VERSION EQ ",JBL.DD.CANCELLATION")
-            IF (Y.CRS.CO.CODE EQ Y.COMPANY) THEN
-                EB.SystemTables.setEtext("Draft can not be Cancelled from Current Branch")
+            IF (Y.CRS.CO.CODE NE Y.COMPANY) THEN
+                EB.SystemTables.setEtext("Draft can be Cancelled from Issued Branch Only")
                 EB.ErrorProcessing.StoreEndError()
             END
     END CASE
@@ -247,7 +251,7 @@ PROCESS:
         Y.FT.TEMP<1,Y.LT.FT.CONT.DAT.POS> = Y.ISSUE.DATE
 *-------LT.BRANCH FOR PO/PS/SDR CANCELLATION Only ----------------------------------------*
         IF Y.VERSION EQ ",JBL.LOCAL.CANCELLATION" THEN
-            Y.FT.TEMP<1,Y.LT.FT.ISSUE.BR.POS> = Y.CO.CODE
+            Y.FT.TEMP<1,Y.LT.FT.BRANCH.POS> = Y.CO.CODE
         END
 *--------------------LT.ISSUE.ORIGIN.REF----------------------------------------------------------*
         Y.FT.TEMP<1,Y.LT.FT.REF.NO.POS> = Y.ORIGIN.REF
