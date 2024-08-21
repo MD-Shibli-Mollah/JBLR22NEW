@@ -1,24 +1,23 @@
 
-SUBROUTINE GB.JBL.A.FT.INSTR.UPDATE
+SUBROUTINE GB.JBL.I.FT.INSTR.UPDATE
 
 * Subroutine Description:
 * THIS ROUTINE is used to UPDATE the EB.JBL.INSTRUMENTS.INFO Template
 * Attach To: VERSION(FUNDS.TRANSFER,JBL.PO.ISSUE.2 & ALL FOREIGN & LOCAL Remittance (Double Phase)
-* Attach As: AUTH ROUTINE
+* Attach As: INPUT ROUTINE
 *-----------------------------------------------------------------------------
+
 * Modification History :
-* 06/05/2024 -                             NEW -  MD SHIBLI MOLLAH
+* 21/08/2024 -                             NEW -  MD SHIBLI MOLLAH
 *                                                 NITSL Limited
-* Modification History :
-* 06/05/2024 -                             NEW -  MD SHIBLI MOLLAH
-*                                                 NITSL Limited
-*
-* 08/05/2024 -                             MODIIFY -  MD SHIBLI MOLLAH
-*                                                     NITSL Limited
+
 * LT.TT.FT.REF.NO is discouraged, DEBIT.THEIR.REF will be considered to keep it.
 *
 * NEW CONSIDERATION FOR FTT --- PAYEE NAME AND INSTRUMENT TYPE MUST FROM LOCAL FIELD
 
+* After input the status of the version the record the in the template (EB.JBL.INSTRUMENTS.INFO) will be "PENDING"
+
+* If the USER DELETE the Rec then the status will be back to "CASH DEPOSITED"
 *--------------------------------------------------------------------------------
 
     $INSERT I_COMMON
@@ -32,7 +31,6 @@ SUBROUTINE GB.JBL.A.FT.INSTR.UPDATE
 * $USING EB.Updates
     $USING EB.Foundation
     
-    Y.FT.REC.STATUS = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.RecordStatus)
     Y.VFUNCTION = EB.SystemTables.getVFunction()
     
     GOSUB INIT
@@ -85,13 +83,34 @@ PROCESS:
     END
     
     REC.INSTR<EB.JBL37.INSTRUMENT.TYPE>= Y.ISSUE.CHEQUE.TYPE
-    REC.INSTR<EB.JBL37.AMOUNT> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.AmountDebited)
+    REC.INSTR<EB.JBL37.AMOUNT> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditAmount)
     REC.INSTR<EB.JBL37.PURCHASER.NAME>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.PaymentDetails)
     REC.INSTR<EB.JBL37.PAYEE.NAME> = Y.PAYEE.NAME
-    REC.INSTR<EB.JBL37.ISSUED.BRANCH>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CoCode)
-    REC.INSTR<EB.JBL37.PAYEE.BRANCH>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CoCode)
-    REC.INSTR<EB.JBL37.STATUS>= "LEAF ISSUED"
-   
+    REC.INSTR<EB.JBL37.ISSUED.BRANCH>= EB.SystemTables.getIdCompany()
+    REC.INSTR<EB.JBL37.STATUS>= "PENDING"
+    
+    IF Y.VFUNCTION EQ "D" THEN
+        REC.INSTR<EB.JBL37.STATUS>= "CASH DEPOSITED"
+*******--------------------------TRACER------------------------------------------------------------------------------
+        WriteData = "Y.VFUNCTION: ":Y.VFUNCTION:" Y.INSTR.ID: ": Y.INSTR.ID :" REC.INSTR: ": REC.INSTR
+        FileName = 'SHIBLI_INSTR.INFO.D.FT.update.txt'
+        FilePath = 'DL.BP'
+* FilePath = 'D:\Temenos\t24home\default\SHIBLI.BP'
+        OPENSEQ FilePath,FileName TO FileOutput THEN NULL
+        ELSE
+            CREATE FileOutput ELSE
+            END
+        END
+        WRITESEQ WriteData APPEND TO FileOutput ELSE
+            CLOSESEQ FileOutput
+        END
+        CLOSESEQ FileOutput
+*******--------------------------TRACER-END--------------------------------------------------------*********************
+ 
+        
+        WRITE REC.INSTR TO F.INSTRUMENT.INFO, Y.INSTR.ID
+        RETURN
+    END
     WRITE REC.INSTR TO F.INSTRUMENT.INFO, Y.INSTR.ID
     
 RETURN
