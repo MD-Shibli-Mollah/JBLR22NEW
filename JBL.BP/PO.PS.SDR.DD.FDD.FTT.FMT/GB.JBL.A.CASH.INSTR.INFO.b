@@ -84,32 +84,48 @@ PROCESS:
         REC.INSTR<EB.JBL37.STATUS>= "CASH DEPOSITED"
     END
 
-
     IF Y.APPLICATION EQ 'FUNDS.TRANSFER' THEN
 * LT.PAYEE.NAME(PAYEE.NAME) & LT.ISS.OLD.CHQ(ISSUE.CHEQUE.TYPE) is required to avoid CORE Validation...
         FLD.POS = ""
         LOCAL.FIELDS = ""
-        LOCAL.FIELDS = "LT.PAYEE.NAME":@VM:"LT.ISS.OLD.CHQ"
+        LOCAL.FIELDS = "LT.PAYEE.NAME":@VM:"LT.ISS.OLD.CHQ":@VM:"LT.BRANCH":@VM:"LT.ADV.REF.NO"
         EB.Foundation.MapLocalFields("FUNDS.TRANSFER", LOCAL.FIELDS, FLD.POS)
         Y.LT.PAYEE.NAME.POS= FLD.POS<1,1>
         Y.LT.ISS.OLD.CHQ.POS = FLD.POS<1,2>
+        Y.LT.BRANCH.POS = FLD.POS<1,3>
+        Y.LT.ADV.REF.NO.POS = FLD.POS<1,4>
         Y.TOTAL.LT = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
         Y.LT.PAYEE.NAME = Y.TOTAL.LT<1,Y.LT.PAYEE.NAME.POS>
         Y.LT.ISS.OLD.CHQ = Y.TOTAL.LT<1,Y.LT.ISS.OLD.CHQ.POS>
-        
-        
-        REC.INSTR<EB.JBL37.INSTRUMENT.TYPE>= Y.LT.ISS.OLD.CHQ
+        Y.LT.BRANCH = Y.TOTAL.LT<1,Y.LT.BRANCH.POS>
+        Y.ADV.REF.NO = Y.TOTAL.LT<1,Y.LT.ADV.REF.NO.POS>
+                
+        REC.INSTR<EB.JBL37.INSTRUMENT.TYPE> = Y.LT.ISS.OLD.CHQ
         REC.INSTR<EB.JBL37.PAYEE.NAME> = Y.LT.PAYEE.NAME
         
         REC.INSTR<EB.JBL37.AMOUNT> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditAmount)
-        REC.INSTR<EB.JBL37.PURCHASER.NAME>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.PaymentDetails)
-        REC.INSTR<EB.JBL37.ISSUED.BRANCH>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CoCode)
-        REC.INSTR<EB.JBL37.STATUS>= "CASH DEPOSITED"
+        REC.INSTR<EB.JBL37.PURCHASER.NAME> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.PaymentDetails)
+        REC.INSTR<EB.JBL37.ISSUED.BRANCH> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CoCode)
+        REC.INSTR<EB.JBL37.STATUS> = "CASH DEPOSITED"
+        
+        IF Y.VER EQ ",JBL.2ND.PHASE.TT.MT" THEN
+*--- Generate ID--------*
+            Y.INSTR.ID.REF = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.DebitTheirRef)
+*       Y.INSTR.ID.REF = "REFTT21105W5VDG"
+            Y.INSTR.ID = Y.INSTR.ID.REF[4,13]
+            REC.INSTR<EB.JBL37.RESERVED.1> = Y.ADV.REF.NO
+        END
+        
+*--- For TT,MT it will work like single shot issue so here local template will be updated with leaf issued.
+        IF (Y.LT.ISS.OLD.CHQ EQ "TT") OR (Y.LT.ISS.OLD.CHQ EQ "MT") THEN
+            REC.INSTR<EB.JBL37.ISSUED.BRANCH>= Y.LT.BRANCH
+            REC.INSTR<EB.JBL37.STATUS>= "LEAF ISSUED"
+        END
     END
     
 *******--------------------------TRACER------------------------------------------------------------------------------
-    WriteData = "Y.INSTR.ID: ": Y.INSTR.ID :" REC.INSTR: ": REC.INSTR
-    FileName = 'SHIBLI_INSTR.INFO.txt'
+    WriteData = "Y.ADV.REF.NO: ":Y.ADV.REF.NO:" Y.VER: ":Y.VER:" Y.INSTR.ID: ": Y.INSTR.ID :" REC.INSTR: ": REC.INSTR
+    FileName = 'SHIBLI_INSTR.INFO.TT.MT.txt'
 * FilePath = 'DL.BP'
     FilePath = 'DL.BP'
     OPENSEQ FilePath,FileName TO FileOutput THEN NULL

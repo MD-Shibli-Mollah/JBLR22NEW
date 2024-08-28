@@ -11,6 +11,7 @@ SUBROUTINE GB.JBL.V.FT.PO.DRAWN.AC
 *                    FUNDS.TRANSFER,JBL.PO.ISSUE.2, FUNDS.TRANSFER,JBL.PS.ISSUE.2, FUNDS.TRANSFER,JBL.SDR.ISSUE.2
 *                    FUNDS.TRANSFER,JBL.DD.ISSUE.2, FUNDS.TRANSFER,JBL.TT.ISSUE.2, FUNDS.TRANSFER,JBL.MT.ISSUE.2
 *                    FUNDS.TRANSFER,JBL.DD.ISSUE , FUNDS.TRANSFER,JBL.DD.COLLECTION , FUNDS.TRANSFER,JBL.DD.CANCELLATION
+*                    FUNDS.TRANSFER,JBL.2ND.PHASE.TT.MT
 
 *
 * Attach As: VALIDATION ROUTINE
@@ -20,9 +21,9 @@ SUBROUTINE GB.JBL.V.FT.PO.DRAWN.AC
 * 29/06/2024 -                             NEW - MD SHIBLI MOLLAH
 *                                                   NITSL Limited
 *
-*07/07/2024 - Modification                 Modify - MD SHIBLI MOLLAH
+*25/08/2024 - Modification                 Modify - MD SHIBLI MOLLAH
 *                                                   NITSL Limited
-*
+* Cr will be TT/MT GL account - Issued branch (LT) based on issued branch credit company account
 *
 *
 *-----------------------------------------------------------------------------
@@ -35,6 +36,7 @@ SUBROUTINE GB.JBL.V.FT.PO.DRAWN.AC
     $USING CQ.ChqConfig
     $USING ST.CompanyCreation
     $USING EB.Updates
+    $USING EB.Foundation
 *-----------------------------------------------------------------------------
     GOSUB INITIALISE ; *
     GOSUB OPENFILE ; *
@@ -89,6 +91,19 @@ PROCESS:
         Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.IssueChequeType)
         EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, REC.CHQ.TYPE, F.CHEQUE.TYPE, ERR)
         Y.CAT = REC.CHQ.TYPE<CQ.ChqConfig.ChequeType.ChequeTypeAssignedCategory>
+        
+        IF Y.CAT EQ "" THEN
+            FLD.POS = ""
+            EB.Foundation.MapLocalFields("FUNDS.TRANSFER", "LT.ISS.OLD.CHQ", FLD.POS)
+            Y.LT.ISS.OLD.CHQ.POS = FLD.POS<1,1>
+            Y.TOTAL.LT = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
+            Y.LT.ISS.OLD.CHQ = Y.TOTAL.LT<1,Y.LT.ISS.OLD.CHQ.POS>
+            Y.ISS.CHQ.TYPE = Y.LT.ISS.OLD.CHQ
+        
+            EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, REC.CHQ.TYPE, F.CHEQUE.TYPE, ERR)
+            Y.CAT = REC.CHQ.TYPE<CQ.ChqConfig.ChequeType.ChequeTypeAssignedCategory>
+        END
+        
         Y.CURRENCY = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditCurrency)
         
         IF (Y.VER EQ ",JBL.FDD.ISSUE") OR (Y.VER EQ ",JBL.FMT.ISSUE") OR (Y.VER EQ ",JBL.FDD.FMT.ISSUE") THEN
@@ -107,6 +122,18 @@ PROCESS:
 *---------- Payee Branch for DD Cancellation (IF REQUIRED) ----------------------- *
             Y.ISSUE.BRANCH = Y.TEMP<1,Y.LT.ISSUE.BRANCH.POS>
             Y.ISSUE.BRANCH = Y.ISSUE.BRANCH[6,4]
+        END
+    
+        IF Y.VER EQ ",JBL.2ND.PHASE.TT.MT" THEN
+            APPLICATION.NAME = "FUNDS.TRANSFER"
+            Y.FILED.NAMES = "LT.BRANCH"
+            FLD.POS = ""
+            EB.Updates.MultiGetLocRef(APPLICATION.NAME, Y.FILED.NAMES, FLD.POS)
+            Y.LT.BRANCH.POS = FLD.POS<1,1>
+            
+            Y.TEMP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
+            Y.COMPANY = Y.TEMP<1,Y.LT.BRANCH.POS>
+            Y.COMPANY = Y.COMPANY[6,4]
         END
         
         Y.CATEG.AC = Y.CURRENCY:Y.CAT:"0001":Y.COMPANY

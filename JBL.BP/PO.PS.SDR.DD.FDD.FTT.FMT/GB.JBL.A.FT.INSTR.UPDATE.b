@@ -91,6 +91,11 @@ PROCESS:
     REC.INSTR<EB.JBL37.ISSUED.BRANCH>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CoCode)
     REC.INSTR<EB.JBL37.PAYEE.BRANCH>= EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CoCode)
     REC.INSTR<EB.JBL37.STATUS>= "LEAF ISSUED"
+    
+*--- For TT,MT it will work like single shot issue so here local template will be updated with leaf issued.
+    IF (Y.ISSUE.CHEQUE.TYPE EQ "TT") OR (Y.ISSUE.CHEQUE.TYPE EQ "MT") THEN
+        REC.INSTR<EB.JBL37.STATUS>= "PAID"
+    END
    
     WRITE REC.INSTR TO F.INSTRUMENT.INFO, Y.INSTR.ID
     

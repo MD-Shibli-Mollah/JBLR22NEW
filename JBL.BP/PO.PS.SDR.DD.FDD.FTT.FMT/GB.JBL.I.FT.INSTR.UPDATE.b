@@ -32,6 +32,7 @@ SUBROUTINE GB.JBL.I.FT.INSTR.UPDATE
     $USING EB.Foundation
     
     Y.VFUNCTION = EB.SystemTables.getVFunction()
+    Y.VER = EB.SystemTables.getPgmVersion()
     
     GOSUB INIT
     GOSUB OPENFILES
@@ -46,13 +47,17 @@ INIT:
     
     FLD.POS = ""
     LOCAL.FIELDS = ""
-    LOCAL.FIELDS = "LT.ISS.OLD.CHQ":@VM:"LT.PAYEE.NAME"
+    LOCAL.FIELDS = "LT.PAYEE.NAME":@VM:"LT.ISS.OLD.CHQ":@VM:"LT.BRANCH":@VM:"LT.ADV.REF.NO"
     EB.Foundation.MapLocalFields("FUNDS.TRANSFER", LOCAL.FIELDS, FLD.POS)
-    Y.ISS.OLD.CHQ.POS = FLD.POS<1,1>
-    Y.PAYEE.NAME.POS = FLD.POS<1,2>
+    Y.LT.PAYEE.NAME.POS= FLD.POS<1,1>
+    Y.LT.ISS.OLD.CHQ.POS = FLD.POS<1,2>
+    Y.LT.BRANCH.POS = FLD.POS<1,3>
+    Y.LT.ADV.REF.NO.POS = FLD.POS<1,4>
     Y.TOTAL.LT = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
-    Y.LT.ISS.OLD.CHQ = Y.TOTAL.LT<1, Y.ISS.OLD.CHQ.POS>
-    Y.LT.PAYEE.NAME = Y.TOTAL.LT<1, Y.PAYEE.NAME.POS>
+    Y.LT.PAYEE.NAME = Y.TOTAL.LT<1,Y.LT.PAYEE.NAME.POS>
+    Y.LT.ISS.OLD.CHQ = Y.TOTAL.LT<1,Y.LT.ISS.OLD.CHQ.POS>
+    Y.LT.BRANCH = Y.TOTAL.LT<1,Y.LT.BRANCH.POS>
+    Y.ADV.REF.NO = Y.TOTAL.LT<1,Y.LT.ADV.REF.NO.POS>
     
 *--- Generate ID--------*
     Y.INSTR.ID.REF = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.DebitTheirRef)
@@ -91,26 +96,14 @@ PROCESS:
     
     IF Y.VFUNCTION EQ "D" THEN
         REC.INSTR<EB.JBL37.STATUS>= "CASH DEPOSITED"
-*******--------------------------TRACER------------------------------------------------------------------------------
-        WriteData = "Y.VFUNCTION: ":Y.VFUNCTION:" Y.INSTR.ID: ": Y.INSTR.ID :" REC.INSTR: ": REC.INSTR
-        FileName = 'SHIBLI_INSTR.INFO.D.FT.update.txt'
-        FilePath = 'DL.BP'
-* FilePath = 'D:\Temenos\t24home\default\SHIBLI.BP'
-        OPENSEQ FilePath,FileName TO FileOutput THEN NULL
-        ELSE
-            CREATE FileOutput ELSE
-            END
+        IF (Y.VER EQ ",JBL.TT.ISSUE.2") OR (Y.VER EQ ",JBL.MT.ISSUE.2") THEN
+            REC.INSTR<EB.JBL37.RESERVED.1> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditAcctNo)
+            REC.INSTR<EB.JBL37.STATUS>= "LEAF ISSUED"
         END
-        WRITESEQ WriteData APPEND TO FileOutput ELSE
-            CLOSESEQ FileOutput
-        END
-        CLOSESEQ FileOutput
-*******--------------------------TRACER-END--------------------------------------------------------*********************
- 
-        
         WRITE REC.INSTR TO F.INSTRUMENT.INFO, Y.INSTR.ID
         RETURN
     END
+    
     WRITE REC.INSTR TO F.INSTRUMENT.INFO, Y.INSTR.ID
     
 RETURN

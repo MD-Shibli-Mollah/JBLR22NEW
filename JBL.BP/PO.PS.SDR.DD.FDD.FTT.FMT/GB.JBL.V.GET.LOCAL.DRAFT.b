@@ -8,7 +8,7 @@ SUBROUTINE GB.JBL.V.GET.LOCAL.DRAFT
 
 *-----------------------------------------------------------------------------
 *Subroutine Description:
-* THIS ROUTINE IS USED FOR GETTING PO/PS/SDR INFORMATION FROM CHEQUE.REGISTER.SUPPLEMENT
+* THIS ROUTINE IS USED FOR GETTING PO/PS/SDR/DD INFORMATION FROM CHEQUE.REGISTER.SUPPLEMENT
 * BASE ON GIVEN ISSUED DRAFT ORDER NO
 *Attached To    : VERSION(FUNDS.TRANSFER,JBL.LOCAL.CANCELLATION, FUNDS.TRANSFER,JBL.DD.CANCELLATION
 *                         FUNDS.TRANSFER,JBL.LOCAL.COLLECTION, FUNDS.TRANSFER,JBL.DD.COLLECTION)
@@ -26,7 +26,7 @@ SUBROUTINE GB.JBL.V.GET.LOCAL.DRAFT
 * For DD cancellation only from Issuing branch - LT.ISSUE.BRANCH is allowed.
 * Other instrument like PO/SDR/PS cancellation will also be from issued branch only.
 *
-* POS/PS/SDR collection will be done from any Branch - LT.BRANCH
+* PO/PS/SDR collection will be done from any Branch - LT.BRANCH
 *-----------------------------------------------------------------------------
     $INSERT I_COMMON
     $INSERT I_EQUATE
@@ -261,7 +261,7 @@ PROCESS:
     END
 ****************************
 *******--------------------------TRACER------------------------------------------------------------------------------
-    WriteData = "Y.ISS.CHQ.TYPE: ": Y.ISS.CHQ.TYPE:" Y.VERSION: ":Y.VERSION:" Y.DRAFT.ID : ":Y.DRAFT.ID
+    WriteData = "Y.ISS.BR.CODE: ":Y.ISS.BR.CODE:" Y.ISS.CHQ.TYPE: ": Y.ISS.CHQ.TYPE:" Y.VERSION: ":Y.VERSION:" Y.DRAFT.ID : ":Y.DRAFT.ID
     FileName = "SHIBLI_LOCAL_CANCEL_24.txt"
     FilePath = "DL.BP"
     OPENSEQ FilePath,FileName TO FileOutput THEN NULL

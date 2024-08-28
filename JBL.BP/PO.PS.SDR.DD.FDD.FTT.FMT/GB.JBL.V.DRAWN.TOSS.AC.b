@@ -21,6 +21,8 @@ SUBROUTINE GB.JBL.V.DRAWN.TOSS.AC
 * Fetch LT.PARKING.AC from CHEQUE.TYPE for Parking AC CATEGORY
 *
 * Fetch LT.BRANCH from TELLER/FUNDS.TRANSFER for Other Branch Parking AC Creation
+*
+* FUNDS.TRANSFER,JBL.TT.ISSUE.2, FUNDS.TRANSFER,JBL.MT.ISSUE.2DEBIT.ACCT.NO will be generated from TOSS AC
 *-----------------------------------------------------------------------------
 
     $INSERT I_COMMON
@@ -72,6 +74,7 @@ RETURN
 PROCESS:
 *** <desc> </desc>
 *
+    Y.VER = EB.SystemTables.getPgmVersion()
     Y.CATEG.AC = ""
     Y.COM = EB.SystemTables.getIdCompany()
     Y.COMPANY = EB.SystemTables.getIdCompany()[6,4]
@@ -100,7 +103,9 @@ PROCESS:
         Y.FIELD.POS = ""
         EB.LocalReferences.GetLocRef(APPLICATION.NAME,Y.FILED.NAME,Y.FIELD.POS)
         EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, REC.CHQ.TYPE, F.CHEQUE.TYPE, Y.ERR)
-        Y.CAT = REC.CHQ.TYPE<CQ.ChqConfig.ChequeType.ChequeTypeLocalRef,Y.FIELD.POS>
+        Y.TOSS.CAT = REC.CHQ.TYPE<CQ.ChqConfig.ChequeType.ChequeTypeLocalRef, Y.FIELD.POS>
+        
+        Y.CAT = Y.TOSS.CAT
         
 *------ credit the FTT main GL head account ---------*
         IF Y.ISS.CHQ.TYPE EQ "FTT" THEN
@@ -120,11 +125,21 @@ PROCESS:
         IF Y.ISS.CHQ.TYPE EQ "FTT" OR Y.ISS.CHQ.TYPE EQ "TT" OR Y.ISS.CHQ.TYPE EQ "MT" THEN
             Y.CAT = REC.CHQ.TYPE<CQ.ChqConfig.ChequeType.ChequeTypeAssignedCategory>
         END
+* FUNDS.TRANSFER,JBL.TT.ISSUE.2, FUNDS.TRANSFER,JBL.MT.ISSUE.2DEBIT.ACCT.NO will be generated from TOSS AC
+* & CO.CODE will be the SIGNED.IN Branch
+        IF Y.VER EQ ",JBL.TT.ISSUE.2" OR Y.VER EQ ",JBL.MT.ISSUE.2" THEN
+            Y.CAT = Y.TOSS.CAT
+            Y.COMPANY = EB.SystemTables.getIdCompany()[6,4]
+            IF Y.SUB.DEV.CODE NE "" THEN
+                Y.COMPANY = Y.SUB.DEV.CODE
+            END
+        END
            
         Y.CATEG.AC = Y.CURRENCY:Y.CAT:"0001":Y.COMPANY
         EB.SystemTables.setComi(Y.CATEG.AC)
     END
     
+*** CASH COLLECTION ***
     IF Y.APP EQ "TELLER" THEN
         Y.ISS.CHQ.TYPE = EB.SystemTables.getRNew(TT.Contract.Teller.TeIssueChequeType)
 *---- Reversed TELLER.TRANSACTION for CHARGE deducted from the CASH AC ------------*
@@ -135,10 +150,13 @@ PROCESS:
         Y.FIELD.POS = ""
         EB.LocalReferences.GetLocRef(APPLICATION.NAME,Y.FILED.NAME,Y.FIELD.POS)
         EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, REC.CHQ.TYPE, F.CHEQUE.TYPE, Y.ERR)
+*----- FOR TT/MT 1st phase Cash - CR WILL BE PARKING TOSS ACCOUNT --------*
         Y.CAT = REC.CHQ.TYPE<CQ.ChqConfig.ChequeType.ChequeTypeLocalRef,Y.FIELD.POS>
 
 *----- Fetch LT.BRANCH from TELLER for Other Branch Parking AC Creation ----------*
-        IF Y.ISS.CHQ.TYPE EQ "DD" OR Y.ISS.CHQ.TYPE EQ "TT" OR Y.ISS.CHQ.TYPE EQ "MT" THEN
+*----- FOR TT/MT 1st phase Cash - CR WILL BE PARKING TOSS ACCOUNT
+* IF Y.ISS.CHQ.TYPE EQ "DD" OR Y.ISS.CHQ.TYPE EQ "TT" OR Y.ISS.CHQ.TYPE EQ "MT" THEN
+        IF Y.ISS.CHQ.TYPE EQ "DD" THEN
             APPLICATION.NAME = "TELLER"
             Y.FILED.NAME = "LT.BRANCH"
             Y.FIELD.POS.TT = ""
@@ -147,8 +165,10 @@ PROCESS:
             Y.COMPANY = Y.COMPANY.NO<1,Y.FIELD.POS.TT>
             Y.COMPANY = Y.COMPANY[6,4]
         END
-*------ credit the FTT/TT/MT main GL head account ---------*
-        IF Y.ISS.CHQ.TYPE EQ "FTT" OR Y.ISS.CHQ.TYPE EQ "TT" OR Y.ISS.CHQ.TYPE EQ "MT" THEN
+*------ credit the FTT main GL head account ---------*
+*------ CR WILL BE PARKING TOSS ACCOUNT for /TT/MT ---------*
+* IF Y.ISS.CHQ.TYPE EQ "FTT" OR Y.ISS.CHQ.TYPE EQ "TT" OR Y.ISS.CHQ.TYPE EQ "MT" THEN
+        IF Y.ISS.CHQ.TYPE EQ "FTT" THEN
             Y.CAT = REC.CHQ.TYPE<CQ.ChqConfig.ChequeType.ChequeTypeAssignedCategory>
         END
     
