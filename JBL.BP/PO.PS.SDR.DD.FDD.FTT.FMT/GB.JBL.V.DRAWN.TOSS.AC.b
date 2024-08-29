@@ -22,7 +22,7 @@ SUBROUTINE GB.JBL.V.DRAWN.TOSS.AC
 *
 * Fetch LT.BRANCH from TELLER/FUNDS.TRANSFER for Other Branch Parking AC Creation
 *
-* FUNDS.TRANSFER,JBL.TT.ISSUE.2, FUNDS.TRANSFER,JBL.MT.ISSUE.2DEBIT.ACCT.NO will be generated from TOSS AC
+* FUNDS.TRANSFER,JBL.TT.ISSUE.2, FUNDS.TRANSFER,JBL.MT.ISSUE.2 - DEBIT.ACCT.NO will be generated from MAIN GL
 *-----------------------------------------------------------------------------
 
     $INSERT I_COMMON
@@ -125,10 +125,8 @@ PROCESS:
         IF Y.ISS.CHQ.TYPE EQ "FTT" OR Y.ISS.CHQ.TYPE EQ "TT" OR Y.ISS.CHQ.TYPE EQ "MT" THEN
             Y.CAT = REC.CHQ.TYPE<CQ.ChqConfig.ChequeType.ChequeTypeAssignedCategory>
         END
-* FUNDS.TRANSFER,JBL.TT.ISSUE.2, FUNDS.TRANSFER,JBL.MT.ISSUE.2DEBIT.ACCT.NO will be generated from TOSS AC
-* & CO.CODE will be the SIGNED.IN Branch
+* FUNDS.TRANSFER,JBL.TT.ISSUE.2, FUNDS.TRANSFER,JBL.MT.ISSUE.2DEBIT.ACCT.NO - CO.CODE will be the SIGNED.IN Branch
         IF Y.VER EQ ",JBL.TT.ISSUE.2" OR Y.VER EQ ",JBL.MT.ISSUE.2" THEN
-            Y.CAT = Y.TOSS.CAT
             Y.COMPANY = EB.SystemTables.getIdCompany()[6,4]
             IF Y.SUB.DEV.CODE NE "" THEN
                 Y.COMPANY = Y.SUB.DEV.CODE

@@ -130,6 +130,7 @@ PROCESS:
             Y.ISS.BR.CODE.TEMP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
             Y.ISS.BR.CODE = Y.ISS.BR.CODE.TEMP<1,Y.LT.FT.BRANCH.POS>
             Y.ID.COMPANY = Y.ISS.BR.CODE[6,4]
+            Y.CURRENCY = "BDT"
         END
          
 *-------------- Payee Branch - LT.ISSUE.BRANCH need to be considered for DD Cancellation --------------------*
@@ -137,6 +138,7 @@ PROCESS:
             Y.ISS.BR.CODE.TEMP = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.LocalRef)
             Y.ISS.BR.CODE = Y.ISS.BR.CODE.TEMP<1,Y.FT.LT.ISSUE.BRANCH.POS>
             Y.ID.COMPANY = Y.ISS.BR.CODE[6,4]
+            Y.CURRENCY = "BDT"
         END
     
         EB.DataAccess.FRead(FN.CHEQUE.TYPE, Y.ISS.CHQ.TYPE, REC.CHQ.TYPE, F.CHEQUE.TYPE, Y.ERR)

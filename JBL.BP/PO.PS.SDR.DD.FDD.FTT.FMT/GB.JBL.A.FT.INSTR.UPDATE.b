@@ -94,6 +94,7 @@ PROCESS:
     
 *--- For TT,MT it will work like single shot issue so here local template will be updated with leaf issued.
     IF (Y.ISSUE.CHEQUE.TYPE EQ "TT") OR (Y.ISSUE.CHEQUE.TYPE EQ "MT") THEN
+        REC.INSTR<EB.JBL37.RESERVED.1> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditAcctNo)
         REC.INSTR<EB.JBL37.STATUS>= "PAID"
     END
    
