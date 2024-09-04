@@ -16,33 +16,49 @@ SUBROUTINE GB.JBL.V.CONVT.AMT.WORD
     $USING EB.Foundation
     $USING TT.Contract
 *-----------------------------------------------------------------------------
+* Subroutine Description:
 * This Routine Convert number to Text. This routine call CM.CALHUND Routine.
 * Return value : "LNGVAR" is incoming parameter, and "TXTOUT" is outgoing paramete.
-* Developed By : Md Rayhan Uddin
 
+* Attach As: VALIDATION ROUTINE
+*-----------------------------------------------------------------------------
+* Modification History :
+* 06/05/2024 -                             NEW -  MD SHIBLI MOLLAH
+*                                                 NITSL Limited
+* 06/06/2024 -                             UPDATE -  MD SHIBLI MOLLAH
+*                                                 NITSL Limited
+* ADD Foreign Part
+*
+*-----------------------------------------------------------------------------
     AppName = EB.SystemTables.getApplication()
     IF AppName EQ 'FUNDS.TRANSFER' THEN
         LNGVAR = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.DebitAmount)
+        Y.CURRENCY = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditCurrency)
+        
         IF LNGVAR EQ "" OR LNGVAR EQ 0 THEN
             LNGVAR = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditAmount)
+            Y.CURRENCY = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.DebitCurrency)
         END
     END
     
     IF AppName EQ 'TELLER' THEN
         LNGVAR = EB.SystemTables.getRNew(TT.Contract.Teller.TeNetAmount)
+        Y.CURRENCY = EB.SystemTables.getRNew(TT.Contract.Teller.TeCurrencyOne)
         
         IF LNGVAR EQ "" OR LNGVAR EQ 0 THEN
             LNGVAR = EB.SystemTables.getRNew(TT.Contract.Teller.TeAmountLocalOne)
+            Y.CURRENCY = EB.SystemTables.getRNew(TT.Contract.Teller.TeCurrencyOne)
         END
         
         IF LNGVAR EQ "" OR LNGVAR EQ 0 THEN
             LNGVAR = EB.SystemTables.getRNew(TT.Contract.Teller.TeAmountLocalTwo)
+            Y.CURRENCY = EB.SystemTables.getRNew(TT.Contract.Teller.TeCurrencyTwo)
         END
     END
     
     TXTOUT = ''
-    TXTVAR1=''
-    INTVAL=''
+    TXTVAR1 = ''
+    INTVAL = ''
     Y.COMI.LEN = LEN(LNGVAR)
     IF Y.COMI.LEN LT 20 THEN
         
@@ -101,13 +117,51 @@ SUBROUTINE GB.JBL.V.CONVT.AMT.WORD
             TXTVAR1=TXTVAR1:" ":INTHUNDRED:" ":"Hundred"
         END
 
-        TXTVAR1=TXTVAR1:" ":INTREST:" ":"Taka"
-
-        IF LEN(INTDES) EQ 0 THEN
-*TXTVAR1=TXTVAR1:""
-        END ELSE
-            TXTVAR1=TXTVAR1:" ":"and":" ":INTDES:" ":"Paisa"
-        END
+*----- CASE need to apply for different types of Currency -----*
+        BEGIN CASE
+    
+            CASE Y.CURRENCY EQ 'BDT'
+                TXTVAR1=TXTVAR1:" ":INTREST:" ":"Taka"
+                IF LEN(INTDES) EQ 0 THEN
+                END
+                ELSE
+                    TXTVAR1=TXTVAR1:" ":"and":" ":INTDES:" ":"Paisa"
+                END
+    
+            CASE Y.CURRENCY EQ 'USD'
+                TXTVAR1=TXTVAR1:" ":INTREST:" ":"Dollar"
+                IF LEN(INTDES) EQ 0 THEN
+                END
+                ELSE
+                    TXTVAR1=TXTVAR1:" ":"and":" ":INTDES:" ":"Cent"
+                END
+    
+            CASE Y.CURRENCY EQ 'GBP'
+                TXTVAR1=TXTVAR1:" ":INTREST:" ":"Pound"
+                IF LEN(INTDES) EQ 0 THEN
+                END
+                ELSE
+                    TXTVAR1=TXTVAR1:" ":"and":" ":INTDES:" ":"Penny"
+                END
+    
+            CASE Y.CURRENCY EQ 'JPY'
+                TXTVAR1=TXTVAR1:" ":INTREST:" ":"Yen"
+                IF LEN(INTDES) EQ 0 THEN
+                END
+                ELSE
+                    TXTVAR1=TXTVAR1:" ":"and":" ":INTDES:" ":"Sen"
+                END
+            
+            CASE Y.CURRENCY EQ 'EUR'
+                TXTVAR1=TXTVAR1:" ":INTREST:" ":"Euro"
+                IF LEN(INTDES) EQ 0 THEN
+                END
+                ELSE
+                    TXTVAR1=TXTVAR1:" ":"and":" ":INTDES:" ":"Euro cent"
+                END
+        
+        END CASE
+        
         TXTOUT = TXTVAR1
         IF AppName EQ 'FUNDS.TRANSFER' THEN
             APPLICATION.NAMES = 'FUNDS.TRANSFER'
