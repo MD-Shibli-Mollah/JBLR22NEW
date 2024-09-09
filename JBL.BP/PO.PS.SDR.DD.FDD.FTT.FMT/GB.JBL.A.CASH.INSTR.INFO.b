@@ -103,7 +103,18 @@ PROCESS:
         REC.INSTR<EB.JBL37.INSTRUMENT.TYPE> = Y.LT.ISS.OLD.CHQ
         REC.INSTR<EB.JBL37.PAYEE.NAME> = Y.LT.PAYEE.NAME
         
-        REC.INSTR<EB.JBL37.AMOUNT> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditAmount)
+        Y.CR.AMOUNT = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditAmount)
+        
+*--- CreditAmount is used for PO/PS/SDR but AMOUNT.CREDITED is used for FDD/FTT/FMT
+        Y.AMOUNT = Y.CR.AMOUNT
+        IF Y.AMOUNT EQ "" THEN
+            Y.AMOUNT.CREDITED = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.AmountCredited)
+            Y.LEN = LEN(Y.AMOUNT.CREDITED)
+            Y.CREDITED.AMOUNT = Y.AMOUNT.CREDITED[4,Y.LEN]
+            Y.AMOUNT = Y.CREDITED.AMOUNT
+        END
+        
+        REC.INSTR<EB.JBL37.AMOUNT> = Y.AMOUNT
         REC.INSTR<EB.JBL37.PURCHASER.NAME> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.PaymentDetails)
         REC.INSTR<EB.JBL37.ISSUED.BRANCH> = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CoCode)
         REC.INSTR<EB.JBL37.STATUS> = "CASH DEPOSITED"
@@ -124,8 +135,8 @@ PROCESS:
     END
     
 *******--------------------------TRACER------------------------------------------------------------------------------
-    WriteData = "Y.ADV.REF.NO: ":Y.ADV.REF.NO:" Y.VER: ":Y.VER:" Y.INSTR.ID: ": Y.INSTR.ID :" REC.INSTR: ": REC.INSTR
-    FileName = 'SHIBLI_INSTR.INFO.TT.MT.txt'
+    WriteData = "Y.AMOUNT: ":Y.AMOUNT:" Y.VER: ":Y.VER:" Y.AMOUNT.CREDITED: ": Y.AMOUNT.CREDITED :" REC.INSTR: ": REC.INSTR
+    FileName = 'SHIBLI_INSTR.INFO.TT.MT.AMOUNT.txt'
 * FilePath = 'DL.BP'
     FilePath = 'DL.BP'
     OPENSEQ FilePath,FileName TO FileOutput THEN NULL

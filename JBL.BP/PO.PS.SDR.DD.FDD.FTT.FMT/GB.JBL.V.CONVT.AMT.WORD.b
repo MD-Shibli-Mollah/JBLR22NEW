@@ -33,17 +33,20 @@ SUBROUTINE GB.JBL.V.CONVT.AMT.WORD
     AppName = EB.SystemTables.getApplication()
     IF AppName EQ 'FUNDS.TRANSFER' THEN
         LNGVAR = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.DebitAmount)
-        Y.CURRENCY = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditCurrency)
+        Y.CURRENCY = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.DebitCurrency)
         
         IF LNGVAR EQ "" OR LNGVAR EQ 0 THEN
             LNGVAR = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditAmount)
-            Y.CURRENCY = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.DebitCurrency)
+            Y.CURRENCY = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditCurrency)
         END
     END
     
     IF AppName EQ 'TELLER' THEN
         LNGVAR = EB.SystemTables.getRNew(TT.Contract.Teller.TeNetAmount)
         Y.CURRENCY = EB.SystemTables.getRNew(TT.Contract.Teller.TeCurrencyOne)
+        IF Y.CURRENCY NE "BDT" THEN
+            Y.CURRENCY = EB.SystemTables.getRNew(TT.Contract.Teller.TeCurrencyTwo)
+        END
         
         IF LNGVAR EQ "" OR LNGVAR EQ 0 THEN
             LNGVAR = EB.SystemTables.getRNew(TT.Contract.Teller.TeAmountLocalOne)
@@ -159,7 +162,6 @@ SUBROUTINE GB.JBL.V.CONVT.AMT.WORD
                 ELSE
                     TXTVAR1=TXTVAR1:" ":"and":" ":INTDES:" ":"Euro cent"
                 END
-        
         END CASE
         
         TXTOUT = TXTVAR1
