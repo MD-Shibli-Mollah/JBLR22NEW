@@ -119,14 +119,7 @@ PROCESS:
    
 *** <desc> </desc>
     Y.COM = EB.SystemTables.getIdCompany()
-* Y.ID.COMPANY = EB.SystemTables.getIdCompany()[6,4]
 
-*---------------------------Allow Company Validation-----------------------*
-    IF Y.COM NE "BD0019999" THEN
-        EB.SystemTables.setEtext("Can not be Cancelled other than Head Office")
-        EB.ErrorProcessing.StoreEndError()
-    END
-*---------------------------Allow Company Validation--- END --------------------*
     EB.DataAccess.FRead(FN.COM, Y.COM, Rec.Com, F.COM, Y.ERR)
     Y.FIN.CODE = Rec.Com<ST.CompanyCreation.Company.EbComFinanFinanCom>
     Y.HO.CODE = Y.FIN.CODE[6,4]
@@ -190,6 +183,13 @@ PROCESS:
     Y.ISSUE.DATE = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsIssueDate>
     Y.ORIGIN.REF = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsOriginRef>
     Y.CO.CODE = Rec.PO<CQ.ChqSubmit.ChequeRegisterSupplement.CcCrsCoCode>
+    
+*---------------------------Allow Company Validation-----------------------*
+    IF (Y.CO.CODE NE "") AND (Y.COM NE Y.CO.CODE) THEN
+        EB.SystemTables.setEtext("Instrument can NOT be CANCELLED from another Branch")
+        EB.ErrorProcessing.StoreEndError()
+    END
+*---------------------------Allow Company Validation--- END --------------------*
 
 *------------------TT---------------------*
 
@@ -242,7 +242,7 @@ PROCESS:
 * END
 ****************************
 *******--------------------------TRACER------------------------------------------------------------------------------
-    WriteData = "Y.ISS.CHQ.TYPE: ": Y.ISS.CHQ.TYPE:" Y.VERSION: ":Y.VERSION:" Y.DRAFT.ID : ":Y.DRAFT.ID
+    WriteData = "Y.ISS.CHQ.TYPE: ": Y.ISS.CHQ.TYPE:" Y.CO.CODE: ":Y.CO.CODE:" Y.DRAFT.ID : ":Y.DRAFT.ID
     FileName = "SHIBLI_FDD_CANCEL_24.txt"
     FilePath = "DL.BP"
     OPENSEQ FilePath,FileName TO FileOutput THEN NULL

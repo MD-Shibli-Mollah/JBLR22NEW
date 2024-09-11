@@ -178,12 +178,12 @@ PROCESS:
     BEGIN CASE
         CASE (Y.VERSION EQ ',JBL.PO.CANCELLATION') OR (Y.VERSION EQ ',JBL.PO.CANCEL.CASH')
             IF (Y.CRS.CO.CODE NE Y.ID.COMPANY) THEN
-                EB.SystemTables.setEtext('Can not cancle from another Branch')
+                EB.SystemTables.setEtext('Can not cancel from another Branch')
                 EB.ErrorProcessing.StoreEndError()
             END
         CASE (Y.VERSION EQ ',JBL.DD.CANCELLATION') OR (Y.VERSION EQ ',JBL.DD.CANCEL.CASH')
             IF (Y.CRS.CO.CODE EQ Y.ID.COMPANY) THEN
-                EB.SystemTables.setEtext('Can not cancle from Current Branch')
+                EB.SystemTables.setEtext('Can not cancel from Current Branch')
                 EB.ErrorProcessing.StoreEndError()
             END
     END CASE
