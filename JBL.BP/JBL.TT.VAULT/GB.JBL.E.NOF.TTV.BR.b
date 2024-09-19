@@ -25,11 +25,11 @@ SUBROUTINE GB.JBL.E.NOF.TTV.BR(Y.RETURN)
     $USING EB.DataAccess
     $USING ST.Config
     $USING ST.CompanyCreation
-    
+
     Y.ID.COMPANY = EB.SystemTables.getIdCompany()
     
     IF Y.ID.COMPANY NE 'BD0012001' THEN RETURN
-    
+
     Y.ENQ = EB.Reports.getEnqSelection()<1,1>
     LOCATE 'Y.DATE' IN EB.Reports.getEnqSelection()<2,1> SETTING POS THEN TXN.DATE = EB.Reports.getEnqSelection()<4,POS>
     IF LEN(TXN.DATE) NE 8 OR NUM(TXN.DATE) EQ 0 THEN RETURN
