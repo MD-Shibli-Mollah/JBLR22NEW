@@ -137,7 +137,7 @@ SUBROUTINE GB.JBL.E.NOF.TTV.CCY(Y.RETURN)
     EB.DataAccess.Readlist(SEL.CMD, SEL.LIST, F.V, NO.OF.REC, RET.CODE)
     SEL.LIST = SORT(SEL.LIST)
 
-    FOR I = 1 TO NO.OF.REC
+    FOR II = 1 TO NO.OF.REC
         Y.DETAILS = ''
         Y.F.DETAILS = ''
         Y.M.DETAILS = ''
@@ -148,40 +148,40 @@ SUBROUTINE GB.JBL.E.NOF.TTV.CCY(Y.RETURN)
         Y.N.UNIT = 0
         Y.C.UNIT = 0
         Y.T.AMT = 0
-        IF Y.ENQ EQ 'JBL.ENQ.TT.VAULT.CCY.BR' OR Y.ENQ = 'JBL.ENQ.TT.VAULT.CCY' OR Y.ENQ EQ 'JBL.ENQ.TT.VAULT.NAU' OR ((Y.ENQ EQ 'JBL.ENQ.TT.VAULT.CCY.DT' OR Y.ENQ EQ 'E.TT.VAULT.BR') AND SEL.LIST<I>[6,8] GE Y.TXN.DATE1 AND SEL.LIST<I>[6,8] LE Y.TXN.DATE2) THEN
-            IF Y.BR.CODE EQ '' OR Y.BR.CODE EQ SEL.LIST<I>[1,4] THEN
+        IF Y.ENQ EQ 'JBL.ENQ.TT.VAULT.CCY.BR' OR Y.ENQ = 'JBL.ENQ.TT.VAULT.CCY' OR Y.ENQ EQ 'JBL.ENQ.TT.VAULT.NAU' OR ((Y.ENQ EQ 'JBL.ENQ.TT.VAULT.CCY.DT' OR Y.ENQ EQ 'E.TT.VAULT.BR') AND SEL.LIST<II>[6,8] GE Y.TXN.DATE1 AND SEL.LIST<II>[6,8] LE Y.TXN.DATE2) THEN
+            IF Y.BR.CODE EQ '' OR Y.BR.CODE EQ SEL.LIST<II>[1,4] THEN
 
 * CALL F.READ(FN.V,SEL.LIST<I>,R.CK,F.V,ERR.CK)
 * EB.DataAccess.FRead(Fileid, VKey, Rec, FFileid, Er)
-                EB.DataAccess.FRead(FN.V,SEL.LIST<I>,R.CK,F.V,ERR.CK)
+                EB.DataAccess.FRead(FN.V,SEL.LIST<II>,R.CK,F.V,ERR.CK)
                 IF COUNT(Y.CUR.TYPE,'F') EQ 1 THEN
-                    FOR J = 1 TO DCOUNT(R.CK<EB.TT.83.DENOM>,@VM)
-                        Y.CUR = R.CK<EB.TT.83.DENOM><1,J>[4,LEN(R.CK<EB.TT.83.DENOM><1,J>)-3]
-                        IF ((Y.SAMT.OPD EQ 'EQ' AND Y.SAMT EQ '') OR (Y.SAMT.OPD EQ 'EQ' AND Y.CUR EQ Y.SAMT) OR (Y.SAMT.OPD EQ 'RG' AND Y.CUR GE Y.SAMT1 AND Y.CUR LE Y.SAMT2)) AND R.CK<EB.TT.83.F.UNIT><1,J> GT 0 THEN
-                            Y.F.UNIT = Y.F.UNIT + Y.CUR * R.CK<EB.TT.83.F.UNIT><1,J>
-                            Y.TEMP = R.CK<EB.TT.83.DENOM><1,J>:' X ':R.CK<EB.TT.83.F.UNIT><1,J>:' = ':Y.CUR * R.CK<EB.TT.83.F.UNIT><1,J>
+                    FOR JJ = 1 TO DCOUNT(R.CK<EB.TT.83.DENOM>,@VM)
+                        Y.CUR = R.CK<EB.TT.83.DENOM><1,JJ>[4,LEN(R.CK<EB.TT.83.DENOM><1,JJ>)-3]
+                        IF ((Y.SAMT.OPD EQ 'EQ' AND Y.SAMT EQ '') OR (Y.SAMT.OPD EQ 'EQ' AND Y.CUR EQ Y.SAMT) OR (Y.SAMT.OPD EQ 'RG' AND Y.CUR GE Y.SAMT1 AND Y.CUR LE Y.SAMT2)) AND R.CK<EB.TT.83.F.UNIT><1,JJ> GT 0 THEN
+                            Y.F.UNIT = Y.F.UNIT + Y.CUR * R.CK<EB.TT.83.F.UNIT><1,JJ>
+                            Y.TEMP = R.CK<EB.TT.83.DENOM><1,JJ>:' X ':R.CK<EB.TT.83.F.UNIT><1,JJ>:' = ':Y.CUR * R.CK<EB.TT.83.F.UNIT><1,JJ>
                             IF Y.F.DETAILS EQ '' THEN Y.F.DETAILS = Y.TEMP
                             ELSE
                                 IF Y.ENQ NE 'JBL.ENQ.TT.VAULT.CCY.BR' THEN Y.F.DETAILS = Y.F.DETAILS:', ':Y.TEMP
                                 ELSE Y.F.DETAILS = Y.F.DETAILS:@VM:Y.TEMP
                             END
                         END
-                    NEXT J
+                    NEXT JJ
                 END
                 IF Y.F.DETAILS NE '' THEN Y.DETAILS = 'Fresh Unit:':@VM:Y.F.DETAILS:@VM:'Total Amount: ':Y.F.UNIT
                 IF COUNT(Y.CUR.TYPE,'M') EQ 1 THEN
-                    FOR J = 1 TO DCOUNT(R.CK<EB.TT.83.DENOM>,@VM)
-                        Y.CUR = R.CK<EB.TT.83.DENOM><1,J>[4,LEN(R.CK<EB.TT.83.DENOM><1,J>)-3]
-                        IF ((Y.SAMT.OPD EQ 'EQ' AND Y.SAMT EQ '') OR (Y.SAMT.OPD EQ 'EQ' AND Y.CUR EQ Y.SAMT) OR (Y.SAMT.OPD EQ 'RG' AND Y.CUR GE Y.SAMT1 AND Y.CUR LE Y.SAMT2)) AND R.CK<EB.TT.83.M.UNIT><1,J> GT 0 THEN
-                            Y.M.UNIT = Y.M.UNIT + Y.CUR * R.CK<EB.TT.83.M.UNIT><1,J>
-                            Y.TEMP = R.CK<EB.TT.83.DENOM><1,J>:' X ':R.CK<EB.TT.83.M.UNIT><1,J>:' = ':Y.CUR * R.CK<EB.TT.83.M.UNIT><1,J>
+                    FOR JJ = 1 TO DCOUNT(R.CK<EB.TT.83.DENOM>,@VM)
+                        Y.CUR = R.CK<EB.TT.83.DENOM><1,JJ>[4,LEN(R.CK<EB.TT.83.DENOM><1,JJ>)-3]
+                        IF ((Y.SAMT.OPD EQ 'EQ' AND Y.SAMT EQ '') OR (Y.SAMT.OPD EQ 'EQ' AND Y.CUR EQ Y.SAMT) OR (Y.SAMT.OPD EQ 'RG' AND Y.CUR GE Y.SAMT1 AND Y.CUR LE Y.SAMT2)) AND R.CK<EB.TT.83.M.UNIT><1,JJ> GT 0 THEN
+                            Y.M.UNIT = Y.M.UNIT + Y.CUR * R.CK<EB.TT.83.M.UNIT><1,JJ>
+                            Y.TEMP = R.CK<EB.TT.83.DENOM><1,JJ>:' X ':R.CK<EB.TT.83.M.UNIT><1,JJ>:' = ':Y.CUR * R.CK<EB.TT.83.M.UNIT><1,JJ>
                             IF Y.M.DETAILS EQ '' THEN Y.M.DETAILS = Y.TEMP
                             ELSE
                                 IF Y.ENQ NE 'JBL.ENQ.TT.VAULT.CCY.BR' THEN Y.M.DETAILS = Y.M.DETAILS:', ':Y.TEMP
                                 ELSE Y.M.DETAILS = Y.M.DETAILS:@VM:Y.TEMP
                             END
                         END
-                    NEXT J
+                    NEXT JJ
                 END
                 IF Y.M.DETAILS NE '' THEN
                     IF Y.DETAILS EQ '' THEN Y.DETAILS = 'Mutilated Unit:':@VM:Y.M.DETAILS:@VM:'Total Amount: ':Y.M.UNIT
@@ -189,18 +189,18 @@ SUBROUTINE GB.JBL.E.NOF.TTV.CCY(Y.RETURN)
                 END
                 !----------------------START------------------------------------
                 IF COUNT(Y.CUR.TYPE,'N') EQ 1 THEN
-                    FOR J = 1 TO DCOUNT(R.CK<EB.TT.83.DENOM>,@VM)
-                        Y.CUR = R.CK<EB.TT.83.DENOM><1,J>[4,LEN(R.CK<EB.TT.83.DENOM><1,J>)-3]
-                        IF ((Y.SAMT.OPD EQ 'EQ' AND Y.SAMT EQ '') OR (Y.SAMT.OPD EQ 'EQ' AND Y.CUR EQ Y.SAMT) OR (Y.SAMT.OPD EQ 'RG' AND Y.CUR GE Y.SAMT1 AND Y.CUR LE Y.SAMT2)) AND R.CK<EB.TT.83.N.UNIT><1,J> GT 0 THEN
-                            Y.N.UNIT = Y.N.UNIT + Y.CUR * R.CK<EB.TT.83.N.UNIT><1,J>
-                            Y.TEMP = R.CK<EB.TT.83.DENOM><1,J>:' X ':R.CK<EB.TT.83.N.UNIT><1,J>:' = ':Y.CUR * R.CK<EB.TT.83.N.UNIT><1,J>
+                    FOR JJ = 1 TO DCOUNT(R.CK<EB.TT.83.DENOM>,@VM)
+                        Y.CUR = R.CK<EB.TT.83.DENOM><1,JJ>[4,LEN(R.CK<EB.TT.83.DENOM><1,JJ>)-3]
+                        IF ((Y.SAMT.OPD EQ 'EQ' AND Y.SAMT EQ '') OR (Y.SAMT.OPD EQ 'EQ' AND Y.CUR EQ Y.SAMT) OR (Y.SAMT.OPD EQ 'RG' AND Y.CUR GE Y.SAMT1 AND Y.CUR LE Y.SAMT2)) AND R.CK<EB.TT.83.N.UNIT><1,JJ> GT 0 THEN
+                            Y.N.UNIT = Y.N.UNIT + Y.CUR * R.CK<EB.TT.83.N.UNIT><1,JJ>
+                            Y.TEMP = R.CK<EB.TT.83.DENOM><1,JJ>:' X ':R.CK<EB.TT.83.N.UNIT><1,JJ>:' = ':Y.CUR * R.CK<EB.TT.83.N.UNIT><1,JJ>
                             IF Y.N.DETAILS EQ '' THEN Y.N.DETAILS = Y.TEMP
                             ELSE
                                 IF Y.ENQ NE 'JBL.ENQ.TT.VAULT.CCY.BR' THEN Y.N.DETAILS = Y.N.DETAILS:', ':Y.TEMP
                                 ELSE Y.N.DETAILS = Y.N.DETAILS:@VM:Y.TEMP
                             END
                         END
-                    NEXT J
+                    NEXT JJ
                 END
                 IF Y.N.DETAILS NE '' THEN
                     IF Y.DETAILS EQ '' THEN Y.DETAILS = 'Non Issue Unit:':@VM:Y.N.DETAILS:@VM:'Total Amount: ':Y.N.UNIT
@@ -209,18 +209,18 @@ SUBROUTINE GB.JBL.E.NOF.TTV.CCY(Y.RETURN)
                 !-----------------------------END----------------------------------------------
 
                 IF COUNT(Y.CUR.TYPE,'C') EQ 1 THEN
-                    FOR J = 1 TO DCOUNT(R.CK<EB.TT.83.DENOM>,@VM)
-                        Y.CUR = R.CK<EB.TT.83.DENOM><1,J>[4,LEN(R.CK<EB.TT.83.DENOM><1,J>)-3]
-                        IF ((Y.SAMT.OPD EQ 'EQ' AND Y.SAMT EQ '') OR (Y.SAMT.OPD EQ 'EQ' AND Y.CUR EQ Y.SAMT) OR (Y.SAMT.OPD EQ 'RG' AND Y.CUR GE Y.SAMT1 AND Y.CUR LE Y.SAMT2)) AND R.CK<EB.TT.83.COIN><1,J> GT 0 THEN
-                            Y.C.UNIT = Y.C.UNIT + Y.CUR * R.CK<EB.TT.83.COIN><1,J>
-                            Y.TEMP = R.CK<EB.TT.83.DENOM><1,J>:' X ':R.CK<EB.TT.83.COIN><1,J>:' = ':Y.CUR * R.CK<EB.TT.83.COIN><1,J>
+                    FOR JJ = 1 TO DCOUNT(R.CK<EB.TT.83.DENOM>,@VM)
+                        Y.CUR = R.CK<EB.TT.83.DENOM><1,JJ>[4,LEN(R.CK<EB.TT.83.DENOM><1,JJ>)-3]
+                        IF ((Y.SAMT.OPD EQ 'EQ' AND Y.SAMT EQ '') OR (Y.SAMT.OPD EQ 'EQ' AND Y.CUR EQ Y.SAMT) OR (Y.SAMT.OPD EQ 'RG' AND Y.CUR GE Y.SAMT1 AND Y.CUR LE Y.SAMT2)) AND R.CK<EB.TT.83.COIN><1,JJ> GT 0 THEN
+                            Y.C.UNIT = Y.C.UNIT + Y.CUR * R.CK<EB.TT.83.COIN><1,JJ>
+                            Y.TEMP = R.CK<EB.TT.83.DENOM><1,JJ>:' X ':R.CK<EB.TT.83.COIN><1,JJ>:' = ':Y.CUR * R.CK<EB.TT.83.COIN><1,JJ>
                             IF Y.C.DETAILS EQ '' THEN Y.C.DETAILS = Y.TEMP
                             ELSE
                                 IF Y.ENQ NE 'JBL.ENQ.TT.VAULT.CCY.BR' THEN Y.C.DETAILS = Y.C.DETAILS:', ':Y.TEMP
                                 ELSE Y.C.DETAILS = Y.C.DETAILS:@VM:Y.TEMP
                             END
                         END
-                    NEXT J
+                    NEXT JJ
                 END
                 IF COUNT(Y.C.UNIT,'.') EQ 1 AND LEN(FIELD(Y.C.UNIT,'.',2)) EQ 1 THEN Y.C.UNIT = Y.C.UNIT : '0'
                 IF Y.C.DETAILS NE '' THEN
@@ -248,41 +248,42 @@ SUBROUTINE GB.JBL.E.NOF.TTV.CCY(Y.RETURN)
                     Y.DT = Y.DT2:' ':Y.TIME
                     Y.STATUS = R.CK<EB.TT.83.RECORD.STATUS>
                     Y.CIH = ''
-                    IF SEL.LIST<I>[6,8] EQ Y.TODAY THEN
+                    IF SEL.LIST<II>[6,8] EQ Y.TODAY THEN
                         CALL NOFILE.DAYEND.CASH.MEMO.LOCAL(Y.CIH)
                         Y.CIH.CNT = DCOUNT(Y.CIH,@FM)
-                        FOR K = 1 TO Y.CIH.CNT
-                            IF FIELD(Y.CIH<K>,'*',1) EQ 'Closing Balance' THEN
-                                Y.CIH = FIELD(Y.CIH<K>,'*',2)
-                                K = Y.CIH.CNT
+                        FOR KK = 1 TO Y.CIH.CNT
+                            IF FIELD(Y.CIH<KK>,'*',1) EQ 'Closing Balance' THEN
+                                Y.CIH = FIELD(Y.CIH<KK>,'*',2)
+                                KK = Y.CIH.CNT
                             END
-                        NEXT K
+                        NEXT KK
                     END
                     ELSE
-                        SEL.CMD = 'SELECT ':FN.H:' BY-DSND @ID WITH COMPANY.ID EQ BD001':SEL.LIST<I>[1,4]:' AND REPORT.NAME EQ ':'CRF.JBGL':' AND BANK.DATE EQ ':SEL.LIST<I>[6,8]
-                        CALL EB.READLIST(SEL.CMD, SEL.H, F.H, NO.OF.H, H.CODE)
+                        SEL.CMD = 'SELECT ':FN.H:' BY-DSND @ID WITH COMPANY.ID EQ BD001':SEL.LIST<II>[1,4]:' AND REPORT.NAME EQ ':'CRF.JBGL':' AND BANK.DATE EQ ':SEL.LIST<II>[6,8]
+* CALL EB.READLIST(SEL.CMD, SEL.H, F.H, NO.OF.H, H.CODE)
+                        EB.DataAccess.Readlist(SEL.CMD, SEL.H, F.H, NO.OF.H, H.CODE)
                         Y.LOG.DIR = '&HOLD&'
                         OPEN Y.LOG.DIR TO F.LOG.DIR ELSE STOP
                         Y.FILE = SEL.H<1>
                         READ Y.LOG FROM F.LOG.DIR,Y.FILE THEN
                             Y.LN.CNT = DCOUNT(Y.LOG,@FM)
-                            FOR K = 1 TO Y.LN.CNT
-                                IF FIELD(Y.LOG<K>,'TOTAL CASH IN HAND',2) NE '' THEN
-                                    Y.CIH = FIELD(Y.LOG<K>,'TOTAL CASH IN HAND',2)
+                            FOR KK = 1 TO Y.LN.CNT
+                                IF FIELD(Y.LOG<KK>,'TOTAL CASH IN HAND',2) NE '' THEN
+                                    Y.CIH = FIELD(Y.LOG<KK>,'TOTAL CASH IN HAND',2)
                                     Y.CIH = EREPLACE (Y.CIH,',','')
-                                    K = Y.LN.CNT
+                                    KK = Y.LN.CNT
                                 END
-                            NEXT K
+                            NEXT KK
                         END
                     END
                 END
-                IF Y.DETAILS NE '' AND Y.ENQ EQ 'JBL.ENQ.TT.VAULT.CCY.BR' THEN Y.RETURN<-1> = SEL.LIST<I>[1,4]:'*':Y.DETAILS:'*':Y.T.AMT
-                IF Y.DETAILS NE '' AND Y.ENQ EQ 'JBL.ENQ.TT.VAULT.CCY' THEN Y.RETURN<-1> = SEL.LIST<I>[1,4]:'*':Y.DETAILS:'*':Y.T.AMT
-                IF Y.DETAILS NE '' AND Y.ENQ EQ 'JBL.ENQ.TT.VAULT.CCY.DT' THEN Y.RETURN<-1> = SEL.LIST<I>[6,8]:'*':Y.DETAILS:'*':Y.T.AMT
-                IF Y.DETAILS NE '' AND Y.ENQ EQ 'E.TT.VAULT.BR' THEN Y.RETURN<-1> = SEL.LIST<I>:'*':Y.DETAILS:'*':Y.T.AMT:'*':Y.CIH:'*':Y.INPUTTER:'*':Y.AUTHORISER:'*':Y.DT
-                IF Y.DETAILS NE '' AND Y.ENQ EQ 'JBL.ENQ.TT.VAULT.NAU' THEN Y.RETURN<-1> = SEL.LIST<I>:'*':Y.DETAILS:'*':Y.T.AMT:'*':Y.CIH:'*':Y.INPUTTER:'*':Y.STATUS:'*':Y.DT
+                IF Y.DETAILS NE '' AND Y.ENQ EQ 'JBL.ENQ.TT.VAULT.CCY.BR' THEN Y.RETURN<-1> = SEL.LIST<II>[1,4]:'*':Y.DETAILS:'*':Y.T.AMT
+                IF Y.DETAILS NE '' AND Y.ENQ EQ 'JBL.ENQ.TT.VAULT.CCY' THEN Y.RETURN<-1> = SEL.LIST<II>[1,4]:'*':Y.DETAILS:'*':Y.T.AMT
+                IF Y.DETAILS NE '' AND Y.ENQ EQ 'JBL.ENQ.TT.VAULT.CCY.DT' THEN Y.RETURN<-1> = SEL.LIST<II>[6,8]:'*':Y.DETAILS:'*':Y.T.AMT
+                IF Y.DETAILS NE '' AND Y.ENQ EQ 'E.TT.VAULT.BR' THEN Y.RETURN<-1> = SEL.LIST<II>:'*':Y.DETAILS:'*':Y.T.AMT:'*':Y.CIH:'*':Y.INPUTTER:'*':Y.AUTHORISER:'*':Y.DT
+                IF Y.DETAILS NE '' AND Y.ENQ EQ 'JBL.ENQ.TT.VAULT.NAU' THEN Y.RETURN<-1> = SEL.LIST<II>:'*':Y.DETAILS:'*':Y.T.AMT:'*':Y.CIH:'*':Y.INPUTTER:'*':Y.STATUS:'*':Y.DT
             END
         END
-    NEXT I
+    NEXT II
 RETURN
 END
