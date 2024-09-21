@@ -12,7 +12,7 @@ SUBROUTINE GB.JBL.CR.TTV.CKID
 * 18/09/2024 -                             NEW -  MD SHIBLI MOLLAH
 *                                                 NITSL Limited
 *
-*
+* SETTING MULTIVALUE from line Num 83
 *--------------------------------------------------------------------------------
 
     $INSERT I_COMMON
@@ -27,7 +27,7 @@ SUBROUTINE GB.JBL.CR.TTV.CKID
     $USING ST.Config
     $USING ST.CompanyCreation
     $USING TT.Config
-    
+
     Y.ID.NEW = EB.SystemTables.getIdNew()
     Y.ID.COMPANY = EB.SystemTables.getIdCompany()
     Y.TODAY = EB.SystemTables.getToday()
@@ -57,6 +57,7 @@ SUBROUTINE GB.JBL.CR.TTV.CKID
     F.CO = ''
     FN.D = 'F.TELLER.DENOMINATION'
     F.D = ''
+
     EB.DataAccess.Opf(FN.D,F.D)
     EB.DataAccess.Opf(FN.CO,F.CO)
     EB.DataAccess.Opf(FN.V,F.V)
@@ -79,24 +80,27 @@ SUBROUTINE GB.JBL.CR.TTV.CKID
             FOR II = 1 TO NO.OF.REC
 * R.NEW(TTV.DENOM)<1,II>= SEL.LIST<I>
                 Y.GET.TT.DENOM = EB.SystemTables.getRNew(EB.TT.83.DENOM)
-                Y.TT.DENOM = Y.GET.TT.DENOM<1,II>
-                EB.SystemTables.setRNew(Y.TT.DENOM, SEL.LIST<II>)
+                Y.SEL.LIST.1 = SEL.LIST<II>
+                Y.GET.TT.DENOM<1,II> = Y.SEL.LIST.1
+                EB.SystemTables.setRNew(EB.TT.83.DENOM, Y.GET.TT.DENOM)
+                
+                Y.M.DENOM = EB.SystemTables.getRNew(EB.TT.83.DENOM)
 * R.NEW(TTV.F.UNIT)<1,II> = 0
                 Y.GET.TT.F.UNIT = EB.SystemTables.getRNew(EB.TT.83.F.UNIT)
-                Y.TT.F.UNIT = Y.GET.TT.F.UNIT<1,II>
-                EB.SystemTables.setRNew(Y.TT.F.UNIT, 0)
+                Y.GET.TT.F.UNIT<1,II> = 0
+                EB.SystemTables.setRNew(EB.TT.83.F.UNIT, Y.GET.TT.F.UNIT)
 * R.NEW(TTV.M.UNIT)<1,II> = 0
                 Y.GET.TT.M.UNIT = EB.SystemTables.getRNew(EB.TT.83.M.UNIT)
-                Y.TT.M.UNIT = Y.GET.TT.M.UNIT<1,II>
-                EB.SystemTables.setRNew(Y.TT.M.UNIT, 0)
+                Y.GET.TT.M.UNIT<1,II> = 0
+                EB.SystemTables.setRNew(EB.TT.83.M.UNIT, Y.GET.TT.M.UNIT)
 * R.NEW(TTV.N.UNIT)<1,II> = 0
                 Y.GET.TT.N.UNIT = EB.SystemTables.getRNew(EB.TT.83.N.UNIT)
-                Y.TT.N.UNIT = Y.GET.TT.N.UNIT<1,II>
-                EB.SystemTables.setRNew(Y.TT.N.UNIT, 0)
+                Y.GET.TT.N.UNIT<1,II> = 0
+                EB.SystemTables.setRNew(EB.TT.83.N.UNIT, Y.GET.TT.N.UNIT)
 * R.NEW(TTV.COIN)<1,II> = 0
                 Y.GET.TT.COIN = EB.SystemTables.getRNew(EB.TT.83.COIN)
-                Y.TT.COIN = Y.GET.TT.COIN<1,II>
-                EB.SystemTables.setRNew(Y.TT.COIN, 0)
+                Y.GET.TT.COIN<1,II> = 0
+                EB.SystemTables.setRNew(EB.TT.83.COIN, Y.GET.TT.COIN)
             NEXT II
         
 *            R.NEW(TTV.TXN.DATE) = Y.ID.NEW[6,8]
