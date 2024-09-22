@@ -4,7 +4,7 @@ SUBROUTINE GB.JBL.CR.TTV.CKID
 *--------------------------------------------------------------------------------
 * Subroutine Description:
 *
-* Attach To: VERSION - EB.JBL.TT.VAULT,INPUT
+* Attach To: VERSION - EB.JBL.TT.VAULT,INPUTT
 * Attach As: Check Record ROUTINE
 *-----------------------------------------------------------------------------
 
@@ -33,7 +33,7 @@ SUBROUTINE GB.JBL.CR.TTV.CKID
     Y.TODAY = EB.SystemTables.getToday()
 
     IF Y.ID.NEW NE Y.ID.COMPANY[6,4]:'.':Y.TODAY THEN
-        RL.ID = 'F.EB.JBL.TT.VAULT$NAU':'.':Y.ID.NEW
+        RL.ID = 'FBNK.EB.JBL.TT.VAULT$NAU':'.':Y.ID.NEW
         FN.RL = 'F.RECORD.LOCK'
         F.RL = ''
         EB.DataAccess.Opf(FN.RL,F.RL)
