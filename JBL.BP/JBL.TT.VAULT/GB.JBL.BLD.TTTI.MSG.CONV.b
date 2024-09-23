@@ -4,8 +4,8 @@ SUBROUTINE GB.JBL.BLD.TTTI.MSG.CONV(Y.RETURN)
 *--------------------------------------------------------------------------------
 * Subroutine Description:
 *
-* Attach To: ENQUIRY - JBL.ENQ.TT.LIMIT.AUTH
-* Attach As: BUILD ROUTINE
+* Attach To: STANDARD.SELECTION - NOFILE.JBL.TTTI
+* Attach As: BUILD ROUTINE(ENQUIRY - JBL.ENQ.TT.LIMIT.AUTH)
 *-----------------------------------------------------------------------------
 
 * Modification History :  Retrofit from TTTI.MSG.CONV
