@@ -12,7 +12,7 @@ SUBROUTINE GB.JBL.BA.TTTI.CK
 * 22/09/2024 -                          NEW -  MD SHIBLI MOLLAH
 *                                                 NITSL Limited
 *
-*
+* Inputter or Authoriser Role Checking need Further CLARIFICATION
 *--------------------------------------------------------------------------------
 
     $INSERT I_COMMON
