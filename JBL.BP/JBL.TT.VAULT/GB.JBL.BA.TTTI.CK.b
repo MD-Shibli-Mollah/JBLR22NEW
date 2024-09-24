@@ -29,10 +29,8 @@ SUBROUTINE GB.JBL.BA.TTTI.CK
     $USING TT.Config
     $USING EB.ErrorProcessing
 
-    Y.ID.NEW = EB.SystemTables.getIdNew()
     Y.ID.COMPANY = EB.SystemTables.getIdCompany()
     Y.TODAY = EB.SystemTables.getToday()
-    Y.VFUNCTION = EB.SystemTables.getVFunction()
     Y.APPLICATION = EB.SystemTables.getApplication()
     Y.PGM.VERSION = EB.SystemTables.getPgmVersion()
     Y.OPERATOR = EB.SystemTables.getOperator()

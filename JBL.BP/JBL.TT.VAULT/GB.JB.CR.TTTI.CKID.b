@@ -181,7 +181,7 @@ SUBROUTINE GB.JB.CR.TTTI.CKID
                 RETURN
             END
         END
-        IF (Y.VER.ID EQ 'TT.TELLER.ID,INPUT') OR (Y.VER.ID EQ 'TT.TELLER.ID,VAULT') THEN
+        IF (Y.VER.ID EQ 'EB.JBL.TT.TELLER.ID,INPUT') OR (Y.VER.ID EQ 'EB.JBL.TT.TELLER.ID,VAULT') THEN
             Y.TI = Y.ID.NEW
             IF LEN(Y.ID.NEW) EQ 9 THEN
                 Y.TI = FIELD(Y.ID.NEW,'.',1)
@@ -191,7 +191,7 @@ SUBROUTINE GB.JB.CR.TTTI.CKID
                 Y.BRC = Y.ID.COMPANY[6,4]
                 GOSUB DEL.RL
             END
-            IF (LEN(Y.TI) NE 4) OR (LEN(Y.BRC) NE 4) OR (NUM(Y.TI) NE 1) OR (NUM(Y.BRC) NE 1) OR (LEN(Y.TI) LE 3) OR (Y.BRC NE Y.ID.COMPANY[6,4]) OR (Y.VER.ID EQ 'TT.TELLER.ID,INPUT' AND Y.TI EQ '9999') OR (Y.VER.ID EQ 'TT.TELLER.ID,VAULT' AND Y.TI NE '9999') THEN
+            IF (LEN(Y.TI) NE 4) OR (LEN(Y.BRC) NE 4) OR (NUM(Y.TI) NE 1) OR (NUM(Y.BRC) NE 1) OR (LEN(Y.TI) LE 3) OR (Y.BRC NE Y.ID.COMPANY[6,4]) OR (Y.VER.ID EQ 'EB.JBL.TT.TELLER.ID,INPUT' AND Y.TI EQ '9999') OR (Y.VER.ID EQ 'EB.JBL.TT.TELLER.ID,VAULT' AND Y.TI NE '9999') THEN
 *                E = 'Invalid ID Entered. Please enter Teller ID OR Use TellerID.BracnhCode.'
                 EB.SystemTables.setE('Invalid ID Entered. Please enter Teller ID OR Use TellerID.BracnhCode.')
 *                CALL STORE.END.ERROR
@@ -312,7 +312,7 @@ OLD_ENTRY:
         RETURN
 
 DEL.RL:
-        RL.ID = 'FBNK.TT.TELLER.ID$NAU':'.':Y.ID.NEW
+        RL.ID = 'FBNK.EB.JBL.TT.TELLER.ID$NAU':'.':Y.ID.NEW
         EB.DataAccess.FRead(FN.RL,RL.ID,R.RL,F.RL,ERR.RL)
         DELETE F.RL, RL.ID
         RETURN
