@@ -65,7 +65,7 @@ INITIALISATION:
     R.TELLER = ''
 * CALL OPF(FN.TELLER, F.TELLER)
     EB.DataAccess.Opf(FN.TELLER, F.TELLER)
-    Y.CREDIT="4":@FM:"5":@FM:"14":@FM:"32":@FM:"110":@FM:"112":@FM:"114":@FM:"16":@FM:"157":@FM:"155":@FM:"23"
+    Y.CREDIT = "4":@FM:"5":@FM:"14":@FM:"32":@FM:"110":@FM:"112":@FM:"114":@FM:"16":@FM:"157":@FM:"155":@FM:"23"
     !*****Modified by Fairooz****
     !   Y.DEBIT ="9":@FM:"10":@FM:"33":@FM:"109":@FM:"111 ":@FM:"113":@FM:"15":@FM:"151":@FM:"152"
     Y.DEBIT ="9":@FM:"10":@FM:"33":@FM:"109":@FM:"111 ":@FM:"113":@FM:"15":@FM:"151":@FM:"152":@FM:"153":@FM:"154":@FM:"156":@FM:"24":@FM:"160"

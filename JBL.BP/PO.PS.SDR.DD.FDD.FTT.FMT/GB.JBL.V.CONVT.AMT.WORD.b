@@ -9,7 +9,9 @@ SUBROUTINE GB.JBL.V.CONVT.AMT.WORD
 *--------------------------------------------------------------------------
     $INSERT I_COMMON
     $INSERT I_EQUATE
-*$INSERT I_F.FUNDS.TRANSFER
+    
+    $INSERT I_F.EB.JBL.CASH.FEEDING
+
     $USING FT.Contract
     $USING EB.SystemTables
     $USING EB.Reports
@@ -29,7 +31,12 @@ SUBROUTINE GB.JBL.V.CONVT.AMT.WORD
 *                                                 NITSL Limited
 * ADD Foreign Part
 *
+* ADD Cash Feeding Part for EB.JBL.CASH.FEEDING,INPUT
+* 07/10/2024 -                             UPDATE -  MD SHIBLI MOLLAH
+*                                                 NITSL Limited
 *-----------------------------------------------------------------------------
+
+*------ AppName EQ FT ----------------------------------------------*
     AppName = EB.SystemTables.getApplication()
     IF AppName EQ 'FUNDS.TRANSFER' THEN
         LNGVAR = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.DebitAmount)
@@ -40,7 +47,9 @@ SUBROUTINE GB.JBL.V.CONVT.AMT.WORD
             Y.CURRENCY = EB.SystemTables.getRNew(FT.Contract.FundsTransfer.CreditCurrency)
         END
     END
-    
+*------ AppName EQ FT ----------- END -----------------------------------*
+ 
+*------ AppName EQ TT ----------------------------------------------*
     IF AppName EQ 'TELLER' THEN
         LNGVAR = EB.SystemTables.getRNew(TT.Contract.Teller.TeNetAmount)
         Y.CURRENCY = EB.SystemTables.getRNew(TT.Contract.Teller.TeCurrencyOne)
@@ -58,6 +67,21 @@ SUBROUTINE GB.JBL.V.CONVT.AMT.WORD
             Y.CURRENCY = EB.SystemTables.getRNew(TT.Contract.Teller.TeCurrencyTwo)
         END
     END
+*------ AppName EQ TT -------------------- END --------------------------*
+
+*------ AppName EQ EB.JBL.CASH.FEEDING -----------------------------------------*
+    IF AppName EQ 'EB.JBL.CASH.FEEDING' THEN
+        LNGVAR = EB.SystemTables.getRNew(EB.JBL60.REQUEST.AMOUNT)
+        Y.CURRENCY = EB.SystemTables.getRNew(EB.JBL60.CURRENCY)
+        
+        IF LNGVAR EQ "" OR LNGVAR EQ 0 THEN
+            LNGVAR = EB.SystemTables.getRNew(EB.JBL60.APPROVED.AMOUNT)
+        END
+        IF LNGVAR EQ "" OR LNGVAR EQ 0 THEN
+            LNGVAR = EB.SystemTables.getRNew(EB.JBL60.RECEIVE.AMOUNT)
+        END
+    END
+*------ AppName EQ EB.JBL.CASH.FEEDING -------------------- END --------------------------*
     
     TXTOUT = ''
     TXTVAR1 = ''
@@ -165,6 +189,7 @@ SUBROUTINE GB.JBL.V.CONVT.AMT.WORD
         END CASE
         
         TXTOUT = TXTVAR1
+*----- FT
         IF AppName EQ 'FUNDS.TRANSFER' THEN
             APPLICATION.NAMES = 'FUNDS.TRANSFER'
             LOCAL.FIELDS = 'LT.AMT.WORD'
@@ -175,7 +200,7 @@ SUBROUTINE GB.JBL.V.CONVT.AMT.WORD
         
             EB.SystemTables.setRNew(FT.Contract.FundsTransfer.LocalRef,getLocalFieldData)
         END
-    
+*-------- TT
         IF AppName EQ 'TELLER' THEN
             APPLICATION.NAMES = 'TELLER'
             LOCAL.FIELDS = 'LT.AMT.WORD'
@@ -186,7 +211,23 @@ SUBROUTINE GB.JBL.V.CONVT.AMT.WORD
         
             EB.SystemTables.setRNew(TT.Contract.Teller.TeLocalRef,getLocalFieldData)
         END
-    
+*------- EB.JBL.CASH.FEEDING
+        IF AppName EQ 'EB.JBL.CASH.FEEDING' THEN
+            Y.REQUEST.AMOUNT = EB.SystemTables.getRNew(EB.JBL60.REQUEST.AMOUNT)
+            Y.APPROVED.AMOUNT = EB.SystemTables.getRNew(EB.JBL60.APPROVED.AMOUNT)
+            Y.RECEIVE.AMOUNT = EB.SystemTables.getRNew(EB.JBL60.RECEIVE.AMOUNT)
+        
+            IF Y.REQUEST.AMOUNT NE "" THEN
+                EB.SystemTables.setRNew(EB.JBL60.AMOUNT.IN.WORD1,TXTOUT)
+            END
+            IF Y.APPROVED.AMOUNT NE "" THEN
+                EB.SystemTables.setRNew(EB.JBL60.AMOUNT.IN.WORD2,TXTOUT)
+            END
+            IF Y.RECEIVE.AMOUNT NE "" THEN
+                EB.SystemTables.setRNew(EB.JBL60.AMOUNT.IN.WORD3,TXTOUT)
+            END
+        END
+        
     END
 RETURN
 
